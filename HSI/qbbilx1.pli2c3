@@ -1,0 +1,753 @@
+ QBBILX1 /*                                      07/07/89-09:11:20 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /*******************************************************************/
+ /*                                                                 */
+ /*  PROGRAM:  QBBILX1     VERSION NR:  01        DATE:  07/07/89   */
+ /*                                               TIME:  09:11:20   */
+ /*                                                                 */
+ /*  TITLE:  SERVICE CODE BILLING GUIDE LOGIC                       */
+ /*                                                                 */
+ /*  FUNCTION:  PERFORM SERVICE CODE BILLING LOGIC                  */
+ /*                                                                 */
+ /*                                                                 */
+ /*  LANGUAGE:  PL/I (2.1)                                          */
+ /*                                                                 */
+ /*  MODULE TYPE:  REALTIME (CICS)                                  */
+ /*                                                                 */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                         */
+ /*                                                                 */
+ /*                                                                 */
+ /*  INTERFACES:  NONE                                              */
+ /*                                                                 */
+ /*                                                                 */
+ /*  INPUTS:   COMMAREA - AEQCOMM/QBFLAGS  FROM QBBIL1  OR AEQRUL1  */
+ /*                                                                 */
+ /*                                                                 */
+ /*  OUTPUTS:  COMMAREA - AEQCOMM/QBFLAGS (UPDATED)                 */
+ /*                      (SETS 'BILL_DECISION' INDICATOR IN QBFLAGS)*/
+ /*                                                                 */
+ /*  REPORTS:  NONE                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                    PGMR:*/
+ /*  -------- -------- ------ --------------------------------- --- */
+ /*  09/27/89 SR9892   0NSA    INITIAL VERSION                  JWJ */
+ /*  11/13/89 I87316   0NSA    FIX DETERMINATION OF             JWJ */
+ /*                            WARRANTY STATUS                      */
+ /*  11/21/89 I88361   0NSA    MOVED CODE TO A DO/END BLOCK     LBS */
+ /*  12/11/89 I88737   0NSA    CHANGE SC33 LOGIC                JWJ */
+ /*  04/26/90 I97363   0NSA    CHANGE SC33 LOGIC (AGAIN)        JWJ */
+ /*  04/16/96 S9600242 6NSF    IDM=5 IS NO BILL                 LBS */
+ /*  09/18/96 S9600308 6NSJ    EXCLUDE SDT FROM UNDER_WARRANTY  YDS */
+ /*                            CHECK - PEW                          */
+ /*  05/27/97 S9600755 7NSI    SUPPORT NSS MRO PARALLES SYSPLEX LBS */
+ /*  10/27/97 I0513514 7NSP    FIX AEQERRP ABEND                DLP */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT         MKP */
+ /*  09/22/98 S98160   8NSM    BA 1 ON WARR OR M/A-BLOCK HSI    YDS */
+ /*                            REMOVE UNDER_WARRANTY PROC           */
+ /*  03/15/01 S01007   1NSA    USE FWARRNTY FLAG                LBS */
+ /*  10/29/02 GP021333 3NSE    Add logic to use the new 3 digit DLP */
+ /*                            field (CSPLCHG)in the standard rate  */
+ /*                            TABLE                                */
+ /*  09/05/2003        4NSC    Support for PCD Stewart products.REY */
+ /*                            FITS GP0619035151                    */
+ /*  11/18/2003        4NSC    Support for PCD Stewart products.REY */
+ /*                            FITS GP0619035151                    */
+ /* 11/04/2003 031502359 4NSC OUTSIDE HOURS/ON SITE CALCULATION	DLP */
+ /*                           combine QBBILX1 and QBBIXL2           */
+ /* 04/27/2004 4NSCCR012 4NSC for SC 01/08 and under maint and  LBS */
+ /*                           BA 1/4, billing = BILL and bill   LBS */
+ /*                           using the billing flags.  added       */
+ /*                           inv_stat = '2' billing                */
+ /* 05/11/2004 HSI4NSC045 4NSC if under warranty set to REVIEW  LBS */
+ /*                           on SC 01, 08 & 33                     */ 
+ /*                                                                 */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA     NAK */
+ /*******************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 01/27/2012');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBBILX1');
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:    */
+ /*                                                                 */
+ /*    YES    = 'Y'                                                 */
+ /*    NO     = 'N'                                                 */
+ /*    BILL   = 'B'                                                 */
+ /*    NOBILL = 'N'                                                 */
+ /*    REVIEW = 'R'                                                 */
+ /*    NOT_ELIGIBLE = 'X'                                           */
+ /*    BILL_ON_DECISION = 'D'                                       */
+ /*    HVLC     = 'H'                                               */
+ /*    NON_HVLC = 'N'                                               */
+ /*-----------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER          = 'FIXED BIN(31,0)';
+
+ %DCL SHORTINT CHAR;
+ %SHORTINT         = 'FIXED BIN(15,0)';
+
+ %DCL CLLDATE  CHAR;
+ %CLLDATE          = 'CHAR(3)';
+
+ %DCL YES      CHAR;
+ %YES              = '''Y''';
+
+ %DCL NO       CHAR;
+ %NO               = '''N''';
+
+ %DCL BILL     CHAR;
+ %BILL             = '''B''';
+
+ %DCL NOBILL   CHAR;
+ %NOBILL           = '''N''';
+
+ %DCL REVIEW   CHAR;
+ %REVIEW           = '''R''';
+
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE     = '''X''';
+
+ %DCL BILL_ON_DECISION CHAR;
+ %BILL_ON_DECISION = '''D''';
+
+ %DCL HVLC     CHAR;
+ %HVLC             = '''H''';
+
+ %DCL NON_HVLC CHAR;
+ %NON_HVLC         = '''N''';
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING          */
+ /* PREPROCESSOR STATEMENTS:                                        */
+ /*                                                                 */
+ /*    %DCL CMPTIME CHAR                                            */
+ /*    %DCL COMPILETIME BUILTIN                                     */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                           */
+ /*                                                                 */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN    */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                          */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  NULL         BUILTIN;        /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;        /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  SUBSTR       BUILTIN;
+
+ /*-----------------------------------------------------------------*/
+ /*  FILE DECLARES                                                  */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO        */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'  */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,   */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...              */
+ /*-----------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*-----------------------------------------------------------------*/
+ /* SET RUN-TIME OPTIONS                                            */
+ /*-----------------------------------------------------------------*/
+
+  DCL PLIXOPT      CHAR(250)
+ INIT('STACK(24K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')  STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*  POINTERS                                                       */
+ /*-----------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* COMMAREA POINTER             */
+                                    /* (PASSED FROM CALLING PROGRAM)*/
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA               */
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM ; ,
+    %INCLUDE QBFLAGS ; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED)*/
+ /*-----------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                        */
+ /*-----------------------------------------------------------------*/
+ DCL DECISION          CHAR(1)    INIT('');
+ DCL DIAG_TEXT         CHAR(80)   INIT('');
+ DCL ERR1              CHAR(9)    INIT('QSR9000: ');
+ DCL ERR2              CHAR(9)    INIT('QSR9002: ');
+ DCL INV_STAT          CHAR(1)    INIT('');
+ DCL PIC_DATE          PIC'(4)9'  INIT(0);
+ DCL PIC_TIME          PIC'(6)9'  INIT(0);
+
+ DCL 1 PIC_TIME_OVER   BASED(ADDR(PIC_TIME)),
+       3 PIC_HR        PIC'99',
+       3 PIC_MIN       PIC'99',
+       3 PIC_SEC       PIC'99';
+ DCL RESPONSE    FIXED BIN(31)    INIT(0);
+ DCL TEST_SW           BIT(1)     INIT('0'B);
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE  */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE */
+ /* IS INVOKED...                                                   */
+ /*-----------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85)   BASED(DFHEIPTR);
+
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+     ET_PROGRAM_ID = 'QBBILX1';
+     ET_EIB        = EIB_STRING;
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'N';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('BLX1')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /* MAIN PROCESSING                                                 */
+ /*******************************************************************/
+
+ /*-----------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)            */
+ /*-----------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA           */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM */
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBBILX1: CALLED SIGNAL BECAUSE OF OF RESPONSE'||
+                     ' NOT NORMAL';
+         CALL WTO;        /* ********** TEST ONLY ********** */
+        END;
+
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = YES | CWA_QSAR_TRACE = 'Q' |CWA_QSAR_TRACE = 'K'
+   THEN TEST_SW = '1'B;
+
+ ET_TEXT1 = '';
+
+ /*-----------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                    */
+ /*-----------------------------------------------------------------*/
+ IF EIBCALEN = 0                   /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                        /* TRANSFER CONTROL TO ERROR PGM */
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBBILX1: CALLED SIGNAL BECAUSE OF EIBCALEN ' ||
+                              EIBCALEN;
+         CALL WTO;        /* ********** TEST ONLY ********** */
+       END;
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ ET_TEXT1 = '';
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBILX1: ENTERED '||COMMAREA.S0IDOCMN||' '||
+                COMMAREA.S0CSVC;
+     CALL WTO;        /* ********** TEST ONLY ********** */
+   END;
+
+ %PAGE;
+ IF BILL_DECISION ^= NOT_ELIGIBLE /* ELIGIBLE FOR BILLING DECISION  */
+   THEN CALL NOBILL_RULES;        /* SO INVOKE "NO BILL" RULES      */
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* IF WE HAVE MPI MATCH THEN CHECK FOR WARRANTY STATUS (THE        */
+ /* CALCULATED WARRANTY VALUE FROM AEQPST2 OR AEQCNTR).             */
+ /* IF BOX IS UNDER WARRANTY WE SET THE INVENTORY STATUS TO AN      */
+ /* ARTIFICIAL VALUE ('W') TO INDICATE WARRANTY STATUS.             */
+ /* FITS GP0619035151 - Add COMMAREA.IOL to the check for warranty  */
+ /*      status.  An IOL value of 'Y' indicates a PCD Stewart       */
+ /*      product which is limited on-site warranty (warranty        */
+ /*      covers parts but not labor/travel).                        */
+ /*                                                                 */
+ /* IF NOT UNDER WARRANTY WE USE THE FIRST CHAR OF STATUS CODE AS   */
+ /* THE MACHINE STATUS, EXCEPT THAT STAT '32' (F&F) IS ASSIGNED     */
+ /* AN ARTIFICIAL VALUE ('F') TO INDICATE F&F STATUS.               */
+ /*                                                                 */
+ /* IF QSAR HAS NOT MADE AN INVENTORY (MPI) MATCH THEN SET          */
+ /* THE INVENTORY STATUS TO AN ARTIFICIAL VALUE ('?') TO INDICATE   */
+ /* THE LACK OF INVENTORY STATUS.                                   */
+ /*                                                                 */
+ /* ALTHOUGH SOME OF THE RULES DO NOT REQUIRE INVENTORY STATUS,     */
+ /* WHEN IT IS REQUIRED THE "DEFAULT" DECISION IS BILLABLE.         */
+ /* (This should apply only to HVLC products, as QSAR will normally */
+ /* require an inventory match for NON-HVLC products.)              */
+ /*-----------------------------------------------------------------*/
+
+ IF M_MPI = 'Y'                          /* INV MATCH - CHECK STATUS*/
+   THEN DO;
+     IF GJCSDT = '' & FWARRNTY            /* NO SDT AND UNDER WARR  */
+                    & COMMAREA.IOL ^= 'Y'        /* AND NOT STEWART */
+       THEN INV_STAT = 'W';
+       ELSE IF GJCSTAT = '32'
+              THEN INV_STAT = 'F';
+              ELSE INV_STAT = SUBSTR(GJCSTAT,1,1);
+   END;
+   ELSE IF FWARRNTY & COMMAREA.IOL ^= 'Y'
+          THEN INV_STAT = 'W';
+          ELSE INV_STAT = '?';
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBILX1: INVT STATUS= ' || INV_STAT ||' ON WARR '||
+                            FWARRNTY ||' IOL '|| COMMAREA.IOL;
+     CALL WTO;        /* ********** TEST ONLY ********** */
+   END;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* IF ACTIVITY IS ELIGIBLE AND NOT ALREADY A "NO BILL" DECISION,   */
+ /* GO THROUGH BILLING DECISION MATRIX RULES.                       */
+ /*-----------------------------------------------------------------*/
+
+ IF BILL_DECISION ^= NOT_ELIGIBLE &      /* IF ELIGIBLE AND ...     */
+    BILL_DECISION ^= NOBILL              /* NOT ALREADY A "NO BILL" */
+   THEN DO;                              /*                  I88361 */
+     CALL MATRIX_RULES;                  /* SETS 'DECISION'         */
+
+     /*-------------------------------------------------------------*/
+     /* SET 'BILL_DECISION' IN QBFLAGS OF COMMAREA FOR RETURN.      */
+     /* IF NEEDED, RESOLVE "BILLABLE ON DECISION" BASED ON B/A CODE */
+     /*-------------------------------------------------------------*/
+     IF DECISION = BILL_ON_DECISION
+       THEN DO;
+
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT= 'QBBILX1: PERFORM SELECT S0CBIOSA '||S0CBIOSA;
+             CALL WTO;
+           END;
+
+         SELECT(S0CBIOSA);
+              WHEN(' ')  CALL ASSIGN_BILL_DECISION(REVIEW,'45');
+              WHEN('1')  Call ASSIGN_BILL_DECISION(REVIEW,'46');
+              WHEN('3')  CALL ASSIGN_BILL_DECISION(BILL,  '47');
+              WHEN('4')  CALL ASSIGN_BILL_DECISION(NOBILL,'48');
+              OTHERWISE  CALL ASSIGN_BILL_DECISION(REVIEW,'49');
+                                              /* BO DON'T KNOW B/A*/
+         END;
+
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBILX1: AFTER SELECT S0CBIOSA DECISION '||
+                          BILL_DECISION;
+             CALL WTO;
+           END;
+
+       END;
+       ELSE CALL ASSIGN_BILL_DECISION(DECISION,'50');
+
+   END;
+
+ IF TEST_SW                      /* ********** TEST ONLY ********** */
+   THEN DO;
+     DIAG_TEXT = 'QBBILX1: EXIT QBBILX1';
+     CALL WTO;
+   END;
+
+ EXEC CICS RETURN;
+
+ %PAGE;
+ ASSIGN_BILL_DECISION: PROC(TEMP_BILL_DECISION,TEMP_LOCATION) REORDER;
+ /*******************************************************************/
+ /* Assign the information needed for records that are sent to RES. */
+ /*******************************************************************/
+ DCL TEMP_LOCATION      CHAR (2);
+ DCL TEMP_BILL_DECISION CHAR (1);
+   BILL_DECISION = TEMP_BILL_DECISION;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBILX1: '          || TEMP_LOCATION ||
+                   ' - BILL_DECISION - '|| BILL_DECISION;
+       CALL WTO; /* ******* TEST ONLY ****** */
+     END;
+
+ END ASSIGN_BILL_DECISION;
+
+ %PAGE;
+ ASSIGN_DECISION: PROC(TEMP_BILL_DECISION,TEMP_LOCATION) REORDER;
+ /*******************************************************************/
+ /* Assign the information needed for records that are sent to RES. */
+ /*******************************************************************/
+ DCL TEMP_LOCATION      CHAR (2);
+ DCL TEMP_BILL_DECISION CHAR (1);
+   DECISION = TEMP_BILL_DECISION;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBILX1: '          || TEMP_LOCATION ||
+                   ' - BILL_DECISION - '|| DECISION;
+       CALL WTO; /* ******* TEST ONLY ****** */
+     END;
+
+ END ASSIGN_DECISION;
+
+ %PAGE;
+ MATRIX_RULES:  PROC;
+ /*******************************************************************/
+ /* IMPLEMENT SERVICE CODE BILLING GUIDE MATRIX.                    */
+ /*                                                                 */
+ /* SETS INTERNAL 'DECISION' INDICATOR.                             */
+ /*                                                                 */
+ /* NOTE:  WHEN THE VALUE OF ANY SELECTION VARIABLE (SC, B/A, IDM,  */
+ /*        INVENTORY STATUS) IS NOT EXPECTED, THE 'OTHERWISE' CASE  */
+ /*        WILL DEFAULT TO SET THE BILLING DECISION TO 'REVIEW'.    */
+ /*******************************************************************/
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBILX1: IN MATRIX RULES DECISION'||DECISION;
+     CALL WTO;        /* ********** TEST ONLY ********** */
+   END;
+
+ SCSELECT:                                /* SELECT ON SERVICE CODE */
+ SELECT(S0CSVC);
+
+   WHEN('01')                                    /* SERVICE CODE 01 */
+     SELECT (S0CHACT);
+       WHEN('  ')
+         SELECT(INV_STAT);
+           WHEN('3','?')  CALL ASSIGN_DECISION(BILL,'01');
+           WHEN('W')      CALL ASSIGN_DECISION(REVIEW,'??');
+           WHEN('2')      CALL ASSIGN_DECISION(BILL,'02');
+           OTHERWISE      CALL ASSIGN_DECISION(NOBILL,'03');
+         END;
+       /* --------------------------------------------------------- */
+       /*                                                    4nsc   */  
+       /* note: never get here because it is  set to nobill in bil1 */
+       /* --------------------------------------------------------- */
+       /* WHEN('10') CALL ASSIGN_DECISION(NOBILL,'03')       I87316 */
+       /* WHEN('11') CALL ASSIGN_DECISION(NOBILL,'04')              */
+       /* --------------------------------------------------------- */
+       
+       OTHERWISE  CALL ASSIGN_DECISION(REVIEW,'05');/*DON'T KNOW B/A*/
+     END; /* end of select  */
+
+   WHEN('08')                                    /* SERVICE CODE 08 */
+     SELECT(INV_STAT);
+       WHEN('3','?')  CALL ASSIGN_DECISION(BILL,'06');
+       WHEN('W')      CALL ASSIGN_DECISION(REVIEW,'??');
+       WHEN('2')      CALL ASSIGN_DECISION(BILL,'07');       
+       OTHERWISE      CALL ASSIGN_DECISION(NOBILL,'08');
+       END;
+
+   WHEN('20')                                    /* SERVICE CODE 20 */
+     SELECT(S0CIDM);
+
+        WHEN('1')  CALL ASSIGN_DECISION(BILL_ON_DECISION,'09');
+
+        WHEN('2')  CALL ASSIGN_DECISION(NOBILL,'10');
+
+        WHEN('3')                                          /* 3NSE  */ 
+            IF (S0CBIOSA = '3' )
+              THEN CALL ASSIGN_DECISION(REVIEW,'11');
+              ELSE CALL ASSIGN_DECISION(BILL,'12');
+       WHEN('4')                                           /* 3NSE  */
+            IF (S0CBIOSA = '3' )
+              THEN CALL ASSIGN_DECISION(REVIEW,'13');
+              ELSE CALL ASSIGN_DECISION(BILL,'14');
+       WHEN('5')                                           /* 3NSE  */
+            IF (S0CBIOSA = '3' & GJFDSI)
+              THEN CALL ASSIGN_DECISION(REVIEW,'15');
+              ELSE CALL ASSIGN_DECISION(NOBILL,'16');
+       OTHERWISE
+            CALL ASSIGN_DECISION(REVIEW,'17');   /* DON'T KNOW IDM  */
+     END;
+
+ %PAGE;
+   WHEN('33')                                    /* SERVICE CODE 33 */
+     SELECT(S0CBIOSA);
+       WHEN('1','3')
+         SELECT(INV_STAT);
+           WHEN('3','?')  CALL ASSIGN_DECISION(BILL,'18');
+           WHEN('W')      CALL ASSIGN_DECISION(REVIEW,'??');
+           OTHERWISE      CALL ASSIGN_DECISION(NOBILL,'19');
+           END;
+       OTHERWISE          CALL ASSIGN_DECISION(NOBILL,'20');
+     END;                                        /* END OF SELECT   */
+
+ %PAGE;
+   WHEN('36')                                   /*  SERVICE CODE 36 */
+     SELECT (S0CHACT);
+       WHEN('20')
+         DO;
+           IF S0CBIOSA = '4'   THEN                    /*    3NSE  */
+             CALL ASSIGN_DECISION(REVIEW,'21');
+           ELSE
+               IF S0CBIOSA = '' & GJFDSI    THEN
+                  CALL ASSIGN_DECISION(REVIEW,'46');
+               ELSE
+                  SELECT(INV_STAT);
+                    WHEN('1')
+                       CALL ASSIGN_DECISION(BILL_ON_DECISION,'22');
+                    WHEN('?')
+                       CALL ASSIGN_DECISION(BILL,'23');
+                    OTHERWISE CALL ASSIGN_DECISION(BILL,'24');
+                  END;                /*       END OF SELECT */
+         END;
+
+       WHEN('22')
+           IF S0CBIOSA = '4' & GJFDSI                 /*     3NSE  */
+             THEN CALL ASSIGN_DECISION(REVIEW,'25');
+             ELSE CALL ASSIGN_DECISION(BILL_ON_DECISION,'26');
+
+       WHEN('24')
+           IF S0CBIOSA = '4' & GJFDSI                 /*    3NSE  */
+             THEN CALL ASSIGN_DECISION(REVIEW,'27');
+             ELSE
+               SELECT(INV_STAT);
+                 WHEN('3','?')  CALL ASSIGN_DECISION(BILL,'28');
+                 WHEN('W')      CALL ASSIGN_DECISION(
+                                                BILL_ON_DECISION,'??');
+                 OTHERWISE      CALL ASSIGN_DECISION(NOBILL,'29');
+               END;                         /*       END OF SELECT */
+
+       WHEN('25')
+         SELECT(INV_STAT);
+           WHEN('3','?')  CALL ASSIGN_DECISION(BILL,'30');
+           WHEN('W')      CALL ASSIGN_DECISION(BILL_ON_DECISION,'??');
+           OTHERWISE   CALL ASSIGN_DECISION(BILL_ON_DECISION,'31');
+         END;
+
+       WHEN('62')
+         CALL ASSIGN_DECISION(BILL,'31');
+
+       WHEN('67')
+         DO;
+           IF S0CBIOSA = '' & FONMA                    /*    3NSE */
+             THEN CALL ASSIGN_DECISION(REVIEW,'33');
+             ELSE IF S0CBIOSA = '' & FWARRNTY  THEN
+                    CALL ASSIGN_DECISION(REVIEW,'34');
+                  ELSE
+                    SELECT(INV_STAT);
+                     WHEN('3','?') CALL ASSIGN_DECISION(BILL,'35');
+                     WHEN('W')   CALL ASSIGN_DECISION
+                                           (BILL_ON_DECISION,'36');
+                     OTHERWISE   CALL ASSIGN_DECISION(NOBILL,'37');
+                    END;                            /* END SELECT */
+         END;
+         
+       WHEN('68')
+       
+         SELECT(INV_STAT);
+           WHEN('1')  CALL ASSIGN_DECISION(NOBILL,'38');
+           WHEN('2')  CALL ASSIGN_DECISION(BILL,'39');
+           WHEN('3')  CALL ASSIGN_DECISION(BILL,'40');
+           WHEN('W')  CALL ASSIGN_DECISION(BILL_ON_DECISION,'41');
+           WHEN('?')  CALL ASSIGN_DECISION(BILL,'42');
+           OTHERWISE  CALL ASSIGN_DECISION(REVIEW,'43');
+                                            /*     DON'T KNOW INV */
+         END;                                /* end of select      */
+       OTHERWISE      CALL ASSIGN_DECISION(REVIEW,'44');
+                                            /* DON'T KNOW SC      */
+     END;
+
+  /* -------------------------------------------------------------- */
+  /* SC 44, 47, 48 no longer gets passed to this program      4NSC  */
+  /* -------------------------------------------------------------- */
+  /*  WHEN('44','47','48')                 SERVICE CODES 44, 47, 48 */
+  /*   CALL ASSIGN_DECISION(NOBILL,'43')                            */
+  /* -------------------------------------------------------------- */
+
+  /* -------------------------------------------------------------- */
+  /* SC 55, 65 no longer gets passed to this program          4NSC  */
+  /* -------------------------------------------------------------- */
+  /*  WHEN('55','65')                      SERVICE CODES 55, 65     */
+  /*       CALL ASSIGN_DECISION(NOBILL,'44')                        */
+  /* -------------------------------------------------------------- */
+
+   OTHERWISE;
+
+ END SCSELECT;
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBILX1: EXIT MATRIX RULES DECISION '||DECISION;
+     CALL WTO;
+   END;
+
+ END MATRIX_RULES;
+
+ %PAGE;
+ NOBILL_RULES:  PROC;
+ /*******************************************************************/
+ /* "NO BILL" RULES                                                 */
+ /*******************************************************************/
+
+ /*-----------------------------------------------------------------*/
+ /* RULE:  COMPLETION CODE '3' (DIAGNOSTIC ASSIST) ON ANY           */
+ /*        SERVICE CODE, ONLY FOR SUPPORTED MACHINES (I.E., WHERE   */
+ /*        MTM DOES NOT INDICATE "WITHDRAWN FROM MAINTENANCE.")     */
+ /*-----------------------------------------------------------------*/
+
+   IF (S0CCIA = '3') & (^CGFWDMAT)
+     THEN /* BILL_DECISION = NOBILL */
+          CALL ASSIGN_DECISION(NOBILL,'51');
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBILX1: 1 COMP CODE/MTM WD MAINT'||
+                                       COMMAREA.S0CCIA||' '||
+                                       COMMAREA.CGFWDMAT ||
+                        ' - BILL_DECISION = '||BILL_DECISION ;
+       CALL WTO;        /* ********** TEST ONLY ********** */
+      END;
+      
+    IF (CPRODDIV = '44') & (IPLATFRM^='TS')                       
+     THEN /* BILL_DECISION = NOBILL */                           
+          CALL ASSIGN_DECISION(NOBILL,'50');                     
+                                                                 
+   IF TEST_SW                                                    
+     THEN DO;                                                    
+       DIAG_TEXT = 'QBBILX1: NOT LENOVO WITH PROD DIV44/PLATFORM 
+                             CODE TS'|| COMMAREA.CPRODDIV||' '|| 
+                                       COMMAREA.IPLATFRM ||      
+                        ' - BILL_DECISION = '||BILL_DECISION ;   
+       CALL WTO;        /* ********** TEST ONLY ********** */    
+      END;                                                       
+                                                                      
+
+ /*-----------------------------------------------------------------*/
+ /* COMMENTED OUT IN 4NSC                                           */
+ /*-----------------------------------------------------------------*/
+ /* RULE:  IBM INTERNAL ACCOUNT CUSTOMERS, IDENTIFIED BY            */
+ /*        "INTERNAL IBM CUSTOMER" FLAG FROM CMR.                   */
+ /*-----------------------------------------------------------------*/
+ /*  IF CGFIIC                                                      */
+ /*    THEN  DO                                                     */
+ /*      CALL ASSIGN_DECISION(NOBILL,'52')                          */
+ /*      IF TEST_SW                                                 */
+ /*        THEN DO                                                  */
+ /*          DIAG_TEXT = 'QBBILX1: 2 INTERNAL MACHINE, '||          */
+ /*           '- BILL DECISION = '||BILL_DECISION                   */
+ /*                                                                 */
+ /*          CALL WTO          ********** TEST ONLY **********      */
+ /*        END                                                      */
+ /*    END                                                          */
+ /*-----------------------------------------------------------------*/
+
+ /*-----------------------------------------------------------------*/
+ /* RULE:  40% MACHINE.  IDENTIFIED BY MPI "INVENTORY TYPE" FLAG.   */
+ /*                                                                 */
+ /* NOTE:  30% MACHINES DO NOT GENERATE CE BILLING (AN HSI), BUT    */
+ /*        SHOULD BE PASSED TO REVENUE EXCEPTIONS.  WE CHECK FOR    */
+ /*        THIS CONDITION AND MARK FOR REVIEW IN QBBIL1.            */
+ /*-----------------------------------------------------------------*/
+
+ /* --------------------------------------------------------------- */
+ /* REMOVE GP021333 - 3NSE                                          */
+ /*   IF GJF40PCT                                                   */
+ /*     THEN CALL ASSIGN_DECISION(NOBILL,'53')                      */
+ /*                                                                 */
+ /*  IF TEST_SW                                                     */
+ /*    THEN DO                                                      */
+ /*      DIAG_TEXT = 'QBBILX1: 3 40% ? ('||  COMMAREA.GJF40PCT||')' */
+ /*      CALL WTO                                                   */
+ /*     END                                                         */
+ /* --------------------------------------------------------------- */
+
+ /*-----------------------------------------------------------------*/
+ /* RULE:  RSO MACHINES OR EMPLOYEES.  IDENTIFIED BY "SERVICE       */
+ /*        BUSINESS AREA" FIELD VALUE OF '0' ON MTM OR EDF.         */
+ /*-----------------------------------------------------------------*/
+
+ /* --------------------------------------------------------------- */
+ /* REMOVE GP021333 - 3NSE                                          */
+ /* IF (CGCTCP = '0') | (CICCEACP = '0')                            */
+ /*   THEN CALL ASSIGN_DECISION(NOBILL,'54')                        */
+ /*                                                                 */
+ /*   IF TEST_SW                                                    */
+ /*   THEN DO                                                       */
+ /*   DIAG_TEXT='QBBILX1: 4 CGCTCP/CICCEAP '||COMMAREA.CGCTCP||'/'||*/
+ /*                                           COMMAREA.CICCEACP ||  */
+ /*               ' BILL_DECISION = '||BILL_DECISION                */
+ /*     CALL WTO                                                    */
+ /*    END                                                          */
+ /* --------------------------------------------------------------- */
+
+ END NOBILL_RULES;
+
+ %PAGE;
+ WTO: PROC;
+ /*******************************************************************/
+ /* WRITE TO OPERATOR USING 'RAMCWTO' - ** FOR TEST ONLY **         */
+ /*******************************************************************/
+  /*EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)    */
+  EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WTO;
+
+ END QBBILX1;
+

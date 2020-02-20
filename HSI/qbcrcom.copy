@@ -1,0 +1,32 @@
+ /********************************************************************/
+ /* NAME:   QBCRCOM                               DATE:  08/10/2010  */
+ /*                                                                  */
+ /* TITLE:  MQ RETURN TO CROSS/LAR MESSAGE FORMAT                    */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* CURRENT LENGTH: 356                                              */
+ /*                                                                  */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  COPY FOR PUT QUEUE HSI/HSD MESSAGE                 */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*06/15/2010 IT4211  0NSE  INITIAL VERSION              RAJASREE    */
+ /********************************************************************/
+                                /*                                   */
+ 3 CMSGTYPE           PIC'99',  /* Cross message type        001- 002*/
+ 3 PTID1              CHAR(6),  /* PT User id                003- 008*/
+ 3 QSARBO             CHAR(3),  /* QSAR Branch Offic         009- 011*/
+ 3 QSARTERR           CHAR(3),  /* QSAR Territory            012- 014*/
+ 3 SENDER             CHAR(2),  /* QSAR Territory            015- 016*/
+ 3 ALLTEXT            CHAR(340) /* MSGS TO BE SENT TO  T     017- 356*/
+                                /*                                   */
+ /* -----------------------------------------------------------------*/
+ /*                      END  QBCRCOM                                */
+ /*------------------------------------------------------------------*/

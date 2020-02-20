@@ -1,0 +1,12 @@
+$^ LE/OS390 profile order for ASM parts 04/03/2000                            
+$^                                                                              
+&  SET  U,SOTYPE=HLASM=G,                                                        
+&       LIBSET=MSETA02=G,                                                         
+&       APM1='XREF(SHORT),LINECOUNT(55)'=G,                                       
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,                                       
+&       PTP1=MOD=G,                                                             
+&       DSC1=OBJ=G,                                                             
+&       DLB1=AMORMODS=G,                                                        
+&       SLB1=*NONE*=G,                                                          
+&       DPN1=LKED=G,                                                            
+&       LEC1='RENT,XREF,LIST,AMODE(31),RMODE(ANY)'=G

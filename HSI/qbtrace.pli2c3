@@ -1,0 +1,205 @@
+ QBTRACE:  PROC OPTIONS(MAIN, REENTRANT);
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*  PROGRAM:  QBTRACE                            DATE:  11/07/2011 */
+ /*                                                                 */
+ /*  TITLE:    TO TURN THE TRACE FLAG ON/OFF                        */
+ /*                                                                 */
+ /*  FUNCTION:  THIS MODULE UPDATES THE TRACE FLAG VALUE IN CWA     */
+ /*                                                                 */
+ /*  TRANSACTION : QBTF                                             */
+ /*                                                                 */
+ /*  LANGUAGE:  PL/I                                                */
+ /*                                                                 */
+ /*  MODULE TYPE:  REALTIME (CICS)                                  */
+ /*                                                                 */
+ /*  DATE:    REASON:    DRIVER:  DESCRIPTION:                PGMR: */
+ /*---------- ---------- ------ ------------------------------ ---- */
+ /*11/07/2011 RCQ1882           NEW MODULE CREATED FOR      NAVEEN  */
+ /*                             NSS SUNSETTING SINCE NO             */
+ /*                             MAINT TRAN AVAILABLE IN             */
+ /*                             NEW CICS                            */
+ /*-----------------------------------------------------------------*/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 11/07/2011');
+ DCL MODULE            CHAR( 7) STATIC INIT('QBTRACE');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE CHAR(18) INIT (CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ /* --------------------------------------------------------------- */
+ /*      BUILTIN ROUTINES                                           */
+ /* --------------------------------------------------------------- */
+  DCL (ADDR,
+       TRANSLATE,
+       LENGTH,
+       SUBSTR,
+       NULL,
+       VERIFY) BUILTIN;
+
+
+  DCL SYSPRINT FILE STREAM PRINT;
+
+  DCL PLIXOPT      CHAR(250)
+  INIT('STACK(40K,2K,ANY,FREE,2K,2K),HEAP(20K,2K,ANYWHERE,KEEP,2K,2K),
+  MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+  ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+  TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+
+ %PAGE;
+ /*******************************************************************/
+ /*   DECLARES                                                      */
+ /*******************************************************************/
+ DCL TEXT            CHAR(80)           INIT('');
+ DCL DIAG_TEXT       CHAR(80)           INIT('');
+ DCL TRACE_FLAG      CHAR(1)            INIT('');
+ DCL TEMP_FLAG       CHAR(1)            INIT('');
+ DCL RESPONSE        FIXED BIN (31)     INIT(0);
+ DCL RESPONSE2       FIXED BIN (31)     INIT(0);
+ DCL LEN_TEXT        FIXED BIN(15)      INIT(80) STATIC;
+ DCL FLAG_LOC        FIXED BIN(31) INIT (0);
+ DCL @CWA            PTR INIT(NULL);         /* POINTER TO CWA      */
+ DCL ALPHA           STATIC CHAR (26)
+                     INIT ('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+ DCL PIC_TIME        PIC '(6)9'   INIT(0);
+ DCL PIC_DATE        PIC'(8)9'  INIT(0);
+ DCL PIC3            PIC '(3)9'   INIT(0);
+ DCL PIC7            PIC '(7)9'   INIT(0);
+ DCL 1 PIC_TIME_OVRLY    BASED (ADDR(PIC_TIME)),
+        3 PIC_HR     PIC '99',
+        3 PIC_MIN    PIC '99',
+        3 PIC_SEC    PIC '99';
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE HSI CICS REGION                      */
+ /*-----------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+      %INCLUDE CWA;;
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+   ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+    PIC_DATE= EIBDATE;
+    PIC_TIME = EIBTIME;
+    DIAG_TEXT= 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT= 'QBTRACE: FAILED DURING TRACE FLAG UPDATE';
+    CALL WRITE_TO_OPER;
+    EXEC CICS RETURN;
+  END;
+ /*******************************************************************/
+ /*         START MAIN PROCESSING                                   */
+ /*******************************************************************/
+    DIAG_TEXT= 'QBTRACE: QBTF STARTED FOR UPDATING TRACE FLAG';
+    CALL WRITE_TO_OPER;
+
+  EXEC CICS ADDRESS                            /* GET ADDR OF CWA */
+         CWA(@CWA)  RESP (RESPONSE);
+
+  IF RESPONSE ^= DFHRESP(NORMAL)
+    THEN DO;
+      PIC3 = RESPONSE;
+      DIAG_TEXT='QBTRACE: FAILURE TO GET ADDRESS OF CWA';
+      CALL WRITE_TO_OPER;
+      DIAG_TEXT=' RESP= '||PIC3;
+      CALL WRITE_TO_OPER;
+      SIGNAL ERROR;
+    END;
+
+    DIAG_TEXT= 'QBTRACE: OLD TRACE FLAG VALUE: ' || CWA_QSAR_TRACE;
+    CALL WRITE_TO_OPER;
+
+
+ EXEC CICS RECEIVE INTO (TEXT)  /* RECEIVE TEXT */
+           LENGTH(LEN_TEXT)     /* FROM SCREEN */
+           RESP (RESPONSE)
+           RESP2(RESPONSE2);
+
+  IF RESPONSE ^= DFHRESP(NORMAL) & RESPONSE ^= DFHRESP(EOC)
+    THEN DO;
+      PIC3 = RESPONSE;
+      PIC7 = RESPONSE2;
+      DIAG_TEXT='QBTRACE: FAILURE TO RECEIVE TEXT FROM SCREEN';
+      CALL WRITE_TO_OPER;
+      DIAG_TEXT=' RESP= '||PIC3 ||' RESP2= '||PIC7;
+      CALL WRITE_TO_OPER;
+      SIGNAL ERROR;
+    END;
+
+ FLAG_LOC = VERIFY(TEXT,' ',5);/* CHARS 1-4 ARE THE TRAN ID ENTERED */
+
+ IF FLAG_LOC = 0 THEN
+    DO;
+     DIAG_TEXT = 'QBTRACE: COMMAND FORMAT : QBTF <flag value>';
+     CALL WRITE_TO_OPER;
+    END;
+ ELSE
+  DO;
+     TEMP_FLAG = SUBSTR(TEXT, FLAG_LOC, 1);
+     TRACE_FLAG= TRANSLATE(TEMP_FLAG,'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                         'abcdefghijklmnopqrstuvwxyz');
+    IF VERIFY (TRACE_FLAG, ALPHA) = 0 THEN
+    DO;
+    CWA_QSAR_TRACE = TRACE_FLAG;
+    DIAG_TEXT= 'QBTRACE: UPDATED TRACE FLAG VALUE: '|| CWA_QSAR_TRACE;
+    CALL WRITE_TO_OPER;
+     END;
+    ELSE
+     DO;
+      DIAG_TEXT='QBTRACE: INVALID TRACE FLAG PASSED:' || TRACE_FLAG;
+      CALL WRITE_TO_OPER;
+      DIAG_TEXT='QBTRACE: TRACE FLAG  MUST BE AN ALPHABET';
+      CALL WRITE_TO_OPER;
+      SIGNAL ERROR;
+     END;
+   END;
+
+    IF CWA_QSAR_TRACE =  'N' THEN
+     DO;
+      DIAG_TEXT = 'QBTRACE: TRACE FLAG IS OFF ****';
+      CALL WRITE_TO_OPER;
+     END;
+
+ /****************************************************************/
+ /* WRITE TO OPERATOR                                            */
+ /****************************************************************/
+ WRITE_TO_OPER: PROC;
+
+     EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ EXEC CICS RETURN;
+
+ END QBTRACE;
+

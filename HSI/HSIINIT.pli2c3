@@ -1,0 +1,370 @@
+ HSIINIT:  PROC OPTIONS(MAIN);
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*  PROGRAM:  HSIINIT                            DATE:  11/08/2011 */
+ /*                                                                 */
+ /*  TITLE:    HSI APPLICATION CICS INITIALIZATION                  */
+ /*                                                                 */
+ /*  FUNCTION: HSIINIT IS LINKED FROM CICS DURING STARTUP SINCE AN  */
+ /*            ENTRY FOR IT MUST EXIST IN THE STARTUP PLT. IT IS    */
+ /*            PRIMARILY USED TO READ THE SYSIPT CONTROL FILE AND   */
+ /*            SET PERTINENT CWA FIELDS. ALSO IT STARTS MIRRORING   */
+ /*            TRANSACTIONS.                                        */
+ /*                                                                 */
+ /*  INPUTS   : SYSIPT FILE                                         */
+ /*                                                                 */
+ /*  LANGUAGE:  PL/I                                                */
+ /*                                                                 */
+ /*  MODULE TYPE:  REALTIME (CICS)                                  */
+ /*                                                                 */
+ /*  DATE:    REASON:    DRIVER:  DESCRIPTION:                PGMR: */
+ /*---------- ---------- ------ ------------------------------ ---- */
+ /*12/22/2011 RCQ1882           NEW MODULE CREATED FOR      NAVEEN  */
+ /*                             INITIALIZING CWA FOR                */
+ /*                             HSI                                 */
+ /*-----------------------------------------------------------------*/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 12/22/2011');
+ DCL MODULE            CHAR( 7) STATIC INIT('HSIINIT');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE CHAR(18) INIT (CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ 
+ DCL SYSIPT   FILE INPUT RECORD ENV (FB RECSIZE(80));
+
+ /* --------------------------------------------------------------- */
+ /*      BUILTIN ROUTINES                                           */
+ /* --------------------------------------------------------------- */
+  DCL (INDEX,
+       ADDR,
+       LENGTH,
+       SUBSTR,
+       NULL,
+       CSTG,
+       VERIFY) BUILTIN;
+
+ DCL SYSPRINT FILE STREAM PRINT;
+
+  DCL PLIXOPT      CHAR(250)
+  INIT('STACK(2K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+  MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+  ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+  TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE HSI CICS REGION                      */
+ /*-----------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+      %INCLUDE CWA; 
+
+ %PAGE;
+ /*******************************************************************/
+ /*   MISCELLANEOUS DECLARES                                        */
+ /*******************************************************************/
+
+ DCL 1 SYS_IPT,
+       2 PARM  CHAR(80) INIT(' ');
+ DCL CONSOLE_TEXT    CHAR(80)           INIT('');
+ DCL I               FIXED BIN(31,0)    INIT(1);
+ DCL LEN             FIXED BIN (15,0)   INIT(80);
+ DCL PARM_LENGTH     FIXED BIN(15)      INIT(0);
+ DCL RESPONSE        FIXED BIN (31)     INIT(0);
+ DCL RESPONSE2       FIXED BIN (31)     INIT(0);
+ DCL PIC_TIME        PIC '(6)9'         INIT(0);
+ DCL PIC_DATE        PIC'(8)9'          INIT(0);
+ DCL PIC3            PIC '(3)9'         INIT(0);
+ DCL PIC7            PIC '(7)9'         INIT(0);
+ DCL YES             BIT(1)             INIT('1'B);
+ DCL @CWA            PTR                INIT(NULL);
+
+
+ DCL 1 PIC_TIME_OVRLY    BASED (ADDR(PIC_TIME)),
+        3 PIC_HR     PIC '99',
+        3 PIC_MIN    PIC '99',
+        3 PIC_SEC    PIC '99';
+ /*-----------------------------------------------------------------*/
+ /*                     HSIINIT CONSOLE MESSAGES                    */
+ /*-----------------------------------------------------------------*/
+
+  DCL CONSMSG00 CHAR(80) STATIC INIT
+  ('=========================================================');
+  DCL CONSMSG01 CHAR(80) STATIC INIT
+  ('HSII001I: HSI APPLICATION INITIALIZATION HAS STARTED.');
+  DCL CONSMSG02 CHAR(80) STATIC INIT
+  ('HSII002I: HSI APPLICATION INITIALIZATION HAS ENDED.');
+  DCL CONSMSG05 CHAR(80) STATIC INIT
+   ('HSII005E: PARAMETER UNKNOWN -- IGNORED');
+  DCL CONSMSG06 CHAR(80) STATIC INIT
+   ('HSII006E: PARAMETER IN ERROR -- IGNORED');
+  DCL CONSMSG07 CHAR(80) STATIC INIT
+   ('HSII007E: HSIINIT MODULE FAILED        ');
+  DCL CONSMSG08 CHAR(80) STATIC INIT
+   ('HSII008I: MIRRORING TRANSACTIONS STARTED');
+  DCL CONSMSG09 CHAR(80) STATIC INIT
+   ('HSII008I: AEQR TRANSACTION STARTED IN PRIMARY');
+  DCL CONSMSG10 CHAR(80) STATIC INIT
+   ('HSII008I: AEQS TRANSACTION STARTED IN BACKUP');
+
+
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+  ON ERROR
+   BEGIN;
+   ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+    PIC_DATE= EIBDATE;
+    PIC_TIME = EIBTIME;
+    CONSOLE_TEXT= 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN;
+    CALL WRITE_TO_CONSOLE();
+    CONSOLE_TEXT = CONSMSG07;
+    CALL WRITE_TO_CONSOLE();
+    EXEC CICS RETURN;
+  END;
+ /*******************************************************************/
+ /*         START MAIN PROCESSING                                   */
+ /*******************************************************************/
+
+  CONSOLE_TEXT = CONSMSG00;
+  CALL WRITE_TO_CONSOLE();
+
+  CONSOLE_TEXT = CONSMSG01;
+  CALL WRITE_TO_CONSOLE();
+
+  EXEC CICS ADDRESS                          /* GET ADDR OF CWA */
+         CWA(@CWA)  RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+
+  IF RESPONSE ^= DFHRESP(NORMAL)
+    THEN DO;
+      PIC3 = RESPONSE;
+      PIC7 = RESPONSE2;
+      CONSOLE_TEXT='HSI002:FAILURE TO GET ADDRESS OF CWA';
+      CALL WRITE_TO_CONSOLE();
+      CONSOLE_TEXT=' RESP= '||PIC3 ||' RESP2= '||PIC7;
+      CALL WRITE_TO_CONSOLE();
+      SIGNAL ERROR;
+    END;
+
+
+
+  /*--------------------------------------------------------------*/
+  /*           READ SYSIPT FILE AND ASSIGN VALUES
+  /*--------------------------------------------------------------*/
+
+  EXEC CICS READQ TD QUEUE('IPT0') 
+                     INTO(SYS_IPT)
+                     LENGTH(LEN) 
+                     RESP(RESPONSE) 
+                     RESP2(RESPONSE2)
+                     NOHANDLE;      
+
+  DO WHILE(RESPONSE = 0);
+   
+    CALL ASSIGN_CWA();
+    EXEC CICS READQ TD QUEUE('IPT0') 
+                       INTO(SYS_IPT)
+                       LENGTH(LEN) 
+                       RESP(RESPONSE) 
+                       RESP2(RESPONSE2)
+                       NOHANDLE; 
+    
+  END;
+ 
+  CONSOLE_TEXT='FINAL RESPONSE = '|| RESPONSE||' RESP2 '||RESPONSE2;
+  CALL WRITE_TO_CONSOLE();
+
+
+  CONSOLE_TEXT=CONSMSG02;
+  CALL WRITE_TO_CONSOLE();
+
+  CALL START_MIRROR();
+
+  CONSOLE_TEXT=CONSMSG08;
+  CALL WRITE_TO_CONSOLE();
+
+  EXEC CICS RETURN;
+  
+  %PAGE;
+ /*******************************************************************/
+ /* PROCEDURES                                                      */
+ /*******************************************************************/
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+  ASSIGN_CWA: PROC(); 
+
+   IF SUBSTR(SYS_IPT.PARM,1,1)='*' 
+     THEN DO; 
+     END;
+     ELSE DO; 
+       SELECT (SUBSTR(SYS_IPT.PARM,1,9));
+         WHEN ('TRACEFLG=')
+           DO;
+             PARM_LENGTH = INDEX(SYS_IPT.PARM,' ') - 10;
+             IF PARM_LENGTH = 0 |
+                PARM_LENGTH > 1 THEN DO;
+               CONSOLE_TEXT = CONSMSG06;
+               CALL WRITE_TO_CONSOLE();
+             END;
+             ELSE DO;
+               CWA_QSAR_TRACE = SUBSTR(SYS_IPT.PARM,10,1);
+               CONSOLE_TEXT = 'HSII009I: TRACEFLG= '||CWA_QSAR_TRACE;
+               CALL WRITE_TO_CONSOLE();
+             END;
+
+           END;
+         WHEN ('AREACNVT=')
+           DO;
+             PARM_LENGTH = INDEX(SYS_IPT.PARM,' ') - 10;
+             IF PARM_LENGTH = 0 |
+                PARM_LENGTH > 1 
+               THEN DO;
+                 CONSOLE_TEXT = CONSMSG06;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+               ELSE DO;
+                 CWA_AREA_CONV(1) = SUBSTR(SYS_IPT.PARM,10,1);
+                 CONSOLE_TEXT = 'HSII009I: AREACNVT= '||
+                                 CWA_AREA_CONV(1);
+                 CALL WRITE_TO_CONSOLE();
+               END;
+           END;
+       
+         WHEN ('QHUBCNVT=')
+           DO;
+             PARM_LENGTH = INDEX(SYS_IPT.PARM,' ') - 10;
+             IF PARM_LENGTH = 0 |
+                PARM_LENGTH > 1 
+               THEN DO;
+                 CONSOLE_TEXT = CONSMSG06;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+               ELSE DO;
+                 CWA_QHUB_CONV(1) = SUBSTR(SYS_IPT.PARM,10,1);
+                 CONSOLE_TEXT = 'HSII009I: QHUBCNVT= '||
+                                CWA_QHUB_CONV(1);
+                 CALL WRITE_TO_CONSOLE();
+               END;
+              
+           END;
+         WHEN ('PRIM/HUB=')
+           DO;
+             PARM_LENGTH = INDEX(SYS_IPT.PARM,' ') - 10;
+             IF PARM_LENGTH = 0 |
+                PARM_LENGTH > 1 
+               THEN DO;
+                 CONSOLE_TEXT = CONSMSG06;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+               ELSE DO;
+                 CWAPRIHB = SUBSTR(SYS_IPT.PARM,10,1);
+                 CONSOLE_TEXT = 'HSII009I: PRIM/HUB= '||CWAPRIHB;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+
+           END;
+         WHEN ('MQREGION=')
+           DO;
+             PARM_LENGTH = INDEX(SYS_IPT.PARM,' ') - 10;
+             IF PARM_LENGTH = 0 |
+                PARM_LENGTH > 1 
+               THEN DO;
+                 CONSOLE_TEXT = CONSMSG06;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+               ELSE DO;
+                 MQREGION = SUBSTR(SYS_IPT.PARM,10,1);
+                 CONSOLE_TEXT = 'HSII009I: MQREGION= '||MQREGION;
+                 CALL WRITE_TO_CONSOLE();
+               END;
+                          
+           END;
+         OTHERWISE
+           DO;
+             CONSOLE_TEXT=CONSMSG05;
+             CALL WRITE_TO_CONSOLE();
+             CONSOLE_TEXT=SUBSTR(SYS_IPT.PARM,1,30);
+             CALL WRITE_TO_CONSOLE();
+           END;
+       END;                             /* END OF SELECT */
+     END;                                 
+     
+   END ASSIGN_CWA;  
+ 
+  %PAGE;
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+  START_MIRROR: PROC();
+
+  /*-----------------------------------------------------------*/
+  /* START AEQR  AREA TO HUB CONTINUOUS MIRRORING TRANS        */
+  /* MIRRORS THE HSI DATA BASE RECORDS TO THE BACKUP DATA BASE */
+  /*-----------------------------------------------------------*/
+    IF CWAPRIHB = 'P'
+      THEN DO;  /* P = PRIMARY */
+        EXEC CICS START TRANSID('AEQR')
+                        NOHANDLE;
+                        
+        CONSOLE_TEXT=CONSMSG09;
+        CALL WRITE_TO_CONSOLE();
+      END;
+      ELSE DO;                     /* H = HUB */
+  /*------------------------------------------------------------------*/
+  /*   START AEQS HUB TO AREA CONTINUOUS MIRRORING TRANS.             */
+  /*   MIRRORS THE CONTROL DATA BASE RECORDS TO THE PRIMARY DATA BASE */
+  /*------------------------------------------------------------------*/
+
+        EXEC CICS START TRANSID('AEQS')
+                        NOHANDLE;
+
+         CONSOLE_TEXT=CONSMSG10;
+         CALL WRITE_TO_CONSOLE();
+      END;      
+
+  END START_MIRROR;
+
+  %PAGE;
+  /*******************************************************************/
+  /*******************************************************************/
+  WRITE_TO_CONSOLE: PROC();
+
+     EXEC CICS WRITE OPERATOR
+             TEXT(CONSOLE_TEXT)
+             NOHANDLE;
+
+  END WRITE_TO_CONSOLE;
+
+
+  END HSIINIT;
+

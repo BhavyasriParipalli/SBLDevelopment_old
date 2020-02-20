@@ -1,0 +1,96 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSDTV      VERSION NR:  01           DATE:  08/05/96    */
+ /*                                               TIME:  15:54:40    */
+ /*                                                                  */
+ /* TITLE: SERVICE DEFINITION TABLE - VSAM                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE SERVICE DEFINITION TABLE            */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ------------------------------------ --- */
+ /*  08/08/96 S9600308 6NSR INITIAL VERSION                      YDS */
+ /*  11/13/03 SR030019 4NSC remove billing flags, add            LBS */
+ /*                         CBASEWAR                                 */  
+ /*09/13/2006 SR060032 6NSN ADD CSDTOPTN REMOVE CSVCPLN          LBS */
+ /*                                                                  */
+ /********************************************************************/
+    3 SPAD1        CHAR(1),        /* PADDING               001- 001 */
+    3 RECKEY,                      /* PRIMARY KEY                    */
+      5 ISDT       CHAR(3),        /* SVC DEFINITION ID     002- 004 */
+      5 SPAD2      CHAR(1),        /* PADDING               005- 005 */
+      5 CWPHASE    CHAR(1),        /* PHASE OF WARRANTY     006- 006 */
+    3 SPAD3        CHAR(1),        /* PADDING               007- 007 */
+    3 QWMONTHS     CHAR(3),        /* WARRANTY MONTHS       008- 010 */
+    3 SPAD4        CHAR(1),        /* PADDING               011- 011 */
+    3 QWARDUR      CHAR(3),        /* PHASE MONTHS          012- 014 */
+    3 SPAD5        CHAR(1),        /* PADDING               015- 015 */
+    3 TWARSVC      CHAR(3),        /* SHORT SVC DESCR       016- 018 */
+    3 SPAD6        CHAR(2),        /* PADDING               019- 020 */
+    3 CSDTOPTN     CHAR(1),        /* THINKPAD INDICATOR    021- 021 */
+                                   /* H = HARD DISK                  */
+                                   /* T = ThinkPad Protection        */
+    3 SPAD7        CHAR(1),        /* PADDING               022- 022 */
+    3 CSERTYPE     CHAR(1),        /* SERVICE TYPE          023- 023 */
+    3 SPAD8        CHAR(7),        /* PADDING               024- 030 */
+                                   /* was the billing flags          */
+    3 CHELPCTR     CHAR(3),        /* HELP CTR SUPPORT      031- 033 */
+    3 SPAD12       CHAR(1),        /* PADDING               034- 034 */
+    3 QWARHRS      CHAR(2),        /* HRS OF COVERAGE       035- 036 */
+    3 SPAD13       CHAR(1),        /* PADDING               037- 037 */
+    3 QWARDAYS     CHAR(1),        /* DAYS OF COVERAGE      038- 038 */
+    3 SPAD14       CHAR(1),        /* PADDING               039- 039 */
+    3 CCVGMNTH     CHAR(5),        /* STRT/STOP CVG MNTHS   040- 044 */
+    3 SPAD15       CHAR(1),        /* PADDING               045- 045 */
+    3 QRSPTIME     CHAR(5),        /* HRS TO RESPOND        046- 050 */
+    3 SPAD16       CHAR(1),        /* PADDING               051- 051 */
+    3 IRSP         CHAR(1),        /* RESPONSE INDICATOR    052- 052 */
+    3 SPAD17       CHAR(1),        /* PADDING               053- 053 */
+    3 TWARDESC     CHAR(50),       /* LONG DESCR            054- 103 */
+    3 SPAD18       CHAR(1),        /* PADDING               104- 104 */
+    3 CSDTBILL     CHAR(1),        /* BILLING CODE          105- 105 */
+    3 SPAD19       CHAR(1),        /* PADDING               106- 106 */
+    3 HSATSTRT     CHAR(4),        /* START TIME - SAT      107- 110 */
+    3 SPAD20       CHAR(1),        /* PADDING               111- 111 */
+    3 HSATSTOP     CHAR(4),        /* STOP TIME - SAT       112- 115 */
+    3 SPAD21       CHAR(1),        /* PADDING               116- 116 */
+    3 HSUNSTRT     CHAR(4),        /* START TIME - SUN      117- 120 */
+    3 SPAD22       CHAR(1),        /* PADDING               121- 121 */
+    3 HSUNSTOP     CHAR(4),        /* STOP TIME - SUN       122- 125 */
+    3 SPAD23       CHAR(1),        /* PADDING               126- 126 */
+    3 HMONSTRT     CHAR(4),        /* START TIME - MON      127- 130 */
+    3 SPAD24       CHAR(1),        /* PADDING               131- 131 */
+    3 HMONSTOP     CHAR(4),        /* STOP TIME - MON       132- 135 */
+    3 SPAD25       CHAR(1),        /* PADDING               136- 136 */
+    3 HTUESTRT     CHAR(4),        /* START TIME - TUES     137- 140 */
+    3 SPAD26       CHAR(1),        /* PADDING               141- 141 */
+    3 HTUESTOP     CHAR(4),        /* STOP TIME - TUES      142- 145 */
+    3 SPAD27       CHAR(1),        /* PADDING               146- 146 */
+    3 HWEDSTRT     CHAR(4),        /* START TIME - WED      147- 150 */
+    3 SPAD28       CHAR(1),        /* PADDING               151- 151 */
+    3 HWEDSTOP     CHAR(4),        /* STOP TIME - WED       152- 155 */
+    3 SPAD29       CHAR(1),        /* PADDING               156- 156 */
+    3 HTHUSTRT     CHAR(4),        /* START TIME - THURS    157- 160 */
+    3 SPAD30       CHAR(1),        /* PADDING               161- 161 */
+    3 HTHUSTOP     CHAR(4),        /* STOP TIME - THURS     162- 165 */
+    3 SPAD31       CHAR(1),        /* PADDING               166- 166 */
+    3 HFRISTRT     CHAR(4),        /* START TIME - FRI      167- 170 */
+    3 SPAD32       CHAR(1),        /* PADDING               171- 171 */
+    3 HFRISTOP     CHAR(4),        /* STOP TIME - FRI       172- 175 */
+    3 SPAD33       CHAR(1),        /* PADDING               176- 176 */
+    3 CBASEWAR     CHAR(4)         /* ASSOCIATED BASE WARR  177- 180 */
+                                   /* CODE                           */
+ /*------------------------------------------------------------------*/
+ /*                                  END  QBSDTV                     */
+ /*------------------------------------------------------------------*/
+ 
+ 

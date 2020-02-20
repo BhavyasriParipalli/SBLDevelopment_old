@@ -1,0 +1,1120 @@
+ QBPTINQ /*                                       05/21/92-08:43:47 */:
+    PROC     OPTIONS(MAIN, REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBPTINQ     VERSION NR:  01        DATE:  05/21/92    */
+ /*                                               TIME:  08:43:47    */
+ /*                                                                  */
+ /*  TITLE: HSI - PT RATE INQUIRY (US and Canada)                    */
+ /*                                                                  */
+ /*  FUNCTION: THE CE WILL SEND IN RATE REQUEST FROM THE PT FOR      */
+ /*            RATE INFORMATION FOR A PARTICULAR TYPE/MODEL AND      */
+ /*            CUSTOMER TYPE (GOV OR COMMERCIAL).  THIS MODULE       */
+ /*            WILL READ THE MTM TO DETERMINE THE BILLING CLASS OF   */
+ /*            TYPE/MODEL AND READ THE APPROPRIATE BILLING RATE      */
+ /*            DATASETS TO RETRIEVE THE INSIDE AND OUTSIDE RATE      */
+ /*            INFORMATION, FORMAT A MESSAGE TO BE SENT TO THE       */
+ /*            CE AND SEND THE INFORMATION TO MODULE AEQMSG2.        */
+ /*                                                                  */
+ /*  LANGUAGE:  PLI                                                  */
+ /*                                                                  */
+ /*  MODULE TYPE: REALTIME - PLI2CD3  / runs in AOR                  */
+ /*                                                                  */
+ /*  PARM: POINTER TO COMM AREA FROM XCFD                            */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS: COMMAREA - PET RATE INQUIRY MESSAGE PASSED FROM XCFD    */
+ /*                     WHEN IT STARTS QBNQ TRANSACTION              */
+ /*                     pet message sent to territory RID            */
+ /*          format:    tttt mmm c                        or         */
+ /*                     tttt mmm      assumes commercial  or         */
+ /*                     tttt          assumes commercial             */
+ /*                                                                  */
+ /*  OUTPUTS: COMMAREA - COMMAREA TO BE SENT TO AEQMSG2              */
+ /*                                                                  */
+ /*                                                                  */
+ /*  REPORTS: NONE                                                   */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                   PGMR:  */
+ /*  -------- -------- ------ ------------------------------ ------  */
+ /*  05/20/92 SR0811   2NSD   INITIAL PROMOTE                   LBS  */
+ /*  05/07/97 S9600755 7NSI   SUPPORT NSS MRO PARALLEL SYSPLEX  LBS  */
+ /*                           PHASE I                                */
+ /*  05/28/99 YEAR2K   8NSN   CHANGE DATE TO DATETIME           MKP  */
+ /*  06/03/99 I1219034 8NSN   CORRECT RUNDATE ASSIGNMENT        DLP  */
+ /*  06/03/99 PROD     9NSA   CHANGE MSF1 TO MSF2               DLP  */
+ /*  12/09/99 T5465476 9NSC   FIX ERROR ON MTM CALL             LBS  */
+ /*  12/22/00 SUPPORT  0NSK  CHANGE COPY FROM AEQMTM2 TO AEQMTM LBS  */
+ /*  10/01/01 SR01032  1NSP  change ssa from the 14 byte key to LBS  */
+ /*                          the 31 byte key for MSF2                */
+ /* 04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT           LBS */
+ /* 11/20/2002 GP021333 3NSE Add logic to use the new 3 digit    DLP */
+ /*                          field in the standard rate table        */
+ /* 12/27/2002 HSIPROD	3NSE add translate lower to upper case   LBS */
+ /* 03/24/2006 RQ054527 6NSH Only Compile to pickup the changed      */
+ /*                          Copy book QBNRAT                    VJK */
+ /* 12/15/2006 SR060054 7NSA CHANGE MTM_DATA to a base variable  LBS */
+ /*                                                                  */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('7NSM - 12/16/2006');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBPTINQ');
+
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+ DCL COMPILE   CHAR(18) INIT (CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    NORMAL = '  '                                                 */
+ /*------------------------------------------------------------------*/
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+
+ /* ---------------------------------------------------------------- */
+ /*                    FILE DECLARES                                 */
+ /* ---------------------------------------------------------------- */
+ DCL SYSPRINT FILE PRINT;
+
+ /* ---------------------------------------------------------------- */
+ /*                 BUILTIN DECLARES                                 */
+ /* ---------------------------------------------------------------- */
+
+ DCL (ADDR,
+      CSTG,
+      DATETIME,
+      LENGTH,
+      LOW,
+      ONLOC,
+      NULL,
+      STG,
+      SUBSTR,
+      TRANSLATE,
+      VERIFY) BUILTIN;
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(6K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+                                   
+ %PAGE;
+ /* ----------------------------------------------------------------- */
+ /* IN CICS 3.1, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE    */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE   */
+ /* IS INVOKED...                                                     */
+ /* ----------------------------------------------------------------- */
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+
+ %PAGE;
+ DCL @CWA               PTR   INIT(NULL);
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+    %INCLUDE CWA ;
+
+ %PAGE;
+ DCL @STDRAT            PTR   INIT(NULL);
+ DCL 1 STANDARD  UNALIGNED BASED(@STDRAT),
+    %INCLUDE QBNRAT ; ;
+
+ %PAGE;
+ DCL 1 SAVE_STD_RATE UNALIGNED,
+    %INCLUDE QBNRAT ; ;
+
+ %PAGE;
+ DCL @SPLRAT2           PTR   INIT(NULL);
+ DCL 1 SPECIAL2  UNALIGNED BASED(@SPLRAT2),
+    %INCLUDE QBSRAT2; ;
+
+ %PAGE;
+ DCL 1 ERROR_DATA UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL 1 MSG_DATA UNALIGNED,
+    %INCLUDE AEQCOMT ; ;
+
+ %PAGE;
+ DCL IO_BUFFER             CHAR(1000)   INIT('');
+ DCL 1 MTM_DATA     BASED(ADDR(IO_BUFFER)) UNALIGNED,
+    %INCLUDE AEQMTM ; ;
+
+ DCL 1 INCOM_MSG UNALIGNED BASED(@INQ),      /* INCOMING INQUIRY MSG */
+       3 AREA_CHAR   CHAR(2),                /*              001-002 */
+       3 PAD1        CHAR(1),                /*              003-003 */
+       3 PTID1       CHAR(6),                /*              004-009 */
+       3 PAD2        CHAR(1),                /*              010-010 */
+       3 QSARBO      CHAR(3),                /*              011-013 */
+       3 PAD3        CHAR(1),                /*              014-014 */
+       3 QSARTERR    CHAR(3),                /*              015-017 */
+       3 PAD4        CHAR(1),                /*              018-018 */
+       3 INQMSG      CHAR(55);               /*              019-073 */
+
+ DCL 1 SPL2KEY,
+       2 ISEQ        FIXED BIN(15) INIT(0),  /* CONTRACT SEQ NUMBER */
+       2 PAD1          CHAR(1)     INIT(''),
+       2 BILLING_CLASS CHAR(1)     INIT(''), /* BILLING CLASS       */
+       2 PAD3          CHAR(1)     INIT(''),
+       2 DEFFDTE       CHAR(10)    INIT(''); /* EFFECTIVE DATE      */
+
+ DCL BRKEY  CHAR(4) BASED(ADDR(SPL2BRKEY));
+ DCL 1 SPL2BRKEY,
+       3 ISEQ       FIXED BIN (15) INIT(0),
+       3 PAD1             CHAR(1)  INIT(''),
+       3 BILLING_CL       CHAR(1)  INIT('');
+
+               /****************************************************/
+ DCL LOWERCASE  CHAR(26) BASED(ADDR(LWRCSE));
+ DCL LWRCSE (2) CHAR(13) INIT  ('81828384858687888991929394'X,
+                                '9596979899A2A3A4A5A6A7A8A9'X);
+
+ DCL UPPERCASE  CHAR(26) BASED(ADDR(UPRCSE));
+ DCL UPRCSE (2) CHAR(13) INIT  ('C1C2C3C4C5C6C7C8C9D1D2D3D4'X,
+                                'D5D6D7D8D9E2E3E4E5E6E7E8E9'X);
+
+ %PAGE;
+ /********************************************************************/
+ /*                  MISCELLANEOUS DECLARES                          */
+ /********************************************************************/
+ DCL @INQ             PTR          INIT(NULL);
+
+ DCL ALPHANUM         CHAR(36)
+                     INIT('ABCEDFGHIJKLMNOPQRSTUVWXYZ0123456789');
+ DCL AREA_PIC         PIC'99'       BASED(ADDR(AREA_CHAR));
+ DCL A1               LABEL;
+ DCL BILL_CLASS       CHAR(1)       INIT('1');
+ DCL B1               LABEL;
+ DCL CHAR2            CHAR(2)       INIT('US');
+ DCL CUST_TYPE        CHAR(1)       INIT('C');
+ DCL ERR              CHAR(9)       INIT('QSR9000: ');
+ DCL ERR1             CHAR(9)       INIT('QSR9002: ');
+ DCL DIAG_TEXT        CHAR(80)      INIT('');
+ DCL GSA_SCHED        CHAR(1)       INIT('A');
+ DCL HUB_TRANSID      CHAR(4)       INIT('');
+ DCL I          FIXED BIN(15)       INIT(0);
+ DCL INQ_LENGTH FIXED BIN(15)       INIT(0);
+ DCL KEYLEN     FIXED BIN(15)       INIT(0);
+ DCL MODEL            CHAR(3)       INIT(LOW(3));
+ DCL MINHRS           CHAR(1)       INIT('1');
+ DCL MTM_QUAL_SSA     CHAR(31)      INIT('');
+ DCL MTMC_QUAL_SSA    CHAR(31)      INIT('');
+ DCL PIC_DATE         PIC'(8)9'     INIT(0);
+ DCL PIC_RATE         PIC'$$$9V.99' INIT(0);
+ DCL PIC_TIME         PIC'(6)9'     INIT(0);
+ DCL PIC999V99        PIC'999V.99'  INIT(0);
+
+ DCL 1 PIC_TIME_OVER BASED(ADDR(PIC_TIME)),
+       3 PIC_HR       PIC'99',
+       3 PIC_MIN      PIC'99',
+       3 PIC_SEC      PIC'99';
+
+ DCL PIC2             PIC'99'       INIT(0);
+ DCL PIC_RESP         PIC'999'      INIT(0);
+ DCL POS        FIXED BIN (15)      INIT(0);
+                                           /* different one for US &  */
+                                           /* Canada                  */
+ DCL PSBNAME          CHAR( 8)      INIT('');
+ DCL RECD_LEN   FIXED BIN (15)      INIT(0);
+ DCL RESPONSE   FIXED BIN (31)      INIT(0);
+ DCL RESPONSE2  FIXED BIN (31)      INIT(0);
+ DCL REST_OF_INQMSG   CHAR(55)      INIT('');
+ DCL RUN_DATE         CHAR(10)      INIT('');
+ DCL RUN_TIME         CHAR( 6)      INIT('');
+ DCL WORKRUNDATE      CHAR(17)      INIT('');
+ DCL SAVEKEY          CHAR(16)      INIT('');  /* 3NSE */
+ DCL SEND_MESSAGE     CHAR( 1)      INIT('N');
+ DCL STD_BR_KEY       CHAR( 5)      INIT('');  /* 3NSE */
+ DCL STDKEY           CHAR(16)      INIT('');  /* 3NSE */
+ DCL TYPE             CHAR( 4)      INIT('');
+ DCL TYPE_RATE_FOUND  CHAR( 1)      INIT('');
+ DCL VARTEXT          CHAR(340)     VARYING;
+
+ DCL CONTINUE          BIT(1)       INIT('1'B);
+ DCL FOUND             BIT(1)       INIT('0'B);
+ DCL PSB_SCHEDULED     BIT(1)       INIT('0'B);
+ DCL TEST_SW           BIT(1)       INIT('0'B);
+
+ %PAGE;
+ /********************************************************************/
+ /*                  ON ERROR UNIT                                   */
+ /********************************************************************/
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_PROGRAM_ID = 'QBPTINQ';
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     IF PSB_SCHEDULED
+       THEN EXEC DLI TERMINATE;
+
+     ET_TEXT4 = ERR1 || MODULE ||' ENTRY POINT = '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                 ' TRANSID: '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_DATA)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                          /* IF ALL ELSE FAILS, ABEND  */
+         EXEC CICS ABEND
+                   ABCODE('PTNQ')
+                   CANCEL;
+       END;
+
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /*                MAIN PROCESSING                                   */
+ /********************************************************************/
+ /* ---------------------------------------------------------------- */
+ /*  GET ADDRESSABILITY TO CWA                                       */
+ /* ---------------------------------------------------------------- */
+ EXEC CICS ADDRESS CWA(@CWA)
+                   RESP(RESPONSE)
+                   RESP2(RESPONSE2);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)
+   THEN DO;
+     ET_TEXT1 = ERR1||MODULE||' FAILURE TO GET ADDRESS OF CWA';
+     PIC_RESP = RESPONSE;
+     PIC2     = RESPONSE2;
+     ET_TEXT2 = ERR1||MODULE||' RESPONSE CODE '||PIC_RESP||
+                              ' RESP2 '||PIC2;
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = 'Y' | 
+    CWA_QSAR_TRACE = 'R'
+   THEN DO;
+     TEST_SW     = '1'B;
+     WORKRUNDATE = DATETIME;
+     RUN_TIME    = SUBSTR(WORKRUNDATE,9,2)||':'||
+                   SUBSTR(WORKRUNDATE,11,2);
+
+     DIAG_TEXT = 'QBPTINQ1: STARTED '||RUN_TIME;
+     CALL WRITE_TO_OPERATOR;
+   END;
+
+ /* ---------------------------------------------------------------- */
+ /*  RETRIEVE PT INQUIRY MESSAGE FROM PROGRAM XCFD (NSS)             */
+ /* ---------------------------------------------------------------- */
+ EXEC CICS RETRIEVE SET(@INQ)
+                    LENGTH(INQ_LENGTH)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)
+   THEN DO;
+     ET_TEXT1 = ERR1||MODULE||' NO PT INQUIRY DATA RECEIVED';
+     PIC_RESP = RESPONSE;
+     PIC2     = RESPONSE2;
+     ET_TEXT2 = ERR1||MODULE||' RESPONSE CODE '||PIC_RESP||
+                              ' RESP2 '||PIC2;
+     SIGNAL ERROR;
+   END;
+
+ IF INQMSG = ''                          /* NO DATA FOUND             */
+   THEN EXEC CICS RETURN;
+
+ WORKRUNDATE = DATETIME;
+ RUN_DATE    = SUBSTR(WORKRUNDATE,1,4)||'-'||
+               SUBSTR(WORKRUNDATE,5,2)||'-'||
+               SUBSTR(WORKRUNDATE,7,2);
+
+ CALL PARSE_INQUIRY;
+ CALL GET_MTM_DATA;
+ CALL FIND_RATE_INFO;
+
+ IF TEST_SW
+   THEN SELECT(TYPE_RATE_FOUND);
+          WHEN ('1')
+            DO;
+              PIC999V99 = SAVE_STD_RATE.AINRATE;
+              DIAG_TEXT = 'QBPTINQ15: COMM RATES '||PIC999V99;
+              PIC999V99 = SAVE_STD_RATE.AOUTRATE;
+              DIAG_TEXT = SUBSTR(DIAG_TEXT,1,28)||' '||PIC999V99||
+                         ' MIN HRS '||MINHRS;
+              CALL WRITE_TO_OPERATOR;
+            END;
+          WHEN ('2')
+            DO;
+              PIC999V99 = SPECIAL2.AINRATE;
+              DIAG_TEXT = 'QBPTINQ11: SPL RATES '||PIC999V99;
+              PIC999V99 = SPECIAL2.AOUTRATE;
+              DIAG_TEXT = SUBSTR(DIAG_TEXT,1,28)||' '||PIC999V99||
+                         ' MIN HRS '||MINHRS;
+              CALL WRITE_TO_OPERATOR;
+            END;
+           OTHERWISE;
+        END;
+
+ EXEC CICS RETURN;                       /* END OF PROCESSING         */
+
+ %PAGE;
+ /********************************************************************/
+ /* PT HSI INQUIRY IS SUBMITTED THRU THE SC/CM PT FUNCTION AND HAS   */
+ /* THE FORMAT OF tttt mmm c                                         */
+ /* where tttt is machine type                                       */
+ /*       mmm  is machine model                                      */
+ /*       c    is type customer code C = commercial & G is government*/
+ /********************************************************************/
+ PARSE_INQUIRY: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ2: '||INQMSG;
+       CALL WRITE_TO_OPERATOR;
+     END;
+                                         /* REMOVE SPECIAL CHARS      */
+   INQMSG = TRANSLATE(INQMSG,UPPERCASE,LOWERCASE);
+   INQMSG = TRANSLATE(INQMSG,'     ','/*-+.');
+   INQMSG = TRANSLATE(INQMSG,' ',LOW(1));
+
+                                         /* FIND_MACH_TYPE            */
+   POS = VERIFY (INQMSG,' ');            /* FIND FIRST NON BLANK CHAR */
+
+   IF POS ^= 0
+     THEN TYPE = SUBSTR(INQMSG,POS,4);
+     ELSE DO;
+       DIAG_TEXT = 'QBPTINQ: NO MACHINE TYPE DATA CE '||INCOM_MSG.PTID1;
+       CALL WRITE_TO_OPERATOR;
+       EXEC CICS RETURN;
+     END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ3: '||
+                        SUBSTR(INQMSG,POS+4,LENGTH(INQMSG)-POS-3);
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   REST_OF_INQMSG = SUBSTR(INQMSG,POS+4,LENGTH(INQMSG)-POS-3);
+
+                                         /* FIND_MACH_MODEL           */
+   POS = VERIFY (REST_OF_INQMSG,' ');
+   PIC2 = POS;
+
+   IF POS ^= 0 & SUBSTR(REST_OF_INQMSG,POS+1,2) ^= '  '
+     THEN DO;
+       MODEL = SUBSTR(REST_OF_INQMSG,POS,3);
+       REST_OF_INQMSG = SUBSTR(REST_OF_INQMSG,POS+3,
+                                 LENGTH(REST_OF_INQMSG)-POS-2);
+     END;
+     ELSE MODEL = LOW(3);                /* CE ENTERED BLANK MODEL    */
+
+   IF MODEL = '000'                      /* CE ENTERED 000 FOR MODEL  */
+     THEN MODEL = LOW(3);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ3a: '||REST_OF_INQMSG;
+       CALL WRITE_TO_OPERATOR;
+     END;
+                                        /*  FIND_CUST_TYPE           */
+
+   POS = VERIFY (REST_OF_INQMSG,' ');
+   PIC2 = POS;
+
+   IF POS ^= 0                           /* DEFAULT TO COMMERCIAL     */
+     THEN CUST_TYPE = SUBSTR(REST_OF_INQMSG,POS,1);
+     ELSE CUST_TYPE = 'C';
+
+   IF CUST_TYPE ^= 'C' & CUST_TYPE ^= 'G' /* DEFAULT TO COMMERCIAL    */
+     THEN CUST_TYPE = 'C';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ4: '||TYPE||' '||MODEL||' '||CUST_TYPE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END PARSE_INQUIRY;
+
+ %PAGE;
+ /********************************************************************/
+ /* This proc will use the TYPE/MODEL to look up data in the MTM     */
+ /* data base.  If the TYPE/MODEL entered cannot be found then       */
+ /* the entered TYPE/superlow model will be looked up.               */
+ /********************************************************************/
+ GET_MTM_DATA: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ5: GET MTM DATA '||TYPE||MODEL;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   CALL SCHEDULE_PSB;
+   MTM_QUAL_SSA  = '3' || TYPE||MODEL;
+   MTMC_QUAL_SSA = '3' || TYPE||MODEL;
+
+   IF CHAR2 = 'US'
+     THEN CALL MTM_DB_CALL;
+     ELSE CALL MTMC_DB_CALL;
+
+   SELECT (DIBSTAT);
+     WHEN ('  ')
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBPTINQ7: IN FOUND MTM REC '||MTM_QUAL_SSA;
+             CALL WRITE_TO_OPERATOR;
+           END;
+
+         BILL_CLASS = MTM_DATA.GDCBILCL;
+         GSA_SCHED  = MTM_DATA.CGSASCH;
+
+         SELECT (MTM_DATA.CTAXCD);
+           WHEN ('01','02','07') MINHRS = '1';  /* SEE QBBIL1 MODULE  */
+           OTHERWISE MINHRS = '2';
+         END;
+         IF MODEL = LOW(3)
+           THEN MODEL = '000';
+           ELSE MODEL = SUBSTR(GDCTYMD,5,3);
+       END;
+
+     WHEN ('GE')                         /* DID NOT FIND TYPE/MODEL   */
+       DO;
+         MTM_QUAL_SSA  = '3'||TYPE||LOW(3);  /* TRY TYPE/SUPERLOW     */
+         MTMC_QUAL_SSA = '3'||TYPE||LOW(3);  /* TRY TYPE/SUPERLOW     */
+
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBPTINQ9: TRY SUPERLOW REC '||MTM_QUAL_SSA;
+             CALL WRITE_TO_OPERATOR;
+           END;
+
+         IF CHAR2 = 'US'
+           THEN CALL MTM_DB_CALL;
+           ELSE CALL MTMC_DB_CALL;
+
+         SELECT (DIBSTAT);
+           WHEN ('  ')
+             DO;
+               BILL_CLASS = MTM_DATA.GDCBILCL;
+               GSA_SCHED  = MTM_DATA.CGSASCH;
+
+               SELECT (MTM_DATA.CTAXCD);
+                 WHEN ('01','02','07') MINHRS = '1';
+                 OTHERWISE MINHRS = '2';
+               END;
+               MODEL = '000';
+             END;
+           WHEN ('GE')
+             DO;
+               VARTEXT = '';
+               VARTEXT = VARTEXT||'RATE INQ ERROR'||(16)' ';
+               VARTEXT = VARTEXT||'MACH TYPE '||TYPE||' INVALID ';
+               CALL SEND_MSG;
+               CALL TERMINATE_PSB;
+               EXEC CICS RETURN  ;
+             END;
+           OTHERWISE
+             DO;
+               ET_TEXT2 = ERR||MODULE||' ERROR ON 2 GU TO MTM DB STAT '
+                                 ||DIBSTAT;
+               SIGNAL ERROR;
+             END;
+         END;
+       END;                              /* END OF WHEN 'GE'          */
+     OTHERWISE
+       DO;
+         ET_TEXT2 = ERR||MODULE||' ERROR ON 1 GU TO MTM DB STAT '||
+                                   DIBSTAT;
+         SIGNAL ERROR;
+       END;
+   END;
+
+   CALL TERMINATE_PSB;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ9: EXIT GET_MTM_DATA '||MTM_QUAL_SSA;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END GET_MTM_DATA;
+
+ %PAGE;
+ /********************************************************************/
+ /* SCHEDULE THE PSB                                                 */
+ /********************************************************************/
+ SCHEDULE_PSB: PROC REORDER;
+
+   IF CHAR2 = 'US'
+     THEN PSBNAME = 'AEQRUL1';
+     ELSE PSBNAME = 'CNQRUL1';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ5a: schedule PSB '||PSBNAME;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE || ' UNABLE TO SCHEDULE PSB '|| PSBNAME ;
+
+   EXEC DLI SCHEDULE                   /* SCHEDULE THE PSB           */
+            PSB((PSBNAME));
+
+   IF DIBSTAT = '  '
+     THEN PSB_SCHEDULED = '1'B;
+     ELSE DO;
+       VARTEXT = '';
+       VARTEXT = VARTEXT||'RATE INQ ERROR'||(16)' ';
+       VARTEXT = VARTEXT||'SYS PROBLEMS, PLS RESUBMIT';
+       VARTEXT = VARTEXT||' AT A LATER TIME';
+
+       CALL SEND_MSG;
+
+       SUBSTR(ET_TEXT1,50,11) = ' DIBSTAT '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+ END SCHEDULE_PSB;
+
+ %PAGE;
+ /********************************************************************/
+ /* TERMINATE THE PSB                                                */
+ /********************************************************************/
+ TERMINATE_PSB: PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ8: TERMINATE PSB '||PSBNAME;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE|| ' UNABLE TO TERMINATE '||PSBNAME||' PSB';
+
+   EXEC DLI TERMINATE;                 /* TERMINATE THE PSB          */
+
+   IF DIBSTAT ^= '  '
+     THEN SIGNAL ERROR;
+
+   ET_TEXT1 = '';
+
+ END TERMINATE_PSB;
+
+ %PAGE;
+ /********************************************************************/
+ /* ACTUAL CALL TO THE MTM DATA BASE  US MSF2                        */
+ /********************************************************************/
+ MTM_DB_CALL: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ6: MTM US DB CALL ('||MTM_QUAL_SSA||')';
+       CALL WRITE_TO_OPERATOR;
+     END;
+   ET_TEXT1 = ERR1||MODULE||' ERROR ON CALL TO MTM DB '||MTM_QUAL_SSA;
+
+   EXEC DLI GU USING PCB(3)
+               SEGMENT(QSSUPPRT)
+               INTO(IO_BUFFER)
+               WHERE ('ISUPPORT' = MTM_QUAL_SSA);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ6: EXIT MTM DB CALL DIBSTAT ('||DIBSTAT||
+                                     ')';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END MTM_DB_CALL;
+
+ %PAGE;
+ /********************************************************************/
+ /* ACTUAL CALL TO THE MTM DATA BASE   CAN MSF2                      */
+ /********************************************************************/
+ MTMC_DB_CALL: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ6: MTM CAN DB CALL '||MTMC_QUAL_SSA;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE||' ERROR ON CALL TO MTM DB '||MTMC_QUAL_SSA;
+
+   EXEC DLI GU USING PCB(1)
+               SEGMENT(QSSUPPRT)
+               INTO(IO_BUFFER)
+               WHERE ('ISUPPORT' = MTMC_QUAL_SSA);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ6: EXIT MTM CAN DB CALL DIBSTAT ('||DIBSTAT||
+                                     ')';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+
+ END MTMC_DB_CALL;
+
+ %PAGE;
+ /********************************************************************/
+ /* This proc uses the customer type input (commercial or gov)       */
+ /* to perform the appropriate inside/outside rate lookup.  If the   */
+ /* customer is government another proc is called to find the rate   */
+ /* information in the special billing rate 2 dataset.  If the       */
+ /* customer is commercial the rate information is obtained from     */
+ /* the standard rate dataset.                                       */
+ /********************************************************************/
+ FIND_RATE_INFO: PROC REORDER;
+   STD_BR_KEY = CUST_TYPE|| '   ' || BILL_CLASS;
+   SAVE_STD_RATE = '';
+
+   IF CUST_TYPE = 'G'
+     THEN CALL FIND_GOV_RATE;
+     ELSE DO;                            /* FIND COMMERCIAL RATES     */
+       EXEC CICS STARTBR FILE('QBSTDRAT')
+                         RIDFLD(STD_BR_KEY)
+                         KEYLENGTH(5)
+                         RESP(RESPONSE)
+                         RESP2(RESPONSE2)
+                         GENERIC EQUAL;
+
+       SELECT (RESPONSE);
+         WHEN (DFHRESP(NORMAL)) CALL READ_STD_RATE_FILE;
+         WHEN (DFHRESP(NOTFND))
+           DO;
+             DIAG_TEXT = MODULE||': STARTBR-RATE NOT FOUND FOR '||
+                             STD_BR_KEY||' CE '||INCOM_MSG.PTID1;
+             CALL WRITE_TO_OPERATOR;
+             VARTEXT = '';
+             VARTEXT = VARTEXT||'RATE INQUIRY ERROR'||(13)' ';
+             VARTEXT = VARTEXT||'RATE NOT FOUND FOR '||TYPE|| ' C';
+             CALL SEND_MSG;
+           END;
+         OTHERWISE
+           DO;
+             PIC_RESP = RESPONSE;
+             PIC2     = RESPONSE2;
+             DIAG_TEXT = MODULE||': BAD RESPONSE CODE '||
+                           'ON READNEXT QBSTDRAT '||PIC_RESP||
+                           ' RESP2 '||PIC2;
+             CALL WRITE_TO_OPERATOR;
+             VARTEXT = '';
+             VARTEXT = VARTEXT||'RATE INQUIRY ERROR'||(13)' ';
+             VARTEXT = VARTEXT||'SYS PROBLEMS, PLS RESUBMIT';
+             CALL SEND_MSG;
+           END;
+       END;                              /* END OF SELECT             */
+     END;                                /* END OF                    */
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ12: END OF FIND_RATE_INFO';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END FIND_RATE_INFO;
+
+ %PAGE;
+ /********************************************************************/
+ /* Find the commerical rates in the standard rate dataset           */
+ /* Format a message to be sent to the CE whether the rate is found  */
+ /* or not (error message).                                          */
+ /********************************************************************/
+ READ_STD_RATE_FILE: PROC REORDER;
+
+     KEYLEN = LENGTH(STDKEY);
+     STDKEY = STD_BR_KEY || ' ' || RUN_DATE;
+     SAVEKEY = STDKEY;
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBPTINQ9: IN READ_STD_RATE_FILE '||STDKEY;
+         CALL WRITE_TO_OPERATOR;
+       END;
+
+     EXEC CICS READNEXT FILE('QBSTDRAT')
+                         RIDFLD(STDKEY)
+                         KEYLENGTH(KEYLEN)
+                         SET(@STDRAT)
+                         RESP(RESPONSE)
+                         RESP2(RESPONSE2);
+
+     DO WHILE (STDKEY <= SAVEKEY          &
+               RESPONSE = DFHRESP(NORMAL) &
+               STANDARD.CRATTYP ^= 'M  ');
+
+       SAVE_STD_RATE  = STANDARD, BY NAME;
+
+       EXEC CICS READNEXT FILE('QBSTDRAT')
+                           RIDFLD(STDKEY)
+                           KEYLENGTH(KEYLEN)
+                           SET(@STDRAT)
+                           RESP(RESPONSE)
+                           RESP2(RESPONSE2);
+     END;
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBPTINQ10: '||SAVEKEY;
+         CALL WRITE_TO_OPERATOR;
+         DIAG_TEXT = 'QBPTINQ11: '||STDKEY;
+         CALL WRITE_TO_OPERATOR;
+       END;
+
+     SELECT (RESPONSE);
+       WHEN (DFHRESP(NORMAL) )
+         DO;
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = 'QBPTINQ12: '||SAVE_STD_RATE.CRATTYP||' '||
+                                         SAVE_STD_RATE.CCPFIN  ||' '||
+                                         SAVE_STD_RATE.DEFFDTE;
+               CALL WRITE_TO_OPERATOR;
+             END;
+           VARTEXT = '';
+
+           VARTEXT = VARTEXT||'RATE INQ ';
+           VARTEXT = VARTEXT ||TYPE||' '||MODEL ;
+           VARTEXT = VARTEXT || ' COMM'||(5)' ';
+
+
+           PIC_RATE = SAVE_STD_RATE.AINRATE;
+           VARTEXT = VARTEXT || 'IN '||PIC_RATE;
+           PIC_RATE = SAVE_STD_RATE.AOUTRATE;
+           VARTEXT = VARTEXT || ' OUT '||PIC_RATE||(10)' ';
+
+           VARTEXT = VARTEXT || 'MIN HRS= '||MINHRS||(21)' ';
+
+           IF MODEL = '000'
+             THEN VARTEXT = VARTEXT ||
+                   'ESTIMATE ONLY, SOME MODELS HIGHER OR LOWER';
+
+           TYPE_RATE_FOUND = '1';
+           CALL SEND_MSG;
+
+         END;
+       WHEN (DFHRESP(ENDFILE))
+         DO;
+          IF STD_BR_KEY = SUBSTR(STDKEY,1,5)
+            THEN DO;
+              VARTEXT = '';
+
+              VARTEXT = VARTEXT || 'RATE INQ ';
+              VARTEXT = VARTEXT || TYPE    || ' '     || MODEL;
+              VARTEXT = VARTEXT || ' COMM' || (4)' ';
+
+              PIC_RATE = SAVE_STD_RATE.AINRATE;
+              VARTEXT = VARTEXT || 'IN '  || PIC_RATE;
+              PIC_RATE = SAVE_STD_RATE.AOUTRATE;
+              VARTEXT = VARTEXT || ' OUT '|| PIC_RATE || (10)' ';
+
+              VARTEXT = VARTEXT || 'MIN HRS= ' || MINHRS || (21)' ';
+              IF MODEL = '000'
+                THEN VARTEXT = VARTEXT ||
+                      'ESTIMATE ONLY, SOME MODELS HIGHER OR LOWER';
+
+              TYPE_RATE_FOUND = '1';
+              CALL SEND_MSG;
+            END;
+            ELSE DO;
+              VARTEXT = VARTEXT||'RATE INQUIRY ERROR' || (9)' ';
+              VARTEXT = VARTEXT||'RATE NOT FOUND FOR '|| TYPE|| ' C';
+              CALL SEND_MSG;
+            END;
+         END;
+       OTHERWISE
+         DO;
+           PIC_RESP = RESPONSE;
+           PIC2     = RESPONSE2;
+           DIAG_TEXT = 'QBPTINQ13: ERROR IN READ NEXT RESP '||PIC_RESP
+                       ||' RESP2 '||PIC2;
+           CALL WRITE_TO_OPERATOR;
+         END;
+     END;
+
+ END READ_STD_RATE_FILE;
+
+ %PAGE;
+ /********************************************************************/
+ /* Find the inside/outside rate for government (federal) customers  */
+ /* in the special rate 2 dataset                                    */
+ /********************************************************************/
+ FIND_GOV_RATE: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ14: FIND_GOV_RATE ';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   SELECT (GSA_SCHED);
+     WHEN ('A') SPL2BRKEY.ISEQ = 100;
+     WHEN ('C') SPL2BRKEY.ISEQ = 102;
+     OTHERWISE  SPL2BRKEY.ISEQ = 100;
+   END;
+                                         /* ASSIGN BILLING CLASS      */
+   SPL2KEY.BILLING_CLASS = BILL_CLASS;
+   SPL2KEY.DEFFDTE = '';
+
+   SPL2BRKEY.BILLING_CL = BILL_CLASS;
+
+   PIC_RESP = SPL2BRKEY.ISEQ;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ17: SEQ '||PIC_RESP||' CL '||
+                          SPL2BRKEY.BILLING_CL||' CE '||INCOM_MSG.PTID1;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   EXEC CICS STARTBR DATASET('QBSRAT2')
+                     RIDFLD(SPL2BRKEY)
+                     KEYLENGTH(4)
+                     RESP(RESPONSE)
+                     RESP2(RESPONSE2)
+                     GENERIC GTEQ;
+
+   PIC2 = RESPONSE;
+
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))  ;           /* START BROWSE OK           */
+
+     WHEN (DFHRESP(DSIDERR))             /* FILE NOT FOUND            */
+       DO;
+         ET_TEXT1 = ERR1||MODULE||' FILE NOT FOUND (QBSRAT2) RESP'||
+                                                             PIC2;
+         SIGNAL ERROR;
+       END;
+     WHEN (DFHRESP(NOTFND))               /* KEY NOT FOUND            */
+       DO;
+         DIAG_TEXT = MODULE||': KEY SEQ# ' || SPL2BRKEY.ISEQ ||
+                    'BILLING CLASS '||SPL2BRKEY.BILLING_CL||' CE '||
+                     INCOM_MSG.PTID1;
+         CALL WRITE_TO_OPERATOR;
+
+         DIAG_TEXT = MODULE||
+                  ': NOT FOUND ON SPECIAL RATE 2 FILE (QBSRAT2) RESP '||
+                         PIC2;
+         CALL WRITE_TO_OPERATOR;
+
+         VARTEXT = '';
+         VARTEXT = VARTEXT||'RATE INQUIRY ERROR'||(9)' ';
+         VARTEXT = VARTEXT||'RATE NOT FOUND FOR '||TYPE ||' G';
+         CALL SEND_MSG;
+         SEND_MESSAGE = NO;
+
+       END;
+     OTHERWISE                          /* OTHER VSAM ERROR          */
+       DO;
+         ET_TEXT1 = ERR1||MODULE||' ERROR ON STARTBR OF ' ||
+                    'SPECIAL RATE FILE 2 (QBSRAT2) ';
+         ET_TEXT2 = ERR1||MODULE||' KEY=' || SPL2BRKEY.ISEQ||
+                       SPL2BRKEY.BILLING_CL||' '||PIC2 || ' CE '||
+                     INCOM_MSG.PTID1;
+         SIGNAL ERROR;
+       END;
+   END;   /* END SELECT */
+
+   RECD_LEN = 80;
+   SPL2KEY.ISEQ =  SPL2BRKEY.ISEQ;       /* INIT READ KEY DATA        */
+   SPL2KEY.BILLING_CLASS = SPL2BRKEY.BILLING_CL;
+
+   EXEC CICS READNEXT DATASET('QBSRAT2')
+                      RIDFLD(SPL2KEY)
+                      SET(@SPLRAT2)
+                      LENGTH(RECD_LEN)
+                      RESP(RESPONSE)
+                      RESP2(RESPONSE2);
+
+   CONTINUE = '1'B;
+   FOUND    = '0'B;
+
+   PIC2 = RESPONSE;
+   PIC_RESP = SPL2BRKEY.ISEQ;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ16: '||PIC_RESP||' '||SPL2BRKEY.BILLING_CL||
+                             ' '||RUN_DATE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   DO  WHILE (CONTINUE);
+
+     SELECT(RESPONSE);
+       WHEN (DFHRESP(NORMAL))
+         DO;
+           IF SPL2BRKEY.ISEQ = SPECIAL2.ISEQ         &
+              SPL2BRKEY.BILLING_CL = SPECIAL2.CCPFIN &
+              RUN_DATE >= SPECIAL2.DEFFDTE           &
+              RUN_DATE <= SPECIAL2.DEXPIRE
+             THEN DO;
+               VARTEXT = '';
+
+               VARTEXT = VARTEXT||'RATE INQ ';
+               VARTEXT = VARTEXT ||TYPE||' '||MODEL  ;
+               VARTEXT = VARTEXT || ' Federal '||(1)' ';
+
+               PIC_RATE = SPECIAL2.AINRATE;
+               VARTEXT = VARTEXT || 'IN '||PIC_RATE;
+               PIC_RATE = SPECIAL2.AOUTRATE;
+               VARTEXT = VARTEXT || ' OUT '||PIC_RATE||(10)' ';
+
+               VARTEXT = VARTEXT || 'MIN HRS= '||MINHRS||(21)' ';
+               IF MODEL = '000'
+                 THEN VARTEXT = VARTEXT ||
+                        'ESTIMATE ONLY, SOME MODELS HIGHER OR LOWER';
+
+               TYPE_RATE_FOUND = '2';
+               CALL SEND_MSG;
+               CONTINUE = '0'B;
+               FOUND    = '1'B;
+
+             END;
+             ELSE CONTINUE = '1'B;
+         END;
+       WHEN (DFHRESP(ENDFILE))
+         DO;
+           VARTEXT = '';
+           VARTEXT = VARTEXT||'RATE INQUIRY ERROR'||(9)' ';
+           VARTEXT = VARTEXT||'RATE NOT FOUND FOR '||TYPE||' G';
+           CALL SEND_MSG;
+
+           ET_TEXT1 = ERR1||MODULE||' END OF QBSRAT2 FILE BEFORE ' ||
+                      'RECORD FOUND,  SEQ = ' || SPL2BRKEY.ISEQ;
+           ET_TEXT2 = ERR1||MODULE||
+                      ' BILLING_CLASS= ' || SPL2BRKEY.BILLING_CL ||
+                      ' RESP '|| PIC2;
+           CONTINUE = '0'B;
+           FOUND    = '1'B;              /* DO NOT READ AGAIN         */
+         END;
+
+       WHEN (DFHRESP(DSIDERR))         /* FILE NOT FOUND              */
+         DO;                           /* PASS CONTROL TO ERROR PGM   */
+           ET_TEXT1 = ERR1||MODULE||' FILE NOT FOUND (QBSRAT2) RESP '||
+                             PIC2;
+           SIGNAL ERROR;
+         END;
+
+       WHEN (DFHRESP(NOTFND))          /* KEY NOT FOUND               */
+         DO;                           /* PASS CONTROL TO ERROR PGM   */
+
+           VARTEXT = '';
+           VARTEXT = VARTEXT||'RATE INQUIRY ERROR'||(9)' ';
+           VARTEXT = VARTEXT||'RATE NOT FOUND FOR '||TYPE||' G';
+           CALL SEND_MSG;
+
+           DIAG_TEXT = MODULE||': KEY NOT FOUND ON QBSRAT2 ' ||
+                      'FOR GSA SCHEDULE SEQ= ' || SPL2BRKEY.ISEQ;
+           CALL WRITE_TO_OPERATOR;
+           DIAG_TEXT = MODULE ||
+                    ': BILLING_CLASS= ' || SPL2BRKEY.BILLING_CL ||' '||
+                       PIC2||' CE '||INCOM_MSG.PTID1;
+           CALL WRITE_TO_OPERATOR;
+         END;
+
+       OTHERWISE                       /* ALL OTHER ERRORS           */
+         DO;                           /* PASS CONTROL TO ERROR PGM  */
+           ET_TEXT1 = ERR1||MODULE||' ERROR ON READ OF ' ||
+                      'SPECIAL RATE FILE 2 (QBSRAT2) ';
+           PIC_RESP = RESPONSE;
+           PIC2     = RESPONSE2;
+           ET_TEXT2 = ERR1||MODULE||' REC LEN '|| RECD_LEN||
+                                    ' RESPONSE CODE '||PIC_RESP||
+                                    ' RESP2 '||PIC2;
+           SIGNAL ERROR;
+         END;
+     END;   /* END SELECT */
+
+     IF ^FOUND
+       THEN EXEC CICS READNEXT DATASET('QBSRAT2')
+                               RIDFLD(SPL2KEY)
+                               SET(@SPLRAT2)
+                               LENGTH(RECD_LEN)
+                               RESP(RESPONSE)
+                               RESP2(RESPONSE2);
+
+   END;                                  /* END OF DO WHILE           */
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ16: EXIT FIND_GOV_RATE';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END FIND_GOV_RATE;
+
+ %PAGE;
+ /********************************************************************/
+ /* Set up data areas to send message to CE.  Determine whether at   */
+ /* the hub or area and start the appropriate transaction to send    */
+ /* THE MESSAGE TO THE CE.                                           */
+ /********************************************************************/
+ SEND_MSG: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ20: SEND_MSG PROC ';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   MSG_DATA.PTID1    = INCOM_MSG.PTID1;
+   MSG_DATA.QSARBO   = INCOM_MSG.QSARBO;
+   MSG_DATA.QSARTERR = INCOM_MSG.QSARTERR;
+   MSG_DATA.SENDER   = 'QB';
+
+   ALLTEXT = VARTEXT|| ' @@';        /* END OF MESSAGE INDICATOR      */
+                                     /* ----------------------------- */
+                                     /* IF RUNNING AT THE AREA THEN   */
+                                     /* START TRANSACTION AEQM.       */
+                                     /* THIS WILL SEND THE MESSAGE    */
+                                     /* TEXT TO AEQMSG2 WHICH WILL    */
+                                     /* SEND THE TEXT TO THE PT.      */
+                                     /* ----------------------------- */
+
+   ET_TEXT1 = ERR||MODULE||' UNABLE TO START TRANSACTION '||
+             'AEQM TO SEND MSG TO PT';
+
+   EXEC CICS IGNORE CONDITION SYSIDERR;
+   EXEC CICS START TRANSID('AEQM') FROM(MSG_DATA);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBPTINQ18: END OF SEND_MSG PROC ';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END SEND_MSG;
+
+ %PAGE;
+ /********************************************************************/
+ /* Procedure writes message to the operator console.                */
+ /********************************************************************/
+ WRITE_TO_OPERATOR: PROC;
+
+  /*  EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+  EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPERATOR;
+
+ END QBPTINQ ;
+

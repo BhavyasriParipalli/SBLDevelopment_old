@@ -1,0 +1,1017 @@
+ QBRTINQ /*                                       03/18/93-10:13:20 */:
+  PROC(@QBRTINQ) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBRTINQ     VERSION NR:  01        DATE:  03/18/93    */
+ /*                                               TIME:  10:13:20    */
+ /*                                                                  */
+ /*  TITLE: HSI - RATE INQUIRY  (US and Canada)                      */
+ /*                                                                  */
+ /*  FUNCTION: NSS WILL SEND IN A REQUEST FOR RATE INFORMATION ON    */
+ /*            A PARTICULAR TYPE/MODEL AND CUSTOMER TYPE (GOV OR     */
+ /*            COMMERCIAL). THIS MODULE WILL READ THE MTM TO         */
+ /*            DETERMINE THE BILLING CLASS OF THE TYPE/MODEL AND     */
+ /*            READ THE APPROPRIATE BILLING RATE DATASETS TO         */
+ /*            RETRIEVE THE INSIDE AND OUTSIDE RATE INFORMATION.     */
+ /*            THIS INFORMATION WILL BE PUT IN A PARAMETER LIST,     */
+ /*            RTPARM COPY, AND SENT BACK TO NSS TO BE DISPLAYED     */
+ /*            ON THE CAD/DI SCREEN OR USED BY IPS FOR PRESCREEN     */
+ /*            DISPLAYS DURING RECEIVE CALL.                         */
+ /*                                                                  */
+ /*            THIS MODULE IS INITIATED ON THE NSS CICS REGION BY WAY*/
+ /*            OF MODULE ACULINK - A DISTRIBUTED PROGRAM LINK        */
+ /*            INTERFACE MODULE. THE CALLING MODULE ON NSS TELLS     */
+ /*            ACULINK WHERE TO GO (NSS TO QSAR VIA CARES LINK, IN   */
+ /*            THIS CASE), WHAT PROGRAM TO START, AND WHERE THE      */
+ /*            PARAMETER LIST RESIDES. ACULINK HAS A COUNTERPART,    */
+ /*            ACULNK2, WHICH RUNS ON THE QSAR SIDE, AND THESE       */
+ /*            TWO MODULES HANDLE THE 'CONVERSE' OF DATA BETWEEN     */
+ /*            NSS AND QSAR FOR THIS RATE INQUIRY PROGRAM.           */
+ /*                                                                  */
+ /*  LANGUAGE:  PLI                                                  */
+ /*                                                                  */
+ /*  MODULE TYPE: REALTIME - PLI2CD3 / runs in AOR                   */
+ /*                                                                  */
+ /*  PARM: POINTER TO COMM AREA FROM NSS                             */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS: COMMAREA - PARAMETER LIST PASSED FROM NSS WITH          */
+ /*                     TYPE/MODEL AND RATE TYPE - PARAMETER         */
+ /*                     LIST NAME IS RTPARM COPY                     */
+ /*                                                                  */
+ /*  OUTPUTS: COMMAREA - PARAMETER LIST PASSED BACK TO NSS WITH      */
+ /*                      BILLING RATE INFORMATION - PARAMETER        */
+ /*                      LIST NAME IS RTPARM COPY                    */
+ /*                                                                  */
+ /*  REPORTS: NONE                                                   */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                   PGMR:  */
+ /*  -------- -------- ------------------------------------- ------  */
+ /*  03/18/93 SR92039  3NSH   INITIAL PROMOTE                KMESMER */
+ /*  04/26/93 I178909  3NSH   REMOVE CODE PUT IN FOR         KMESMER */
+ /*                           TESTING                                */
+ /*  02/18/99 S99013   8NSN   ADD CANADA BILLING RATE            LBS */
+ /*                           EVALUATION                             */
+ /*  05/28/99 YEAR2K   8NSN   CHANGE DATE TO DATETIME            MKP */
+ /*  06/03/99 I1219034 8NSN   CORRECT RUNDATE ASSIGNMENT         DLP */
+ /*  08/24/99 PROD     8NSN   CHANGE MSF1 TO MS2 FOR MTM         DLP */
+ /*  12/09/99 T5465476 9NSC   MAKE CHANGES FOR CANADA            DLP */
+ /*  12/22/00 SUPPORT  0NSK   CHANGE COPY FROM AEQMTM2 TO AEQMTM LBS */
+ /*  10/01/01 SR01032  1NSP   change SSA to begin using MSF2     LBS */
+ /* 04/15/2002 HSIPROD 2NSG   LE 2.10 changes, PLIXOPT           LBS */
+ /* 11/20/2002 GP021333 3NSE  Add logic to use the new 3 digit   DLP */
+ /*                           field in the standard rate table       */
+ /*03/23/2006 RQ054527 6NSH   Only Compile to pickup the changed     */
+ /*                           Copy book QBNRAT                   VJK */
+ /* 12/15/2006 SR060054 7NSA CHANGE MTM_DATA to a base variable  LBS */
+ /*                                                                  */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('7NSA - 12/15/2006');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBRTINQ');
+
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE   CHAR(18) INIT (CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+
+
+ /* ---------------------------------------------------------------- */
+ /*                 BUILTIN DECLARES                                 */
+ /* ---------------------------------------------------------------- */
+
+ DCL (ADDR,
+      CSTG,
+      DATETIME,
+      LENGTH,
+      LOW,
+      ONLOC,
+      NULL,
+      STG,
+      SUBSTR) BUILTIN;
+
+ /* DCL PLIXOPT EXT CHAR(40) VAR INIT('STAE,ISA(14K),HEAP(0),NR')*/
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(14K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+  MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+  ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+  TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /* ----------------------------------------------------------------- */
+ /* IN CICS 3.1, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE    */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE   */
+ /* IS INVOKED...                                                     */
+ /* ----------------------------------------------------------------- */
+
+ %PAGE;
+ DCL @CWA               PTR   INIT(NULL);
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+    %INCLUDE CWA ; ;
+
+ %PAGE;
+ DCL @STDRAT            PTR   INIT(NULL);
+ DCL 1 STANDARD  UNALIGNED BASED(@STDRAT),
+    %INCLUDE QBNRAT ; ;
+
+ %PAGE;
+ DCL 1 SAVE_STD_RATE UNALIGNED,
+    %INCLUDE QBNRAT ; ;
+
+ %PAGE;
+ DCL @SPLRAT2           PTR   INIT(NULL);
+ DCL 1 SPECIAL2  UNALIGNED BASED(@SPLRAT2),
+    %INCLUDE QBSRAT2; ;
+ %PAGE;
+ DCL 1 ERROR_DATA UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL IO_BUFFER             CHAR(1000)   INIT('');
+ DCL 1 MTM_DATA     BASED(ADDR(IO_BUFFER)) UNALIGNED,
+    %INCLUDE AEQMTM ; ;
+
+ %PAGE;
+ %DCL RTPARM_STG   CHAR;
+ %RTPARM_STG='BASED(@QBRTINQ)';
+ %INCLUDE RTPARM;
+
+ DCL 1 SPL2KEY,
+       2 ISEQ     FIXED BIN(15) INIT(0),       /* CONTRACT SEQ NUMBER */
+       2 PAD1           CHAR(1) INIT(''),
+       2 BILLING_CLASS  CHAR(1) INIT(''),      /* BILLING CLASS       */
+       2 PAD3           CHAR(1) INIT(''),
+       2 DEFFDTE        CHAR(10)INIT('');      /* EFFECTIVE DATE      */
+
+ DCL BRKEY  CHAR(4) BASED(ADDR(SPL2BRKEY));
+ DCL 1 SPL2BRKEY,
+       3 ISEQ       FIXED BIN (15) INIT(0),
+       3 PAD1             CHAR(1)  INIT(''),
+       3 BILLING_CL       CHAR(1)  INIT('');
+
+ /* ---------------------------------------------------------------- */
+ /*                  MISCELLANEOUS DECLARES                          */
+ /* ---------------------------------------------------------------- */
+
+ DCL @QBRTINQ     POINTER;
+ DCL @TEMP        POINTER;
+
+ DCL BILL_CLASS       CHAR(1)   INIT('1');
+ DCL CHAR2            CHAR(2)   INIT('US');
+ DCL CUST_TYPE        CHAR(1)   INIT('');
+ DCL EIB_STRING       CHAR(85) BASED(DFHEIPTR);
+ DCL ERR              CHAR(9)   INIT('QSR9000: ');
+ DCL ERR1             CHAR(9)   INIT('QSR9002: ');
+ DCL DIAG_TEXT        CHAR(80)  INIT('');
+ DCL GSA_SCHED        CHAR(1)   INIT('A');
+ DCL HOLD_CUST_TYPE   CHAR(1)   INIT('');
+ DCL KEYLEN     FIXED BIN(15)   INIT(0);
+ DCL MODEL            CHAR(3)   INIT(LOW(3));
+ DCL MINHRS           CHAR(1)   INIT('1');
+ DCL MTM_QUAL_SSA     CHAR(31)  INIT('');
+ DCL MTMC_QUAL_SSA    CHAR(31)  INIT('');
+ DCL PIC_DATE         PIC'(8)9' INIT(0);
+ DCL PIC_TIME         PIC'(6)9' INIT(0);
+
+ DCL 1 PIC_TIME_OVER BASED(ADDR(PIC_TIME)),
+       3 PIC_HR       PIC'99',
+       3 PIC_MIN      PIC'99',
+       3 PIC_SEC      PIC'99';
+
+ DCL PIC2             PIC'99'   INIT(0);
+ DCL PIC_RESP         PIC'9999' INIT(0);
+ DCL PIC999V99        PIC'999V.99' INIT(0);
+ DCL PSBNAME          CHAR(8)   INIT('');  /* different one for US & */
+                                           /* Canada                 */
+ DCL RECD_LEN   FIXED BIN (15)  INIT(0);
+ DCL RESPONSE   FIXED BIN (31)  INIT(0);
+ DCL RUN_DATE         CHAR(10)  INIT('');
+ DCL WORKRUNDATE      CHAR(17)  INIT('');
+ DCL SAVEKEY          CHAR(16)  INIT('');  /* 3NSE */
+ DCL SEND_MESSAGE     CHAR(1)   INIT('N');
+ DCL STD_BR_KEY       CHAR(5)   INIT('');  /* 3NSE */
+ DCL STDKEY           CHAR(16)  INIT('');  /* 3NSE */
+ DCL TYPE             CHAR(4)   INIT('');
+
+ DCL CONTINUE          BIT(1)   INIT('1'B);
+ DCL FOUND             BIT(1)   INIT('0'B);
+ DCL PSB_SCHEDULED     BIT(1)   INIT('0'B);
+ DCL TEST_SW           BIT(1)   INIT('0'B);
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                  ON ERROR UNIT                                   */
+ /* ---------------------------------------------------------------- */
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     ET_EIB      = EIB_STRING;
+     WTO_FLAG    = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_PROGRAM_ID = 'QBRTINQ';
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+
+     IF PSB_SCHEDULED
+       THEN EXEC DLI TERMINATE;
+
+     ET_TEXT4 = ERR1 || MODULE ||' ENTRY POINT = '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                 ' TRANSID: '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS LINK PROGRAM('AEQERRP')
+          COMMAREA(ERROR_DATA)
+          RESP(RESPONSE);
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBRTINQ13: ON ERROR RETURN WITH 03';
+         CALL WRITE_TO_OPERATOR;
+       END;
+
+     RTRC = '03';                        /* PROBLEM ENCOUNTERED      */
+     EXEC CICS RETURN;
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                          /* IF ALL ELSE FAILS, ABEND  */
+         EXEC CICS ABEND
+                   ABCODE('RTNQ')
+                   CANCEL;
+       END;
+
+   END;
+
+ /********************************************************************/
+ /*                MAIN PROCESSING                                   */
+ /********************************************************************/
+ EXEC CICS IGNORE CONDITION ERROR;
+ /* ---------------------------------------------------------------- */
+ /*  GET ADDRESSABILITY TO CWA                                       */
+ /* ---------------------------------------------------------------- */
+ EXEC CICS ADDRESS CWA(@CWA)
+                   RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)
+   THEN DO;
+     /* ------------------------------------------------ */
+     /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+     /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+     /* ------------------------------------------------ */
+     RTRC='03';
+     PIC2 = RESPONSE;
+     ET_TEXT1 = ERR1||MODULE||'FAILURE TO GET ADDRESS OF CWA RESP '
+                            ||PIC2;
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = YES | 
+    CWA_QSAR_TRACE = 'R'
+    THEN TEST_SW = '1'B;
+    ELSE TEST_SW = '0'B;
+
+ WORKRUNDATE  = DATETIME;
+ RUN_DATE     = SUBSTR(WORKRUNDATE,1,4)||'-'||
+                SUBSTR(WORKRUNDATE,5,2)||'-'||
+                SUBSTR(WORKRUNDATE,7,2);
+
+ CALL SETUP_DATA;
+ CALL GET_MTM_DATA;
+
+ IF CUST_TYPE = 'C' | 
+    CUST_TYPE = 'B'
+   THEN CALL FIND_COMMERCIAL_RATE_INFO;
+
+ IF RTRC <= '  ' & (CUST_TYPE='G' | HOLD_CUST_TYPE='B')
+   THEN CALL FIND_GOVERNMENT_RATE_INFO;
+
+ IF TEST_SW
+   THEN DO;
+     PIC999V99 = RTCRI;
+     DIAG_TEXT = 'QBRTINQ15: COMM RATES '||PIC999V99;
+
+     PIC999V99 = RTCRO;
+     DIAG_TEXT = SUBSTR(DIAG_TEXT,1,28)||' '||PIC999V99||
+                 ' MIN HRS '||MINHRS;
+     CALL WRITE_TO_OPERATOR;
+
+     PIC999V99 = RTGRI;
+     DIAG_TEXT = 'QBRTINQ16: GOV  RATES '||PIC999V99;
+     PIC999V99 = RTGRO;
+     DIAG_TEXT = SUBSTR(DIAG_TEXT,1,28)||' '||PIC999V99;
+     CALL WRITE_TO_OPERATOR;
+   END;
+
+ EXEC CICS RETURN;                       /* END OF PROCESSING         */
+
+ /********************************************************************/
+ /*  THIS PROCEDURE TAKES DATA FROM RTPARM AND PUTS IT IN WORKING    */
+ /*  STORAGE FOR MODULE TO USE AND INITIALIZES OTHER RTPARM FIELDS.  */
+ /********************************************************************/
+ SETUP_DATA:  PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ1: IN SETUP DATA';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+       EXEC CICS ADDRESS SET(@TEMP) USING(@QBRTINQ)
+                         RESP(RESPONSE);
+ IF RESPONSE ^= DFHRESP(NORMAL)
+   THEN DO;
+     /* ------------------------------------------------ */
+     /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+     /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+     /* ------------------------------------------------ */
+     RTRC='03';
+     PIC2 = RESPONSE;
+     ET_TEXT1 = ERR1||MODULE||'FAILURE TO GET ADDRESS OF RTPARM '
+                            ||PIC2;
+   END;
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ2: '||RTMACH||' '||RTMOD||' '||RTRATE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   TYPE      = RTMACH;
+   MODEL     = RTMOD;
+   CUST_TYPE = RTRATE;
+   RTCRI     = '';
+   RTCRO     = '';
+   RTGRI     = '';
+   RTGRO     = '';
+   RTMIN     = '';
+   RTBILL    = '';
+   RTDIS     = '';
+   RTRC      = '';
+
+ END SETUP_DATA;
+
+ %PAGE;
+ /********************************************************************/
+ /* This proc will use the TYPE/MODEL to look up data in the MTM     */
+ /* data base.  If the TYPE/MODEL entered cannot be found then       */
+ /* the entered TYPE/superlow model will be looked up.               */
+ /********************************************************************/
+ GET_MTM_DATA: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ3: GET MTM DATA';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   CALL SCHEDULE_PSB;
+
+   MTM_QUAL_SSA  = '3'||TYPE||MODEL;
+   MTMC_QUAL_SSA = '3'||TYPE||MODEL;
+
+   IF CHAR2 = 'US'
+     THEN CALL MTM_DB_CALL;
+     ELSE CALL MTMC_DB_CALL;
+
+   SELECT (DIBSTAT);
+     WHEN ('')
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBRTINQ7: IN FOUND MTM REC '||MTM_QUAL_SSA;
+             CALL WRITE_TO_OPERATOR;
+           END;
+
+         BILL_CLASS = MTM_DATA.GDCBILCL;
+         GSA_SCHED  = MTM_DATA.CGSASCH;
+
+         IF CHAR2 = 'CA'
+           THEN MINHRS = '2';
+           ELSE DO;
+             SELECT (MTM_DATA.CTAXCD);
+               WHEN ('01','02','07') MINHRS = '1';/*SEE QBBIL1 MODULE*/
+               OTHERWISE MINHRS = '2';
+             END;
+           END;
+
+         IF MODEL = LOW(3)
+           THEN MODEL = '000';
+           ELSE MODEL = SUBSTR(GDCTYMD,5,3);
+       END;
+
+     WHEN ('GE')                         /* DID NOT FIND TYPE/MODEL   */
+       DO;
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBRTINQ13: TRY MTM SUPERLOW ';
+            CALL WRITE_TO_OPERATOR;
+          END;
+
+         MTM_QUAL_SSA  = '3'||TYPE||LOW(3); /* TRY TYPE/SUPERLOW     */
+         MTMC_QUAL_SSA = '3'||TYPE||LOW(3); /* TRY TYPE/SUPERLOW     */
+
+         IF CHAR2 = 'US'
+           THEN CALL MTM_DB_CALL;
+           ELSE CALL MTMC_DB_CALL;
+
+         SELECT (DIBSTAT);
+           WHEN ('  ')
+             DO;
+               BILL_CLASS = MTM_DATA.GDCBILCL;
+               GSA_SCHED  = MTM_DATA.CGSASCH;
+
+               IF CHAR2 = 'CA'
+                 THEN MINHRS = '2';
+                 ELSE DO;
+                   SELECT (MTM_DATA.CTAXCD);
+                     WHEN ('01','02','07') MINHRS = '1';
+                     OTHERWISE MINHRS = '2';
+                   END;
+                 END;
+               MODEL = '000';
+             END;
+           WHEN ('GE')
+             DO;
+               RTRC = '01';         /* INVALID PROD ERROR */
+               CALL TERMINATE_PSB;
+               EXEC CICS RETURN  ;
+             END;
+           OTHERWISE
+             DO;
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBRTINQ14: MTM OTHERWISE ERROR '||DIBSTAT;
+            CALL WRITE_TO_OPERATOR;
+          END;
+               /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+               /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+
+               RTRC='03';
+
+               ET_TEXT2 = ERR||MODULE||' ERROR ON 2 GU TO MTM DB STAT '
+                                 ||DIBSTAT;
+               SIGNAL ERROR;
+             END;
+         END;
+       END;                              /* END OF WHEN 'GE'          */
+     OTHERWISE
+       DO;
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBRTINQ16: MTM OTHERWISE ERROR '||DIBSTAT;
+            CALL WRITE_TO_OPERATOR;
+          END;
+         /* ------------------------------------------------ */
+         /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+         /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+         /* ------------------------------------------------ */
+
+         RTRC='03';
+
+         ET_TEXT2 = ERR||MODULE||' ERROR ON 1 GU TO MTM DB STAT '||
+                                   DIBSTAT;
+         SIGNAL ERROR;
+       END;
+   END;
+
+   CALL TERMINATE_PSB;
+
+ END GET_MTM_DATA;
+
+ %PAGE;
+ /********************************************************************/
+ /* SCHEDULE THE PSB                                                 */
+ /********************************************************************/
+ SCHEDULE_PSB: PROC REORDER;
+
+   IF CHAR2 = 'US'
+     THEN PSBNAME = 'AEQRUL1';
+     ELSE PSBNAME = 'CNQRUL1';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ4: SCHEDULE PSB '|| PSBNAME;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE || 'UNABLE TO SCHEDULE '|| PSBNAME ||' PSB';
+
+   EXEC DLI SCHEDULE                   /* SCHEDULE THE PSB           */
+            PSB((PSBNAME));
+
+   IF DIBSTAT = '  '
+     THEN PSB_SCHEDULED = '1'B;
+     ELSE DO;
+         /* ------------------------------------------------ */
+         /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+         /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+         /* ------------------------------------------------ */
+
+       RTRC='03';
+
+       SUBSTR(ET_TEXT1,50,11) = ' DIBSTAT '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+ END SCHEDULE_PSB;
+
+ %PAGE;
+ /********************************************************************/
+ /* TERMINATE THE PSB                                                */
+ /********************************************************************/
+ TERMINATE_PSB: PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ8: IN TERMINATE PSB';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+
+   ET_TEXT1 = ERR1||MODULE|| 'UNABLE TO TERMINATE '||PSBNAME||' PSB';
+
+   EXEC DLI TERMINATE;                 /* TERMINATE THE PSB          */
+
+   IF DIBSTAT = '  '
+     THEN  PSB_SCHEDULED = '0'B;
+     ELSE DO;
+         /* ------------------------------------------------ */
+         /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+         /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+         /* ------------------------------------------------ */
+
+       RTRC='03';
+
+       SIGNAL ERROR;
+     END;
+
+   ET_TEXT1 = '';
+
+ END TERMINATE_PSB;
+
+ %PAGE;
+ /********************************************************************/
+ /* actual call to the MTM data base  US MSF2                        */
+ /********************************************************************/
+ MTM_DB_CALL: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ5: MTM US DB CALL '||MTM_QUAL_SSA;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE||' ERROR ON CALL TO MTM US DB '||
+                            MTM_QUAL_SSA;
+
+   EXEC DLI GU USING PCB(3)
+               SEGMENT(QSSUPPRT)
+               INTO (IO_BUFFER)
+               WHERE ('ISUPPORT' = MTM_QUAL_SSA);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ6: AFTER CALL DIBSTAT '||DIBSTAT;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END MTM_DB_CALL;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* ACTUAL CALL TO THE MTM DATA BASE   CANADIAN  MSF                 */
+ /********************************************************************/
+ MTMC_DB_CALL: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ5: MTM CAN DB CALL '||MTMC_QUAL_SSA;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE||' ERROR ON CALL TO MTM CAN DB '||
+                             MTMC_QUAL_SSA;
+
+   EXEC DLI GU USING PCB(1)
+               SEGMENT(QSSUPPRT)
+               INTO (IO_BUFFER)
+               WHERE ('ISUPPORT' = MTMC_QUAL_SSA);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ6: AFTER CALL DIBSTAT '||DIBSTAT;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+ END MTMC_DB_CALL;
+
+ %PAGE;
+ /********************************************************************/
+ /* This proc uses the customer type input (commercial or gov)       */
+ /* to perform the appropriate inside/outside rate lookup.  If the   */
+ /* customer is government another proc is called to find the rate   */
+ /* information in the special billing rate 2 dataset.  If the       */
+ /* customer is commercial the rate information is obtained from     */
+ /* the standard rate dataset.                                       */
+ /********************************************************************/
+ FIND_COMMERCIAL_RATE_INFO: PROC REORDER;
+
+   HOLD_CUST_TYPE = CUST_TYPE;
+   IF HOLD_CUST_TYPE = 'B'                       /* IF 'B', THEN    */
+     THEN CUST_TYPE = 'C';                       /* CHG TO 'C' FIRST*/
+
+   STD_BR_KEY = CUST_TYPE||'   '||BILL_CLASS;    /* 3NSE */
+
+   IF CUST_TYPE = 'C'
+     THEN DO;                            /* FIND COMMERCIAL RATES     */
+       EXEC CICS STARTBR FILE('QBSTDRAT')
+                         RIDFLD(STD_BR_KEY)
+                         KEYLENGTH(5)
+                         RESP(RESPONSE)
+                         GENERIC EQUAL;
+
+       SELECT (RESPONSE);
+         WHEN (DFHRESP(NORMAL)) CALL READ_STD_RATE_FILE;
+         WHEN (DFHRESP(NOTFND))
+           DO;
+             PIC2 = RESPONSE;
+             DIAG_TEXT = MODULE||': STARTBR-RATE NOT FOUND FOR '||
+                             STD_BR_KEY||' RESP '||PIC2;
+             CALL WRITE_TO_OPERATOR;
+             RTRC = '02';             /* RATE NOT FOUND ERROR */
+           END;
+         OTHERWISE
+           DO;
+             PIC2 = RESPONSE;
+             DIAG_TEXT = MODULE||': BAD RESPONSE '||
+                           'ON STARTBR QBSTDRAT '||PIC2;
+             CALL WRITE_TO_OPERATOR;
+             RTRC = '03';         /* SYSTEM PROBLEM ERROR */
+           END;
+       END;                              /* END OF SELECT             */
+     END;                                /* END DO OF IF CUST_TYPE='C'*/
+
+
+ END FIND_COMMERCIAL_RATE_INFO;
+
+ %PAGE;
+ /********************************************************************/
+ /********************************************************************/
+ FIND_GOVERNMENT_RATE_INFO: PROC;
+
+   IF HOLD_CUST_TYPE = 'B'               /* IF 'B', THEN             */
+     THEN CUST_TYPE = 'G';               /* CHG TO GOVT NOW          */
+
+   STD_BR_KEY = CUST_TYPE||'   '||BILL_CLASS; /* 3NSE */
+   CALL FIND_GOV_RATE;
+
+ END FIND_GOVERNMENT_RATE_INFO;
+
+ %PAGE;
+ /********************************************************************/
+ /* Find the commercial rates in the standard rate dataset           */
+ /* Format a message to be sent to the CE whether the rate is found  */
+ /* or not (error message).                                          */
+ /********************************************************************/
+ READ_STD_RATE_FILE: PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ9: IN READ_STD_RATE_FILE';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   KEYLEN = LENGTH(STDKEY);
+   STDKEY = STD_BR_KEY||' '||RUN_DATE;
+   SAVEKEY = STDKEY;
+
+   EXEC CICS READNEXT FILE('QBSTDRAT')
+                       RIDFLD(STDKEY)
+                       KEYLENGTH(KEYLEN)
+                       SET(@STDRAT)
+                       RESP(RESPONSE);
+
+   DO WHILE (STDKEY <= SAVEKEY          &
+             RESPONSE = DFHRESP(NORMAL) &
+             STANDARD.CRATTYP ^= 'M  ');
+
+     SAVE_STD_RATE  = STANDARD, BY NAME;
+
+     EXEC CICS READNEXT FILE('QBSTDRAT')
+                        RIDFLD(STDKEY)
+                        KEYLENGTH(KEYLEN)
+                        SET(@STDRAT)
+                        RESP(RESPONSE);
+   END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ10: READ KEY '||SAVEKEY;
+       CALL WRITE_TO_OPERATOR;
+       DIAG_TEXT = 'QBRTINQ11: LAST KEY FOUND '||STDKEY;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   SELECT (RESPONSE);
+     WHEN (DFHRESP(NORMAL) )
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBRTINQ12: USING RATES WITH KEY '||
+                                    SAVE_STD_RATE.CRATTYP||' '||
+                                    SAVE_STD_RATE.CCPFIN ||' '||
+                                    SAVE_STD_RATE.DEFFDTE;
+             CALL WRITE_TO_OPERATOR;
+           END;
+
+         CALL RETURN_DATA;
+
+       END;
+     WHEN (DFHRESP(ENDFILE))
+       DO;
+         IF STD_BR_KEY = SUBSTR(STDKEY,1,5)
+           THEN DO;
+             CALL RETURN_DATA;
+           END;
+           ELSE DO;
+             RTRC = '02';                 /* RATE NOT FOUND ERROR */
+           END;
+       END;
+     OTHERWISE
+       DO;
+         PIC2 = RESPONSE;
+         DIAG_TEXT = 'QBRTINQ13: ERROR IN READ NEXT RESP '||PIC2;
+         CALL WRITE_TO_OPERATOR;
+         RTRC = '03';               /* SYSTEM PROBLEM ERROR  */
+       END;
+   END;
+
+ END READ_STD_RATE_FILE;
+
+ %PAGE;
+ /********************************************************************/
+ /* Find the inside/outside rate for government (federal) customers  */
+ /* in the special rate 2 dataset                                    */
+ /********************************************************************/
+ FIND_GOV_RATE: PROC;
+
+   SELECT (GSA_SCHED);
+     WHEN ('A') SPL2BRKEY.ISEQ = 100;
+     WHEN ('C') SPL2BRKEY.ISEQ = 102;
+     OTHERWISE  SPL2BRKEY.ISEQ = 100;
+   END;
+                                         /* ASSIGN BILLING CLASS      */
+   SPL2KEY.BILLING_CLASS = BILL_CLASS;
+   SPL2KEY.DEFFDTE = '';
+
+   SPL2BRKEY.BILLING_CL = BILL_CLASS;
+
+   PIC_RESP = SPL2BRKEY.ISEQ;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ14: SEQ '||PIC_RESP||' CL '||
+                            SPL2BRKEY.BILLING_CL;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   EXEC CICS STARTBR DATASET('QBSRAT2')
+                     RIDFLD(SPL2BRKEY)
+                     KEYLENGTH(4)
+                     RESP(RESPONSE)
+                     GENERIC GTEQ;
+
+   PIC2 = RESPONSE;
+
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))  ;           /* START BROWSE OK           */
+
+     WHEN (DFHRESP(FILENOTFOUND))        /* FILE NOT FOUND            */
+       DO;
+         /* ------------------------------------------------ */
+         /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+         /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+         /* ------------------------------------------------ */
+
+         RTRC='03';
+
+         ET_TEXT1 = ERR1||MODULE||' FILE NOT FOUND (QBSRAT2) RESP'||
+                                                           PIC2;
+         SIGNAL ERROR;
+       END;
+     WHEN (DFHRESP(NOTFND))              /* KEY NOT FOUND            */
+       DO;
+         DIAG_TEXT = MODULE||': KEY SEQ# ' || SPL2BRKEY.ISEQ ||
+                         'BILLING CLASS '||SPL2BRKEY.BILLING_CL;
+         CALL WRITE_TO_OPERATOR;
+
+         DIAG_TEXT = MODULE||
+              ': NOT FOUND ON SPECIAL RATE 2 FILE (QBSRAT2) RESP '||
+                     PIC2;
+         CALL WRITE_TO_OPERATOR;
+
+         RTRC = '02';                   /* RATE NOT FOUND ERROR */
+         SEND_MESSAGE = NO;
+
+       END;
+     OTHERWISE                           /* OTHER VSAM ERROR         */
+       DO;
+         /* ------------------------------------------------ */
+         /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+         /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+         /* ------------------------------------------------ */
+
+         RTRC='03';
+
+         ET_TEXT1 = ERR1||MODULE||' ERROR ON STARTBR OF ' ||
+                    'SPECIAL RATE FILE 2 (QBSRAT2) ';
+         ET_TEXT2 = ERR1||MODULE||' KEY=' || SPL2BRKEY.ISEQ||
+                       SPL2BRKEY.BILLING_CL||' RESP '||PIC2;
+         SIGNAL ERROR;
+       END;
+   END;   /* END SELECT */
+
+   RECD_LEN = 80;
+   SPL2KEY.ISEQ =  SPL2BRKEY.ISEQ;       /* INIT READ KEY DATA        */
+   SPL2KEY.BILLING_CLASS = SPL2BRKEY.BILLING_CL;
+
+   EXEC CICS READNEXT DATASET('QBSRAT2')
+                      RIDFLD(SPL2KEY)
+                      SET(@SPLRAT2)
+                      LENGTH(RECD_LEN)
+                      RESP(RESPONSE);
+
+   CONTINUE = '1'B;
+   FOUND    = '0'B;
+
+   PIC2 = RESPONSE;
+   PIC_RESP = SPL2BRKEY.ISEQ;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBRTINQ14: '||PIC_RESP||' '||SPL2BRKEY.BILLING_CL||
+                       ' '||RUN_DATE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   DO  WHILE (CONTINUE);
+
+     SELECT(RESPONSE);
+       WHEN (DFHRESP(NORMAL))
+         DO;
+           IF SPL2BRKEY.ISEQ = SPECIAL2.ISEQ &
+                SPL2BRKEY.BILLING_CL = SPECIAL2.CCPFIN &
+                 RUN_DATE >= SPECIAL2.DEFFDTE &
+                   RUN_DATE <= SPECIAL2.DEXPIRE
+             THEN DO;
+
+               CALL RETURN_DATA;
+
+               CONTINUE = '0'B;
+               FOUND    = '1'B;
+
+             END;
+             ELSE CONTINUE = '1'B;
+         END;
+       WHEN (DFHRESP(ENDFILE))
+         DO;
+           RTRC = '02';                      /* RATE NOT FOUND ERROR */
+
+           PIC2 = RESPONSE;
+           DIAG_TEXT = MODULE||': END OF QBSRAT2 FILE BEFORE ' ||
+                      'RECORD FOUND,  SEQ = ' || SPL2BRKEY.ISEQ;
+           CALL WRITE_TO_OPERATOR;
+           DIAG_TEXT = MODULE||': BILLING_CLASS= '||
+                       SPL2BRKEY.BILLING_CL ||' RESP '|| PIC2;
+           CALL WRITE_TO_OPERATOR;
+           CONTINUE = '0'B;
+           FOUND    = '1'B;              /* DO NOT READ AGAIN         */
+
+           IF RTCRI > 0 & HOLD_CUST_TYPE = 'B'
+             THEN DO;
+               RTGRI = RTCRI;
+               RTGRO = RTCRO;
+               RTRC = '  ';
+             END;
+         END;
+
+       WHEN (DFHRESP(FILENOTFOUND))  /* FILE NOT FOUND */
+         DO;
+           /* ------------------------------------------------ */
+           /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+           /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+           /* ------------------------------------------------ */
+
+           RTRC = '03';
+                                   /* PASS CONTROL TO ERROR PGM */
+           ET_TEXT1 = ERR1||MODULE||' FILE NOT FOUND (QBSRAT2) RESP '||
+                             PIC2;
+           SIGNAL ERROR;
+         END;
+
+       WHEN (DFHRESP(NOTFND))       /* KEY NOT FOUND */
+         DO;                       /* PASS CONTROL TO ERROR PGM */
+
+           RTRC = '02';                 /* RATE NOT FOUND ERROR */
+
+           DIAG_TEXT = MODULE||': KEY NOT FOUND ON QBSRAT2 ' ||
+                      'FOR GSA SCHEDULE SEQ= ' || SPL2BRKEY.ISEQ;
+           CALL WRITE_TO_OPERATOR;
+           DIAG_TEXT = MODULE ||
+                      ': BILLING_CLASS= ' || SPL2BRKEY.BILLING_CL ||
+                       ' RESP '||PIC2;
+           CALL WRITE_TO_OPERATOR;
+         END;
+
+       OTHERWISE                   /* ALL OTHER ERRORS */
+         DO;
+           /* ------------------------------------------------ */
+           /* LET NSS KNOW WE HAD SOME TYPE OF ERROR IN WHICH  */
+           /* WE COULDN'T PROCESS THE RATE INQUIRY REQUEST.    */
+           /* ------------------------------------------------ */
+
+           RTRC='03';
+
+                                   /* PASS CONTROL TO ERROR PGM */
+           ET_TEXT1 = ERR1||MODULE||' ERROR ON READ OF ' ||
+                      'SPECIAL RATE FILE 2 (QBSRAT2) ';
+           ET_TEXT2 = ERR1||MODULE||' REC LEN  ' ||RECD_LEN||' RESP '||
+                             PIC2;
+           SIGNAL ERROR;
+         END;
+     END;   /* END SELECT */
+
+     IF ^FOUND
+       THEN EXEC CICS READNEXT DATASET('QBSRAT2')
+                               RIDFLD(SPL2KEY)
+                               SET(@SPLRAT2)
+                               LENGTH(RECD_LEN)
+                               RESP(RESPONSE);
+
+   END;                                  /* END OF DO WHILE           */
+
+ END FIND_GOV_RATE;
+
+ %PAGE;
+ /********************************************************************/
+ /* RETURN DATA BACK TO RTPARM FOR USE BY NSS                        */
+ /********************************************************************/
+ RETURN_DATA:  PROC;
+
+   IF CUST_TYPE = 'C'
+     THEN DO;
+       RTCRI = SAVE_STD_RATE.AINRATE;
+       RTCRO = SAVE_STD_RATE.AOUTRATE;
+     END;
+
+   IF CUST_TYPE = 'G'
+     THEN DO;
+       RTGRI = SPECIAL2.AINRATE;
+       RTGRO = SPECIAL2.AOUTRATE;
+     END;
+
+   RTBILL = BILL_CLASS;
+   RTMIN  = MINHRS;
+
+   IF MODEL = '000'
+     THEN RTDIS = '1';          /* TURN DISCLAIMER INDICATOR ON */
+
+   RTRC = '';
+
+ END RETURN_DATA;
+
+ %PAGE;
+ /********************************************************************/
+ /* Procedure writes message to the operator console.                */
+ /********************************************************************/
+ WRITE_TO_OPERATOR: PROC;
+
+ /*  EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPERATOR;
+
+ END QBRTINQ;
+

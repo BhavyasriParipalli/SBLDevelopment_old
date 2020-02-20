@@ -1,0 +1,28 @@
+  /*-----------------------------------------------------------------*/
+  /*                                                                 */
+  /*  NAME        - CWA COPY                                         */
+  /*                                                                 */
+  /*  TITLE       - CICS COMMUNICATIONS WORK AREA (CWA)              */
+  /*                                                                 */
+  /*  LANGUAGE    - PLI                                              */
+  /*                                                                 */
+  /*  THE CWA IS INITIALIZED DURING CICS INITIALIZATION BY HSIINIT   */
+  /*  PLT ROUTINES                                                   */
+  /*                                                                 */
+  /*  DATE:    REASON:    DRIVER:  DESCRIPTION:                PGMR: */  
+  /*---------- ---------- ------ ------------------------------ ---- */ 
+  /*11/07/2011 RCQ1882    2HSC   NEW CWA COPY CREATED FOR    NAVEEN  */
+  /*                             HSI                                 */
+  /*-----------------------------------------------------------------*/
+   2 CWA_QSAR_TRACE   CHAR(1),      /* TRACE FLAG USED FOR TEST      */
+   2 CWA_QHUB_CONV(1) CHAR(1),      /* HUB CONVERTED           Y,N   */
+   2 CWA_AREA_CONV(1) CHAR(1),      /* AREAS CONVERTED         Y,N   */
+   2 CWAPRIHB         CHAR(1),      /* PRIMARY OR BACKUP?            */
+                                    /*   P = PRIMARY                 */
+                                    /*   H = BACKUP HUB              */ 
+   2 MQREGION         CHAR(1),      /* MQ REGION TO BE USED          */          
+                                    /*   D = DEVELOPMENT             */
+                                    /*   U = UAT                     */
+                                    /*   P = PRODUCTION              */
+   2 CWAFILL          CHAR(1019);   /* FUTURE USE                    */    
+  /***************************************************************** */             

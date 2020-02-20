@@ -1,0 +1,56 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSRAT1     VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  SPECIAL  RATE CUSTOMER/MACH TYPE TABLE                   */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE SPECIAL RATE CUST/MACH TYPE TABLE.  */
+ /*               THE VSAM VERSION USED BY THE BILLING PROCESSOR     */
+ /*               EXTRACTED FROM THE FOLLOWING DB2 VIEWS:            */
+ /*                  QBVWLN02   SPECIAL RATE CUSTOMER NUMBER TABLE   */
+ /*                  QBVWLN03   SPECIAL RATE MACHINE TYPE TABLE      */
+ /*                                                                  */
+ /*               PLEASE NOTE:  THIS MAPPING MUST MATCH THE SELECT   */
+ /*               FROM THE DXT EXTRACT!                              */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /*  07/20/05 RQ057017 5NSM ADD NEW COL FOR CENTCUST      ARCHANA    */
+ /*                         ENTERPRISE CUST INDICATOR                */
+ /********************************************************************/
+    3 SDXT1        CHAR( 1),        /* PAD (DXT)            001- 001 */
+    3 XPKEY,                        /* PRIMARY KEY ------------------*/
+      5 ICUST      CHAR( 7),        /* CUSTOMER NUMBER      002- 008 */
+      5 SDXT2      CHAR( 1),        /* PAD (DXT)            009- 009 */
+      5 IMACT      CHAR( 4),        /* MACHINE TYPE         010- 013 */
+      5 SDXT3      CHAR( 1),        /* PAD (DXT)            014- 014 */
+      5 DEFFDTE    CHAR(10),        /* EFFECTIVE  DATE      015- 024 */
+                                    /*   ('YYYY-MM-DD')              */
+                                    /* ------------------------------*/
+    3 SDXT4        CHAR( 1),        /* PAD (DXT)            025- 025 */
+    3 CCPFIN       CHAR( 1),        /* BILLING CLASS, AKA   026- 026 */
+                                    /*   FINANCIAL CAREER PATH       */
+    3 SDXT5        CHAR( 1),        /* PAD (DXT)            027- 027 */
+    3 ISEQ         FIXED BIN(15),   /* CONTRACT SEQUENCE NO 028- 029 */
+    3 SDXT6        CHAR( 1),        /* PAD (DXT)            030- 030 */
+    3 DEXPIRE      CHAR(10),        /* EXPIRATION DATE      031- 040 */
+                                    /*   ('YYYY-MM-DD')              */
+    3 SDXT7        CHAR( 1),        /* PAD (DXT)            041- 041 */
+    3 CENTCUST     CHAR( 1),        /* Enterprise Customer Indicator */
+                                    /*                      042-042  */ 
+    3 SDXT8        CHAR( 1),        /* PAD (DXT)            043-043  */
+    3 SPAD1        CHAR(39)         /* PAD                  044-080  */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSRAT1                            */
+ /*------------------------------------------------------------------*/
+

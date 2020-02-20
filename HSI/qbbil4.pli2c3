@@ -1,0 +1,3149 @@
+  QBBIL4  /*                                      07/07/89-09:11:20 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBBIL4      VERSION NR:  01        DATE:  07/07/89    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  (QSAR) BILLING SETUP FOR PRICING, TAXING                */
+ /*                                                                  */
+ /*  FUNCTION:  SET UP INTERFACES AND THEN LINK TO PRICING, TAXING   */
+ /*             MODULES.  IF B/A CODE IS 7 THEN BILL FOR PARTS ONLY. */
+ /*             ONCE THE PRICING AND TAXING ARE COMPLETE THE RECORD  */
+ /*             IS REVIEWED TO DETERMINE IF THIS SHOULD NOT BEBILLED */
+ /*             (30% MACHINES WITH BILLING ERRORS 202, 204 & 205) OR */
+ /*             MEMO BILLED (30% MACHINES OR OEM EQUIPMENT- MACHINE  */
+ /*             TYPES BASED UPON THE OEM FLAG IN MTM                 */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  LINK TO QBPRIC1  (PRICING)                         */
+ /*               LINK TO QBTAX1   (TAXING)                          */
+ /*                                                                  */
+ /*  INPUTS:   COMMAREA - AEQCOMM/QBCOMM                             */
+ /*                                                                  */
+ /*  OUTPUTS:  COMMAREA - AEQCOMM/QBCOMM (UPDATED)                   */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ------- -------------------------------- ---- */
+ /*  09/27/89 SR9892   0NSA    INITIAL VERSION                   JWJ */
+ /*  11/13/89 I87814   0NSA    ADD MIN CHARGE ADJUSTMENT         JWJ */
+ /*                            TO TOTAL INVOICE AMOUNT               */
+ /*  11/21/89 I88364   0NSA    CANCEL PREVIOUS FIX ...           JWJ */
+ /*                            DUE TO CHANGE IN PRICING              */
+ /*  11/30/89 I88668   0NSA    CHANGE BILL TYPE TO BILL CLASS    LBS */
+ /*  11/30/89 I88697   0NSA    DON'T TAX 30% F & F MACHINES      LBS */
+ /*  01/08/89 I89333   0NSA    SUPPORT REMOVAL OF 'QTVACTHR'     JWJ */
+ /*                            FROM QBPRICE COPY                     */
+ /*  01/22/90 I88691   0NSA    ASSIGN MAX CHARGE IF APPLICABLE   JWJ */
+ /*           DCR9892J         SPECIAL $80  CHARGE ('U80')           */
+ /*           DCR9892O         SPECIAL $750 CHARGE ('OEM')           */
+ /*  03/16/90 I90269   0NSA    SUPPORT CHANGES FOR PARTS         JWJ */
+ /*                            TRAILER MATCHING                      */
+ /*  03/25/90 I94769   0NSA    CHANGE PRICING LOGIC ON SPECIAL   JWJ */
+ /*                            CHARGES SO WE ARE CONSISTENT FOR      */
+ /*                            ON-LINE (CSP) LOGIC                   */
+ /*  04/10/90 I96488   0NSA    REMOVE LOGIC FOR "OEM" CHARGE     JWJ */
+ /*                            (DCR9892O WAS A CRUEL HOAX)           */
+ /*  07/02/90 I98874   0NSC    CLEAR CCMREXCP WHEN CHANGE        JWJ */
+ /*                            STATUS FROM 'QB' TO 'QP'              */
+ /*  02/11/91 SR0535   1NSE    LINE ITEM TAXING, SET UP NEW      LBS */
+ /*                            POINTERS IN COMM AREA TO TAXING       */
+ /*  09/05/91 SR0834   1NSO    MAKE CUST TYPE E A GOV CUSTOMER   LBS */
+ /*  03/23/92 SR0890   2NSB    MEMO BILL 30% MACHINES -          LBS */
+ /*                            CCONTROL = QN  (NOT BILLABLE)         */
+ /*           SR0967   2NSB    ASSIGN CGSASCH TO PRICE COMMAREA      */
+ /*           SR1039   2NSB    BLANK BA CODE SEND TO RES             */
+ /*           SR1041   2NSB    IDENTIFY OEM EQUIPMENT - MEMO BILL    */
+ /*                            CCONTROL = QN - 13XX/15XX TYPES       */
+ /*  05/11/92 SR1060   2NSD    CHECK MPI PROCESS LEVEL           LBS */
+ /*                            IF 0 - SEND TO RES                    */
+ /*                            IF 2 - SEND TO RES                    */
+ /*                            IF 4 - BILL NORMALLY                  */
+ /*  10/06/92 SR1084   2NSJ    IF B/A = 7 BILL FOR PARTS ONLY    LBS */
+ /*                              IF NO MATCH TO MPI USE CE INPUT     */
+ /*                              OF CUSTOMER TYPE TO TAX             */
+ /*  11/12/92 SR1153   2NSJ    IF A MATCH WAS MADE TO CAD WHEN   LBS */
+ /*                            AND THE CAD BILLING ACTIVTY CODE      */
+ /*                            WAS FOUND, DO NOT APPLY RES ERR       */
+ /*                            CODE 210 TO BILLING RECORD            */
+ /*  01/20/93 SR1204   3NSD    MERGE SC01 & SC08 QSAR FOR        LBS */
+ /*                            INVOICING                             */
+ /*  05/06/93 S9300154 3NSJ    USE OEM FLAG FROM MTM TO SET      LBS */
+ /*                            CONTROL CODE TO QN & ERROR            */
+ /*                            CODE TO 301                           */
+ /*  07/16/93 I188832  3NSJ    ADD CHECK ON CUSTOMER NUMBER FOR  LBS */
+ /*                            DSI MACHINES                          */
+ /*  07/29/93 S9300144 3NSJ    MAKE SURE SYSINV = YES AND DO     LBS */
+ /*                            NOT SEND MESSAGE TO KODAK CE          */
+ /*  09/09/93 S9300208 3NSL    BILL OEM PRODUCT (1515)           LBS */
+ /*  10/05/93 I201806  3NSL    CHANGE CODE ON IF LOGIC TO        LBS */
+ /*                            PIC INSTEAD OF CHARACTER FOR          */
+ /*                            ADDITION                              */
+ /*  10/20/93 S9300237 3NSL    BILL ALL OEM PRODUCT              LBS */
+ /*                            THIS ENTAILS REMOVING CODE TO         */
+ /*                            EXCLUDE OEM BILLING                   */
+ /*  11/24/93 I212510  3NSN    PROBLEM WITH DATA IN QBPRICX      LBS */
+ /*  12/06/93 S9300218 3NSP    IF INVOICE GOING TO CIS & CE DID  LBS */
+ /*                            NOT ENTER A B/A CODE BUT THE CAD      */
+ /*                            RECORD CONTAINS A 'B' SEND INVOICE    */
+ /*                            TO RES WITH 214 ERROR                 */
+ /*  03/22/94 S9400031 4NSA    ON SC 94 MAKE SURE CRATTYP IS     LBS */
+ /*                            COMMERCIAL                            */
+ /*  10/05/94 S9300229 4NSM    ADD 1 DIGIT TO TRAVEL EXPENSE     DLK */
+ /*  02/11/95 S9500023 5NSA    REVISE SC 94 BILLING              LBS */
+ /*  03/16/95 S9500015 5NSC    REVISE SC 94 BILLING              LBS */
+ /*  05/15/95 S9500054 5NSE    CHANGE WARRANTY UPGRATE FROM $80  LBS */
+ /*                            TO $140                               */
+ /*  07/06/95 I0365134 5NSE    CHANGE EXPENSE OVERLAY DEFINITION LBS */
+ /*  08/20/96 S9600308 6NSR    PEW AND SDT PROCESSING            LBS */
+ /*  05/07/97 S9600755 7NSI  NSS MRO PARALLEL SYSPLEX PHASE I    LBS */
+ /*                          SUPPORT                                 */
+ /*  02/09/98  S970219  8NSC    REMOVE SPIE FROM PLIXOPT         MKP */
+ /*  10/01/99  S99093   9NSA  REMOVE REFERENCES TO FSRCKDK       LBS */
+ /*  10/15/01  S01052   2NSA   Remove all references to ADV      DLP */
+ /* 4/15/2002  HSIPROD  2NSG  LE 2.10 changes, PLIXOPT           LBS */
+ /* 5/06/2002  HSIPROD  2NSG  move cust phone check from QBACD1  LBS */
+ /* 8/15/2002  FITS023734 2NSK Expand ICCAUTH from 13 to 14 char,REY */
+ /*                             adding logic for SC 20 & 36.         */
+ /* 8/30/2002  prodsupt 2NSK  change E9A to sourc=SQL            LBS */
+ /*10/29/2002  GP021333 3NSE NEW CONDITIONS RESULTING IN ROUTING DLP */
+ /*                          RECORD TO RES                           */
+ /*            GP021333 3NSE Add logic to use the new 3 digit    DLP */
+ /*                          field in the standard rate table        */
+ /*12/06/2002  GP021333 3NSE add FINCDPRT to tell if rate        DLP */
+ /*                          should handle parts                     */
+ /*12/18/2002 QSAR_3NSE_005  fix Find_upgrade_Rate proc          LBS */
+ /*                          Not assigning incident fee rate         */
+ /*01/29/2003 QSAR_3NSE_011  fix Not assigning error 231 when    DLP */
+ /*                          the rate was in the middle of table     */
+ /*02/03/2003 prodsupt  3NSE change READ DATASET to READ FILE    LBS */
+ /*02/24/2003 PCR0011   3NSE remove the 231 Rev error code set   LBS */
+ /*                          bill record hours*rate                  */
+ /*05/12/2003           3NSI Add 'P' to the possible values      REY */
+ /*           HSI_3NSI_001   for CINCDCHG (ManageNow 1419290)        */
+ /*08/25/2003           4NSC Support for PCD Stewart products.   REY */
+ /*        FITS GP0619035151 Add code to check the CBILLPART         */
+ /*                          SDT billing flag.                       */
+ /*12/18/2003 MN16942409     Change added to prevent TaxCalc     REY */
+ /*                          from abending (0C4) because of a        */
+ /*                          blank TAXID.                            */
+ /*                                                                  */
+ /*01/15/04 RQ031502359 4NSC SUPPORT FOR INSIDE/OUTSIDE HOURS    DLP */
+ /*01/26/04 RQ031502359 4NSC REMOVE 215 216 AND 219              DLP */
+ /*03/09/04 HSI4NSC011  4NSC USE HSI BILLING FLAGS               LBS */
+ /*04/12/04 HSIPCR009   4NSC if BA is blank, 1 , 4 and the       LBS */
+ /*                            control code is QB, change to QP      */
+ /*                            and set revenue error code to 208     */
+ /*06/10/05 RQ0419055317 4NSG Remove Shipped Status ERR 212      REY */
+ /*07/14/05 prodsupt    5NSM update 5NSM module level with       LBS */
+ /*                            4NSG changes                          */
+ /*08/12/2005 RQ057017  5NSM Non-standard rate for non standard      */  
+ /*                             codes                            VJK */                                    
+ /*                                                                  */
+ /*                                                                  */
+ /*07/25/05 RQ057017    5NSM  ASSIGNED 'IENNO' VALUE IN       ARCHANA*/
+ /*                             SETUP_PRICE.AS IENNO NEEDS           */
+ /*                             TO BE PASSED TO QBPRIC1.             */
+ /*03/01/2006 RQ054527  6NSH  Bill parts only.                   VJK */
+ /*05/26/2006 RQ047010  6NSJ  Route restricted CMR to RES    ARCHANA */
+ /*04/11/2007 IT075238  6NSN  ZUMA restricted customers      Bonda   */
+ /*                             auto billing                         */
+ /*02/20/2009 prodsupt  9NSG  diagnostic for QBPRIC2 printing    LBS */
+ /*09/12/2010 prodsupt  0NSE  change code from allocate to       LBS */
+ /*                           getmain recompile for qbpricx          */
+ /*                                                                  */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA      NAK */
+ /*04/05/2012 RCQ1112  2HSC   NEWCO restricted customers         NAK */
+ /*                           Auto billing                           */ 
+ /*07/25/2014 rcq4018 2HSC    PROJECT MELODY 		SHRUTHI S    */
+ /*11/27/2015 RCQ1398 15HSC  Stop Autobilling of Lenovo records  GK  */
+ /*03/04/2016 RCQ2983 15HSC  Increase Minimum hrs to 4  ABDUL        */ 
+ /*18/04/2016 RCQ5637 15HSC  Stop Autobilling of Toshiba records NSK */
+ /*07/28/2016 RCQ0345 15HSC  PASS CMIBOCE VALUE TO IBOCE     ABDUL   */
+ /********************************************************************/
+
+ DCL VERSION      CHAR(17) STATIC INIT('15HSC - 05/09/2016');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBBIL4');
+
+ /*-----------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING          */
+ /* PREPROCESSOR STATEMENTS:                                        */
+ /*                                                                 */
+ /*    %DCL CMPTIME CHAR                                            */
+ /*    %DCL COMPILETIME BUILTIN                                     */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                           */
+ /*                                                                 */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT  */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN    */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                          */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:    */
+ /*                                                                 */
+ /*    YES    = 'Y'                                                 */
+ /*    NO     = 'N'                                                 */
+ /*    IFPART = 'P' Incident Fee w/part                             */
+ /*    BILL   = 'B'                                                 */
+ /*    NOBILL = 'N'                                                 */
+ /*    REVIEW = 'R'                                                 */
+ /*    HVLC     = 'H'                                               */
+ /*    NON_HVLC = 'N'                                               */
+ /*    GSA          = 'G'                                           */
+ /*    COMMERCIAL   = 'C'                                           */
+ /*    IBM_EMPLOYEE = 'I'                                           */
+ /*    HSD          = 'D'                                           */
+ /*    HSI          = 'I'                                           */
+ /*-----------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL IFPART   CHAR;
+ %IFPART = '''P''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL HVLC     CHAR;
+ %HVLC = '''H''';
+ %DCL NON_HVLC CHAR;
+ %NON_HVLC = '''N''';
+ %DCL GSA      CHAR;
+ %GSA = '''G''';
+ %DCL COMMERCIAL CHAR;
+ %COMMERCIAL = '''C''';
+ %DCL IBM_EMPLOYEE CHAR;
+ %IBM_EMPLOYEE = '''I''';
+ %DCL HSD          CHAR;
+ %HSD          = '''D''';
+ %DCL HSI          CHAR;
+ %HSI          = '''I''';
+
+ %PAGE;
+ /*******************************************************************/
+ /*   BEGIN DECLARES                                                */
+ /*******************************************************************/
+
+ /*-----------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                     */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:               */
+ /*          DATE, TIME                                             */
+ /*-----------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE              */
+ DCL  HIGH         BUILTIN;         /* HEX 'FF...'                  */
+ DCL  INDEX        BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  LOW          BUILTIN;         /* HEX '00...'                  */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE           */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITHERROR*/
+ DCL  ONSOURCE     BUILTIN;         /*                              */
+ DCL  PLIRETC      BUILTIN;
+ DCL  PLIDUMP      BUILTIN;
+ DCL  REPEAT       BUILTIN;
+ DCL  STG          BUILTIN;         /* STORAGE                      */
+ DCL  STRING       BUILTIN;
+ DCL  SUBSTR       BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+ /*-----------------------------------------------------------------*/
+ /*  FILE DECLARES                                                  */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO        */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'  */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,   */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...              */
+ /*-----------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*-----------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                           */
+ /*-----------------------------------------------------------------*/
+
+ /* DCL PLIXOPT CHAR(35) VAR STATIC EXT INIT('STAE,ISASIZE(14K),NR')*/
+  DCL PLIXOPT    CHAR(250)
+     INIT('STACK(40K,4K,ANY,FREE),HEAP(4K,2K,ANYWHERE,KEEP),
+     MSGFILE(SYSPRINT),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,1K,FREE),
+     ANYHEAP(10K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+     TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ %INCLUDE CEEIBMAW;
+ %INCLUDE CEEIBMCT;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*  POINTERS                                                       */
+ /*-----------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* POINTER TO COMMAREA --       */
+                                    /* (PASSED FROM CALLING PROGRAM)*/
+ DCL @CWA          PTR;             /* POINTER TO CWA               */
+ DCL @PRICE        PTR;             /* POINTER TO PRICING STRUCTURE */
+
+ DCL 1 TAXING,
+       3 @TAX    PTR,
+       3 @QSAR   PTR;
+  @QSAR = @COMM;
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM; ,
+    %INCLUDE QBCOMM; ;
+
+ %PAGE;
+ DCL 1 STANDARD ,
+    %INCLUDE QBNRAT ; ;
+
+ %PAGE;
+ DCL 1 PRICE      UNALIGNED BASED(@PRICE),
+    %INCLUDE QBPRICE ; ;
+
+ %PAGE;
+ DCL 1 TAX        UNALIGNED BASED(@TAX),
+    %INCLUDE QBTAX ; ;
+
+ %PAGE;
+ DCL @ENTPR         POINTER INIT(NULL);
+ DCL 1 ENTPR_REC BASED(@ENTPR),
+       3 ENTPR_PAD1        CHAR(1),
+       3 ENTPR_NUM         CHAR(7),
+       3 ENTPR_PAD2        CHAR(12);
+
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED)*/
+ /*-----------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                        */
+ /*-----------------------------------------------------------------*/
+ DCL BILL_ONLY_PARTS    BIT(1)       INIT('0'B);  /* RQ4527 6NSH */
+ DCL CHK_CMR            BIT(1)       INIT('0'B);  /* RQ7010 6NSJ */
+ DCL DIAG_TEXT          CHAR(80)     INIT('');
+ DCL ENTPR_KEY          CHAR( 7)     INIT('');
+ DCL ERR1               CHAR( 9)     INIT('QSR9000: ');
+ DCL ERR2               CHAR( 9)     INIT('QSR9002: ');
+ DCL I            FIXED BIN(15)      INIT(0);
+
+ DCL LIL_DATE     FIXED DEC(7,0)     INIT(0) ALIGNED;
+ DCL PIC3               PIC'999'     INIT(0);
+ DCL PIC7               PIC'(7)9'    INIT(0);
+ DCL PIC7_ENT           PIC'(7)9'    INIT(0);
+ DCL P#           FIXED BIN(31)      INIT(0);
+ DCL PIC_CUST           PIC'(7)9';
+ DCL PIC_DATE           PIC'(8)9';
+ DCL PIC_EXP            PIC'(5)9V99' BASED(ADDR(COMMAREA.S0ATRAEX));
+
+ DCL PIC_HSTRTSAT       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDSAT        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTSUN       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDSUN        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTMON       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDMON        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTTUE       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDTUE        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTWED       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDWED        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTTHU       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDTHU        PIC'(4)9'    INIT(0);
+ DCL PIC_HSTRTFRI       PIC'(4)9'    INIT(0);
+ DCL PIC_HENDFRI        PIC'(4)9'    INIT(0);
+
+ DCL PIC_MILES          PIC'999'     BASED(ADDR(COMMAREA.S0QTRAMI));
+ DCL PIC_QACTHRS        PIC'99V9'    BASED(ADDR(COMMAREA.QACTHRS));
+ DCL PIC_QTRAHRS        PIC'99V9'    BASED(ADDR(COMMAREA.QTRAHRS));
+ DCL PIC_STOP           PIC'99V9'    BASED(ADDR(COMMAREA.S0QSTOTI));
+ DCL PIC_SVCHR          PIC'99V9'    BASED(ADDR(COMMAREA.S0QSVCHR));
+ DCL PIC_TIME           PIC'(6)9';
+
+ DCL 1 PIC_TIME_OVER                 BASED(ADDR(PIC_TIME)),
+       3 PIC_HR         PIC'99',
+       3 PIC_MIN        PIC'99',
+       3 PIC_SEC        PIC'99';
+
+ DCL PIC_TRAHR          PIC'99V9'    BASED(ADDR(COMMAREA.S0QTRAHR));
+
+ DCL Q#           FIXED BIN(31)      INIT(0);
+ DCL RECD_LENGTH  FIXED BIN(15)      INIT(0);
+
+ DCL STDKEY             CHAR(16)     INIT('');
+ DCL STD_SEARCH_KEY     CHAR( 3)     INIT('');
+ DCL TEMP_DATE          CHAR(8)      INIT('');
+ DCL TEMP_LILDATE FIXED BIN(31)      INIT(0);
+
+ DCL CONTINUE           BIT(1)       INIT('0'B);
+ DCL ISSC_ADVNTS_CUST   BIT(1)       INIT('0'B);
+ DCL TEST_SW            BIT(1)       INIT('0'B);
+
+ /* Added for the RQ054527  */
+ DCL TEMP_CTYPE         CHAR(1)      INIT(''); 
+
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE  */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE */
+ /* IS INVOKED...                                                   */
+ /*-----------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85)      BASED(DFHEIPTR);
+ DCL RESPONSE     FIXED BIN(31)       INIT(0);
+ DCL RESPONSE2    FIXED BIN(31)       INIT(0);
+
+ %PAGE;
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON CONVERSION
+   BEGIN;
+     ET_TEXT3 = ERR1||MODULE||' SOURCE '||ONSOURCE;
+     SIGNAL ERROR;
+   END;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SNAP SYSTEM;               /* PREVENT RECURSION ERROR */
+   /* CALL PLIDUMP('T')  */
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+     ET_PROGRAM_ID = 'QBBIL4 ';
+     ET_EIB        = EIB_STRING;
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'N';
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC||' DOC # '||
+                 COMMAREA.S0IDOCMN;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+   
+     IF @PRICE ^= NULL
+       THEN CALL CICS_FREEMAIN(@PRICE);
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('BIL4')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /* MAIN PROCESSING                                                 */
+ /*******************************************************************/
+ /*-----------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)            */
+ /*-----------------------------------------------------------------*/
+ ET_TEXT1 = '';
+ ET_TEXT2 = '';
+ ET_TEXT3 = '';
+ ET_TEXT4 = '';
+ ET_TEXT5 = '';
+
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA           */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN */
+   THEN DO;
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = 'Y' | CWA_QSAR_TRACE = 'M'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = 'QBBIL4: ENTERED-PERFORM_PRICING= ' ||
+        PERFORM_PRICING || ' '||COMMAREA.S0IDOCMN ;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT = MODULE||': BILL PARTS COUNT '||COMMAREA.X#PARTS;
+     CALL WRITE_TO_OPER;
+   END;
+
+ /*-----------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                    */
+ /*-----------------------------------------------------------------*/
+
+ IF EIBCALEN = 0                   /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                        /* TRANSFER CONTROL TO ERROR PGM */
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ %PAGE;
+
+ COMMAREA.CINCDCHG = 'N';          /* INIT THE UPGRADE SWITCH TO NO */
+                                        /* ------------------------ */
+ IF M_MPI =  YES       &                /* MATCHED TO INVENTORY     */
+    ^INVENTORY.GJFDSI  &                /* AND MATCH WAS NOT FROM   */
+                                        /* DSI TABLE                */
+    COMMAREA.CTCUS ^= 'R'               /* NOT IBM EMPLOYEE         */
+                                        /* ------------------------ */
+   THEN ISSC_ADVNTS_CUST = CHECK_ISSC_ADVANTIS();
+
+ CALL CHECK_CUST_REF;
+
+ IF TEST_SW
+   THEN CALL PRINT_DEBUG_FIELDS;
+
+ CALL NO_BILL_MEMO_CHECK;
+
+ /*-----------------------------------------------------------------*/
+ /* F&F MACHINE HAVE PERFORM PRICING SET TO NO, NO F & F (OR 30%)   */
+ /* MACHINES WILL GO THRU PRICING OR TAXING                         */
+ /* SET UP INTERFACES TO PRICING, TAXING AND LINK TO PERFORM        */
+ /* ACTUAL CALCULATIONS.                                            */
+ /*    PRICING (USES QBPRICE COPY)  --> QBPRIC1 (--> QBPRIC2)       */
+ /*    TAXING  (USES QBTAX   COPY)  --> QBTAX1  (--> TAXCALC)       */
+ /*-----------------------------------------------------------------*/
+ IF PERFORM_PRICING = YES
+   THEN DO;
+     CALL DO_PRICING;
+     /*-------------------------------------------------------------*/
+     /*  If non-blank SDT then pricing data may need to be reset.   */
+     /*  If SDT, reset based on the billing component flags.        */
+     /*-------------------------------------------------------------*/
+     /*     IF COMMAREA.GJCSDT  ^= ''           commented out in    */
+     /*        THEN CALL RESET_PRICING_DATA                  4nsc   */
+     /* ----------------------------------------------------------- */
+     /* Commented out because it no longer needs to be done. This   */
+     /* is being done is QBPRIC2 now. The Totals will be calculated */
+     /* in one spot. 4NSC                                           */
+     /* ------------------------------------------------------------*/
+
+     IF COMMAREA.CCECUSTY = 'G'         /* ON B/A 7                 */
+        THEN;                           /* DON'T TAX GOVERNMENT     */
+        ELSE CALL DO_TAXING;
+
+     CALL FIGURE_TOTAL_INVOICE;
+   END;
+
+ /* --------------------------------------------------------------- */
+ /* 3NSE                                                            */
+ /* --------------------------------------------------------------- */
+ /* IF COMMAREA.S0CBIOSA = '7'              BILL PARTS ONLY         */
+ /*   THEN DO                                                       */
+ /*    PIC_QACTHRS = 0                                              */
+ /*    PIC_QTRAHRS = 0                                              */
+ /*  END                                                            */
+ /*  ELSE DO                                                        */
+ /* --------------------------------------------------------------- */
+
+ CALL MPI_PROLE_CHECK;
+ IF COMMAREA.GJFDSI
+   THEN CALL DSI_BILL_CHECK;           /* ------------------------- */
+                                       /* THE 213 ERROR SHOULD TAKE */
+                                       /* REPORTING PRECEDENCE OVER */
+                                       /* THE OTHER ERRORS          */
+                                       /* ------------------------- */
+                                       /* ------------------------- */
+ IF COMMAREA.FSPWN08 &                 /* RESET BILL ERROR IF       */
+    COMMAREA.CCONTROL = 'QP' &         /* POTENTIALLY BILLABLE &    */
+     ((PIC_QACTHRS + PIC_QTRAHRS )  =  /* ID NOT FIND SC 08         */
+       (PIC_SVCHR  + PIC_TRAHR ))      /* I201806                   */
+   THEN COMMAREA.CBILLERR = '213' ;    /* ------------------------- */
+
+ IF COMMAREA.S0CSVC = '94' & FSYSBILL
+   THEN CALL RESET_BILLING_INFO;
+
+ IF COMMAREA.GJCSDT ^= ''              /* IF THERE IS A SDT         */
+   THEN CALL SDT_INVOICE_REVIEW;
+
+ /*-----------------------------------------------------------------*/
+ /* The restrict check was modified  to check if                    */
+ /* restrict Indicator (FRESTIND) is 'ON' and if the CMR restrict   */
+ /* indicator is NOT '160 for ZUMA                     - 6NSN       */
+ /* Allow auto billing of ZUMA restricted customers and introduced  */
+ /* RES error code 236 for ZUMA restriced code as part of FITS      */
+ /* IT0312075238                                          - 6NSN    */
+ /*-----------------------------------------------------------------*/ 
+  IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: rest indicator '|| COMMAREA.FRESTIND ||
+                 ' crestrct '||COMMAREA.CRESTRCT|| ' IR CUST '||
+                  COMMAREA.IRCUST;
+     CALL WTO;
+   END;
+
+ IF ^CHK_CMR           	                   
+  THEN DO;       
+    IF COMMAREA.FRESTIND = 'Y' & 
+       COMMAREA.CRESTRCT ^= '160'         
+      THEN 
+      DO;                             /* RCQ1112 & RCQ00304018 */
+       IF COMMAREA.CRESTRCT ^= '164' THEN
+	DO;
+	  IF COMMAREA.CRESTRCT ^= '165' 
+        THEN
+        CALL ASSIGN_REVIEW_INFORMATION('235','24');       
+      	END;
+      END;
+     /* RCQ1112 */
+
+    IF (COMMAREA.CRESTRCT = '160'|COMMAREA.CRESTRCT = '164'| 
+          COMMAREA.CRESTRCT = '165') & 
+	COMMAREA.IRCUST   ='Y'        
+      THEN CALL ASSIGN_REVIEW_INFORMATION('236','25');   
+  END;
+
+ /*----------------------RCQ371398 START--------------------------*/
+ 
+ IF (COMMAREA.S0CBIOSA = '3' & COMMAREA.CRESTRCT = '165')
+	THEN CALL ASSIGN_REVIEW_INFORMATION('237','26'); 
+ 
+ /*----------------------RCQ371398 END----------------------------*/
+ 
+ /*----------------------RCQ355637 START--------------------------*/
+
+ IF (COMMAREA.S0CBIOSA = '3' & COMMAREA.CRESTRCT = '164')
+        THEN CALL ASSIGN_REVIEW_INFORMATION('238','27');
+ 
+ /*----------------------RCQ355637 END----------------------------*/
+   
+ IF @PRICE ^= NULL
+   THEN CALL CICS_FREEMAIN(@PRICE);
+   
+
+ DCL XLENGTH FIXED BIN(15)  INIT(0);
+ XLENGTH = CSTG(COMMAREA);
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': COMM LENGTH '||XLENGTH;
+     CALL WRITE_TO_OPER;
+   END;
+   
+ EXEC CICS XCTL PROGRAM('QBBIL5')
+                COMMAREA(COMMAREA)
+                LENGTH(XLENGTH)
+                RESP(RESPONSE)        /* END EXEC CICS XCTL ...    */
+                RESP2(RESPONSE2);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM */
+     PIC3 = RESPONSE;
+     ET_TEXT1 = ERR2 || MODULE || ' FAILURE TO XCTL TO QBBIL5, RESP '||
+                PIC3;
+     PIC3 = RESPONSE2;
+     ET_TEXT2 = ERR2 || MODULE || ' RESPONSE 2 '||
+                PIC3;
+
+     SIGNAL ERROR;
+   END;
+
+ /* --------------------------------------------------------------- */
+ /* - DONE YOU CAN GO GET AN ICE CREAM NOW                        - */
+ /* --------------------------------------------------------------- */
+
+ %PAGE;
+ DO_PRICING: PROC;
+ /*******************************************************************/
+ /* PERFORM PRICING ...                                             */
+ /*******************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: DO PRICING, link to qbpric1 and qbpric2';
+       CALL WRITE_TO_OPER;
+     END;
+
+   CALL LOAD_STARTSTOP_TIMES;               /* 4nsc  */
+   CALL SETUP_PRICING;
+   PRICE.CNONRATE = 'N';
+   IF COMMAREA.CCOTYPE  ^= ''/* cODE CHANGE STARTS RQ054527  */
+      & COMMAREA.CCOTYPE  ^= 'SDT'
+     THEN DO;
+        CALL FIND_INCIDENT_CODE_CATEGORY; 
+     END;                     /* cODE CHANGE ENDS RQ054527    */
+
+
+   CALL LINK_TO_PRICING;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: PRICE IN HRS'  ||PRICE.QINHRS||
+                   ' PRICE OUTHRS '        ||PRICE.QOUTHRS;
+       CALL WTO;
+     END;
+
+   IF (BILL_ONLY_PARTS  |  /* CODE CHANGE STARTS RQ054527  */
+       TEMP_CTYPE = 'B' )
+     THEN DO;
+ 
+     IF COMMAREA.X#PARTS > 1
+       THEN CALL ASSIGN_REVIEW_INFORMATION('234','31');
+
+     IF ( BILL_ONLY_PARTS )
+       THEN PRICE.AINCDNT = '';
+
+     END; /*RQ054527 End here    */
+
+   CALL ASSIGN_PRICING_DATA;
+
+   CALL SPECIAL_CHARGES_PRICING;         /* I94769                  */
+
+   /*RQ054527 Code changes starts here */
+   SELECT;
+
+    WHEN( BILL_ONLY_PARTS )
+       COMMAREA.CINCDCHG = 'T'; 
+    WHEN (TEMP_CTYPE = 'B' &
+           COMMAREA.X#PARTS > 0 )
+       COMMAREA.CINCDCHG = 'P'; 
+    OTHERWISE;
+  END; /* End of select */
+
+   /*RQ054527 Code changes ends here */
+
+   DO I=1 TO X#PARTS; 
+     IF QBPARTS(I).APARTPR = 0           /* IF CAN'T PRICE A PART...*/
+       THEN DO;                          /* ...THEN ERROR 202       */
+           COMMAREA.SEND_TO_CE = HSD;
+           COMMAREA.CSYSINV    = YES;
+           COMMAREA.CCMREXCP   = ' ';    /*                  I98874 */
+           COMMAREA.CCONTROL   = 'QP';
+           COMMAREA.CBILLERR   = '202';
+       END;
+   END;
+
+ END DO_PRICING;
+
+ %PAGE;
+ LOAD_STARTSTOP_TIMES:  PROC;
+ /*******************************************************************/
+ /* LOAD TO DEFAULT VALUES FOR THE START AND STOP TIMES       4NSC  */
+ /*******************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: Load_hours, Sunday inside Start/Stop '||
+                    COMMAREA.HSTRTSUN||'/'||
+                    COMMAREA.HENDSUN;
+       CALL WRITE_TO_OPER;
+     END;
+   IF COMMAREA.HSTRTSUN = ''
+     THEN DO;    
+       PIC_HSTRTSUN = 0000;
+       PIC_HENDSUN  = 0000;
+       PIC_HSTRTMON = 0800;
+       PIC_HENDMON  = 1700;
+       PIC_HSTRTTUE = 0800;
+       PIC_HENDTUE  = 1700;
+       PIC_HSTRTWED = 0800;
+       PIC_HENDWED  = 1700;
+       PIC_HSTRTTHU = 0800;
+       PIC_HENDTHU  = 1700;
+       PIC_HSTRTFRI = 0800;
+       PIC_HENDFRI  = 1700;
+       PIC_HSTRTSAT = 0000;
+       PIC_HENDSAT  = 0000;
+     END;
+     ELSE DO;
+       PIC_HSTRTSUN = COMMAREA.HSTRTSUN;        /* START Sunday      */
+       PIC_HENDSUN  = COMMAREA.HENDSUN;         /* END   Sunday      */
+       PIC_HSTRTMON = COMMAREA.HSTRTMON;        /* START Monday      */
+       PIC_HENDMON  = COMMAREA.HENDMON;         /* END   Monday      */
+       PIC_HSTRTTUE = COMMAREA.HSTRTTUE;        /* START Tuesday     */
+       PIC_HENDTUE  = COMMAREA.HENDTUE;         /* END   Tuesday     */
+       PIC_HSTRTWED = COMMAREA.HSTRTWED;        /* START Wednesday   */
+       PIC_HENDWED  = COMMAREA.HENDWED;         /* END   Wednesday   */
+       PIC_HSTRTTHU = COMMAREA.HSTRTTHU;        /* START Thursday    */
+       PIC_HENDTHU  = COMMAREA.HENDTHU;         /* END   Thursday    */
+       PIC_HSTRTFRI = COMMAREA.HSTRTFRI;        /* START Friday      */
+       PIC_HENDFRI  = COMMAREA.HENDFRI;         /* END   Friday      */
+       PIC_HSTRTSAT = COMMAREA.HSTRTSAT;        /* START Saturday    */
+       PIC_HENDSAT  = COMMAREA.HENDSAT;         /* END   Saturday    */
+     END;  
+    IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: EXIT LOAD_STARTSTOP_TIMES '||
+                    PIC_HSTRTSUN||'/'||
+                    PIC_HENDSUN;
+       CALL WRITE_TO_OPER;
+     END; 
+
+ END LOAD_STARTSTOP_TIMES;
+
+ %PAGE;
+ SETUP_PRICING:  PROC;
+ /*******************************************************************/
+ /* SET UP COPY MEMBER 'QBPRICE' FOR CALL TO PRICING                */
+ /*******************************************************************/
+ DCL DAY_OF_WEEK   FIXED DEC(1,0);       /* RETURNED BY get_daynum  */
+                                         /*   1=SUN, ... 7=SAT      */
+ P# = COMMAREA.X#PARTS;                  /* P# USED FOR ALLOCATE    */
+ /*ALLOCATE PRICE ;    */                /* SETS OBJECT OF 'REFER', */
+                                         /*   I.E., X##PARTS        */
+ EXEC CICS GETMAIN SET(@PRICE)
+           FLENGTH(CSTG(PRICE));
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': PRICE COMMLENGTH '||CSTG(PRICE);
+     CALL WRITE_TO_OPER;           
+    END;
+    
+ CALL INIT_PRICING;
+ 
+ PRICE.CSERVCDE = COMMAREA.S0CSVC;       /* FROM QSGENL             */
+ PRICE.IMACT    = COMMAREA.S0IMACTC;     /* FROM QSGENL             */
+
+ IF ISSC_ADVNTS_CUST  &
+   (COMMAREA.S0CSVC = '20' | COMMAREA.S0CSVC = '36')
+   THEN PRICE.ICUST    = ENTPR_KEY;
+                                         /* FROM QBBILL             */
+       /* changed switch from FISSCADV to FISSCNTR*/
+   ELSE IF COMMAREA.FISSCNTR
+          THEN IF COMMAREA.S0CSVC = '20' |
+                  COMMAREA.S0CSVC = '36'
+                 THEN PRICE.ICUST = '6222902';
+                 ELSE PRICE.ICUST = '';
+          ELSE PRICE.ICUST    = COMMAREA.ICUST;  /* NOT ISSC        */
+
+ PIC7_ENT       = INVENTORY.CGCIENNO;    
+ PRICE.IENNO    = PIC7_ENT;   /* Enterprise number for Fits RQ057017 */ 
+ PRICE.CTCUS    = COMMAREA.CTCUS;        /* FROM QBBILL             */
+ PRICE.CGSASCH  = COMMAREA.CGSASCH;      /* FROM QSGENL             */
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: BILL ACT CODE '||COMMAREA.S0CBIOSA ||
+                 ' FISSCNTR '            ||COMMAREA.FISSCNTR ||
+                 ' ISSC/ADVANTIS '       ||ISSC_ADVNTS_CUST;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT = 'QBBIL4: PRICE ICUST   '||PRICE.ICUST;
+     CALL WRITE_TO_OPER;
+   END;
+
+ /* --------------------------------------------------------------- */
+ /* IF COMMAREA.S0CBIOSA = '7'               BILL PARTS ONLY        */
+ /*   THEN DO                                                       */
+ /*    PRICE.QSTOTI      = 0                                        */
+ /*    PRICE.QSVCHR      = 0                                        */
+ /*    PRICE.QTRAHR      = 0                                        */
+ /*    PRICE.QTRAMI      = 0                                        */
+ /*    PRICE.ATRAEX      = 0                                        */
+ /*    PRICE.CMININD     = 'N'                                      */
+ /*    COMMAREA.AOTHREXP = 0                                        */
+ /*    COMMAREA.QTRAVMI  = 0                                        */
+ /*  END                                                            */
+ /* ELSE DO                                                         */
+ /* --------------------------------------------------------------- */
+
+     PRICE.QSTOTI   = PIC_STOP;          /* FROM QSGENL (S0QSTOTI)  */
+     PRICE.QSVCHR   = PIC_QACTHRS;       /* FROM QBBILL (QACTHR  )  */
+     PRICE.QTRAHR   = PIC_QTRAHRS;       /* FROM QBBILL (QTRAHR  )  */
+     PRICE.QTRAMI   = PIC_MILES;         /* FROM QSGENL (S0QTRAMI)  */
+     PRICE.ATRAEX   = PIC_EXP;           /* FROM QSGENL (S0ATRAEX)  */
+
+  /*----------------------------------------------------------------*/
+  /*  GP0619035151 (Sept.2003) Remove the GJCSDT not blank check.   */
+  /*  Base travel and mileage expenses on the SDT travel flag.      */
+  /*----------------------------------------------------------------*/
+     IF S0ATRAEX = ' ' /* | COMMAREA.GJCSDT ^= ''                   */
+        THEN COMMAREA.AOTHREXP = 0;
+        ELSE COMMAREA.AOTHREXP = PIC_EXP; /* FROM QSGENL (S0ATRAEX) */
+
+     IF S0QTRAMI = ' ' /* | COMMAREA.GJCSDT ^= ''                   */
+        THEN COMMAREA.QTRAVMI  = 0;
+        ELSE COMMAREA.QTRAVMI  = S0QTRAMI; /* FROM QSGENL (S0QTRAMI)*/
+
+  /* END */
+
+ PRICE.DCALL = COMMAREA.S0DCALCY || '-'  /* FROM QSGENL             */
+            || COMMAREA.S0DCALCM || '-'
+            || COMMAREA.S0DCALCD;
+
+ IF COMMAREA.S0CSVC = '94'
+   THEN DO;
+     PIC3 = COMMAREA.S0CTAC;             /* BILL RATE IS IN MULTIUSE*/
+     PRICE.ABILRATE = PIC3;              /* FIELD (TAC CODE)        */
+   END;
+   ELSE PRICE.ABILRATE = 0;
+
+ PRICE.ISDTCODE = COMMAREA.GJCSDT;
+ /* DO I=1 TO 2;   */
+ DO I=1 TO X#PARTS;                /* SET PARTS ARRAY...      */
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: PRICE/USAGE '||I||COMMAREA.QDISUS(I)||
+                   COMMAREA.APARTPR(I);
+       CALL WRITE_TO_OPER;
+     END;
+
+    PRICE.QDISUS(I) = COMMAREA.QDISUS(I); /* FROM QBPART            */
+    PRICE.APARTPR(I)= COMMAREA.APARTPR(I);/* FROM QBPART            */
+ END;
+
+ PRICE.CCPFIN   = COMMAREA.CGCBILCL;     /* FROM QSGENL      I88668 */
+ PRICE.CHVLC    = COMMAREA.CHVLC;        /* FROM QBBILL             */
+
+                                         /* SET BILLING TYPE        */
+ IF COMMAREA.S0CSVC = '94'
+   THEN PRICE.CRATTYP = COMMERCIAL;
+   ELSE DO;
+     SELECT(COMMAREA.CTCUS);
+       WHEN('B','E','U','V')
+         PRICE.CRATTYP = GSA;
+
+       WHEN('R')
+         PRICE.CRATTYP = IBM_EMPLOYEE;
+
+       OTHERWISE
+         /*IF PRICE.CRATTYP = ' '  & COMMAREA.S0CBIOSA = '7'    */
+         /*  THEN SELECT (COMMAREA.CCECUSTY)                    */
+         /*         WHEN ('G') PRICE.CRATTYP = GSA              */
+         /*         WHEN ('C') PRICE.CRATTYP = COMMERCIAL       */
+         /*         OTHERWISE  PRICE.CRATTYP = COMMERCIAL       */
+         /*       END                                           */
+         /*   ELSE                                              */
+          PRICE.CRATTYP = COMMERCIAL;
+     END;
+   END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: RATE TYPE '||PRICE.CRATTYP||
+                   ' BILL CLASS '||PRICE.CCPFIN;
+       CALL WRITE_TO_OPER;
+     END;
+
+ %PAGE;
+  /*----------------------------------------------------------------*/
+  /* IBM EMPLOYEE IS HANDLED AS A SPECIAL CONTRACT IF THE MACHINE   */
+  /* TYPE IS ONE FOR WHICH WE GIVE AN EMPLOYEE DISCOUNT.  THIS IS   */
+  /* HANDLED IN THE PRICING MODULES, BUT WE MUST DO A COUPLE OF     */
+  /* THINGS TO SET IT UP FOR PRICING:                               */
+  /*   - SET CUSTOMER NUMBER TO GENERIC 'ALL' FOR PRICING LOGIC     */
+  /*     (THIS ALLOWS MATCH TO SPECIAL RATE TABLE)                  */
+  /*   - SET RATE TYPE TO "COMMERCIAL" ('C')                        */
+  /*     (IN CASE THE MACHINE TYPE IS NOT ON THE LIST, WE WOULD     */
+  /*      HANDLE AS AN ORDINARY COMMERCIAL CUSTOMER)                */
+  /*----------------------------------------------------------------*/
+
+  IF PRICE.CRATTYP = IBM_EMPLOYEE
+    THEN DO;
+      PRICE.ICUST = 'ALL    ';
+      PRICE.CRATTYP = COMMERCIAL;
+    END;
+
+  /*----------------------------------------------------------------*/
+  /* 4NSC - ALSO IN QBBBIL1                  HSI_4NSC_011           */
+  /*----------------------------------------------------------------*/
+
+  PRICE.FBILACTH = COMMAREA.QBBILL.FBILACTH;
+  PRICE.FBILTRVH = COMMAREA.QBBILL.FBILTRVH;
+  PRICE.FBILPART = COMMAREA.QBBILL.FBILPART;
+  PRICE.FBILDIST = COMMAREA.QBBILL.FBILDIST;
+  PRICE.FBILEXP  = COMMAREA.QBBILL.FBILEXP;
+
+  TEMP_DATE      = COMMAREA.S0DCALCY ||   /* FROM QSGENL             */
+                   COMMAREA.S0DCALCM ||
+                   COMMAREA.S0DCALCD;
+
+  LIL_DATE = GREGORIAN_TO_LILIAN(TEMP_DATE,'2');/*CONVERT TO LILDATE*/
+  TEMP_LILDATE = LIL_DATE;
+  DAY_OF_WEEK = GET_DAYNUM(TEMP_LILDATE,'1');/*GET THE DAY OF  WEEK */
+
+  SELECT(DAY_OF_WEEK);                /* SELECT THE DAY OF THE WEEK */
+     WHEN(1)                          /* ACTIVITY DAY 1 IS SUNDAY   */
+       DO;
+         START(3) = PIC_HSTRTSUN;     /* START CURRENT    DAY MON   */
+         END(3)   = PIC_HENDSUN;      /* END   CURRENT    DAY MON   */
+         START(2) = PIC_HSTRTSAT;     /* START PREVIOUS   DAY SUN   */
+         END(2)   = PIC_HENDSAT;      /* END   PREVIOUS   DAY SUN   */
+         START(1) = PIC_HSTRTFRI;     /* START PREVIOUS -1DAY SAT   */
+         END(1)   = PIC_HENDFRI;      /* END   PREVIOUS -1DAY SAT   */
+       END;
+     WHEN(2)                          /* ACTIVITY DAY 2 IS MONDAY   */
+       DO;
+         START(3) = PIC_HSTRTMON; /* START CURRENT    DAY MON    */
+         END(3)   = PIC_HENDMON;  /* END   CURRENT    DAY MON    */
+         START(2) = PIC_HSTRTSUN; /* START PREVIOUS   DAY SUN    */
+         END(2)   = PIC_HENDSUN;  /* END   PREVIOUS   DAY SUN    */
+         START(1) = PIC_HSTRTSAT; /* START PREVIOUS -1DAY SAT    */
+         END(1)   = PIC_HENDSAT;  /* END   PREVIOUS -1DAY SAT    */
+       END;
+     WHEN(3)                         /* ACTIVITY DAY 3 IS TUESAYDAY */
+       DO;
+         START(3) = PIC_HSTRTTUE; /* START CURRENT    DAY TUE    */
+         END(3)   = PIC_HENDTUE;  /* END   CURRENT    DAY TUE    */
+         START(2) = PIC_HSTRTMON; /* START PREVIOUS   DAY MON    */
+         END(2)   = PIC_HENDMON;  /* END   PREVIOUS   DAY MON    */
+         START(1) = PIC_HSTRTSUN; /* START PREVIOUS -1DAY SUN    */
+         END(1)   = PIC_HENDSUN;  /* END   PREVIOUS -1DAY SUN    */
+       END;
+     WHEN(4)                         /* ACTIVITY DAY 4 IS WEDNESDAY */
+       DO;
+         START(3) = PIC_HSTRTWED; /* START CURRENT    DAY WED    */
+         END(3)   = PIC_HENDWED;  /* END   CURRENT    DAY WED    */
+         START(2) = PIC_HSTRTTUE; /* START PREVIOUS   DAY TUE    */
+         END(2)   = PIC_HENDTUE;  /* END   PREVIOUS   DAY TUE    */
+         START(1) = PIC_HSTRTMON; /* START PREVIOUS -1DAY MON    */
+         END(1)   = PIC_HENDMON;  /* END   PREVIOUS -1DAY MON    */
+       END;
+     WHEN(5)                         /* ACTIVITY DAY 5 IS THURSDAY  */
+       DO;
+         START(3) = PIC_HSTRTTHU; /* START CURRENT    DAY THU    */
+         END(3)   = PIC_HENDTHU;  /* END   CURRENT    DAY THU    */
+         START(2) = PIC_HSTRTWED; /* START PREVIOUS   DAY WED    */
+         END(2)   = PIC_HENDWED;  /* END   PREVIOUS   DAY WED    */
+         START(1) = PIC_HSTRTTUE; /* START PREVIOUS -1DAY TUE    */
+         END(1)   = PIC_HENDTUE;  /* END   PREVIOUS -1DAY TUE    */
+       END;
+     WHEN(6)                         /* ACTIVITY DAY 6 IS FRIDAY    */
+       DO;
+         START(3) = PIC_HSTRTFRI; /* START CURRENT    DAY FRI    */
+         END(3)   = PIC_HENDFRI;  /* END   CURRENT    DAY FRI    */
+         START(2) = PIC_HSTRTTHU; /* START PREVIOUS   DAY THU    */
+         END(2)   = PIC_HENDTHU;  /* END   PREVIOUS   DAY THU    */
+         START(1) = PIC_HSTRTWED; /* START PREVIOUS -1DAY WED    */
+         END(1)   = PIC_HENDWED;  /* END   PREVIOUS -1DAY WED    */
+       END;
+     WHEN(7)                         /* ACTIVITY DAY 7 IS SATURDAY  */
+       DO;
+         START(3) = PIC_HSTRTSAT; /* START CURRENT    DAY SAT    */
+         END(3)   = PIC_HENDSAT;  /* END   CURRENT    DAY SAT    */
+         START(2) = PIC_HSTRTFRI; /* START PREVIOUS   DAY FRI    */
+         END(2)   = PIC_HENDFRI;  /* END   PREVIOUS   DAY FRI    */
+         START(1) = PIC_HSTRTTHU; /* START PREVIOUS -1DAY THU    */
+         END(1)   = PIC_HENDTHU;  /* END   PREVIOUS -1DAY THU    */
+       END;
+     OTHERWISE;
+
+   END;    /* END OF SELECT */
+
+   IF TEST_SW
+     THEN  PRICE.TEST_SW = '1'B;
+
+ END SETUP_PRICING;
+
+ %PAGE;
+ CHECK_ISSC_ADVANTIS: PROC() REORDER RETURNS(BIT(1));
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+
+   PIC7      = INVENTORY.CGCIENNO;
+   ENTPR_KEY = PIC7;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: CHECK ENTERPRISE = ' || ENTPR_KEY;
+       CALL WRITE_TO_OPER;
+     END;
+
+   RECD_LENGTH = 20;
+   EXEC CICS READ FILE('QBENTPR')
+                  RIDFLD(ENTPR_KEY)
+                  KEYLENGTH(7)
+                  SET (@ENTPR)
+                  EQUAL
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);
+
+   SELECT;
+     WHEN(RESPONSE =  DFHRESP(NORMAL))   /* ENTERPRISE NUMBER FOUND */
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBIL4: FOUND KEY = ' || ENTPR_KEY;
+             CALL WRITE_TO_OPER;
+           END;
+         RETURN ('1'B);
+       END;
+
+     WHEN(RESPONSE =  DFHRESP(NOTFND))  /* ENTERPRISE NUMBER NOT FND*/
+       DO;
+         RETURN ('0'B);
+       END;
+
+     OTHERWISE
+       DO;
+         ET_TEXT1 = ERR2||MODULE||'FAILURE ON READ OF QBENTPR FILE';
+         PIC3 = RESPONSE;
+         ET_TEXT2 = ERR2||MODULE||'RESPONSE CODE '||PIC3;
+
+         SIGNAL ERROR;
+       END;
+   END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+ END CHECK_ISSC_ADVANTIS;
+
+ %PAGE;
+ LINK_TO_PRICING: PROC;
+ /*******************************************************************/
+ /* LINK TO QBPRIC1 TO INITIATE PRICING...                          */
+ /* QBPRIC1 READS SUPPORT (VSAM) TABLES, THEN XCTLS TO QBPRIC2 TO   */
+ /* PERFORM ACTUAL PRICING LOGIC.                                   */
+ /*******************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: LINK TO QBPRIC1';
+       CALL WRITE_TO_OPER;
+     END;
+     
+   IF PRICE.TEST_SW
+     THEN DO;
+       /*  PRICE.TEST_SW = '0'B */
+       DIAG_TEXT = 'QBBIL4: PRICE TEST SWITCH IS ON, DOC = '||
+                    COMMAREA.S0IDOCMN;
+       CALL WRITE_TO_OPER;
+     END;
+     
+   PRICE.IINVOICE = SUBSTR(COMMAREA.S0IDOCMN,3,7);
+   PRICE.IBOCE = COMMAREA.CMIBOCE;               /* RCQ0345 */
+   EXEC CICS LINK PROGRAM('QBPRIC1')
+                  COMMAREA(PRICE)
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);      /* END EXEC CICS LINK ...  */
+
+   PRICE.IINVOICE = '';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: BACK FROM PRICING'||X#PARTS || ' PARTS';
+       CALL WRITE_TO_OPER;
+     END;
+
+   IF RESPONSE ^= DFHRESP(NORMAL)       /* IF ABNORMAL RESPONSE THEN*/
+     THEN DO;                           /* PASS CONTROL TO ERROR PGM*/
+       PIC3 = RESPONSE;
+       ET_TEXT1 = ERR2 ||MODULE||'FAILURE ON LINK TO QBPRIC1, RESP '||
+                  PIC3;
+       SIGNAL ERROR;
+       PIC7 = RESPONSE2;
+       ET_TEXT2 = ERR2 || MODULE || ' RESPONSE CODE 2 '||PIC7;
+       SIGNAL ERROR;
+     END;
+
+ END LINK_TO_PRICING;
+
+ %PAGE;
+ ASSIGN_PRICING_DATA:  PROC;
+ /*******************************************************************/
+ /* ASSIGN PRICING DATA JUST OBTAINED TO QBCOMM (COMMAREA)          */
+ /*******************************************************************/
+
+   COMMAREA.QINHRS   = PRICE.QINHRS;      /* INSIDE  LABOR HOURS    */
+   COMMAREA.AINRATE  = PRICE.AINRATE;     /* INSIDE  LABOR RATE     */
+   COMMAREA.AINLAB   = PRICE.AINLAB;      /* INSIDE  LABOR AMOUNT   */
+   COMMAREA.QOUTHRS  = PRICE.QOUTHRS;     /* OUTSIDE LABOR HOURS    */
+   COMMAREA.AOUTRATE = PRICE.AOUTRATE;    /* OUTSIDE LABOR RATE     */
+   COMMAREA.AOUTLAB  = PRICE.AOUTLAB;     /* OUTSIDE LABOR AMOUNT   */
+
+   COMMAREA.AMILRATE = PRICE.AMILRATE;    /* MILEAGE RATE           */
+   COMMAREA.AMILEXP  = PRICE.AMILEXP;     /* MILEAGE EXPENSE        */
+
+   COMMAREA.CCPFIN   = PRICE.CCPFIN;      /* BILLING CLASS          */
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: PRICING '||PRICE.CMININD||' '
+                                     ||PRICE.AMINCHG;
+       CALL WRITE_TO_OPER;
+     END;
+
+   COMMAREA.CMININD  = PRICE.CMININD;    /* MINIMUM CHARGE INDICATOR*/
+   COMMAREA.AMINCHG  = PRICE.AMINCHG;    /* MIN CHG ADJUSTMENTAMOUNT*/
+
+   COMMAREA.HSTART   = PRICE.HSTART;     /* ACTIVITY START TIME     */
+
+   IF PRICE.PDISCNT > 0                  /* DISCOUNT INDICATOR      */
+     THEN COMMAREA.CDISCNT = YES;
+     ELSE COMMAREA.CDISCNT = NO;
+
+   IF PRICE.AINCDNT > 0
+     THEN DO;         /* INCIDENT CHARGEINDICATOR*/
+       IF FINCDPRT = 'Y'
+         THEN COMMAREA.CINCDCHG = IFPART;/* -INCIDENT FEE W/PARTS-  */
+         ELSE COMMAREA.CINCDCHG = YES;   /* -INCIDENT FEE W/O PARTS-*/
+     END;
+     ELSE COMMAREA.CINCDCHG = NO;       /* -NO INCIDENT FEE-       */
+
+   DO I=1 TO X#PARTS;                    /* SET PARTS ARRAY         */
+     COMMAREA.APARTAMT(I) = PRICE.APARTAMT(I);
+   END;
+
+   COMMAREA.ATOTTIME = PRICE.ATOTTIME;   /* TOTAL LABOR   AMOUNT    */
+   COMMAREA.ATOTEXP  = PRICE.ATOTEXP;    /* TOTAL EXPENSE AMOUNT    */
+   COMMAREA.ATOTPART = PRICE.ATOTPART;   /* TOTAL PART    AMOUNT    */
+
+ END ASSIGN_PRICING_DATA;
+
+ %PAGE;
+ SPECIAL_CHARGES_PRICING: PROC;
+ /*******************************************************************/
+ /* SET UP TO HANDLE SPECIAL CHARGES.                               */
+ /* SPECIAL CHARGES ARE DEFINED AS:                                 */
+ /*   1. MAXIMUM CHARGE (SPECIAL PER CALL CONTRACT)                 */
+ /* XX2. 'OEM'          (ANOTHER TYPE OF MAXIMUM CHARGE)            */
+ /* XX                  ("OEM" LOGIC REMOVED - I96488)              */
+ /*   3. 'UPG' (FLAT CHARGE FOR ONE-TIME ENTITLEMENT CHANGE)        */
+ /*                                                                 */
+ /*******************************************************************/
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: IN SPECIAL CHARGES ';
+     CALL WRITE_TO_OPER;
+   END;
+
+ DCL TEMP_ATOTINV  FIXED DEC(9,2);
+ /*-----------------------------------------------------------------*/
+ /* DETERMINE IF MAXIMUM CHARGE APPLIES:                            */
+ /* - MAX CHARGE MAY ARISE FROM                                     */
+ /*   1. SPECIAL PER CALL CONTRACT                                  */
+ /*   XXXSPECIAL "OEM" INSPECTION CHARGE                            */
+ /* - MAX CHARGE INCLUDES LABOR, EXPENSE, PARTS.                    */
+ /* - IF INVOICE TOTAL (EXCLUDING TAX) IS GREATER THAN THE          */
+ /*   MAXIMUM CHARGE THEN TAX THE MAX CHARGE (AS LABOR).            */
+ /*   THE TOTAL INVOICE WILL BE THE MAX CHARGE PLUS TAX.            */
+ /*                                                                 */
+ /* NOTE:  WE WOULD PROBABLY LIKE TO HANDLE THE SPECIAL CHARGES     */
+ /* VIA TABLES IN PRICING, BUT OF COURSE WE NOW PATCH IN THE        */
+ /* "QUICK FIX."  THE LEAST WE CAN DO IS MAKE IT APPEAR THAT THE    */
+ /* SPECIAL MAX CHARGE WAS RETURNED BY THE PRICING MODULES.         */
+ /*-----------------------------------------------------------------*/
+                                         /* FIGURE TOTAL INVOICE    */
+                                         /* AMOUNT MINUS TAX        */
+ TEMP_ATOTINV =  COMMAREA.ATOTTIME
+               + COMMAREA.ATOTEXP
+               + COMMAREA.ATOTPART;
+                                         /* IF SPECIAL "OEM" CHARGE */
+                                         /* THEN SET UP TO LOOK LIKE*/
+                                         /* USUAL MAX CHARGE        */
+                                         /* REMOVED - IXXXXX        */
+ /* IF  COMMAREA.S0CSVC   = '36' */
+ /*   & COMMAREA.S0CHACT  = '22' */
+ /*   & COMMAREA.S0CBIOSA = '3'  */
+ /*  THEN DO                     */
+ /*    PRICE.AMAXCHG = 750.00    */
+ /*    COMMAREA.CSPLCHG = 'OEM'  */
+ /*    END                       */
+                                         /* SET MAX CHARGE INDICATOR*/
+ IF  PRICE.AMAXCHG > 0
+   & PRICE.AMAXCHG < TEMP_ATOTINV
+   THEN COMMAREA.CMAXCHG = YES;
+   ELSE COMMAREA.CMAXCHG = NO;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* HANDLE SPECIAL CHARGE, IF APPLICABLE ...                        */
+ /*                                                                 */
+ /* NOTE:                                                           */
+ /* TO BE ENTIRELY CONSISTENT, WE WOULD SET 'ATOTPART' <- 0 ALSO.   */
+ /* WE DON'T DO THIS BECAUSE QBCIS1 KEYS ON THIS TO DETERMINE IF    */
+ /* PARTS ARE PRESENT WITH THE INVOICE.  CURRENTLY THERE IS NO OTHER*/
+ /* INDICATOR OF PARTS IN THE "BILLMAIN" TABLE.                     */
+ /*-----------------------------------------------------------------*/
+   SELECT;
+     WHEN(COMMAREA.CMAXCHG = YES)        /* MAXIMUM CHARGE          */
+       DO;
+       COMMAREA.ATOTTIME = PRICE.AMAXCHG;/* CARRY (AND TAX) AS LABOR*/
+       COMMAREA.ATOTEXP  =  0.0;         /* EXPENSES INCLUDED       */
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBBIL4: MAXIMUM CHARGE '||
+                                     COMMAREA.QINHRS ||' '||
+                                     COMMAREA.QOUTHRS ;
+           CALL WRITE_TO_OPER;
+         END;
+
+       END;
+
+     WHEN(COMMAREA.CSPLCHG  = 'SDT'  &   /* mach has a SDT assigned */
+          COMMAREA.GJCSDT  ^= ''     &   /* and you need to bill it */
+          COMMAREA.ISOURCE ^= 'SQL')
+       /*      & COMMAREA.CMIBOCE ^= 'E9A')   */
+       DO;
+         CALL FIND_UPGRADE_RATE;
+      /*------------------------------------------------------------*/
+      /* GP0619035151 (Sept.2003) Expenses no longer included for an*/
+      /* SDT situation.  Use the SDT expense (travel) flag.         */
+      /* COMMAREA.ATOTEXP  =  0.0           EXPENSES INCLUDED       */
+      /*------------------------------------------------------------*/
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBIL4: SDT ASSIGNED '||COMMAREA.CSPLCHG||
+                                             ' '||COMMAREA.ATOTTIME||
+                                             ' '||COMMAREA.ATOTEXP;
+             CALL WRITE_TO_OPER;
+           END;
+       END;
+
+     WHEN(COMMAREA.CSPLCHG ^= ''         /* GP021333 - 3NSE         */
+          & PRICE.CNONRATE ^= 'Y'        /* RQ057017 - 5NMS         */
+          & ^BILL_ONLY_PARTS )           /* RQ054527 - 6NSH         */
+               
+       DO;
+         CALL FIND_UPGRADE_RATE;
+                          /* IF you still have a special charge/    */
+                          /* incident fee value do not reset expense*/
+         IF (COMMAREA.CSPLCHG ^= '' &
+             TEMP_CTYPE ^= 'B') /*RQ054527  */
+           THEN COMMAREA.ATOTEXP  =  0.0; /* EXPENSES INCLUDED      */
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBIL4: Special charge assigned '||
+                         COMMAREA.CSPLCHG||' '||COMMAREA.ATOTTIME;
+             CALL WRITE_TO_OPER;
+           END;
+
+       END;
+
+     OTHERWISE;                          /* NO SPECIAL CHARGE       */
+
+   END;
+
+
+
+ /*-----------------------------------------------------------------*/
+ /* IF THE QSAR HAS AN SDT VALUE and you are not going to bill an   */
+ /* and upgrade/incident charge RESET THE INVOICE VALUES            */
+ /* THIS IS PROBABLY OBSOLETE SINCE THE OUTSIDE HOURS PROJECT SHOULD*/
+ /* TAKE CARE OF NOT BILLING INSIDE HOURS                           */
+ /*-----------------------------------------------------------------*/
+   IF COMMAREA.GJCSDT   ^= '' & COMMAREA.CMININD  = 'N' &
+      COMMAREA.QINHRS    > 0  & COMMAREA.QOUTHRS  > 0   &
+      COMMAREA.CSPLCHG  = ''
+            /* 3NSE - COMMAREA.S0CBIOSA ^= '7' remove */
+     THEN DO;
+       COMMAREA.ATOTTIME = COMMAREA.ATOTTIME - COMMAREA.AINLAB;
+       COMMAREA.AINLAB  = 0;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBBIL4: MINIMUM CHARGE '||
+                            COMMAREA.GJCSDT     ||' '||
+                            COMMAREA.CMININD    ||' '||
+                            COMMAREA.QINHRS     ||' '||
+                            COMMAREA.QOUTHRS ;
+           CALL WRITE_TO_OPER;
+         END;
+
+   /*  SELECT(COMMAREA.CHVLC)   */
+   /*    WHEN('H') MINHRS = 4   */
+   /*    WHEN('N') MINHRS = 4   */
+   /*    OTHERWISE MINHRS = 4   */
+   /*  END                      */
+
+       IF QMINHRS - COMMAREA.QOUTHRS > 0
+         THEN DO;
+           COMMAREA.CMININD = 'Y';
+           COMMAREA.AMINCHG =
+                       (QMINHRS-COMMAREA.QOUTHRS) * COMMAREA.AINRATE;
+           COMMAREA.ATOTTIME = COMMAREA.ATOTTIME + COMMAREA.AMINCHG;
+
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = 'QBBIL4: PRICING '||COMMAREA.QOUTHRS||' '
+               ||QMINHRS||' '||COMMAREA.AINRATE;
+               CALL WRITE_TO_OPER;
+             END;
+         END;
+
+        COMMAREA.AINRATE = 0;
+     END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: SDT MIN '||COMMAREA.GJCSDT  ;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: SDT MIN '||COMMAREA.CMININD ;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: SDT MIN '||COMMAREA.QINHRS  ;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: SDT MIN '||COMMAREA.QOUTHRS ;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END SPECIAL_CHARGES_PRICING;
+
+ FIND_UPGRADE_RATE: PROC;
+ /*******************************************************************/
+ /* FIND THE ONE TIME ENTITLEMENT UPGRADE RATE, KEY IS THE INCIDENT */
+ /* FEE CODE ON THE  STANDARD RATE FILE TO GET THE CURRENT UPGRADE  */
+ /* CHARGE.  THE CALL MUST BE AFTER THE EFFECTIVE DATE AND BEFORE   */
+ /* ANY ADDITIONAL RATE EFFECTIVE DATES.                            */
+ /* IF THE UPGRADE RATE OR KEY IS NOT FOUND THEN  SIGNAL ERROR.     */
+ /*******************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: IN FIND UPGRADE RATE'||' DOC= '||
+                             COMMAREA.S0IDOCMN;
+       CALL WRITE_TO_OPER;
+     END;
+
+   /* STDKEY = 'U  '                    GP021333 - 3NSE             */
+   IF COMMAREA.CSPLCHG = 'SDT'          /* there is not a SDT code  */
+     THEN STDKEY = 'UPG';               /* need to set the UPG code */
+     ELSE STDKEY = COMMAREA.CSPLCHG;    /* GP021333 - 3NSE          */
+
+   STD_SEARCH_KEY = SUBSTR(STDKEY,1,3);
+   EXEC CICS STARTBR FILE('QBSTDRAT')
+                     RIDFLD(STDKEY)
+                     KEYLENGTH(5)
+                     RESP(RESPONSE)
+                     RESP2(RESPONSE2)
+                     GENERIC GTEQ;
+
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))
+      DO;
+
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBBIL4: first lookup >= key found, key '||
+                         SUBSTR(STDKEY,1,3);
+            CALL WRITE_TO_OPER;
+        /*  DIAG_TEXT = 'QBBIL4: STANDARD RATE KEY FOUND, key '||*/
+        /*         STANDARD.CRATTYP||' rate= '|| STANDARD.AINRATE */
+        /*       CALL WRITE_TO_OPER                               */
+          END;
+      END;
+
+     WHEN (DFHRESP(DSIDERR))             /* FILE NOT FOUND          */
+       DO;
+         ET_TEXT1 = 'QSR9002: QBBIL4  FILE NOT FOUND (QBSTDRAT)';
+         SIGNAL ERROR;
+       END;
+
+     WHEN (DFHRESP(NOTFND))              /* KEY NOT FOUND           */
+       DO;
+        ET_TEXT1 = 'QSR9002: QBBIL4  KEY ' || STDKEY ||
+                   'NOT FOUND ON STD RATE FILE (QBSTDRAT)';
+        EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+        PIC3 = RESPONSE;
+        PIC7 = RESPONSE2;
+        ET_TEXT2 = 'QSR9002: QBBIL4  KEY=' || STDKEY ||
+                   ' RESP= '|| PIC3 || ' RESP2= '||PIC7;
+        EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+
+        /*     SIGNAL ERROR  */
+        COMMAREA.CSPLCHG = '';        /* remove invalid upgrade code*/
+                                      /* pcr0011 2/24/2003          */
+         /*  CALL ASSIGN_REVIEW_INFORMATION('231','28')        3nse */
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT ='QBBIL4: First Lookup, key not found, ERR 231';
+            CALL WRITE_TO_OPER;
+          END;
+
+       END;
+     OTHERWISE                         /* OTHER VSAM ERROR         */
+       DO;
+         ET_TEXT1 = 'QSR9002: QBBIL4  ERROR ON STARTBR OF ' ||
+                    'STANDARD RATE FILE (QBSTDRAT)';
+         PIC3 = RESPONSE;
+         PIC7 = RESPONSE2;
+         ET_TEXT2 = 'QSR9002: QBBIL4  KEY=' || STDKEY ||
+                                   ' RESP= '||PIC3 ||' RESP2= '||PIC7;
+         SIGNAL ERROR;
+       END;
+   END;   /* END SELECT */
+
+   /* ----------------------------------------------------------- */
+   /* Get next record                                             */
+   /* ----------------------------------------------------------- */
+   /* THE SIGNAL ERROR CONDITION ON THE NOT FOUND CONDITION ABOVE */
+   /* WAS REMOVED SO THAT IT COULD FIND NOT CAUSE A PROBLEM SO    */
+   /* SO THE RESPONSE HAS TO BE CHECKED FOR NORMAL PROCESSING     */
+   /* ----------------------------------------------------------- */
+   IF RESPONSE = DFHRESP(NORMAL)
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+            DIAG_TEXT = 'QBBIL4: Before second lookup csplchg, KEY('||
+                    SUBSTR(STDKEY,1,3)||') RATEFILE('||STANDARD.CRATTYP
+                    ||')';
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT =  'QBBIL4: CALL DATE, ('|| PRICE.DCALL||
+                   ') ratefile DATE('|| STANDARD.DEFFDTE||')';
+           CALL WRITE_TO_OPER;
+         END;
+
+     RECD_LENGTH = 80;
+
+     EXEC CICS READNEXT FILE('QBSTDRAT')
+                        RIDFLD(STDKEY)
+                        INTO (STANDARD)
+                        LENGTH(RECD_LENGTH)
+                        RESP(RESPONSE)
+                        RESP2(RESPONSE2);
+
+     CONTINUE = '1'B;
+     IF TEST_SW
+       THEN DO;
+          DIAG_TEXT ='QBBIL4: second look/normal resp csplchg, KEY('||
+                  SUBSTR(STDKEY,1,3)||') RATEFILE('||STANDARD.CRATTYP
+                  ||')';
+          CALL WRITE_TO_OPER;
+          DIAG_TEXT = 'QBBIL4: CALL DATE, ('|| PRICE.DCALL||
+                 ') ratefile DATE('|| STANDARD.DEFFDTE||')';
+          CALL WRITE_TO_OPER;
+        END;
+
+   /*-----------------------------------------------------------*/
+   /* MN16942409 (Dec.2003) - Add the check for CSPLCHG = 'SDT' */
+   /*         so the 'UPG' rate can be used as the SDT upgrade. */
+   /*-----------------------------------------------------------*/
+      IF COMMAREA.CSPLCHG ^= 'SDT'             &
+         COMMAREA.CSPLCHG ^= STANDARD.CRATTYP  &
+          (PRICE.DCALL    >= STANDARD.DEFFDTE  |
+           PRICE.DCALL    ^=  '')
+         THEN DO;
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = 'QBBIL4: 1 blank out spl charge '||
+                         COMMAREA.CSPLCHG;
+               CALL WRITE_TO_OPER;
+             END;
+
+           COMMAREA.CSPLCHG = '';     /* remove invalid upgrade code*/
+                                      /* pcr0011                    */
+           /* CALL ASSIGN_REVIEW_INFORMATION('231','27')       3nse */
+
+         END;
+
+     DO WHILE ( PRICE.DCALL      >= STANDARD.DEFFDTE  &
+                RESPONSE         ^= DFHRESP(ENDFILE)  &
+           /*   SUBSTR(STDKEY,1,3) = STANDARD.CRATTYP)*/
+               (COMMAREA.CSPLCHG   = SUBSTR(STDKEY,1,3) |
+               COMMAREA.CSPLCHG = 'SDT' & SUBSTR(STDKEY,1,3)= 'UPG'));
+
+       SELECT(RESPONSE);
+         WHEN (DFHRESP(NORMAL))       /* ASSIGN THE TOTAL $ AMOUNT  */
+           DO;
+         /* -------------------------------------------------- */
+         /*    IF COMMAREA.CSPLCHG ^= STANDARD.CRATTYP  &      */
+         /*       PRICE.DCALL      <  STANDARD.DEFFDTE  THEN   */
+         /*         CALL ASSIGN_REVIEW_INFORMATION('231','29') */
+         /*    ELSE                                            */
+         /*      DO                                            */
+         /* -------------------------------------------------- */
+                 COMMAREA.ATOTTIME =  STANDARD.AINRATE;
+
+                 COMMAREA.CINCDCHG = 'Y';/* SET VALID UPGRADE SWITCH*/
+                 IF TEST_SW 
+                   THEN DO;
+                     DIAG_TEXT =
+                    'QBBIL4: Second csplchg lookup key found, key ('||
+                       STDKEY||') rate= '|| STANDARD.AINRATE;
+                     CALL WRITE_TO_OPER;
+                     DIAG_TEXT = 'QBBIL4: DCALL '||PRICE.DCALL||
+                           ' DEFFEDTE ('|| STANDARD.DEFFDTE||')';
+                    CALL WRITE_TO_OPER;
+
+                  END;
+          /*     END  */
+           END;
+
+         WHEN (DFHRESP(DSIDERR))    /* FILE NOT FOUND               */
+           DO;                      /* PASS CONTROL TO ERROR PGM    */
+             ET_TEXT1 = 'QSR9002: QBBIL4  FILE NOT FOUND (QBSTDRAT)';
+             SIGNAL ERROR;
+           END;
+
+         WHEN (DFHRESP(NOTFND))     /* KEY NOT FOUND                */
+           DO;                      /* PASS CONTROL TO ERROR PGM    */
+             ET_TEXT1 ='QSR9002: QBBIL4 UPGRADE RATE KEY NOT FOUND '||
+                        'ON QBSTDRAT';
+             PIC3 = RESPONSE;
+             PIC7 = RESPONSE2;
+             ET_TEXT2 = 'QSR9002: QBBIL4  KEY= '|| STDKEY||
+                                       ' RESP= '|| PIC3 ||
+                                      ' RESP2= '||PIC7;
+             /* SIGNAL ERROR */
+             IF TEST_SW
+               THEN DO;
+                 DIAG_TEXT = 'QBBIL4: 2 blank out spl charge '||
+                              COMMAREA.CSPLCHG;
+                 CALL WRITE_TO_OPER;
+                 DIAG_TEXT='QBBIL4: Second csplchg lookup, key not '||
+                            'found, was ERR 231';
+                 CALL WRITE_TO_OPER;
+               END;
+
+             COMMAREA.CSPLCHG = '';   /* remove invalid upgrade code*/
+                                      /* pcr0011                    */
+             /* CALL ASSIGN_REVIEW_INFORMATION('231','30') */
+           END;
+         OTHERWISE                   /* ALL OTHER ERRORS           */
+           DO;                       /* PASS CONTROL TO ERROR PGM  */
+             ET_TEXT1 = 'QSR9002: QBBIL4, ERROR ON READNEXT OF ' ||
+                        'STANDARD RATE FILE (QBSTDRAT)';
+             PIC3 = RESPONSE;
+             PIC7 = RESPONSE2;
+             ET_TEXT2 = 'QSR9002: QBBIL4 KEY=' || STDKEY||
+                                      ' RESP= '|| PIC3 ||
+                                     ' RESP2= '||PIC7;
+             SIGNAL ERROR;
+           END;
+       END;  /* END SELECT */
+
+       EXEC CICS IGNORE CONDITION ENDFILE;
+       EXEC CICS READNEXT FILE('QBSTDRAT')
+                          RIDFLD(STDKEY)
+                          INTO (STANDARD)
+                          LENGTH(RECD_LENGTH)
+                          RESP(RESPONSE)
+                          RESP2(RESPONSE2);
+
+     END;                              /*   END OF DO               */
+
+     EXEC CICS ENDBR FILE('QBSTDRAT');
+   END;
+
+ END FIND_UPGRADE_RATE;
+
+ /*******************************************************************/
+ /* FIND NON Standard rate code                                     */
+ /* FITS RQ057017                                                   */
+ /* FITS RQ054527 added the code for the Bill parts                 */
+ /*******************************************************************/
+
+ %PAGE;
+ FIND_INCIDENT_CODE_CATEGORY: PROC;
+ /*******************************************************************/
+ /* CHECK WHETHER CCOTYPE IS INCIDENT FEE CODE OR NON STD RATE      */
+ /* IF IT IS NON-STD RATE CODE MOVE THE CCOTYPE ANY ADDITIONAL RATE */
+ /* EFFECTIVE DATES. IF THE UPGRADE RATE OR KEY IS NOT FOUND THEN   */
+ /* SIGNAL ERROR.                                                   */
+ /*******************************************************************/
+
+   DCL STDKEY             CHAR(16)     INIT('');
+   DCL STD_SEARCH_KEY     CHAR( 3)     INIT('');
+
+   COMMAREA.CSPLCON = 'N';  /* Init the non-std rate flag  */
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: FIND_INCIDENT_CODE_CATEGORY' ||' DOC= '||
+                        COMMAREA.S0IDOCMN||' KEY= '||
+                        COMMAREA.CCOTYPE;
+       CALL WRITE_TO_OPER;
+     END;
+  
+     STDKEY = COMMAREA.CCOTYPE;     
+
+   STD_SEARCH_KEY = SUBSTR(STDKEY,1,3);
+   EXEC CICS STARTBR FILE('QBSTDRAT')
+                     RIDFLD(STDKEY)
+                     KEYLENGTH(5)
+                     RESP(RESPONSE)
+                     RESP2(RESPONSE2)
+                     GENERIC GTEQ;
+
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))
+      DO;
+
+        IF TEST_SW
+          THEN DO;
+           DIAG_TEXT = 'QBBIL4: first lookup >= key found, key '||
+                 SUBSTR(STDKEY,1,3);
+           CALL WRITE_TO_OPER;
+         END;
+      END;
+
+     WHEN (DFHRESP(DSIDERR))             /* FILE NOT FOUND          */
+       DO;
+         ET_TEXT1 = 'QSR9002: QBBIL4  FILE NOT FOUND (QBSTDRAT)';
+         SIGNAL ERROR;
+       END;
+
+     WHEN (DFHRESP(NOTFND))              /* KEY NOT FOUND           */
+       DO;
+         IF TEST_SW
+          THEN DO;
+            DIAG_TEXT ='QBBIL4: First Lookup, key not found, ERR 231';
+            CALL WRITE_TO_OPER;
+          END;
+
+       END;
+     OTHERWISE                         /* OTHER VSAM ERROR         */
+       DO;
+         ET_TEXT1 = 'QSR9002: QBBIL4  ERROR ON STARTBR OF ' ||
+                    'STANDARD RATE FILE (QBSTDRAT)';
+         PIC3 = RESPONSE;
+         PIC7 = RESPONSE2;
+         ET_TEXT2 = 'QSR9002: QBBIL4  KEY=' || STDKEY ||
+                                   ' RESP= '||PIC3 ||' RESP2= '||PIC7;
+         SIGNAL ERROR;
+       END;
+   END;   /* END SELECT */
+
+   /* ----------------------------------------------------------- */
+   /* Get next record                                             */
+   /* ----------------------------------------------------------- */
+   /* THE SIGNAL ERROR CONDITION ON THE NOT FOUND CONDITION ABOVE */
+   /* WAS REMOVED SO THAT IT COULD FIND NOT CAUSE A PROBLEM SO    */
+   /* SO THE RESPONSE HAS TO BE CHECKED FOR NORMAL PROCESSING     */
+   /* ----------------------------------------------------------- */
+   IF RESPONSE = DFHRESP(NORMAL)
+     THEN DO;
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBBIL4: Before second lookup csplchg, KEY('||
+                  SUBSTR(STDKEY,1,3);
+            CALL WRITE_TO_OPER;
+        END;
+
+     RECD_LENGTH = 80;
+
+     EXEC CICS READNEXT FILE('QBSTDRAT')
+                        RIDFLD(STDKEY)
+                        INTO (STANDARD)
+                        LENGTH(RECD_LENGTH)
+                        RESP(RESPONSE)
+                        RESP2(RESPONSE2);
+
+     IF TEST_SW
+       THEN DO;
+          DIAG_TEXT ='QBBIL4: second look/normal resp csplchg, KEY('||
+                  SUBSTR(STDKEY,1,3)||') RATEFILE('||STANDARD.CRATTYP
+                  ||') CCPFIN=' || STANDARD.CCPFIN ;
+          CALL WRITE_TO_OPER;
+          DIAG_TEXT = 'QBBIL4: ACTIVITY DATE, ('|| PRICE.DCALL||
+                 ') ratefile DATE('|| STANDARD.DEFFDTE||')';
+          CALL WRITE_TO_OPER;
+        END;
+
+
+
+     DO WHILE ( PRICE.DCALL      >= STANDARD.DEFFDTE  &
+                RESPONSE         ^= DFHRESP(ENDFILE)  &
+                COMMAREA.CSPLCHG = SUBSTR(STDKEY,1,3)); 
+            
+        SELECT(RESPONSE);
+         WHEN (DFHRESP(NORMAL))
+           DO;
+           SELECT ( STANDARD.CTYPE );
+             WHEN ( 'R' )
+               DO;
+                 PRICE.CNONRATE   = 'Y';
+                 PRICE.AINRATE    = STANDARD.AINRATE;
+                 PRICE.AOUTRATE   = STANDARD.AOUTRATE;
+                 PRICE.AINCDNT    = '';
+                 COMMAREA.CSPLCON = 'Y';
+               END; 
+
+            WHEN ('P','T') 
+              DO;
+                TEMP_CTYPE = STANDARD.CTYPE;
+                BILL_ONLY_PARTS = '1'B;
+              END; 
+
+            WHEN ('B','D','I') 
+              DO;
+                TEMP_CTYPE = STANDARD.CTYPE;
+              END;
+
+            OTHERWISE ;
+         END;       /* end of select */ 
+        
+            IF TEST_SW
+               THEN DO;
+                 DIAG_TEXT =
+                'QBBIL4: Second csplchg lookup key found, key ('||
+                   STDKEY||') rate= '|| STANDARD.AINRATE;
+                 CALL WRITE_TO_OPER;
+                 DIAG_TEXT = 'QBBIL4: DCALL '||PRICE.DCALL||
+                       ' DEFFEDTE ('|| STANDARD.DEFFDTE||')';
+                CALL WRITE_TO_OPER;
+
+              END;
+
+         END; /*END OF WHEN */
+
+         WHEN (DFHRESP(DSIDERR))    /* FILE NOT FOUND               */
+           DO;                      /* PASS CONTROL TO ERROR PGM    */
+             ET_TEXT1 = 'QSR9002: QBBIL4  FILE NOT FOUND (QBSTDRAT)';
+             SIGNAL ERROR;
+           END;
+
+         OTHERWISE                   /* ALL OTHER ERRORS           */
+           DO;                       /* PASS CONTROL TO ERROR PGM  */
+             ET_TEXT1 = 'QSR9002: QBBIL4, ERROR ON READNEXT OF ' ||
+                        'STANDARD RATE FILE (QBSTDRAT)';
+             PIC3 = RESPONSE;
+             PIC7 = RESPONSE2;
+             ET_TEXT2 = 'QSR9002: QBBIL4 KEY=' || STDKEY||
+                                      ' RESP= '|| PIC3 ||
+                                     ' RESP2= '||PIC7;
+             SIGNAL ERROR;
+           END;
+
+      END; /* END OF SELECT */   
+
+
+      EXEC CICS IGNORE CONDITION ENDFILE;
+      EXEC CICS READNEXT FILE('QBSTDRAT')
+                        RIDFLD(STDKEY)
+                        INTO (STANDARD)
+                        LENGTH(RECD_LENGTH)
+                        RESP(RESPONSE)
+                        RESP2(RESPONSE2);
+     END;                              /*   END OF DO */
+
+     EXEC CICS ENDBR FILE('QBSTDRAT');
+
+
+    END; /* END OF IF RESPONSE stmt */
+    
+    IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = 'QBBIL4: EXIT FIND_INCIDENT_CODE_CATEGORY';
+        CALL WRITE_TO_OPER;
+    END;
+
+   
+ END FIND_INCIDENT_CODE_CATEGORY; /* RQ057017 ENDS HERE */
+
+
+ %PAGE;
+ INIT_PRICING:  PROC;
+ /*******************************************************************/
+ /* INITIALIZE PRICING STRUCTURE ...                                */
+ /* (CAREFULLY, DUE TO 'REFER' OPTIONS)                             */
+ /*******************************************************************/
+   PRICE = '';
+   PRICE.X##PARTS = P#; 
+   
+   PRICE.IMACT    = '';
+   PRICE.ICUST    = '';
+   PRICE.IINVOICE = '';
+   PRICE.CTCUS    = '';
+   PRICE.QSTOTI   = '';
+   PRICE.QSVCHR   = '';
+   PRICE.QTRAHR   = '';
+   PRICE.DCALL    = '';
+   PRICE.QTRAMI   = '';
+   PRICE.ATRAEX   = '';
+   PRICE.ABILRATE = '';
+   PRICE.ISDTCODE = '';
+   PRICE.QDISUS(*) = 0;
+   PRICE.APARTPR(*) = 0;
+   /* I=1 TO PRICE.X##PARTS;
+     PRICE.QDISUS(I)   = '';
+     PRICE.APARTPR(I)  = '';
+   END;   */
+
+   PRICE.CCPFIN   = '';
+   PRICE.CHVLC    = '';
+   PRICE.CRATTYP  = '';
+   PRICE.AMILRATE = '';
+   PRICE.AINRATE  = '';
+   PRICE.AOUTRATE = '';
+   PRICE.AINCDNT  = '';
+   PRICE.PDISCNT  = '';
+   PRICE.QMINCHG  = '';
+   PRICE.AMAXCHG  = '';
+
+   PRICE.QHCOUNT  = '';
+   DO I=1 TO 30;
+     PRICE.DHOLIDAY(I) = '';
+   END;
+
+   PRICE.QTOTDAYS = '';
+   PRICE.HSTART   = '';
+   PRICE.QINHRS   = '';
+   PRICE.AINLAB   = '';
+   PRICE.QOUTHRS  = '';
+   PRICE.AOUTLAB  = '';
+   PRICE.AMILEXP  = '';
+   PRICE.APARTAMT(*) = 0;
+   /*DO I=1 TO PRICE.X##PARTS;
+     PRICE.APARTAMT(I) = '';
+   END;  */
+   
+
+   PRICE.ATOTTIME = '';
+   PRICE.ATOTEXP  = '';
+   PRICE.ATOTPART = '';
+   PRICE.CMININD  = '';
+   PRICE.AMINCHG  = '';
+   PRICE.QINSTART = '';
+   PRICE.QINSTOP  = '';
+
+   /* --------------- */
+   /* 4nsc            */
+   /* --------------- */
+   PRICE.FBILACTH = '';
+   PRICE.FBILTRVH = '';
+   PRICE.FBILPART = '';
+   PRICE.FBILDIST = '';
+   PRICE.FBILEXP  = '';
+   PRICE.TEST_SW  = '0'B;
+   PRICE.FABEND   = '0'B;
+   PRICE.FBIL1    = '0'B;
+   PRICE.FBIL4    = '1'B;
+   
+   PRICE.INSIDE_HRS(*)  = '';
+   PRICE.CNONRATE = 'N';  /*RQ057017 */
+
+ END INIT_PRICING;
+
+ %PAGE;
+ DO_TAXING: PROC;
+ /*******************************************************************/
+ /* PERFORM TAXING ...                                              */
+ /*******************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: DO_TAXING';
+       CALL WRITE_TO_OPER;
+     END;
+
+   CALL SETUP_TAXING;
+   CALL SETUP_TAXING_SPECIAL;            /* FOR SPECIAL CHARGES     */
+
+   CALL LINK_TO_TAXING;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: TAX RETURN CODE '||TAX.RET_CODE;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: TAX RETURN message '||TAX.MESSAGE;
+       CALL WRITE_TO_OPER;
+
+     END;
+
+   SELECT(TAX.RET_CODE);
+     WHEN('00');                         /* NORMAL                  */
+     WHEN('21')                          /* TRDS RECORD NEEDS UPDATE*/
+       DO;
+         COMMAREA.SEND_TO_CE = HSD;
+         COMMAREA.CSYSINV    = YES;
+         COMMAREA.CCMREXCP   = '';       /*                  I98874 */
+         COMMAREA.CCONTROL   = 'QP';
+         COMMAREA.CBILLERR   = '204';
+       END;
+     OTHERWISE                          /* SOME OTHER TAXING PROBLEM*/
+       DO;
+         COMMAREA.SEND_TO_CE = HSD;
+         COMMAREA.CSYSINV    = YES;
+         COMMAREA.CCMREXCP   = '';      /*                   I98874 */
+         COMMAREA.CCONTROL   = 'QP';
+         COMMAREA.CBILLERR   = '204';
+       END;
+     END;
+
+ END DO_TAXING;
+
+ %PAGE;
+ SETUP_TAXING:   PROC;
+ /*******************************************************************/
+ /* SET UP COPY MEMBER 'QBTAX'   FOR CALL TO TAXING                 */
+ /*******************************************************************/
+ IF TEST_SW
+   THEN DO;
+     PIC3  =  COMMAREA.X#PARTS;
+     DIAG_TEXT = 'QBBIL4: IN SETUP TAXING '|| PIC3;
+     CALL WRITE_TO_OPER;
+   END;
+
+ Q# = COMMAREA.X#PARTS;                  /* Q# USED FOR ALLOCATE    */
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: ABOUT TO ALLOCATE TAX STRUCTURE';
+     CALL WRITE_TO_OPER;
+   END;
+                                         /* B0286354  11/13/98      */
+ /* ALLOCATE TAX SET(@TAX)                  SETS OBJECT OF 'REFER', */
+                                         /*   I.E., Q#PARTS         */
+ EXEC CICS GETMAIN SET(@TAX)
+           FLENGTH(CSTG(TAX));
+
+ Q#PARTS = COMMAREA.X#PARTS;
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: CALL INIT_TAXING FROM SETUP_TAXING';
+     CALL WRITE_TO_OPER;
+   END;
+
+ CALL INIT_TAXING;
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: AFTER INIT TAXING';
+     CALL WRITE_TO_OPER;
+   END;
+
+ TAX.CSTATCD       = COMMAREA.CSTATCD;   /* FROM QBBILL             */
+ TAX.CCNTYCD       = COMMAREA.CCNTYCD;   /* FROM QBBILL             */
+ TAX.CCITYCD       = COMMAREA.CCITYCD;   /* FROM QBBILL             */
+ TAX.COCL          = COMMAREA.COCL;      /* FROM QBBILL             */
+ TAX.ICUSTNO       = COMMAREA.ICUST;     /* FROM QBBILL             */
+ TAX.CCUSTYPE      = COMMAREA.CTCUS;     /* FROM QBBILL             */
+ TAX.CTAXCL        = COMMAREA.CTAXCL;    /* FROM QBBILL             */
+ TAX.DINVDTE       = SUBSTR(S0DCALCY,3,2)/* FROM QSGENL             */
+                  || S0DCALCM || S0DCALCD;
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: AFTER TAX CODE ASSIGNMENTS';
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT = 'QBBIL4: STATE '||TAX.CSTATCD ||
+                       ' COUNTY '||TAX.CCNTYCD ||
+                         ' CITY '||TAX.CCITYCD;
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF COMMAREA.S0CSVC = '94'
+   THEN IF SUBSTR(S0CHACT,1,1) < '4'
+          THEN DO;
+            TAX.CTAXCD      = '07';
+            COMMAREA.CTAXCD = '07';
+          END;
+          ELSE DO;
+            TAX.CTAXCD      = '16';
+            COMMAREA.CTAXCD = '16';
+          END;
+   ELSE TAX.CTAXCD = COMMAREA.CTAXCD;
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: AFTER SC 94 ASSIGNMENTS';
+     CALL WRITE_TO_OPER;
+   END;
+
+ TAX.CBOMKT        = COMMAREA.CMIBOMKT; /* FROM QSGENL              */
+ TAX.CBOSVC        = COMMAREA.CBOSVC;   /* FROM QBBILL              */
+ TAX.CSVC          = COMMAREA.S0CSVC;   /* FROM QBBILL              */
+
+ IF TEST_SW
+   THEN DO;
+     PIC3  = X#PARTS;
+     DIAG_TEXT = 'QBBIL4: BEFORE PART ASSIGNMENTS NUM PARTS '||PIC3;
+     CALL WRITE_TO_OPER;
+   END;
+
+ DO I=1 TO X#PARTS;                      /* SET PARTS ARRAY...      */
+   TAX.QDISUS(I)   = COMMAREA.QDISUS(I); /* FROM QBPART             */
+   TAX.APARTAMT(I) = COMMAREA.APARTAMT(I);/* FROM QBPART            */
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': '||I||' USAGE '||TAX.QDISUS(I)||
+                                    ' PARTAMT '||TAX.APARTAMT(I);
+       CALL WRITE_TO_OPER;
+     END;
+ END;
+
+
+ TAX.ATOTTIME      = COMMAREA.ATOTTIME; /* FROM QBBILL              */
+ TAX.ATOTEXP       = COMMAREA.ATOTEXP;  /* FROM QBBILL              */
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: atotime '||COMMAREA.ATOTTIME||
+                 ' atotexp ' ||COMMAREA.ATOTEXP;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT = 'QBBIL4: END OF Setup TAXING';
+     CALL WRITE_TO_OPER;
+   END;
+
+ END SETUP_TAXING;
+
+ %PAGE;
+ SETUP_TAXING_SPECIAL: PROC;
+ /*******************************************************************/
+ /* HANDLE SETUP FOR TAXING OF SPECIAL CHARGES IF APPLICABLE        */
+ /*                                                                 */
+ /* WE MUST CODE HERE ANY SPECIAL SETUP FOR TAXING THAT HAS NOT     */
+ /* ALREADY BEEN TAKEN CARE OF IN 'SPECIAL_CHARGES_PRICING'.        */
+ /*                                                                 */
+ /*******************************************************************/
+
+   SELECT;
+     WHEN(COMMAREA.CMAXCHG = YES)         /* MAXIMUM CHARGE         */
+       DO I=1 TO X#PARTS;                 /* PARTS    INCLUDED      */
+         TAX.QDISUS(I)   = 0;
+         TAX.APARTAMT(I) = 0;
+       END;
+
+     /* ----------------------------------------------------------- */
+     /* 3NSE - ONE-TIME UPGRADE CHARGE an upgrade but not SDT       */
+     /* THIS IS A RATE THAT DOES NOT NOT DEAL WITH PARTS            */
+     /* RQ057017 non-std rates.                                     */
+     /* ----------------------------------------------------------- */
+     WHEN(COMMAREA.FINCDPRT = 'N'   &
+          COMMAREA.CSPLCHG ^= ''    &
+          COMMAREA.CSPLCHG ^= 'SDT' &
+          PRICE.CNONRATE   ^= 'Y'   &   /* RQ057017                 */  
+          TEMP_CTYPE       ^= 'P'   &   /* RQ054527 P & T & B       */
+          TEMP_CTYPE       ^= 'T'   &   
+          TEMP_CTYPE       ^= 'B')      
+       DO I=1 TO X#PARTS;               /* PARTS INCLUDED           */
+         IF TEST_SW
+           THEN DO;
+              DIAG_TEXT = 'QBBIL4: CLEAR QDISUS AND QPARTAMT';
+              CALL WRITE_TO_OPER;
+            END;
+         TAX.QDISUS(I)   = 0;
+         TAX.APARTAMT(I) = 0;
+       END;
+     OTHERWISE;                          /* NO SPECIAL CHARGE       */
+   END;
+
+ END SETUP_TAXING_SPECIAL;
+
+ %PAGE;
+ LINK_TO_TAXING:  PROC;
+ /*******************************************************************/
+ /* LINK TO QBTAX1 MODULE TO PREPARE FOR MONTVALE TAX ROUTINE       */
+ /*******************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: LINK_TO_TAXING';
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = MODULE||': COMM LENGTH '||CSTG(COMMAREA);
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = MODULE||': TAX LENGTH '||CSTG(TAX);
+       CALL WRITE_TO_OPER;
+     END;
+
+   EXEC CICS LINK PROGRAM('QBTAX1 ')
+                  COMMAREA(TAXING)
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);     /* END EXEC CICS LINK       */
+
+   IF RESPONSE ^= DFHRESP(NORMAL)       /* IF ABNORMAL RESPONSE THEN*/
+     THEN DO;                           /* PASS CONTROL TO ERROR PGM*/
+       PIC3 = RESPONSE;
+       PIC7 = RESPONSE2;
+       ET_TEXT1 = ERR2 || MODULE ||'FAILURE ON LINK TO QBTAX1 '||
+                        ' RESP= '||PIC3||
+                       ' RESP2= '||PIC7;
+       SIGNAL ERROR;
+     END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: MESSAGE: ' || TAX.MESSAGE;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END LINK_TO_TAXING;
+
+ %PAGE;
+ INIT_TAXING:  PROC;
+ /*******************************************************************/
+ /* INITIALIZE TAXING  STRUCTURE ...                                */
+ /* (CAREFULLY, DUE TO 'REFER' OPTIONS)                             */
+ /*******************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: IN INIT_TAXING';
+       CALL WRITE_TO_OPER;
+     END;
+
+   TAX.CSTATCD        = '';
+   TAX.CCNTYCD        = '';
+   TAX.CCITYCD        = '';
+   TAX.COCL           = '';
+   TAX.ICUSTNO        = '';
+   TAX.CCUSTYPE       = '';
+   TAX.CTAXCL         = '';
+   TAX.DINVDTE        = '';
+   TAX.CTAXCD         = '';
+   TAX.CBOMKT         = '';
+   TAX.CBOSVC         = '';
+   TAX.CSVC           = '';
+   TAX.CIDM           = '';
+   TAX.ATOTTIME       = '';
+   TAX.ATOTEXP        = '';
+
+   IF TEST_SW
+     THEN TAX.TEST_SW = 'Y';
+     ELSE TAX.TEST_SW = 'N';
+
+   DO I=1 TO TAX.Q#PARTS;
+     TAX.QDISUS(I)    = '';
+     TAX.APARTAMT(I)  = '';
+   END;
+
+   TAX.ATOTTAX        = '';
+   TAX.ASTATTAX       = '';
+   TAX.ACNTYTAX       = '';
+   TAX.ACITYTAX       = '';
+   TAX.MESSAGE        = '';
+   TAX.RET_CODE       = '';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: EXITING INIT_TAXING';
+       CALL WRITE_TO_OPER;
+     END;
+
+ END INIT_TAXING;
+
+ %PAGE;
+ FIGURE_TOTAL_INVOICE: PROC;
+ /*******************************************************************/
+ /* FIGURE TOTAL INVOICE AMOUNT                                     */
+ /*******************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: FIGURE_TOTAL_INVOICE';
+       CALL WRITE_TO_OPER;
+     END;
+
+   SELECT;
+     WHEN(COMMAREA.CMAXCHG = YES)        /* MAXIMUM CHARGE          */
+       COMMAREA.ATOTINV = PRICE.AMAXCHG +
+                          COMMAREA.ATOTTAX;
+                                  /* 3NSE - ONE-TIME UPGRADE CHARGE */
+     WHEN(COMMAREA.CSPLCHG ^= '' 
+          & COMMAREA.CSPLCHG ^= 'SDT'
+          & PRICE.CNONRATE   ^= 'Y'   /*RQ057017                */
+          & TEMP_CTYPE       ^= 'P'   /* CODE CHANGEs RQ054527  */
+          & TEMP_CTYPE       ^= 'T' 
+          & TEMP_CTYPE       ^= 'B')
+      DO;
+     /* ------------------------------------------------------------*/
+     /* IF COMMAREA.S0DCALCY ||COMMAREA.S0DCALCM ||COMMAREA.S0DCALCD*/
+     /*            <    '19950621'                                  */
+     /* THEN COMMAREA.ATOTINV =   80.00 + COMMAREA.ATOTTAX          */
+     /* ELSE COMMAREA.ATOTINV =  140.00 + COMMAREA.ATOTTAX          */
+     /* ------------------------------------------------------------*/
+
+        IF COMMAREA.FINCDPRT = 'Y'/* incident fee with parts billing*/
+          THEN COMMAREA.ATOTINV = COMMAREA.ATOTTIME +
+                                  COMMAREA.ATOTPART +
+                                  COMMAREA.ATOTTAX;
+          ELSE COMMAREA.ATOTINV = COMMAREA.ATOTTIME +
+                                  COMMAREA.ATOTTAX;
+      END;
+
+     OTHERWISE                     /* NORMAL CHARGE                 */
+       COMMAREA.ATOTINV = COMMAREA.ATOTTIME
+                        + COMMAREA.ATOTEXP
+                        + COMMAREA.ATOTPART
+                        + COMMAREA.ATOTTAX;
+     END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: CSPLCHG = ' || COMMAREA.CSPLCHG;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: GJCSDT  = ' || COMMAREA.GJCSDT;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: S0CBIOSA= ' || COMMAREA.S0CBIOSA;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: ATOTTIME= ' || COMMAREA.ATOTTIME;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: ATOTEXP = ' || COMMAREA.ATOTEXP;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: ATOTPART= ' || COMMAREA.ATOTPART;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: ATOTTAX = ' || COMMAREA.ATOTTAX;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: ATOTINV = ' || COMMAREA.ATOTINV;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END FIGURE_TOTAL_INVOICE;
+
+ %PAGE;
+ NO_BILL_MEMO_CHECK: PROC;
+ /*******************************************************************/
+ /* Procedure to perform additional checks on invoice created to    */
+ /* determine if the invoice is Not Billable or Memo Bill           */
+ /* (REPORTING PURPOSES ONLY )                                      */
+ /* A DB2QAF REPORT will be generated for F & F equipment           */
+ /* and some OEM equipment not billed.                              */
+ /*******************************************************************/
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL4: NO_BILL_MEMO_CHECK';
+     CALL WRITE_TO_OPER;
+   END;
+
+ /* --------------------------------------------------------------- */
+ /* removed 4NSC  (In QBBIL4 as a nobill)                           */
+ /* --------------------------------------------------------------- */
+ /*IF ISSC_ADVNTS_CUST | FISSCNTR                                   */
+ /*  THEN DO                               THIS IS ISSC/ADVANTIS    */
+ /*       COMMAREA.CCMREXCP   = ' '          CUSTOMER               */
+ /*                                                                 */
+ /*    IF COMMAREA.INVENTORY.CGCIENNO = 6222902 |   ISSC            */
+ /*      INDEX(COMMAREA.S0ICSS,'ISSC') > 0     |                    */
+ /*      INDEX(COMMAREA.S0ICSS,'ISC')  > 0                          */
+ /*     THEN DO                                                     */
+ /*       COMMAREA.CSYSINV    = NO          DO NOT SEND SYSTEM INV  */
+ /*       COMMAREA.SEND_TO_CE = NO          DO NOT SEND HSI TO CE   */
+ /*     END                                                         */
+ /*    ELSE DO                                                      */
+ /*      IF COMMAREA.BILL_DECISION = BILL                           */
+ /*        THEN DO                                                  */
+ /*          IF TEST_SW                                             */
+ /*            THEN DO                                              */
+ /*              DIAG_TEXT = 'QBBIL4: - 27' ||                      */
+ /*                    ' - BILL_DECISION - '||COMMAREA.BILL_DECISION*/
+ /*              CALL WRITE_TO_OPER                                 */
+ /*            END                                                  */
+ /*          COMMAREA.CSYSINV    = NO       SEND SYSTEM INV         */
+ /*          COMMAREA.SEND_TO_CE = HSI      SEND HSI TO CE          */
+ /*        END                                                      */
+ /*        ELSE DO                                                  */
+ /*          COMMAREA.CSYSINV    = YES      SEND SYSTEM INV         */
+ /*          COMMAREA.SEND_TO_CE = HSD      SEND HSI TO CE          */
+ /*        END                                                      */
+ /*    END                                                          */
+ /*                                                                 */
+ /*  END                                                            */
+ /*ELSE DO                                                          */
+ /* --------------------------------------------------------------- */
+
+ /* --------------------------------------------------------------- */
+ /* 4NSC                                   MOVED TO QBBIL1          */
+ /* --------------------------------------------------------------- */
+ /*                                        ------------------------ */
+ /*                                        CINTERNAL SET IN QBBIL1, */
+ /*                                        ALREADY CHECKED THE CAD  */
+ /*                                        RECORD (AECAD), NOW CHECK*/
+ /*                                        THE CE CUST NAME INPUT   */
+ /*   DO I = 5 TO 15                       -------------------------*/
+ /*     IF SUBSTR(COMMAREA.S8CUSTNM,I-4,5) = ' IBM '                */
+ /*       THEN COMMAREA.CINTERNAL = YES                             */
+ /*   END                                                           */
+ /*                                        PT INPUT LEFT JUSTIFIES  */
+ /*                                        CHAR INPUT               */
+ /*   IF SUBSTR(COMMAREA.S8CUSTNM,1,4) = 'IBM '                     */
+ /*     THEN COMMAREA.CINTERNAL = YES                               */
+ /*                                        IF THE CE PUTS INNNNNN   */
+ /*                                        IN CONTRACT THIS IS AN   */
+ /*   IF COMMAREA.FIBM                     IBM OWNED MACHINE        */
+ /*     THEN COMMAREA.CINTERNAL = YES                               */
+ /*                                                                 */
+ /*   IF  COMMAREA.CINTERNAL = YES  &                               */
+ /*          (COMMAREA.M_MPI = NO  | COMMAREA.INVENTORY.GJFDSI)     */
+ /*     THEN DO                                                     */
+ /*       COMMAREA.SEND_TO_CE = NO                                  */
+ /*      COMMAREA.CSYSINV    = NO                                   */
+ /*       COMMAREA.CCMREXCP   = ' '                                 */
+ /*       COMMAREA.CCONTROL = 'QN'                                  */
+ /*       COMMAREA.CBILLERR = '302'                                 */
+ /*       COMMAREA.PERFORM_PRICING = NO                             */
+ /*     END                                                         */
+ /* --------------------------------------------------------------- */
+
+
+
+ /* --------------------------------------------------------------- */
+ /* removed in 4NSC. This is set to NOBILL in QBBIL1.               */
+ /* --------------------------------------------------------------- */
+ /*                  ---------------------------------------------- */
+ /*                  SR 0890                                        */
+ /*                  If the machine is a 30% or internal customer,  */
+ /*                  change the CONTROL CODE to QN for reporting.   */
+ /*                  This will hide it from RES.                    */
+ /*                  ---------------------------------------------- */
+ /*    IF (COMMAREA.GJF30PCT | COMMAREA.CGFIIC )                    */
+ /*      THEN DO                                                    */
+ /*        SELECT (COMMAREA.CBILLERR)                               */
+ /*          WHEN ('201','202','203','204','205')                   */
+ /*          WHEN ('207','208','209') COMMAREA.CBILLERR = '206'     */
+ /*          OTHERWISE COMMAREA.CBILLERR = '206'        30% MACHINE */
+ /*      END                                                        */
+ /*      COMMAREA.SEND_TO_CE = NO                                   */
+ /*      COMMAREA.CSYSINV    = NO                                   */
+ /*      COMMAREA.CCMREXCP   = ' '                                  */
+ /*      COMMAREA.CCONTROL   = 'QN'                                 */
+ /*      COMMAREA.PERFORM_PRICING = NO                              */
+ /*    END                                                          */
+ /* --------------------------------------------------------------- */
+
+ /*****---------------------------------------------------------*****/
+ /***                                                             ***/
+ /*    Handle the Credit Card Order Reference Number exceptions.    */
+ /***                                                             ***/
+ /*****---------------------------------------------------------*****/
+    IF COMMAREA.ICCAUTH ^= ''
+      THEN DO;
+
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = 'QBBIL4: BEFORE SELECT ICCAUTH=('||
+                        COMMAREA.ICCAUTH||')';
+            CALL WRITE_TO_OPER;
+          END;
+
+        SELECT;
+          /*--------------------------------------------------------*/
+          /*        If SC=20 and IDM=5, then send to RES.           */
+          /*--------------------------------------------------------*/
+          WHEN (COMMAREA.S0CSVC = '20' & COMMAREA.S0CIDM = '5')
+                   /* 221: CC REF# for SC 20 and IDM 5 */
+            CALL ASSIGN_REVIEW_INFORMATION('221','01');
+
+          /*--------------------------------------------------------*/
+          /*     If source is Solectron, then send to RES.          */
+          /*--------------------------------------------------------*/
+          WHEN (ISOURCE = 'SQL')
+            DO;
+              /* 222: CC REF# for SOURCE = SOLECTRON */
+                CALL ASSIGN_REVIEW_INFORMATION('222','02');
+                COMMAREA.SEND_TO_CE    = NO;
+            END;
+
+          /*--------------------------------------------------------*/
+          /*  For Service Codes 20 and 36...                        */
+          /*      if the BA Code is 4, then send to RES.            */
+          /*--------------------------------------------------------*/
+          WHEN ((COMMAREA.S0CSVC  = '20'  |
+                 COMMAREA.S0CSVC  = '36') &
+                 COMMAREA.CEBBILL = '4')
+            DO;
+                   COMMAREA.S0CBIOSA      = COMMAREA.CEBBILL;
+                              /* 220: CC REF# vs. BA 4 INCOMPATIBLE */
+                   CALL ASSIGN_REVIEW_INFORMATION('220','03');
+            END;
+
+          OTHERWISE;
+                   /*-----------------------*/
+        END;       /*        SELECT         */
+     END;          /* COMMAREA.ICCAUTH ¬= '' */
+                   /*-----------------------*/
+                 /* ----------------------------------------------- */
+                 /* SR 1039                                         */
+                 /* Mark invoices which have a blank B/A CODE as    */
+                 /* potentially billable and send to RES in QBIL.   */
+                 /* CCONTROL = QP                                   */
+                 /* ----------------------------------------------- */
+     IF COMMAREA.S0CBIOSA = ''   &
+        COMMAREA.CCONTROL = 'QB'
+       THEN DO;
+          IF COMMAREA.CCDBILACT     = 'B'  /* SR 9300218            */
+             THEN COMMAREA.CBILLERR = '214';
+             ELSE COMMAREA.CBILLERR = '210';
+          CALL ASSIGN_REVIEW_INFORMATION(COMMAREA.CBILLERR,'04');
+       END;
+                 /* ----------------------------------------------- */
+                 /* 4NSC PCR 009                                    */
+                 /* Mark invoices which have a blank, 1, 4 B/A CODE */
+                 /* as potentially billable and send to RES in QBIL.*/
+                 /* CCONTROL = QP                                   */
+                 /* ----------------------------------------------- */
+     IF (COMMAREA.S0CBIOSA = ''  |
+         COMMAREA.S0CBIOSA = '1' |
+         COMMAREA.S0CBIOSA = '4')
+                &
+        COMMAREA.CCONTROL = 'QB'
+       THEN DO;
+         COMMAREA.CBILLERR = '208';
+         CALL ASSIGN_REVIEW_INFORMATION(COMMAREA.CBILLERR,'05');
+       END;
+
+     IF COMMAREA.S0CBIOSA = ' '  &  COMMAREA.CCONTROL = 'QP' &
+        COMMAREA.CBILLERR = ' '
+       THEN CALL ASSIGN_REVIEW_INFORMATION('210','06');
+
+ /*   END */
+
+   SELECT;
+   /* ------------------------------------------------------------- */
+   /* If Service Code is 20 and Activity Code is blank and          */
+   /* Billable Code is 3 and IDM is 4 and there is no credit card   */
+   /* number then route to RES for reveiew.                         */
+   /* GP021333 - 10/23/2002                                         */
+   /* ------------------------------------------------------------- */
+   /* THIS CHECK IS ONLY FOR QSAR TABLEs < 9.2.0                    */
+   /* ------------------------------------------------------------- */
+     WHEN  (COMMAREA.S0CSVC    = '20'   &
+            COMMAREA.S0CHACT   = ''     &
+            COMMAREA.S0CBIOSA  = '3'    &
+            COMMAREA.S0CIDM    = '4'    &
+            COMMAREA.ICCAUTH   = '')
+       CALL ASSIGN_REVIEW_INFORMATION('223','06');
+
+   /* ------------------------------------------------------------- */
+   /* If Service Code is 20 and Activity Code is blank and          */
+   /* Billable Code is 3 and IDM is 5 and the Machine is on DSI and */
+   /* there is no credit card numbre then route to RES for review.  */
+   /* GP021333 - 10/23/2002                                         */
+   /* ------------------------------------------------------------- */
+     WHEN  (COMMAREA.S0CSVC     = '20' &
+            COMMAREA.S0CHACT    = ''   &
+            COMMAREA.S0CBIOSA   = '3'  &
+            COMMAREA.S0CIDM     = '5'  &
+            COMMAREA.ICCAUTH    = ''   &
+            COMMAREA.GJFDSI)
+       CALL ASSIGN_REVIEW_INFORMATION('223','07');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 20 and Activity Code is blank and         */
+   /* Billable Code is 4 and IDM is 3 and there is no credit card  */
+   /* number then Route to RES for review.                         */
+   /* GP021333 - 10/23/2002                                        */
+   /* ------------------------------------------------------------ */
+     WHEN  (COMMAREA.S0CSVC   = '20'  &
+            COMMAREA.S0CHACT  = ''    &
+            COMMAREA.S0CBIOSA = '4'   &
+            COMMAREA.S0CIDM   = '3'   &
+            COMMAREA.ICCAUTH  = '')
+       CALL ASSIGN_REVIEW_INFORMATION('223','08');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code = 33 and Activity Code is blank and          */
+   /* Billable Code is 3 and ECA number is present and machine is  */
+   /* not a percall machine then Route to RES for review.          */
+   /* GP021333 - 10/23/2002                                        */
+   /* ------------------------------------------------------------ */
+     WHEN (COMMAREA.S0CSVC   = '33'  &
+           COMMAREA.S0CHACT  = ''    &
+           COMMAREA.S0CBIOSA = '3'   &
+           COMMAREA.FECA             &
+           COMMAREA.GJCSTAT ^= '30')
+       CALL ASSIGN_REVIEW_INFORMATION('230','09');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 20 and Billable   */
+   /* Code is blank and the machine is on DSI then Route to RES    */
+   /* fo review.                                                   */
+   /* GP021333 - 10/23/2002         (not possibe)                  */
+   /* ------------------------------------------------------------ */
+   /*  WHEN (COMMAREA.S0CSVC    = '36'   &                         */
+   /*        COMMAREA.S0CHACT   = '20'   &                         */
+   /*        COMMAREA.S0CBIOSA  = ''     &                         */
+   /*        COMMAREA.GJFDSI)                                      */
+   /*    CALL ASSIGN_REVIEW_INFORMATION('224','10')                */
+   /* ------------------------------------------------------------ */
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 20 and Billable   */
+   /* Code is 4 then Route to RES for review.                      */
+   /* GP021333 - 10/23/2002                                        */
+   /* ------------------------------------------------------------ */
+     WHEN (COMMAREA.S0CSVC    = '36'   &
+           COMMAREA.S0CHACT   = '20'   &
+           COMMAREA.S0CBIOSA  = '4')
+       CALL ASSIGN_REVIEW_INFORMATION('225','11');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 22 and billable   */
+   /* CODE is 4 and the machine is on DSI then Route to RES for    */
+   /* review. GP021333 - 10/23/2002                                */
+   /* ------------------------------------------------------------ */
+     WHEN  (COMMAREA.S0CSVC   = '36'    &
+            COMMAREA.S0CHACT  = '22'    &
+            COMMAREA.S0CBIOSA = '4'     &
+            COMMAREA.GJFDSI)
+       CALL ASSIGN_REVIEW_INFORMATION('226','12');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 24 and billable   */
+   /* code is 4 and the machine is on DSI then Route to RES for    */
+   /* review. GP021333 - 10/23/2002                                */
+   /* ------------------------------------------------------------ */
+     WHEN  (COMMAREA.S0CSVC   = '36'    &
+            COMMAREA.S0CHACT  = '24'    &
+            COMMAREA.S0CBIOSA = '4'     &
+            COMMAREA.GJFDSI)
+       CALL ASSIGN_REVIEW_INFORMATION('227','13');
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 67 and billable   */
+   /* code is blank and the machine is on MA then Route to RES for */
+   /* review.                                                      */
+   /* GP021333 - 10/23/2002                                        */
+   /* ------------------------------------------------------------ */
+     WHEN (COMMAREA.S0CSVC    = '36' &
+           COMMAREA.S0CHACT   = '67' &
+           COMMAREA.S0CBIOSA  = ''   &
+           COMMAREA.FONMA)
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBIL4: 1 check AFTER';
+             CALL WRITE_TO_OPER;
+           END;
+
+         CALL ASSIGN_REVIEW_INFORMATION('228','14');
+       END;
+
+   /* ------------------------------------------------------------ */
+   /* If Service Code is 36 and Activity Code is 67 and Billable   */
+   /* code is 3 and the Machine is on Warranty then Route to RES   */
+   /* for review.                                                  */
+   /* GP021333 - 10/23/2002                                        */
+   /* ------------------------------------------------------------ */
+     WHEN (COMMAREA.S0CSVC    = '36' &
+           COMMAREA.S0CHACT   = '67' &
+           COMMAREA.S0CBIOSA  = '3'  &
+           COMMAREA.FWARRNTY)
+         /*  COMMAREA.FONWARNTY = 'Y') */
+       CALL ASSIGN_REVIEW_INFORMATION('229','15');
+
+     OTHERWISE;
+    END; /* END SELECT */
+
+ END NO_BILL_MEMO_CHECK;
+
+ %PAGE;
+ ASSIGN_REVIEW_INFORMATION: PROC(TEMP_ERROR,TEMP_LOCATION) REORDER;
+ /*******************************************************************/
+ /* Assign the information needed for records that are sent to RES. */
+ /*******************************************************************/
+   DCL TEMP_ERROR    CHAR(3);
+   DCL TEMP_LOCATION CHAR(2);          /* ------------------------- */
+   COMMAREA.BILL_DECISION = REVIEW;    /* BILLABLE DECISION         */
+                                       /*   X = NOT ELIGIBLE        */
+                                       /*   B = BILLABLE            */
+                                       /*   N = NOT BILLABLE        */
+                                       /*   R = ADMIN REVIEW        */
+   COMMAREA.SEND_TO_CE = HSD;          /* BILL INFO TO CE? Y/N      */
+   COMMAREA.CSYSINV    = YES;          /* SYSTEM INVOICE REQ Y/N    */
+   COMMAREA.CCMREXCP   = '';           /* CMR/INV MISMATCH          */
+                                       /*   C=NO MPI/CMR MATCH      */
+                                       /*   R=RSO MISMATCH          */
+   COMMAREA.CCONTROL   = 'QP';         /* FOR ADMIN REVIEW          */
+                                       /*CONTROL BYTES LABOR TAXES  */
+      /* COMMAREA.PERFORM_PRICING=(DO NOT CHANGE)PERFORM PRICING?Y/N*/
+   COMMAREA.CBILLERR = TEMP_ERROR;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: '  || TEMP_LOCATION ||
+          ' - BILL_DECISION - '|| COMMAREA.BILL_DECISION;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END ASSIGN_REVIEW_INFORMATION;
+
+ %PAGE;
+ CHECK_CUST_REF: PROC REORDER;
+ /*******************************************************************/
+ /* CHECK TO SEE IF WE HAVE ANY OF THE FOLLOWING:                   */
+ /*   CUSTOMER REFERENCE       (FROM QSAR)                          */
+ /*   CUSTOMER CONTACT NAME    (FROM CAD CALL RECORD)               */
+ /*   CUSTOMER CONTACT PHONE   (FROM CAD CALL RECORD)               */
+ /* IF WE HAVE NONE OF THE ABOVE THEN THIS IS ERROR CONDITION 205.  */
+ /*******************************************************************/
+
+   IF  COMMAREA.QBBILL.TCUSTREF = ''
+     & COMMAREA.QBBILL.NCONTACT = ''
+     & COMMAREA.QBBILL.ICONPHON = ''
+     THEN DO;
+       COMMAREA.SEND_TO_CE = HSD;        /* I90269                  */
+       COMMAREA.CSYSINV    = YES;        /* I88190                  */
+       COMMAREA.CCMREXCP   = ' ';        /* I98874                  */
+       COMMAREA.CCONTROL   = 'QP';
+       COMMAREA.CBILLERR   = '205';
+     END;
+
+ END CHECK_CUST_REF;
+
+ %PAGE;
+ SDT_INVOICE_REVIEW: PROC;
+ /*******************************************************************/
+ /*******************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL4: SDT = ' || COMMAREA.GJCSDT;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: BIOSA   = ' || COMMAREA.S0CBIOSA;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: PIC_STOP= ' || PIC_STOP;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: START   = ' || PRICE.HSTART;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: IN START= ' || PRICE.QINSTART;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = 'QBBIL4: IN STOP = ' || PRICE.QINSTOP;
+       CALL WRITE_TO_OPER;
+     END;
+  /* -------------------------------------------------------------- */
+  /* 4NSC                                                           */
+  /* -------------------------------------------------------------- */
+  /* IF  COMMAREA.S0CBIOSA = '' &                                   */
+  /*    (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')       */
+  /*   THEN                            NO BA-OUTSIDE HOURS COVERAGE */
+  /*     CALL ASSIGN_REVIEW_INFORMATION('215','16')                 */
+  /* -------------------------------------------------------------- */
+
+  /* -------------------------------------------------------------- */
+  /* 4NSC                                                           */
+  /* -------------------------------------------------------------- */
+  /* IF COMMAREA.S0CBIOSA = '1' & COMMAREA.QINHRS   = 0 &           */
+  /*    (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')       */
+  /*   THEN                            BA 1-OUTSIDE HOURS COVERAGE  */
+  /*     CALL ASSIGN_REVIEW_INFORMATION('216','17')                 */
+  /* -------------------------------------------------------------- */
+
+  /* -------------------------------------------------------------- */
+  /* 4NSC                                                           */
+  /* -------------------------------------------------------------- */
+  /* IF COMMAREA.S0CBIOSA = '3' & COMMAREA.QOUTHRS  = 0    &        */
+  /*    (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')       */
+  /*                                    INVALID SDT/BA COMBINATION  */
+  /*   THEN CALL ASSIGN_REVIEW_INFORMATION('219','20')              */
+  /* -------------------------------------------------------------- */
+
+  /* -------------------------------------------------------------- */
+  /* CAD DID NOT INDICATE INCIDENT CHARGE REQUIRED                  */
+  /* -------------------------------------------------------------- */
+   IF  COMMAREA.CSPLCHG = 'SDT' &
+      (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')
+     THEN  CALL ASSIGN_REVIEW_INFORMATION('217','18');
+
+  /* -------------------------------------------------------------- */
+  /* CMR Exception for restricted customers is introduced as part   */
+  /* of FITS RQ0429057010.                                  - 6NSJ  */
+  /* Error code 235 have 2nd highest precedence over others         */
+  /* You will probably never get here because, DSI has the SDT and  */
+  /* DSI does not have a customer number.  Therefore, you cannot    */
+  /* check CMR data.                                                */
+  /* ---------------------------------------------------------------*/
+
+  /* RCQ1112 NEWCO changes & RCQ00304018 MELODY CHANGES */
+
+    IF COMMAREA.FRESTIND = 'Y' & 
+       COMMAREA.CRESTRCT ^= '160'         
+      THEN  
+      DO;
+        IF COMMAREA.CRESTRCT ^= '164' THEN
+	DO;
+ 	   IF COMMAREA.CRESTRCT ^= '165'        
+	   THEN
+           DO;
+           CHK_CMR = '1'B;
+           CALL ASSIGN_REVIEW_INFORMATION('235','19');       
+           END;
+        END;
+      END;
+               
+    IF (COMMAREA.CRESTRCT = '160'|COMMAREA.CRESTRCT = '164'|
+          COMMAREA.CRESTRCT = '165' ) & 
+       COMMAREA.IRCUST   ='Y'        
+      THEN DO;
+        CHK_CMR = '1'B;
+        CALL ASSIGN_REVIEW_INFORMATION('236','20');   
+      END;
+   
+
+     
+  /* -------------------------------------------------------------- */
+  /* The billable code is a 3 and the inside hours are > 0 and      */
+  /* the activity stop time is >= the inside hours stop time and <= */
+  /* the inside + .5 and the billable start time <= inside hours    */
+  /* start time.  (This checks for the grace condition)             */
+  /* -------------------------------------------------------------- */
+   IF  COMMAREA.S0CBIOSA= '3' & COMMAREA.QINHRS > 0  &
+     ( (PIC_STOP >= PRICE.QINSTOP & PIC_STOP <= PRICE.QINSTOP + .5)|
+       (PRICE.HSTART >= PRICE.QINSTART - .5 &
+                                    PRICE.HSTART <= PRICE.QINSTART))
+   &  (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')
+                                             /*INVALID SDT/BA COMBO */
+     THEN  CALL ASSIGN_REVIEW_INFORMATION('219','21');
+
+ END SDT_INVOICE_REVIEW;
+
+ %PAGE;
+ MPI_PROLE_CHECK: PROC;
+ /*******************************************************************/
+ /* PROCEDURE TO PERFORM ADDITIONAL CHECKS ON INVOICE CREATED TO    */
+ /* DETERMINE IF THE BILLING RECORD SHOULD GO TO RES                */
+ /*******************************************************************/
+
+                                         /* ----------------------- */
+                                         /* SR 1060                 */
+                                         /* PROLE = 0, MACHINE      */
+                                         /* DISCONTINUED AND BILLING*/
+                                         /* RECORD HAS BEEN BILLED  */
+                                         /* OR HAS RES ERROR        */
+                                         /* ----------------------- */
+   IF  COMMAREA.GJCPROLE = '0'  &
+      (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP')
+     THEN CALL ASSIGN_REVIEW_INFORMATION('211','22');
+
+                                         /* ----------------------- */
+                                         /* SR 1060                 */
+                                         /* PROLE = 2,MACHINE HASNOT*/
+                                         /* BEEN INSTALLED & BILLING*/
+                                         /* RECORD HAS BEEN BILLED  */
+                                         /* OR HAS RES ERROR        */
+                                         /* ----------------------- */
+                                  /* Remove 212 ERR  (7-1-2005  RY) */
+  /* IF  COMMAREA.GJCPROLE = '2'  &                                */
+  /*    (COMMAREA.CCONTROL = 'QB' | COMMAREA.CCONTROL = 'QP' )     */
+  /*   THEN CALL ASSIGN_REVIEW_INFORMATION('212','23')             */
+
+ END MPI_PROLE_CHECK;
+
+ %PAGE;
+ /*******************************************************************/
+ /* CHECK INVOICES IF MACHINE TYPE/SERIAL WAS ON DSI INVENTORY      */
+ /* MAKE SURE THE CUSTOMER NUMBER IS NOT ZEROES (INVALID)           */
+ /*******************************************************************/
+ DSI_BILL_CHECK: PROC;
+
+   IF  COMMAREA.ICUST    = '0000000'    &
+       COMMAREA.CCONTROL = 'QB'
+     THEN  DO;
+       COMMAREA.ICUST = '';
+       COMMAREA.BILL_DECISION = BILL;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBBIL4: - 26 BILL_DECISION - '||
+                              COMMAREA.BILL_DECISION;
+           CALL WRITE_TO_OPER;
+       END;
+       COMMAREA.CSYSINV       = NO;
+       COMMAREA.CCMREXCP      = 'C' ;
+       COMMAREA.CCONTROL      = 'QB';    /* FOR ADMIN REVIEW        */
+       /*COMMAREA.CBILLERR      = ''                                */
+       /* changed switch from FISSCADV to FISSCNTR                  */
+       IF ISSC_ADVNTS_CUST | FISSCNTR
+         THEN ;
+         ELSE COMMAREA.SEND_TO_CE = HSI;
+     END;
+
+ END DSI_BILL_CHECK;
+
+ %PAGE;
+ /*******************************************************************/
+ /* MAKE SURE THE FIELDS ARE SET CORRECTLY FOR KODAK QSARS          */
+ /*******************************************************************/
+ RESET_BILLING_INFO: PROC;
+
+   COMMAREA.SEND_TO_CE = NO;
+   COMMAREA.CSYSINV    = YES;
+
+ END RESET_BILLING_INFO;
+
+ /*******************************************************************/
+ /* commented out 4NSC                                              */
+ /*******************************************************************/
+ /*     Check the BILL INDICATORS for LABOR, EXPENSES and PARTS,    */
+ /*       then reset the invoice data based on the Y/N values.      */
+ /*******************************************************************/
+ /* RESET_PRICING_DATA: PROC                                        */
+ /*                                                                 */
+ /*  IF TEST_SW THEN DO                                             */
+ /*      DIAG_TEXT = 'QBBIL4: CBILLABOR ' || COMMAREA.CBILLABOR ||  */
+ /*                         ' CBILLEXP '  || COMMAREA.CBILLEXP  ||  */
+ /*                         ' CBILLPART ' || COMMAREA.CBILLPART ||  */
+ /*                         ' CSPLCHRG  ' || COMMAREA.CSPLCHG       */
+ /*      CALL WRITE_TO_OPER                                         */
+ /*  END                                                            */
+ /*                                                                 */
+ /*  IF COMMAREA.CBILLABOR = 'N' THEN DO                            */
+ /*     COMMAREA.AINLAB    = 0                                      */
+ /*     COMMAREA.AINRATE   = 0                                      */
+ /* ---------------------------------------------------------       */
+ /* GP0619035151 (Sept.2003) Change code to set ATOTTIME            */
+ /* to zero rather than just subtracting in-labor.                  */
+ /* COMMAREA.ATOTTIME  = COMMAREA.ATOTTIME - COMMAREA.AINLAB        */
+ /*----------------------------------------------------------       */
+ /* MN16942409 (Dec.2003) - Add the check for CSPLCHG blank         */
+ /* because SDT flags could be LBR=N and EXP=Y and the recrd        */
+ /* could have expenses.  If there is a valid CSPLCHG code,         */
+ /* expenses have been reset to zero and now ATOTTIME will          */
+ /* be set to zero because LBR=N. Then taxing is called with        */
+ /* no TAXID (all amounts are zero).                                */
+ /*----------------------------------------------------------       */
+ /*     IF COMMAREA.CSPLCHG = ''                                    */
+ /*        THEN DO                                                  */
+ /*          COMMAREA.ATOTTIME  = 0                                 */
+ /*           IF TEST_SW                                            */
+ /*             THEN DO                                             */
+ /*               DIAG_TEXT = 'QBBIL4: SET ATOTTIME TO 0'           */
+ /*               CALL WRITE_TO_OPER                                */
+ /*             END                                                 */
+ /*        END                                                      */
+ /*  END                                                            */
+ /*                                                                 */
+ /*  IF COMMAREA.CBILLEXP = 'N' THEN DO                             */
+ /*     COMMAREA.AMILEXP  = 0                                       */
+ /*     COMMAREA.ATOTEXP  = 0                                       */
+ /*  END                                                            */
+ /*                                                                 */
+ /*  IF COMMAREA.CBILLPART = 'N' THEN DO                            */
+ /*     COMMAREA.ATOTPART  = 0                                      */
+ /*  END                                                            */
+ /*                                                                 */
+ /* END RESET_PRICING_DATA                                          */
+ /* --------------------------------------------------------------- */
+
+ %PAGE;
+ PRINT_DEBUG_FIELDS:PROC REORDER;
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+
+    DIAG_TEXT='QBBIL4:  - 1  SOURCE OF QSAR         ISOURCE  - '||
+                                 COMMAREA.ISOURCE;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 2  SERVICE CODE           S0CSVC   - '||
+                                 COMMAREA.S0CSVC;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 3  ACTIVITY CODE          S0CHACT  - '||
+                                 COMMAREA.S0CHACT;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 4  POTENTIALLY BILLABLE   S0CBIOSA - '||
+                                 COMMAREA.S0CBIOSA;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 5  POTENTIALLY BILLABLE   CEBBILL   - '||
+                                 COMMAREA.CEBBILL;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 6  MACHINE UNDER WARRANTY FWARNTY   - '||
+                                 COMMAREA.FWARRNTY;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 7  MACHINE ON MA          FONMA     - '||
+                                 COMMAREA.FONMA;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 8  TSS MACHINE            FTSSMACH  - '||
+                                 COMMAREA.FTSSMACH;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 9  MACHINE STATUS         GJCSTAT   - '||
+                                 COMMAREA.GJCSTAT;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 10 MACHINE SERIAL         S0IMACSE  - '||
+                                 COMMAREA.S0IMACSE;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 11 MACHINE TYPE           S0IMACTC  - '||
+                                 COMMAREA.S0IMACTC;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 12 ON DSI                 GJFDSI    - '||
+                                 COMMAREA.GJFDSI;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 13 MACHINE ON MPI         M_MPI     - '||
+                                 COMMAREA.M_MPI;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 14 IDM                    S0CIDM    - '||
+                                 COMMAREA.S0CIDM;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 15 BILL ERROR NUMBER      CBILLERR  - '||
+                                 COMMAREA.CBILLERR;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 16 SERVICE DELIVERY PLAN  GJCSDT    - '||
+                                 COMMAREA.GJCSDT;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 17 QBILL CODE             CCDBILACT - '||
+                                 COMMAREA.CCDBILACT;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 18 QBILL CONTROL          CCONTROL  - '||
+                                 COMMAREA.CCONTROL;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 19 ECA NUMBER             FECA      - '||
+                                 COMMAREA.FECA;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 20 PROLE CODE             GJCPROLE  - '||
+                                 COMMAREA.GJCPROLE;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 21 CREDIT CARD            ICCAUTH   - '||
+                                 COMMAREA.ICCAUTH;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT='QBBIL4:  - 22 CREDIT CARD            QINHRS    - '||
+                                 COMMAREA.QINHRS;
+
+ END PRINT_DEBUG_FIELDS;
+
+ %PAGE;
+ /*******************************************************************/
+ /* WRITE TO OPERATOR                   ** FOR TESTING ONLY **      */
+ /*******************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   /*  EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ %PAGE;
+ GET_DAYNUM: PROC(LILDATE,LOC)   RETURNS(FIXED BIN(31));
+  /******************************************************************/
+  /* GET THE DAY OF THE WEEK.       DAY1 = SUNDAY                   */
+  /*                                                                */
+  /******************************************************************/
+  DCL LILDATE             FIXED BIN(31) ALIGNED;
+  DCL DAYNAME             CHAR(9)         INIT('');
+  DCL DAYNUM         REAL FIXED BIN(31,0) INIT(0);
+  DCL LOC                 CHAR(1);
+  DCL PIC2                PIC'99'         INIT(0);
+  DCL 01 FC3,                     /* Feedback token */
+         03 MsgSev    REAL FIXED BINARY(15,0),
+         03 MsgNo     REAL FIXED BINARY(15,0),
+         03 Flags,
+            05 Case      BIT(2),
+            05 Severity  BIT(3),
+            05 Control   BIT(3),
+         03 FacID     CHAR(3),      /* Facility ID */
+         03 ISI   /* Instance-Specific Information */
+                      REAL FIXED BINARY(31,0);
+
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': FUNCTION GET DAYNUM ';
+      CALL WTO;
+    END;
+
+  CALL CEEDYWK(LILDATE,DAYNUM,FC3);
+
+  IF TEST_SW
+    THEN DO;
+      PIC2 = DAYNUM;
+      SELECT (DAYNUM);          /* -------------------------------- */
+        WHEN(1) DAYNAME = 'SUNDAY';
+        WHEN(2) DAYNAME = 'MONDAY';
+        WHEN(3) DAYNAME = 'TUESDAY';
+        WHEN(4) DAYNAME = 'WEDNESDAY';
+        WHEN(5) DAYNAME = 'THURSDAY';
+        WHEN(6) DAYNAME = 'FRIDAY';
+        WHEN(7) DAYNAME = 'SATURDAY';
+        OTHERWISE;
+      END;                      /* END SELECT                       */
+                                /* -------------------------------- */
+      DIAG_TEXT = MODULE||': AFTER CALL CEEDYWK - day of week '||
+                             PIC2||' '||DAYNAME;
+      CALL WTO;
+    END;
+
+    IF FBCHECK (FC3, CEE000)
+      THEN RETURN (DAYNUM);
+      ELSE DO;
+        DIAG_TEXT = MODULE||': CEEDATE FAILED WITH MSG '||FC3.MSGNO;
+        CALL WTO;
+        SIGNAL ERROR;
+      END;
+
+   RETURN (DAYNUM);
+
+ END GET_DAYNUM;
+
+
+
+ %PAGE;
+ /********************************************************************/
+ /* FREE THE STORAGE                                                 */
+ /********************************************************************/
+ CICS_FREEMAIN: PROC(@PTR);
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN FREEMAIN PROC';
+       CALL WTO;
+   END;
+
+   DCL @PTR POINTER;
+   DCL AREA CHAR(1) BASED(@PTR);
+
+   IF @PTR ^= NULL THEN
+     EXEC CICS FREEMAIN DATA(AREA);
+
+   @PTR = NULL;
+
+ END CICS_FREEMAIN;
+
+
+ %PAGE;
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+ GREGORIAN_TO_LILIAN: PROC(INGREG_DATE,LOC) RETURNS(FIXED BIN(31));
+   DCL INGREG_DATE          CHAR(8);
+   DCL LOC                  CHAR(1);
+   DCL GREG_DATE            CHAR(255) VARYING;
+   DCL OUTLIL_DATE    FIXED BIN(31);
+
+   DCL 01 FC,                     /* Feedback token */
+          03 MsgSev    REAL FIXED BINARY(15,0),
+          03 MsgNo     REAL FIXED BINARY(15,0),
+          03 Flags,
+             05 Case      BIT(2),
+             05 Severity  BIT(3),
+             05 Control   BIT(3),
+          03 FacID     CHAR(3),      /* Facility ID */
+          03 ISI   /* Instance-Specific Information */
+                       REAL FIXED BINARY(31,0);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT =  'QBBIL4: DATE CONVERSION  GREG TO LIL '||
+                               INGREG_DATE||' FROM LOC '||LOC;
+       CALL WTO;
+     END;
+
+   GREG_DATE   = INGREG_DATE;
+                     /*  GREGORIAN DATE TO LILIAN DATE              */
+   CALL CEEDAYS (GREG_DATE,'YYYYMMDD',OUTLIL_DATE,FC);
+
+   IF FBCHECK (FC, CEE000)
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBBIL4: VALID DATE-GREGDATE '||
+                               SUBSTR(GREG_DATE,1,8)||
+                               ' LIL_DATE '||OUTLIL_DATE;
+           CALL WTO;
+         END;
+     END;
+     ELSE DO;
+       DIAG_TEXT ='QBBIL4: CEEDAYS failed with msg '||
+                            FC.MsgNo||' FROM LOC '||LOC;
+
+       CALL WTO;
+       OUTLIL_DATE = 1;
+     END;
+
+   RETURN(OUTLIL_DATE);
+
+ END GREGORIAN_TO_LILIAN;
+
+ %PAGE;
+ WTO: PROC;
+  /******************************************************************/
+  /* WRITE TO OPERATOR                 - ** FOR TEST ONLY **        */
+  /******************************************************************/
+
+    /*  EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+    EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+ END WTO;
+
+ END QBBIL4;

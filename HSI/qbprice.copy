@@ -1,0 +1,173 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBPRICE     VERSION NR:  01           DATE:  04/10/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  PRICING DATA                                             */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* LENGTH:                                                          */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF DATA REQUIRED TO DRIVE PRICING LOGIC    */
+ /*               (FOR NON-CONTRACT SERVICE)                         */
+ /*                                                                  */
+ /********************************************************************/
+ /*       NOTE: THIS COPY MEMBER IS USED ON BOTH THE NSS AND CONS    */
+ /*             DRIVER SYSTEMS. MAKE SURE ALL PROGRAMS THAT USE THIS */
+ /*             COPY MEMBER UNDER BOTH DRIVER SYSTEMS ARE RECOMPLIED */
+ /*             IF CHANGES ARE MADE TO THIS COPY MEMBER.             */
+ /********************************************************************/
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION               GARY KYLE  */
+ /*  01/22/90 DCR9892E 0NSA CHANGE QSTART TO HSTART             JWJ  */
+ /*                         APARTPR FROM DEC(7,2) TO DEC(9,2)        */
+ /*  09/10/90 I102184  0NSK QDISUS FROM DEC(2) TO DEC(3)        LBS  */
+ /*  03/19/92 SR0967   2NSB ADD MTM FIELD CGSASCH               LBS  */
+ /*  08/12/94 S9400144 4CSA Expand Other Expense field          YDS  */
+ /*  02/13/95 S9500023 5NSA ADD SERVICE CODE FIELD              LBS  */
+ /*                         AND ABILRATE FIELD                       */
+ /* 11/21/02 GP021333 3NSE Change CRATTYP to three characters    DLP */
+ /* 08/01/03 031502359 4NSC ADD DATA FOR OUTSIDE HRS             DLP */
+ /*                         HDAYSTRT(3) HDAYSTOP(3)(for three days)  */
+ /*                         FBILACTH  FBILTRVH  FBILPART             */
+ /*                         FBILDIST  FBILEXP                        */
+ /* 02/22/04 031502359 4NSC INCREASE HSTART TO DEC 5,1 FROM 3,1  LBS */
+ /*08/12/2005 RQ057017 5NSM Non-standard rate for non standarD       */
+ /*                             CODE, INDICATOR CNONRATE         VJK */
+ /*07/20/2005 RQ057017 5NSM Added new column 'IENNO'for      Archana */
+ /*                         Enterprise                               */
+ /*02/20/2009 prodsupt 9NSG added FBIL1, FBIL4 for diag          LBS */
+ /*03/23/2009 prodsupt 9NSG remove refer DCL, chg to fixed size  LBS */
+ /*07/28/2016 RCQ0345 15HSC ADDED IBOCE VARIABLE               ABDUL */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* ACTIVITY DATA (QSAR)                                             */
+ /*------------------------------------------------------------------*/
+    3 CSERVCDE     CHAR(2),         /* SERVICE CODE          001-002 */
+    3 IMACT        CHAR(4),         /* MACHINE TYPE          003-006 */
+    3 ICUST        CHAR(7),         /* CUSTOMER ID           007-013 */
+    3 IENNO        CHAR(7),         /* Enterprise ID         014-020 */  
+    3 IINVOICE     CHAR(7),         /* INVOICE NUMBER        021-027 */
+    3 CTCUS        CHAR(1),         /* CUSTOMER TYPE         028-028 */
+    3 CGSASCH      CHAR(1),         /* GSA SCH TYPE A|C|' '  029-029 */
+    3 QSTOTI       FIXED DEC(3,1),  /* STOP TIME             030-031 */
+    3 QSVCHR       FIXED DEC(3,1),  /* ACTUAL HOURS          032-033 */
+    3 QTRAHR       FIXED DEC(3,1),  /* TRAVEL HOURS          034-035 */
+    3 DCALL        CHAR(10),        /* CALL DATE('YYYY-MM-DD')36-045 */
+    3 QTRAMI       FIXED DEC(3,0),  /* TRAVEL MILES          046-047 */
+    3 ATRAEX       FIXED DEC(7,2),  /* OTHER CE EXP          048-051 */
+    3 ABILRATE     FIXED DEC(5,2),  /* SC 94 BILLING RATE    052-054 */
+    3 ISDTCODE     CHAR(3),         /* SERVICE DEFINITION CD 055-057 */
+    3 X##PARTS     FIXED BIN(15),   /* NUMBER OF PARTS IN    058-059 */
+                                    /* PARTS ARRAY                   */
+    /*3 UPARTS(P# REFER (X##PARTS)),   PARTS ARRAY                   */
+    3 UPARTS(50),
+      5 QDISUS     FIXED DEC(3),    /*   PART QTY                    */
+      5 APARTPR    FIXED DEC(9,2),  /*   PART UNIT PRICE             */
+ /*------------------------------------------------------------------*/
+ /* BILLING CLASS IS REQUIRED FOR A LOOKUP ON STANDARD RATE TABLE,   */
+ /* BUT MAY BE OVERRIDDEN FROM A SPECIAL RATE TABLE IF A SPECIAL     */
+ /* CONTRACT APPLIES.                                                */
+ /*------------------------------------------------------------------*/
+    3 CCPFIN       CHAR(1),         /* BILLING CLASS                 */
+ /*------------------------------------------------------------------*/
+ /* MISCELLANEOUS INPUT                                              */
+ /*------------------------------------------------------------------*/
+    3 CHVLC        CHAR(1),         /* HVLC INDICATOR                */
+                                    /*   H=HVLC, N=NON-HVLC          */
+    3 CRATTYP      CHAR(3),         /* TYPE OF RATE                  */
+                                    /* (REQ'D FOR STANDARD RATE TBL) */
+                                    /*   C=COMMERCIAL                */
+                                    /*   G=GSA                       */
+                                    /*   M=MILEAGE                   */
+                                    /*   XXX = 3 CHARACTER STANDARD  */
+                                    /*         RATE CODE             */
+ /*------------------------------------------------------------------*/
+ /* THE FOLLOWING FIELDS ARE OBTAINED FROM RATE TABLES               */
+ /* (BY QBPRIC1 IN NSS, CSP APPLICATION IN BSS) AND PASSED TO QBPRIC2*/
+ /*------------------------------------------------------------------*/
+    3 AMILRATE  FIXED DEC(5,2),     /* MILEAGE RATE                  */
+    3 AINRATE   FIXED DEC(5,2),     /* INSIDE  LABOR RATE            */
+    3 AOUTRATE  FIXED DEC(5,2),     /* OUTSIDE LABOR RATE            */
+    3 AINCDNT   FIXED DEC(7,2),     /* INCIDENT CHARGE               */
+    3 PDISCNT   FIXED DEC(2,2),     /* DISCOUNT PERCENT              */
+    3 QMINCHG   FIXED DEC(2,0),     /* MINIMUM CHARGE HRS            */
+    3 AMAXCHG   FIXED DEC(7,2),     /* MAXIMUM CHARGE AMT            */
+ /*------------------------------------------------------------------*/
+ /* THE HOLIDAY TABLE IS READ (BY QBPRIC1 IN NSS, CSP APPLICATION    */
+ /* IN BSS) TO SET THE HOLIDAY DATE ARRAY TO PASS TO QBPRIC2         */
+ /*------------------------------------------------------------------*/
+    3 QHCOUNT   FIXED BIN(15),      /* NUMBER OF HOLIDAYS            */
+    3 DHOLIDAY(30)   CHAR(10),      /* HOLIDAY DATES ('YYYY-MM-DD')  */
+ /*------------------------------------------------------------------*/
+ /* THE START AND STOP TIME FOR INSIDE HOURS FOR 3 DAYS              */
+ /* THE TOTAL NUMBER OF DAYS FOR A CALL CAN SPAN 3 DAYS.             */
+ /* ACTIVITY DATE    (CURRENT DAY)    = ARRAY POSITION 3,            */
+ /* ACTIVITY DATE -1 (PREVIOUS DAY)   = ARRAY POSITION 2,            */
+ /* ACTIVITY DATE -2 (PREVIOUS DAY-1) = ARRAY POSITION 1,            */
+ /*------------------------------------------------------------------*/
+    3 INSIDE_HRS(3),                /* START/STOP for 3 days based   */
+                                    /* on the activity date and the  */
+                                    /* 2 previous days               */
+ /*------------------------------------------------------------------*/
+ /* Note: The Time going to QBPRIC2 is in the form of HHMM.          */
+ /*       The time is in the form of HHT when it comes back.         */
+ /*------------------------------------------------------------------*/
+       5 START       FIXED DEC(5,0),/* START TIME FOR DAY # HHMM/HHT */
+       5 END         FIXED DEC(5,0),/* END TIME   FOR DAY # HHMM/HHT */
+                                    /* ----------------------------- */
+                                    /* possible billing flag values: */
+                                    /* N = do not bill               */
+                                    /* I = bill inside hours only    */
+                                    /* O = bill outside hours only   */
+                                    /* Y = bill inside/outside hours */
+                                    /* ----------------------------- */
+    3 FBILACTH    CHAR(1),          /* BILL ACTUAL HRS               */
+    3 FBILTRVH    CHAR(1),          /* BILL TRAVEL HRS               */
+    3 FBILPART    CHAR(1),          /* BILL PARTS USED Y|N           */
+    3 FBILDIST    CHAR(1),          /* BILL DISTANCE   Y|N           */
+    3 FBILEXP     CHAR(1),          /* BILL EXPENSES   Y|N           */
+    3 UMISFLG1,                     /* MISCELLANEOUS FLAGS 1         */
+      5 TEST_SW   BIT (01),         /* TEST FLAG FOR DEBUG           */
+      5 FABEND    BIT (01),         /*                               */
+      5 FBIL1     BIT (01),         /* CALLED BY QBBIL1              */
+      5 FBIL4     BIT (01),         /* CALLED BY QBBIL4              */
+      5 FPAD02    BIT (04),         /* UNUSED MISC FLAGS             */
+ /*------------------------------------------------------------------*/
+ /* THE FOLLOWING FIELDS ARE RETURNED FROM PRICING MODULE 2 (QBPRIC2)*/
+ /*------------------------------------------------------------------*/
+    3 QTOTDAYS FIXED DEC(2,0),      /* TOTAL DAYS                    */
+    3 HSTART   FIXED DEC(5,1),      /* START TIME                    */
+    3 QINHRS   FIXED DEC(3,1),      /* INSIDE  HRS                   */
+    3 AINLAB   FIXED DEC(9,2),      /* INSIDE LABOR AMT              */
+    3 QOUTHRS  FIXED DEC(3,1),      /* OUTSIDE HRS                   */
+    3 AOUTLAB  FIXED DEC(9,2),      /* OUTSIDE LABOR AMT             */
+    3 AMILEXP  FIXED DEC(9,2),      /* MILEAGE EXPENSE               */
+   /* 3 UPARTAMT(P# REFER (X##PARTS)), PARTS ARRAY                   */
+    3 UPARTAMT (50),
+      5 APARTAMT   FIXED DEC(9,2),  /*   PART AMOUNT (QTY*UNIT)      */
+    3 ATOTTIME     FIXED DEC(9,2),  /* TOTAL $LABOR                  */
+    3 ATOTEXP      FIXED DEC(9,2),  /* TOTAL $EXPENSE                */
+    3 ATOTPART     FIXED DEC(9,2),  /* TOTAL $PARTS                  */
+    3 CMININD      CHAR(1),         /* MINIMUM CHARGE INDICATOR      */
+    3 AMINCHG      FIXED DEC(9,2),  /* MINIMUM CHG ADJUSTMENT AMOUNT */
+    3 QMINHRS      FIXED DEC(3,1),  /* MINIMUM CHG ADJUSTMENT AMOUNT */
+    3 QINSTART     FIXED DEC(3,1),  /* INSIDE START TIME             */
+    3 QINSTOP      FIXED DEC(3,1),  /* INSIDE STOP TIME              */
+    3 IBOCE        CHAR(3),         /* CE B/O                        */
+ /*------------------------------------------------------------------*/
+ /*NON STD RATE CODE INDICATOR                                       */
+ /*------------------------------------------------------------------*/
+    3 CNONRATE     CHAR(1);          /* NON-STD RATE INDICATOR        */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBPRICE                            */
+ /*------------------------------------------------------------------*/
+

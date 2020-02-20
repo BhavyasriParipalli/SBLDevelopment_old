@@ -1,0 +1,37 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBCOMM      VERSION NR:  01           DATE:  04/12/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  NSS QSAR-BILLING COMMAREA                                */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                     JWJ  */
+ /*  11/13/98 B0286354 8NSM TEMPORARY CHANGE BECAUSE OF A       LBS  */
+ /*                         PRODUCTION PROBLEM                       */
+ /*                                                                  */
+ /********************************************************************/
+ %INCLUDE QBSBILL; ,
+ %INCLUDE QBFLAGS; ,
+  3 X#PARTS FIXED BIN(15),
+  /* 3 QBPARTS(P# REFER (X#PARTS)),     B0286354  11/13/98        */
+  3 QBPARTS(20),
+ %INCLUDE QBSPART; ;
+ /* DCL P#     FIXED BIN(31);   */
+ 
+ /*------------------------------------------------------------------*/
+ /*                      END  QBCOMM                                 */
+ /*------------------------------------------------------------------*/
+

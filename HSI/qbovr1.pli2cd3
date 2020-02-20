@@ -1,0 +1,1248 @@
+ QBOVR1  /*                                       07/07/89-09:11:20 */:
+    PROC        OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBOVR1      VERSION NR:  01        DATE:  07/07/89    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  BILLING OVERRIDE MESSAGE PROCESSOR                      */
+ /*                                                                  */
+ /*  FUNCTION:  PROCESS BILLING OVERRIDE MESSAGES.                   */
+ /*             THIS IS THE INITIAL (AND ONLY) MODULE IN             */
+ /*             TRANSACTION "QB02".                                  */
+ /*             PT SYSTEM MESSAGES ARE CAPTURED BY NSS BASE SERVICES */
+ /*             MODULE XCFD, WHICH STARTS TRANSACTION "QB02" IN THE  */
+ /*             QSAR REGION.                                         */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  NONE                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS:   FROMAREA - THE OVERRIDE MESSAGE PASSED FROM XCFD      */
+ /*                       WHEN IT STARTS TRANSACTION "QB02."         */
+ /*                                                                  */
+ /*  OUTPUTS:  QBBILL SEGMENT - REPLACED                             */
+ /*            QBNARR SEGMENT - INSERTED                             */
+ /*            QSGENL SEGMENT - REPLACED (TURN OFF MIRROR INDICATOR) */
+ /*            PT SYSTEM MESSAGES:                                   */
+ /*               1. IF BAD OVERRIDE CODE                            */
+ /*               2. IF NO BILLING SEGMENT FOUND FOR INVOICE NUMBER  */
+ /*               3. IF NO LONGER ELIGIBLE FOR OVERRIDE              */
+ /*               4. IF PTUID OF OVERRIDE DOESN'T MATCH TO QSAR      */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  NOTES:    PCB(1) USES SECONDARY INDEX (QSAESX6)                 */
+ /*            PCB(2) USES PRIMARY INDEX                             */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:            PROGRAMMER:   */
+ /*  12/04/89 SR9892   0NSA    INITIAL VERSION                JWJ    */
+ /*  12/11/89 I89005   0NSA    DO NOT ALLOW OVERRIDE WHEN     JWJ    */
+ /*                            PTUIDS DON'T MATCH                    */
+ /*  12/18/89 I89364   0NSA    FIX "WINDOW" LOGIC WHEN >3PM   JWJ    */
+ /*  01/23/90 I87911   0NSA    REMOVE CODE TO SUBTRACT 30     LBS    */
+ /*                            FROM AREA TRANSMITTED FROM PT         */
+ /*  02/26/90 DCR9892S 0NSA    SWITCH OVERRIDE CODES 09, 12   JWJ    */
+ /*  06/06/90 I98874   0NSC    SET CCMREXCP TO ' ' ON OVERRIDE  JWJ  */
+ /*  10/21/92 I        2NSJ    DLET QSAR FROM HUB QSAR DB       LBS  */
+ /*                            PROBLEM WITH LATE MIRRORING           */
+ /*  07/24/96 S9600308 6NSJ    ADD ERROR CODES 13, 14           LBS  */
+ /*  05/07/97 S9600755 7NSI  NSS MRO PARALLEL SYSPLEX PHASE 1   LBS  */
+ /*                          SUPPORT                                 */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*12/17/2002 HSIPROD  3NSE  change PLIDATE to CEEDATE routines  DLP */
+ /*02/16/2007 HSIPROD  7NSM  remove PLI preprocessor declare of  LBS */
+ /*                          normal for Enterprise Compiler          */
+ /*09/10/2010 HSICROSS 0NSE  HSI CROSS PROJECT CHANGES           RP  */
+ /*11/23/2010 HSICROSS 0NSE  ASCA CHANGES                        NM  */
+ /*                                                                  */
+ /*02/16/2012 RCQ1882  2HSC   REMOVED CWA_COR_SYSID              NAK */
+ /*                           ASSIGN 31 FOR HUB                      */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 02/16/2012');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBOVR1');
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ /* %DCL NORMAL   CHAR   */
+ /* %NORMAL   = '''  ''' */
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;         /* RCQ1882 */
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  HIGH         BUILTIN;         /* HEX 'FF...'                   */
+ DCL  LENGTH       BUILTIN;
+ DCL  LOW          BUILTIN;         /* HEX '00...'                   */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  STG          BUILTIN;         /* STORAGE                       */
+ DCL  STRING       BUILTIN;
+ DCL  SUBSTR       BUILTIN;
+ DCL  TRANSLATE    BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ /* DCL PLIXOPT CHAR(30) VAR STATIC EXTERNAL
+             INIT('STAE,NOREPORT,ISA(6K)')  */
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(6K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %INCLUDE CEEIBMAW;
+ %INCLUDE CEEIBMCT;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL @FROM         PTR INIT(NULL);  /* POINTER TO "FROM" DATA AREA   */
+
+ %PAGE;
+ DCL 1 QSGENL_SEG UNALIGNED,
+    %INCLUDE AEQSGENL; ;
+
+ %PAGE;
+ DCL 1 QBBILL_SEG UNALIGNED,
+    %INCLUDE QBSBILL; ;
+
+ %PAGE;
+ DCL 1 QBNARR_SEG UNALIGNED,
+    %INCLUDE QBSNARR; ;
+
+ %PAGE;
+ DCL 1 TEXT_COMM  UNALIGNED,
+    %INCLUDE AEQCOMT; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL 1 TEXT_CROSS  UNALIGNED,      /* HSI CROSS */
+    %INCLUDE QBCRCOM; ;            /* HSI CROSS */  
+
+ %PAGE;
+ 
+ DCL 1 STATS  UNALIGNED,
+    %INCLUDE AEQQSRC ; ;
+ %PAGE;
+ 
+ /* ---------------------------------------------------------------- */
+ /* IMS DECLARES                                                     */
+ /* ---------------------------------------------------------------- */
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8)  INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1)  INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2)  INIT(' ='),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1)  INIT(')');
+	   
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+ DCL 1 FROM_AREA UNALIGNED BASED(@FROM),     /* INCOMING OVRRIDE MSG */
+         5 AREA_CHAR   CHAR(2),              /*              001-002 */
+         5 PAD1        CHAR(1),              /*              003-003 */
+         5 PTID1       CHAR(6),              /*              004-009 */
+         5 PAD2        CHAR(1),              /*              010-010 */
+         5 QSARBO      CHAR(3),              /*              011-013 */
+         5 PAD3        CHAR(1),              /*              014-014 */
+         5 QSARTERR    CHAR(3),              /*              015-017 */
+         5 PAD4        CHAR(1),              /*              018-018 */
+         5 OVRMSG      CHAR(55);             /*              019-073 */
+
+ DCL 1 OVERRIDE,                             /* PARSE OF "OVRMSG"    */
+       3 INVOICE       CHAR(7),
+       3 CODE          CHAR(2),
+       3 NARRATIVE     CHAR(44);
+
+              /****************************************************/
+              /*   TABLE WILL CONVERT ASCII TO EBCDIC             */
+              /****************************************************/
+ DCL EBCDIC CHAR(256) BASED(ADDR(EBCTBL));
+ DCL EBCTBL (16) CHAR(16)
+                         INIT  ('000102030405060708090A0B0C0D0E0F'X,
+                                '101112131415161718191A1B1C1D1E1F'X,
+                                '202122232425262728292A2B2C2D2E2F'X,
+                                '30313233343536373839303B3C3D3E3F'X,
+                                '404142434445464748494A4B4C4D4E4F'X,
+                                '505152535455565758595A5B5C5D5E5F'X,
+                                '606162636465666768696A6B6C6D6E6F'X,
+                                '707172737475767778797A7B7C7D7E7F'X,
+                                '80C1C2C3C4C5C6C7C8C98A8B8C8D8E8F'X,
+                                '90D1D2D3D4D5D6D7D8D99A9B9C9D9E9F'X,
+                                'A0A1E2E3E4E5E6E7E8E9AAABACADAEAF'X,
+                                'B0B1B2B3B4B5B6B7B8B9BABBBCBDBEBF'X,
+                                'C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF'X,
+                                'D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF'X,
+                                'E0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF'X,
+                                'F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF'X);
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL ABSTIME         FIXED DEC(15,0) INIT(0);
+                                          /* DOUBLEWORD FOR ABSTIME  */
+                                          /* OPTION OF ASKTIME       */
+ DCL ABSYYMMDD             CHAR( 6)  INIT('');
+ DCL ABSMMDD               CHAR( 4)  DEF ABSYYMMDD POS(3);
+ DCL ABSHHMMSS             CHAR( 6)  INIT('');
+ DCL ABSYEAR         FIXED BIN (31)  INIT(0);
+ DCL ABSYEAR_PIC           PIC'9999' INIT(0);
+ DCL AREA_PIC              PIC'99'   BASED(ADDR(AREA_CHAR));
+                                          /* SYSTEM DATE 'YYYYMMDD'  */
+ DCL CURDATE               CHAR( 8)  INIT('');
+ DCL DIAG_TEXT             CHAR(80)  INIT('');
+                                          /* END-OF-TEXT FOR AEQMSG2 */
+ DCL EOT                   CHAR( 3)  INIT(' @@');
+ DCL ERR1                  CHAR( 9)  INIT('QSR9000: ');
+ DCL ERR2                  CHAR( 9)  INIT('QSR9002: ');
+ DCL FROM_LENGTH     FIXED BIN (15)  INIT(0);
+ DCL HUB_TRANSID           CHAR( 4)  INIT('');
+ DCL I               FIXED BIN (15)  INIT(0);
+ DCL 1 KEYFBK,                            /* DLI KEY FEEDBACK AREA   */
+       3 IINVOICE          CHAR( 7),
+       3 IDOCUMNT          CHAR( 9);
+ DCL PIC_DATE              PIC'(8)9' INIT(0);
+ DCL PIC_TIME              PIC'(6)9' INIT(0);
+ DCL 1 PIC_TIME_OVER       BASED(ADDR(PIC_TIME)),
+       3 PIC_HR            PIC'99',
+       3 PIC_MIN           PIC'99',
+       3 PIC_SEC           PIC'99';
+ DCL QBNARR_TEMP           CHAR(64) INIT('');/* TEMP AREA FOR GU/REPL */
+ DCL REST_OF_OVRMSG        CHAR(55) VARYING;
+
+ DCL TEST_SW               BIT(1)   INIT('0'B);
+
+ DCL ABSOLTIME   FIXED DEC(15)    INIT(0);
+ DCL DATE_YYYYMMDD     CHAR(10)   INIT('');
+ DCL AREA_CROSS        PIC'99'    INIT('01');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING            CHAR(85)  BASED(DFHEIPTR);
+ DCL RESPONSE        FIXED BIN(31)   INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     TEXT_COMM.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+               ' System Error - Override not processed.' || EOT;
+		/* HSI CROSS CHANGE */
+     TEXT_CROSS.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+               ' System Error - Override not processed.' || EOT;
+		/* HSI CROSS CHANGE */
+     CALL SEND_MSG;
+     ET_PROGRAM_ID = 'QBOVR1 ';
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'N';
+     EXEC DLI TERMINATE;                  /* TERMINATE THE PSB       */
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('OVR1')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF CWA.CWA_QSAR_TRACE = 'Y' |
+    CWA.CWA_QSAR_TRACE = 'F'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = 'QBOVR1 ENTERED';
+     CALL WRITE_TO_OPERATOR;
+   END;
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* RETRIEVE OVERRIDE MESSAGE LINE FROM PROGRAM "XCFD" (NSS)         */
+ /*------------------------------------------------------------------*/
+
+ IF TEST_SW                       /* ********** TEST ONLY ********** */
+   THEN DO;
+     DIAG_TEXT = 'QBOVR1: ABOUT TO RETRIEVE "FROM" AREA';
+     CALL WRITE_TO_OPERATOR;
+   END;
+
+      EXEC CICS RETRIEVE
+         SET(@FROM) LENGTH(FROM_LENGTH)
+         RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)    /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                        /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR1 || MODULE || 'NO FROM AREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* PARSE THE OVERRIDE MESSAGE TEXT.                                 */
+ /* FORMAT IS:  invoice nn narrative_text                            */
+ /*   WHERE 'nn' IS THE OVERRIDE CODE, AND                           */
+ /*   ELEMENTS ARE SEPARATED BY AT LEAST ONE BLANK                   */
+ /*------------------------------------------------------------------*/
+ INVOICE = '';
+ /* PARSE "OVRMSG" FOR INVOICE, CODE, NARRATIVE */
+
+ REST_OF_OVRMSG = OVRMSG;
+
+ FIND_INVOICE:
+  DO I=1 TO LENGTH(REST_OF_OVRMSG);
+    IF SUBSTR(REST_OF_OVRMSG,I,1) ^= ' '
+      THEN DO;
+        OVERRIDE.INVOICE = SUBSTR(REST_OF_OVRMSG,I,7);
+        REST_OF_OVRMSG = SUBSTR(REST_OF_OVRMSG,I+8);
+        LEAVE FIND_INVOICE;
+      END;
+  END FIND_INVOICE;
+
+ FIND_CODE:
+   DO I=1 TO LENGTH(REST_OF_OVRMSG);
+    IF SUBSTR(REST_OF_OVRMSG,I,1) ^= ' '
+      THEN DO;
+        OVERRIDE.CODE = SUBSTR(REST_OF_OVRMSG,I,2);
+        REST_OF_OVRMSG = SUBSTR(REST_OF_OVRMSG,I+3);
+        LEAVE FIND_CODE;
+      END;
+ END FIND_CODE;
+
+ IF TEST_SW                       /* ********** TEST ONLY ********** */
+   THEN DO;
+     DIAG_TEXT = 'QBOVR1: CODE ASSIGNED:'||OVERRIDE.CODE;
+     CALL WRITE_TO_OPERATOR;
+   END;
+
+   OVERRIDE.NARRATIVE = REST_OF_OVRMSG;
+ /* OVERRIDE.NARRATIVE = TRANSLATE(OVERRIDE.NARRATIVE,' ',LOW(1))  */
+
+   OVERRIDE.NARRATIVE = TRANSLATE(OVERRIDE.NARRATIVE,EBCDIC);
+   SUBSTR(OVERRIDE.INVOICE,7,1) = 
+                       TRANSLATE(SUBSTR(OVERRIDE.INVOICE,7,1),
+                                                   EBCDIC);
+
+ IF TEST_SW                       /* ********** TEST ONLY ********** */
+   THEN DO;
+     DIAG_TEXT = 'QBOVR1: ID/BO/TERR=' || FROM_AREA.PTID1 || '/' ||
+             FROM_AREA.QSARBO || '/' || FROM_AREA.QSARTERR;
+     CALL WRITE_TO_OPERATOR;
+     DIAG_TEXT = 'QBOVR1: INVOICE=' || OVERRIDE.INVOICE ||
+                       ' CODE=' || OVERRIDE.CODE;
+     CALL WRITE_TO_OPERATOR;
+   END;
+ %PAGE;
+
+ /*-----------------HSI CROSS CHANGE ---------------*/
+ IF EIBTRNID = 'QBVR'
+   THEN DO;
+         TEXT_CROSS.PTID1    = FROM_AREA.PTID1;
+    	 TEXT_CROSS.QSARBO   = FROM_AREA.QSARBO;
+	 TEXT_CROSS.QSARTERR = FROM_AREA.QSARTERR;
+	 TEXT_CROSS.SENDER   = 'QB';
+	 TEXT_CROSS.ALLTEXT  = '';
+   END;
+   ELSE  DO;
+
+ /*-----------------HSI CROSS CHANGE ---------------*/
+                                    /* SET UP PT MESSAGE FORMAT */
+                                   /* (IF NEEDED) FOR AEQMSG2  */
+	 TEXT_COMM.PTID1    = FROM_AREA.PTID1;
+	 TEXT_COMM.QSARBO   = FROM_AREA.QSARBO;
+	 TEXT_COMM.QSARTERR = FROM_AREA.QSARTERR;
+	 TEXT_COMM.SENDER   = 'QB';
+	 TEXT_COMM.ALLTEXT  = '';
+   END;                 /* HSI CROSS CHANGE */
+  
+ SELECT (OVERRIDE.CODE);                    /* VERIFY OVERRIDE CODE  */
+   WHEN('01','02','03','04','05','06',      /*  - O.K.               */
+        '07','08','09','10','11','12',
+        '13','14');
+   OTHERWISE                                /*  - INVALID            */
+     DO;
+
+ /*--------------------HSI CROSS CHANGE STARTS----------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN	
+       TEXT_CROSS.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+                            ' Override Code ' || OVERRIDE.CODE ||
+                  ' Not Valid - Override not processed.' || EOT;
+       ELSE
+ /*--------------------HSI CROSS CHANGE ENDS -----------------*/
+       TEXT_COMM.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+                        ' Override Code ' || OVERRIDE.CODE ||
+                 ' Not Valid - Override not processed.' || EOT;
+       CALL SEND_MSG;
+       CALL IT_QUITS;
+     END;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* MAIN LOGIC IS AS FOLLOWS:                                        */
+ /* 1. GU QBBILL SEGMENT, USING INVOICE NUMBER AS KEY                */
+ /*       (USES SECONDARY INDEX QSAESX6)                             */
+ /*    GN QSGENL SEGMENT                                             */
+ /*      -GET QSAR DOCUMENT NUMBER FROM KEY FEEDBACK AREA            */
+ /* 2. GU/REPL QSGENL SEGMENT                                        */
+ /*       (USES PRIMARY INDEX: DOCUMENT NUMBER)                      */
+ /* 3. GU/REPL QBBILL SEGMENT                                        */
+ /* 4. ISRT    QBNARR SEGMENT                                        */
+ /*------------------------------------------------------------------*/
+
+ CALL SCHEDULE_PSB('QBOVR1 ');
+ CALL GET_TIMESTAMP;
+ CALL GET_QSAR_DOC;
+ CALL REPL_QSGENL;
+ CALL REPL_QBBILL;
+ CALL FORMAT_QBNARR;
+ CALL ISRT_QBNARR;
+ CALL TERMINATE_PSB;
+
+
+ %PAGE;
+ GET_TIMESTAMP:  PROC;
+ /********************************************************************/
+ /* GET TIMESTAMP USING CICS ASKTIME                                 */
+ /********************************************************************/
+
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);   /* END EXEC CICS ASKTIME ...*/
+
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME)
+                        YYMMDD(ABSYYMMDD)
+                        YEAR(ABSYEAR)
+                        TIME(ABSHHMMSS); /* END EXEC CICS FORMATTIME */
+
+   ABSYEAR_PIC = ABSYEAR;
+   CURDATE   = ABSYEAR_PIC || ABSMMDD;   /* YYYYMMDD                 */
+
+ END GET_TIMESTAMP;
+
+ %PAGE;
+ GET_QSAR_DOC:  PROC;
+ /********************************************************************/
+ /* GU QBBILL SEGMENT USING SECONDARY INDEX (INVOICE NUMBER).        */
+ /* GN QSGENL SEGMENT                                                */
+ /*   -GET QSAR DOCUMENT NUMBER FROM KEY FEEDBACK AREA AND SAVE TO   */
+ /*    USE AS KEY FOR LOOKUP THROUGH PRIMARY INDEX.                  */
+ /*    (CANNOT DO REPL'S THROUGH SECONDARY INDEX.)                   */
+ /********************************************************************/
+
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: GET_QSAR_DOC ENTERED INVOICE= '||
+                                 OVERRIDE.INVOICE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU OF QBBILL SEGMENT. '
+                   || 'KEY = ' || OVERRIDE.INVOICE;
+                                       /* GET QBBILL SEGMENT         */
+   EXEC DLI GU USING PCB(1)
+               KEYS(OVERRIDE.INVOICE)
+               SEGMENT(QBBILL)
+               INTO(QBBILL_SEG);         /* END EXEC DLI GET UNIQUE  */
+
+   SELECT(DIBSTAT);
+     WHEN('  ');
+     WHEN('GE')                           /* SEGMENT NOT FOUND ...   */
+       DO;                                /* SEND MESSAGE BACK TO CE */
+
+ /*--------------------HSI CROSS CHANGE STARTS----------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN	
+         TEXT_CROSS.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+                 ' not found - Override not processed.' || EOT;
+       ELSE	
+ /*--------------------HSI CROSS CHANGE ENDS -----------------*/
+
+         TEXT_COMM.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+                 ' not found - Override not processed.' || EOT;
+         CALL SEND_MSG;
+         CALL IT_QUITS;
+       END;
+     OTHERWISE
+       DO;
+         ET_TEXT2 = ERR2||MODULE || 'DIBSTAT=' || DIBSTAT;
+         ET_TEXT3 = ERR2||MODULE || 'INVOICE # ' || OVERRIDE.INVOICE;
+       SIGNAL ERROR;
+       END;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* NOW GN QSGENL (LOGICAL CHILD UNDER QBBILL IN THIS INDEX)         */
+ /*------------------------------------------------------------------*/
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GN OF QSGENL SEGMENT ' ||
+              'FOR INVOICE ' || OVERRIDE.INVOICE;
+   ET_TEXT2= ' ';
+   ET_TEXT3= ' ';
+
+   EXEC DLI GN USING PCB(1)
+               KEYFEEDBACK(KEYFBK)
+               FEEDBACKLEN(16)
+               SEGMENT(QSGENL)
+               INTO(QSGENL_SEG);         /* END EXEC DLI GET NEXT ...*/
+
+   CALL CHECK_DIBSTAT;
+
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: KEYFBK=' || STRING(KEYFBK);
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   IF FROM_AREA.PTID1 ^= QSGENL_SEG.CS1EMPSE  /*              I89005 */
+     THEN DO;
+ /*--------------------HSI CROSS CHANGE STARTS----------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN	
+       TEXT_CROSS.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+         ' not valid for override by user ID ' || FROM_AREA.PTID1 ||
+         ' - Override not processed.' || EOT;
+       ELSE	
+ /*--------------------HSI CROSS CHANGE ENDS -----------------*/
+
+       TEXT_COMM.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+         ' not valid for override by user ID ' || FROM_AREA.PTID1 ||
+         ' - Override not processed.' || EOT;
+       CALL SEND_MSG;
+       CALL IT_QUITS;
+     END;
+
+   IF OUT_OF_WINDOW()   /* A FUNCTION CALL */
+     THEN DO;
+ /*--------------------HSI CROSS CHANGE STARTS----------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN	
+       TEXT_CROSS.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+         ' no longer available for override - Not processed.' || EOT;
+       ELSE	
+ /*--------------------HSI CROSS CHANGE ENDS -----------------*/
+
+       TEXT_COMM.ALLTEXT = 'Invoice ' || OVERRIDE.INVOICE ||
+         ' no longer available for override - Not processed.' || EOT;
+       CALL SEND_MSG;
+       CALL IT_QUITS;
+     END;
+
+
+ END GET_QSAR_DOC;
+
+ %PAGE;
+ OUT_OF_WINDOW: PROC() RETURNS(BIT(1));
+ /********************************************************************/
+ /* FUNCTION                                                         */
+ /* RETURNS BOOLEAN:                                                 */
+ /*   '1' IF WE ARE OUTSIDE OVERRIDE "WINDOW"                        */
+ /*   '0' IF WE ARE WITHIN (O.K. FOR OVERRIDE)                       */
+ /*                                                                  */
+ /* DO NOT ALLOW OVERRIDE IF BEYOND "WINDOW" WHERE RECORD WOULD      */
+ /* HAVE BEEN OFFLOADED AT HUB.                                      */
+ /* SEE RULES BELOW.                                                 */
+ /********************************************************************/
+ /* %INCLUDE DEFDATE */
+ /* $DEFDATE(LILGRG) */
+
+   %PAGE;
+   DCL BSRMMDD           CHAR(4)          /* BASE SERVICES DATE MMDD */
+                         BASED(ADDR(CS1BSRDT.CS1BSRMM));
+   DCL BSRDATE           CHAR(8)          /* BASE SVCS DATE YYYYMMDD */
+                         BASED(ADDR(CS1BSRDT.CS1BSRYY));
+
+   DCL BSRTIME           CHAR(6)          /* BASE SERVICES TIME      */
+                         BASED(ADDR(CS1BSRTI));
+   DCL LILDATE           FIXED BIN(31);
+   DCL LIL_BSRDATE       FIXED DEC(7,0);
+   DCL LIL_CURDATE       FIXED DEC(7,0);
+   DCL RETURN_FLAG       BIT(1);  /* 1=OUT OF OVERRIDE WINDOW  0=O.K */
+   DCL TEMP_DATE         CHAR(8)    INIT('');
+
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: OK_TO_OVERRIDE PROC ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+ /*------------------------------------------------------------------*/
+ /* CONVERT DATES TO LILIAN TO ALLOW FOR COMPARISON.                 */
+ /*------------------------------------------------------------------*/
+ /* FOLLOWING REMOVED RELEASE 3NSE                                   */
+ /* BSRDATE = ABSYEAR_PIC || BSRMMDD    BASE SERVICES DATE 'YYYYMMDD'*/
+ /* LIL_BSRDATE = LILGRG(PIC_BSRDATE,'YMD')    LILIAN <- GREGORIAN   */
+ /* LIL_CURDATE = LILGRG(PIC_CURDATE,'YMD')    LILIAN <- GREGORIAN   */
+
+
+   LILDATE = GREGORIAN_TO_LILIAN(BSRDATE,'1');
+   LIL_BSRDATE = LILDATE;
+
+   LILDATE = GREGORIAN_TO_LILIAN(CURDATE,'2');
+   LIL_CURDATE = LILDATE;
+
+   %PAGE;
+   RETURN_FLAG = '1';                /* ASSUME WE'RE NO GOOD         */
+ /*------------------------------------------------------------------*/
+ /* RULE: A QSAR RECEIVED TODAY PRIOR TO 15:00 MUST HAVE OVERRIDE    */
+ /*       BY 17:00 TODAY.                                            */
+ /*------------------------------------------------------------------*/
+   IF BSRDATE = CURDATE
+       & BSRTIME   < '150000'
+       & ABSHHMMSS < '170000'
+     THEN RETURN_FLAG = '0'B;
+
+ /*------------------------------------------------------------------*/
+ /* RULE: A QSAR RECEIVED TODAY AFTER 15:00 MAY HAVE OVERRIDE ANY    */
+ /*       TIME LATER TODAY.                                          */
+ /*------------------------------------------------------------------*/
+   IF BSRDATE = CURDATE &
+      BSRTIME   >= '150000'
+     THEN RETURN_FLAG = '0'B;
+
+ /*------------------------------------------------------------------*/
+ /* RULE: A QSAR RECEIVED YESTERDAY AFTER 15:00 MUST HAVE OVERRIDE   */
+ /*       BY 17:00 TODAY.                                            */
+ /*------------------------------------------------------------------*/
+   IF (LIL_CURDATE - LIL_BSRDATE) = 1          /* RECEIVED YESTERDAY */
+       & BSRTIME   >= '150000'
+       & ABSHHMMSS <  '170000'
+     THEN RETURN_FLAG = '0'B;
+
+   RETURN(RETURN_FLAG);
+
+ END OUT_OF_WINDOW;
+
+ %PAGE;
+ REPL_QSGENL: PROC;
+ /********************************************************************/
+ /* - GU QSGENL (USING DOCUMENT NUMBER PREVIOUSLY OBTAINED)          */
+ /* - TURN OFF THE MIRROR INDICATOR TO ALLOW BILLING SEGMENTS TO     */
+ /*   UPDATED/INSERTED AT THE HUB.                                   */
+ /* - REPL THE QSGENL SEGMENT.                                       */
+ /********************************************************************/
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: REPL_QSGENL ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU OF QSGENL SEGMENT. '
+                   || 'KEY = ' || KEYFBK.IDOCUMNT;
+   ET_TEXT2 = '';
+   ET_TEXT3 = '';
+
+   EXEC DLI GU USING PCB(2)
+               SEGMENT(QSGENL)
+               KEYS(KEYFBK.IDOCUMNT)
+               INTO(QSGENL_SEG);         /* END EXEC DLI GET UNIQUE  */
+
+   CALL CHECK_DIBSTAT;
+
+   QSGENL_SEG.MIRROR_IND = ' ';          /* SET MIRROR INDICATOR OFF */
+
+   ET_TEXT1 = ERR2 || MODULE || ' ERROR ON REPL OF QSGENL SEGMENT. '
+                   || 'KEY = ' || OVERRIDE.INVOICE;
+                                         /* REPLACE QBBILL SEGMENT   */
+   EXEC DLI REPL USING PCB(2)
+               SEGMENT(QSGENL)
+               FROM(QSGENL_SEG);         /* END EXEC DLI REPLACE ... */
+
+   CALL CHECK_DIBSTAT;
+
+ END REPL_QSGENL;
+
+ %PAGE;
+ REPL_QBBILL:  PROC;
+ /********************************************************************/
+ /* GET QBBILL SEGMENT, SET CONTROL BYTE, AND REPLACE THE SEGMENT.   */
+ /********************************************************************/
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: REPL_QBBILL ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU FOR REPL OF QBBILL '||
+                'SEGMENT. KEY = ' || STRING(KEYFBK);
+                                       /* GET QBBILL SEGMENT         */
+   EXEC DLI GU USING PCB(2)
+               SEGMENT(QSGENL)
+                 KEYS(KEYFBK.IDOCUMNT)
+               SEGMENT(QBBILL)
+                 INTO(QBBILL_SEG);       /* END EXEC DLI GET UNIQUE  */
+
+   CALL CHECK_DIBSTAT;
+
+ /*------------------------------------------------------------------*/
+ /* UPDATE QBBILL FIELDS                                             */
+ /*------------------------------------------------------------------*/
+   SELECT(OVERRIDE.CODE);              /* SET CONTROL BYTES:         */
+     WHEN('12');                       /* SYSTEM INVOICE REQUIRED    */
+                                       /* DOES NOT GO TO RES ...     */
+     OTHERWISE
+       DO;
+       QBBILL_SEG.CCONTROL = 'QP';     /* EVERYTHING ELSE DOES       */
+       QBBILL_SEG.CCMREXCP = ' ';      /* DCR9892E/I98874            */
+       END;
+     END;
+
+   QBBILL_SEG.CSYSINV = 'Y'; /* ALL OVERRIDES REQUIRE SYSTEM INVOICE */
+
+   /* BILLING ERROR CODE IS '1XX' WHERE 'XX' IS CE OVERRIDE CODE */
+   QBBILL_SEG.CBILLERR = '1' || OVERRIDE.CODE;
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON REPL OF QBBILL SEGMENT. '
+                   || 'KEY = ' || STRING(KEYFBK);
+                                       /* REPLACE QBBILL SEGMENT     */
+   EXEC DLI REPL USING PCB(2)
+               SEGMENT(QBBILL)
+               FROM(QBBILL_SEG);         /* END EXEC DLI REPLACE ... */
+
+   CALL CHECK_DIBSTAT;
+
+ END REPL_QBBILL;
+
+ %PAGE;
+ FORMAT_QBNARR:  PROC;
+ /********************************************************************/
+ /* FORMAT OVERRIDE NARRATIVE SEGMENT (QBNARR) FOR INSERT            */
+ /********************************************************************/
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: FORMAT_QBNARR ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   QBNARR_SEG.DCEOVER = CURDATE  ;
+
+   QBNARR_SEG.HCEOVER = ABSHHMMSS;
+
+   QBNARR_SEG.CCEOVER = OVERRIDE.CODE;
+   QBNARR_SEG.SPAD01  = '';
+   QBNARR_SEG.TCECOMM = OVERRIDE.NARRATIVE;
+
+ END FORMAT_QBNARR;
+
+ %PAGE;
+ ISRT_QBNARR:  PROC;
+ /********************************************************************/
+ /* INSERT QBNARR SEGMENT UNDER QBBILL.                              */
+ /********************************************************************/
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: ISRT_QBNARR ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON ISRT OF QBNARR SEGMENT '
+                   || 'FOR INVOICE: ' || STRING(KEYFBK);
+
+   EXEC DLI ISRT USING PCB(2)
+                 SEGMENT(QBNARR)
+                 FROM(QBNARR_SEG);       /* END EXEC DLI INSERT ...  */
+
+   SELECT(DIBSTAT);
+     WHEN('  ');
+     WHEN('II')    CALL REPL_QBNARR;
+     OTHERWISE
+       DO;
+         ET_TEXT2 = ERR2||MODULE || 'DIBSTAT=' || DIBSTAT;
+         SIGNAL ERROR;
+       END;
+   END;
+
+   /* INCREMENT QSAROVRC COUNT FOR PROCESSED RECORDS */
+   IF EIBTRNID = 'QBVR'
+       THEN DO;
+	       CALL TERMINATE_PSB;
+		   CALL SCHEDULE_PSB('AEQDU3');
+		   CALL UPDATE_CTLDB ('QSRCQBB');
+	   END;
+	   
+ END ISRT_QBNARR;
+
+ %PAGE;
+ REPL_QBNARR:  PROC;
+ /********************************************************************/
+ /* REPL   QBNARR SEGMENT UNDER QBBILL.                              */
+ /* THIS WOULD OCCUR IF USER OVERRIDES AN EXISTING OVERRIDE.         */
+ /********************************************************************/
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: REPL_QBNARR ENTERED';
+       CALL WRITE_TO_OPERATOR;
+     END;
+ /*------------------------------------------------------------------*/
+ /* MUST FIRST GET (EXEC DLI IMPLIES "HOLD").                        */
+ /* WE MUST READ INTO A DIFFERENT BUFFER SO AS NOT TO WIPE OUT       */
+ /* THE NEW DATA FROM THE ORIGINAL ISRT TRY.                         */
+ /*------------------------------------------------------------------*/
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU OF QBNARR SEGMENT '
+                   || 'FOR INVOICE: ' || STRING(KEYFBK);
+
+   EXEC DLI GU USING PCB(2)
+               SEGMENT(QSGENL)
+               KEYS(KEYFBK.IDOCUMNT)
+               SEGMENT(QBBILL)
+               SEGMENT(QBNARR)
+               INTO(QBNARR_TEMP);      /* END EXEC DLI GET UNIQUE    */
+
+   CALL CHECK_DIBSTAT;
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBOVR1: QBNARR '||QBNARR_TEMP;
+       CALL WRITE_TO_OPERATOR;
+     END;
+ /*------------------------------------------------------------------*/
+ /* IF GET IS O.K. WE CAN REPL (USING SAME BUFFER WE USED FOR ISRT). */
+ /*------------------------------------------------------------------*/
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON REPL OF QBNARR SEGMENT. '
+                   || 'KEY = ' || STRING(KEYFBK);
+
+   EXEC DLI REPL USING PCB(2)
+            SEGMENT(QBNARR)
+            FROM(QBNARR_SEG);           /* END EXEC DLI REPLACE     */
+
+   CALL CHECK_DIBSTAT;
+
+ END REPL_QBNARR;
+
+ %PAGE;
+ CHECK_DIBSTAT:  PROC;
+ /********************************************************************/
+ /* GENERIC CHECK OF DIBSTAT FROM DL/I INTERFACE BLOCK (DIB)         */
+ /********************************************************************/
+
+   SELECT(DIBSTAT);
+     WHEN('  ');
+     OTHERWISE
+       DO;
+       ET_TEXT2 = ERR2||MODULE || 'DIBSTAT=' || DIBSTAT;
+       SIGNAL ERROR;
+       END;
+     END;
+
+ END CHECK_DIBSTAT;
+
+ %PAGE;
+ SEND_MSG:  PROC;
+ /********************************************************************/
+ /* SEND BILLING OVERRIDE ERROR MESSAGE                              */
+ /********************************************************************/
+   
+   IF TEST_SW                            /* ******* TEST ONLY ****** */
+     THEN DO;
+ /*----------------HSI CROSS CHANGE STARTS HERE---------------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN
+       DIAG_TEXT = 'QBOVR1: SEND_MSG '||
+                     SUBSTR(TEXT_CROSS.ALLTEXT,16,40);
+       ELSE
+ /*----------------HSI CROSS CHANGE ENDS  HERE---------------------*/
+       DIAG_TEXT = 'QBOVR1: SEND_MSG '||
+                      SUBSTR(TEXT_COMM.ALLTEXT,16,40);	
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   EXEC CICS IGNORE CONDITION SYSIDERR;  /* END EXEC CICS IGNORE...  */
+
+ /*----------------HSI CROSS CHANGE STARTS HERE---------------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN
+        DO;
+	TEXT_CROSS.CMSGTYPE = '06';
+        EXEC CICS LINK PROGRAM('QBMQWR')
+                    COMMAREA(TEXT_CROSS)
+         /*         SYSID(CWA_COR_SYSID)  RCQ1882 */
+                    RESP(RESPONSE);
+	END;
+       ELSE
+ /*----------------HSI CROSS CHANGE ENDS  HERE---------------------*/
+
+  	 EXEC CICS START TRANSID('AEQM')
+                   FROM(TEXT_COMM)       /* END EXEC CICS START ...  */
+                   RESP(RESPONSE);
+
+   IF RESPONSE ^= DFHRESP(NORMAL)      /* IF ABNORMAL RESPONSE THEN  */
+     THEN DO;                          /* PASS CONTROL TO ERROR PGM  */
+ /*----------------HSI CROSS CHANGE STARTS HERE---------------------*/
+       IF EIBTRNID = 'QBVR'
+       THEN
+       ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO LINK TO QBMQWR';     
+       ELSE
+ /*----------------HSI CROSS CHANGE ENDS  HERE---------------------*/
+     
+       ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO START TRAN AEQM';
+       SIGNAL ERROR;
+     END;
+
+   /* INCREMENT QSAROVRC COUNT FOR TYPE6 RECORDS */
+   IF EIBTRNID = 'QBVR'
+       THEN DO;
+	       CALL TERMINATE_PSB;
+	       CALL SCHEDULE_PSB('AEQDU3');
+	       CALL UPDATE_CTLDB ('QSRCQBN');
+           CALL TERMINATE_PSB;
+	   END;
+	   
+ END SEND_MSG;
+
+ %PAGE;
+ 
+ /********************************************************************/
+ /* THIS PROCEDURE INCREMENTS THE QSRCQBB COUNTER IN IMS DB FOR THE  */
+ /* QSAROVRC TO DENOTE COUNT OF PROCESSED TYPE5 RECORDS AND INCREMENT*/
+ /* QSRCQBN OF QSAROVRC TO DENOTE THE COUNT OF TYPE6 RECORDS         */
+ /********************************************************************/
+ UPDATE_CTLDB : PROC(TYPE);
+ 
+   DCL TYPE CHAR(8);
+
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': UPDATE_CTLDB';
+        CALL WRITE_TO_OPERATOR();
+     END;
+   
+   /* RCQ1882 :   Assign AREA_CROSS */
+   
+   IF CWAPRIHB = 'H' THEN AREA_CROSS='31';
+
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME) YYMMDD(ABSYYMMDD)
+                                         YEAR(ABSYEAR)
+                                         TIME(ABSHHMMSS)
+                                         YYYYMMDD(DATE_YYYYMMDD)
+                                         RESP(RESPONSE);
+
+   CAASCRSC_KEYVAL = 'QSAROVRC' || AREA_CROSS ||
+                     SUBSTR(DATE_YYYYMMDD,1,8);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPERATOR;
+     END;
+	 
+   EXEC DLI GU USING PCB(2)
+               SEGMENT('CAASCRSC')
+               INTO(STATS)
+               WHERE (IINTAREA= CAASCRSC_KEYVAL);
+
+   IF DIBSTAT = ''              /* RECORD FOUND */
+     THEN DO;
+       STATS.QSRCDATE = ABSYYMMDD;
+       STATS.QSRCTIME = ABSHHMMSS;
+	   
+	   IF (TYPE = 'QSRCQBN')
+		  THEN STATS.QSRCQBN = STATS.QSRCQBN + 1;
+	   ELSE STATS.QSRCQBB = STATS.QSRCQBB + 1;
+   
+       ET_TEXT1 = ERR1||MODULE||' UNABLE TO REPL CONTROL DATA BASE ';
+   
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': REPL CONTROL DB '||CAASCRSC_KEYVAL;
+           CALL WRITE_TO_OPERATOR;    /* ******** TEST ONLY ******** */
+         END;
+                       
+   
+       EXEC DLI REPL USING PCB(2) 
+                     SEGMENT('CAASCRSC')
+                     FROM(STATS);  
+                     
+       ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT = ' || DIBSTAT;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DIBSTAT = '||DIBSTAT;
+           CALL WRITE_TO_OPERATOR;
+         END;
+       IF DIBSTAT ^= ''
+         THEN SIGNAL ERROR;
+     END;
+     ELSE IF DIBSTAT = 'GE'                     /* NO RECORD FOUND */
+       THEN DO;
+         STATS = '';
+         STATS.QSRCDATE = ABSYYMMDD;
+         STATS.QSRCTIME = ABSHHMMSS;
+		 
+		 STATS.QSRCKEY1 = 'QSAROVRC';
+		 STATS.QSRCACTD = SUBSTR(DATE_YYYYMMDD,1,8);
+    
+         STATS.QSRCAREA = AREA_CROSS;
+         
+		 IF (TYPE = 'QSRCQBN') 
+			THEN STATS.QSRCQBN = STATS.QSRCQBN + 1;
+			ELSE STATS.QSRCQBB = STATS.QSRCQBB + 1;
+    
+         ET_TEXT1 = ERR1||MODULE||' UNABLE TO ISRT CONTROL DATA BASE';
+    
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': INSERT CONTROL DB '||
+                                            QSRCAREA||QSRCACTD;
+             CALL WRITE_TO_OPERATOR;
+             DCL CHAR_80 CHAR(80) BASED(ADDR(STATS));
+             DIAG_TEXT = MODULE||' ISRT CONTROL REC '||
+                                 SUBSTR(CHAR_80,1,40);
+             CALL WRITE_TO_OPERATOR;
+           END;
+           
+         EXEC DLI INSERT USING PCB(2)
+                         SEGMENT('CAASCRSC')
+                         FROM(STATS);
+
+         ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+         ET_TEXT2 = ERR2||MODULE||' 3 CNTL KEY = ' ||
+                     QSRCKEY1||QSRCAREA||QSRCACTD;
+    
+         IF DIBSTAT ^= '  '
+           THEN SIGNAL ERROR;
+       END;
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': CONTROL DB DIBSTAT: ('||DIBSTAT||')';
+         CALL WRITE_TO_OPERATOR();
+         DIAG_TEXT = MODULE||': OUT OF UPDATE CONTROL ' ;
+         CALL WRITE_TO_OPERATOR();
+       END;
+        
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPERATOR;
+	   DIAG_TEXT = MODULE||': QSRCQBN= '||QSRCQBN;
+       CALL WRITE_TO_OPERATOR;
+	   DIAG_TEXT = MODULE||': QSRCQBB= '||QSRCQBB;
+       CALL WRITE_TO_OPERATOR;
+     END;
+	 
+ END UPDATE_CTLDB;
+ 
+ %PAGE;
+ 
+ SCHEDULE_PSB: PROC(PSB);
+ /********************************************************************/
+ /* SCHEDULE THE PSB                                                 */
+ /********************************************************************/
+   DCL PSB    CHAR(8);
+
+   ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO SCHEDULE '||PSB||' PSB';
+
+   IF PSB = 'QBOVR1 '
+    THEN    EXEC DLI SCHEDULE
+            PSB('QBOVR1');               /* END EXEC DLI SCHEDULE ...*/
+    ELSE IF PSB = 'AEQDU3'
+	THEN    EXEC DLI SCHEDULE
+            PSB('AEQDU3');
+    ELSE    EXEC DLI SCHEDULE
+            PSB('AEQMI2R');              /* END EXEC DLI SCHEDULE ...*/
+
+   IF DIBSTAT ^= '  '
+     THEN DO;
+       ET_TEXT2 = ERR2||MODULE || 'DIBSTAT=' || DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+ END SCHEDULE_PSB;
+
+ %PAGE;
+ TERMINATE_PSB: PROC;
+ /********************************************************************/
+ /* TERMINATE THE PSB                                                */
+ /********************************************************************/
+
+   EXEC DLI TERMINATE;                   /* END EXEC DLI TERMINATE...*/
+
+ END TERMINATE_PSB;
+
+ %PAGE;
+ GREGORIAN_TO_LILIAN: PROC(INGREG_DATE,LOC) RETURNS(FIXED BIN(31));
+ /********************************************************************/
+ /* Convert a gregorian date to the lilian date format               */
+ /********************************************************************/
+
+   DCL INGREG_DATE          CHAR(8);
+   DCL LOC                  CHAR(1);
+   DCL GREG_DATE            CHAR(255) VARYING;
+   DCL OUTLIL_DATE    FIXED BIN(31);
+
+   DCL 01 FC,                     /* Feedback token */
+          03 MsgSev    REAL FIXED BINARY(15,0),
+          03 MsgNo     REAL FIXED BINARY(15,0),
+          03 Flags,
+             05 Case      BIT(2),
+             05 Severity  BIT(3),
+             05 Control   BIT(3),
+          03 FacID     CHAR(3),      /* Facility ID */
+          03 ISI   /* Instance-Specific Information */
+                            REAL FIXED BINARY(31,0);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT =  MODULE||': DATE CONVERSION  GREG TO LIL '||
+                               INGREG_DATE||' FROM LOC '||LOC;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   GREG_DATE   = INGREG_DATE;
+                     /*  GREGORIAN DATE TO LILIAN DATE               */
+   CALL CEEDAYS (GREG_DATE,'YYYYMMDD',OUTLIL_DATE,FC);
+
+   IF FBCHECK (FC, CEE000)
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': VALID DATE-GREGDATE '||
+                               SUBSTR(GREG_DATE,1,8)||
+                               ' LIL_DATE '||OUTLIL_DATE;
+           CALL WRITE_TO_OPERATOR;
+         END;
+     END;
+     ELSE DO;
+       DIAG_TEXT = MODULE||': CEEDAYS failed with msg '||
+                            FC.MsgNo||' FROM LOC '||LOC||' DOC '||
+                            IDOCUMNT;
+       CALL WRITE_TO_OPERATOR;
+       OUTLIL_DATE = 1;
+     END;
+
+   RETURN(OUTLIL_DATE);
+
+ END GREGORIAN_TO_LILIAN;
+
+ %PAGE;
+ IT_QUITS: PROC;
+ /********************************************************************/
+ /* RETURN TO CICS                                                   */
+ /********************************************************************/
+
+   EXEC CICS RETURN;
+
+ END IT_QUITS;
+
+
+ %PAGE;
+ WRITE_TO_OPERATOR: PROC;
+ /********************************************************************/
+ /* WRITE TO OPERATOR                   ** FOR TEST ONLY **          */
+ /********************************************************************/
+
+      /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)  */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPERATOR;
+
+ END QBOVR1 ;
+

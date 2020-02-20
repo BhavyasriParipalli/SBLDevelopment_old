@@ -1,0 +1,94 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBTPARM     VERSION NR:  01           DATE:  03/30/89    */
+ /*                                               TIME:  15:30:00    */
+ /*                                                                  */
+ /* TITLE:  TAXPARM INTERFACE TO TAXCALC                             */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE "TAXPARM" CONTROL BLOCK USED TO     */
+ /*               TALK TO TAXCALC.                                   */
+ /*               THIS IS THE LEXINGTON VERSION OF THE "TAXPARM"     */
+ /*               COPY MEMBER MAINTAINED BY THE TAXING DEPT.         */
+ /*               THIS COPY MEMBER MUST BE UPDATED IF "TAXPARM"      */
+ /*               CHANGES.                                           */
+ /*                                                                  */
+ /*        !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! */
+ /*        THIS IS THE NSS VERSION OF THE SAME COPY MEMBER WHICH     */
+ /*        IS USED IN BSS (DRIVER SYSTEM CONS).  ANY CHANGES MADE    */
+ /*        HERE SHOULD BE REFLECTED IN THE BSS VERSION.              */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  03/30/89 SR 9892  0NSA INITIAL VERSION             L. BARKER    */
+ /*                                                                  */
+ /********************************************************************/
+                                   /* TAX RECORD PARAMATER LIST      */
+    3 NEXT_PTR     POINTER,        /*  1-4   POINTER TO NEXT RECORD  */
+    3 STATE        CHAR (2),       /*  5-6   STATE LOCATION CODE     */
+    3 COUNTY       CHAR (3),       /*  7-9   COUNTY LOCATION CODE    */
+    3 CITY         CHAR (4),       /* 10-13  CITY LOCATION CODE      */
+    3 OCL          CHAR (1),       /* 14-14  OUTSIDE CITY LIMIT      */
+    3 CMR_ORI      CHAR (1),       /* 15-15  CMR OVERIDE INDICATOR   */
+    3 CUST_NUM     CHAR (8),       /* 16-23  CUSTOMER NUMBER         */
+    3 TYP_CUST     CHAR (1),       /* 24-24  TYPE CUSTOMER CODE      */
+    3 STTAXCL      CHAR (1),       /* 25-25  STATE TAX CLASS         */
+    3 CNTAXCL      CHAR (1),       /* 26-26  COUNTY TAX CLASS        */
+    3 CYTAXCL      CHAR (1),       /* 27-27  CITY TAX CLASS          */
+    3 SHIP_FRM     CHAR (3),       /* 28-30  SHIP FROM BRANCH OFFICE */
+    3 INV_DATE     CHAR (6),       /* 31-36  INVOICE DATE (YYMMDD)   */
+    3 AGREE_DATE   CHAR (6),       /* 37-42  AGREEMENT DATE (YYMMDD) */
+    3 SHIP_DATE    CHAR (6),       /* 43-48  DATE SHIPPED (YYMMDD)   */
+    3 INST_DATE    CHAR (6),       /* 49-54  INSTALL DATE (YYMMDD)   */
+    3 MFG_DATE     CHAR (6),       /* 55-60  MANUFACTURING DTE YYMMDD*/
+    3 TAXAGR       CHAR (2),       /* 61-62  TAX AGREEMENT CODE      */
+    3 TYPEQ        CHAR (1),       /* 63-63  TYPE EQUIPMENT CODE     */
+    3 PROD_CAT     CHAR (2),       /* 64-65  PRODUCT CODE CATEGORY   */
+    3 MKT_BO       CHAR (3),       /* 66-68  MARKETING BRANCH OFFICE */
+    3 ACC_BO       CHAR (3),       /* 69-71  ACCEPTING BRANCH OFFICE */
+    3 SVC_BO       CHAR (3),       /* 72-74  SERVICE BRANCH OFFICE   */
+    3 LOCAPP       CHAR (1),       /* 75-75  LOCAL APPLICATION       */
+    3 QTY          FIXED DEC(5,0), /* 76-78  QUANTITY OF ITEMS       */
+    3 REVENUE      FIXED DEC(11,2),/* 79-84  PURCHASE PRICE          */
+    3 CLRCOST      FIXED DEC(9,2), /* 85-89  CLEARANCE COST          */
+    3 TZ_CHRG      FIXED DEC(9,2), /* 90-94  TRAVEL ZONE CHARGES     */
+    3 TP_DIFF      FIXED DEC(9,2), /* 95-99  TIME PAY DIFFERENTIAL   */
+    3 OPT_CR       FIXED DEC(9,2), /*100-104 LEASE EXCHANGE VALUE    */
+    3 DISCNT       FIXED DEC(9,2), /*105-109 DISCOUNT AMOUNT         */
+    3 LOA(3)       FIXED DEC(9,2), /*110-124 ST,CN,CY LIFE OF AGRMNT */
+    3 TAXID        CHAR (2),       /*125-126 TAX INDICATOR           */
+    3 ORIGIN       CHAR (1),       /*127-127 BiLLING SITE CODE       */
+    3 BRK_IND      CHAR (1),       /*128-128 ReVENUE BREAK INDICATOR */
+    3 INV_IND      CHAR (1),       /*129-129 INVOICE BREAK iNDICATOR */
+    3 FUTURE_USE   CHAR (5),       /*130-134 UNUSED                  */
+                      /*OUT FIELDS - WILL BE UPDATED BY TAXCALC-ONLY */
+    3 STATE_TAX    FIXED DEC(9,2), /*135-139 CalcULATED TAX - STATE  */
+    3 CNTY_TAX     FIXED DEC(9,2), /*140-144 CalcULATED TAX - COUNTY */
+    3 CITY_TAX     FIXED DEC(9,2), /*145-149 CalcULATED TAX - CITY   */
+    3 STDESCR      CHAR (40),      /*150-189 Tax DescrIPTION - STATE */
+    3 CNDESCR      CHAR (40),      /*190-229 Tax DescrIPTION - COUNTY*/
+    3 CYDESCR      CHAR (40),      /*230-269 Tax DescrIPTION - CITY  */
+    3 TAXBASE      FIXED DEC(11,2),/*270-275 Amt used to calc tax    */
+    3 STRATE       FIXED DEC(7,7), /*276-279 Tax rate for - STATE    */
+    3 CNRATE       FIXED DEC(7,7), /*280-283 Tax rate for - COUNTY   */
+    3 CYRATE       FIXED DEC(7,7), /*284-287 Tax rate for - CITY     */
+    3 ST_LIM       FIXED DEC(9,2), /*288-292 STATE LIMIT AMOUNT      */
+    3 CN_LIM       FIXED DEC(9,2), /*293-297 COUNTY LIMIT AMOUNT     */
+    3 CY_LIM       FIXED DEC(9,2), /*298-302 CITY LIMIT AMOUNT       */
+    3 ST_INFO_CDE  CHAR (1),       /*303-303 Information/debug CDE-ST*/
+    3 CN_INFO_CDE  CHAR (1),       /*304-304 Information/debug CDE-CN*/
+    3 CY_INFO_CDE  CHAR (1),       /*305-305 Information/debug CDE-CY*/
+    3 ST_LIM_INFO  CHAR (1),       /*306-306 STATE LIMIT INFO CODE   */
+    3 CN_LIM_INFO  CHAR (1),       /*307-307 COUNTY LIMIT INFO CODE  */
+    3 CY_LIM_INFO  CHAR (1),       /*308-308 CITY LIMIT INFO CODE    */
+    3 RTNCD        CHAR (2)        /*309-310 RETURN CODE             */
+ /*------------------------------------------------------------------*/
+ /*               END OF QBTPARM LAYOUT                              */
+ /*------------------------------------------------------------------*/
+

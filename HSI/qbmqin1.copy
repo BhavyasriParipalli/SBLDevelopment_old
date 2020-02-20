@@ -1,0 +1,519 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBMQIN1                               DATE:  12/08/2010  */
+ /*                                                                  */
+ /* TITLE:  INBOUND CROSS/LAR RECORD DATA LAYOUT                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* CURRENT LENGTH:                                                  */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  INPUT DATA FROM CROSS THROUGH MQSERIES             */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*06/17/2010 IT4211   0NSE INITIAL VERSION                     AM   */
+ /*08/27/2010 IT4211   0NSE Modified some fields                NM   */
+ /*12/08/2010 IT4211   0NSE Added CGCSTAPI and modified other   NM   */
+ /*                         positions and removed SPAD07             */
+ /********************************* **********************************/
+                                 /*                                  */
+ 3 CMSGTYPE             CHAR(2), /* CROSS MESSAGE TYPE       001- 002*/
+ 3 S0IDOCMN             CHAR(9), /* DOCUMENT NUMBER          003- 011*/
+ 3 CGQHIGSE             CHAR(1), /* HIGHEST SEVERITY         012- 012*/
+ 3 CMIBOCE              CHAR(3), /* CE BRANCH                013- 015*/
+ 3 CIICETER             CHAR(3), /* CE TERRITORY             016- 018*/
+ 3 S0CAECMP             CHAR(1), /* AUDIT EDIT COMPLETE      019- 019*/
+ 3 S0IEMPSE             CHAR(6), /* QSAR EMPLOYEE SERIAL     020- 025*/
+ 3 EMPL_DATE            CHAR(8), /* ACTIVITY DATE YYYYMMDD   026- 033*/
+ 3 AUDIT_DATE           CHAR(8), /* AUD DT YYYYMMDD          034- 041*/
+ 3 AUDIT_TIME           CHAR(6), /* AUD TIME HHMMSS          042- 047*/
+ 3 MIRROR_IND           CHAR(1), /* MIRROR IND               048- 048*/
+ 3 CS1EMPSE             CHAR(6), /* EMP SERIAL FROM PT       049- 054*/
+ 3 CS1BOEMP             CHAR(3), /* BRANCH OFFICE            055- 057*/
+ 3 CS1ETERR             CHAR(3), /* TERRITORY                058- 060*/
+ 3 CS1AREA              CHAR(2), /* AREA                     061- 062*/
+ 3 CS1DIVSN             CHAR(1), /* DIVISION                 063- 063*/
+ 3 CS1APPLD             CHAR(2), /* APPLICATION ID           064- 065*/
+ 3 CS1FUNCT             CHAR(2), /* FUNCTION ID              066- 067*/
+ 3 CS1BSRHH             CHAR(2), /* BASE SERVICES REC HRS    068- 069*/
+ 3 CS1BSRMM             CHAR(2), /* BASE SERVICES REC MINS   070- 071*/
+ 3 CS1BSRSS             CHAR(2), /* BASE SERVICES REC SECS   072- 073*/
+ 3 CS1BSRYY             CHAR(4), /* BASE SERVICES REC YEAR   074- 077*/ 
+ 3 CS1BSRMO             CHAR(2), /* BASE SERVICES REC MONTH  078- 079*/
+ 3 CS1BSRDD             CHAR(2), /* BASE SERVICES REC DAY    080- 081*/
+ 3 CS1MSCTL             CHAR(4), /* APPLICATION VERSION      082- 085*/
+ 3 CS1DOCMN             CHAR(4), /* DOCUMENT NO FROM PT      086- 089*/
+ 3 CS1CFUNC             CHAR(2), /* FUNC WHICH CREATED QSAR  090- 091*/
+ 3 CS1COMLT             CHAR(4), /* QSAR COMPL TIME (HHMM)   092- 095*/
+ 3 CS1TABID             CHAR(4), /* PT TABLE ID              096- 099*/
+ 3 S0IMACTC             CHAR(4), /* MACHINE TYPE             100- 103*/
+ 3 S0IMACSE             CHAR(22),/* MACHINE SERIAL           104- 125*/
+ 3 S0ICSTLC             CHAR(2), /* LOCATION OR SYSTEM       126- 127*/
+ 3 S0ICUST              CHAR(7), /* CE CUST NUMBER           128- 134*/
+ 3 S0DCALCM             CHAR(2), /* CALL COMPLETE MO         135- 136*/
+ 3 S0DCALCD             CHAR(2), /* CALL COMPLETE DAY        137- 138*/
+ 3 S0DCALCY             CHAR(4), /* CALL COMPLETE YEAR       139- 142*/
+ 3 S0CBIOSA             CHAR(1), /* BILLABLE SPEC ACT CODE   143- 143*/
+ 3 S0QSTOTI             CHAR(3), /* STOP TIME                144- 146*/
+ 3 SPAD01               CHAR(1), /*                          147- 147*/
+ 3 S0QTRAMI             CHAR(3), /* TRAVEL MILES             148- 150*/
+ 3 S0ATRAEX             CHAR(7), /* TRAVEL EXPENSES          151- 157*/
+ 3 S0QTRAHR             CHAR(3), /* TRAVEL HRS               158- 160*/
+ 3 SPAD02               CHAR(1), /*                          161- 161*/
+ 3 S0QOVTHR             CHAR(3), /* OVERTIME HRS             162- 164*/
+ 3 SPAD03               CHAR(1), /*                          165- 165*/
+ 3 S0QSVCHR             CHAR(3), /* ACTUAL HRS               166- 168*/
+ 3 SPAD04               CHAR(1), /*                          169- 169*/
+ 3 S0CCIA               CHAR(1), /* COMPLETION TIME          170- 170*/
+ 3 S0CSVC               CHAR(2), /* SERVICE CODE             171- 172*/
+ 3 S0CHACT              CHAR(2), /* ACTIVITY CODE            173- 174*/
+ 3 S0CIDM               CHAR(1), /* INSTALL/DISC/MOVE CODE   175- 175*/
+ 3 S0CMOD               CHAR(1), /* MODIFICATION CODE        176- 176*/
+ 3 S0CMODNA             CHAR(1), /* MODIFICATION CODE NA     177- 177*/
+ 3 S0CMSCM              CHAR(8), /* MES/ECA/REA/MICROFIX #   178- 185*/
+ 3 S0IPMFSA             CHAR(2), /* CHANGE PM FREQ           186- 187*/
+ 3 S0IOTBCW             CHAR(3), /* OTHER SR BO WORKED       188- 190*/
+ 3 S0CSREQ              CHAR(1), /* SERV REQUEST             191- 191*/
+ 3 S0CSTYPE             CHAR(1), /* SERVICE TYPE             192- 192*/
+ 3 SPAD05               CHAR(4), /* PROBLEM NUMBER EXPANSION 193- 196*/
+ 3 S0CCSCPC             CHAR(7), /* PROBLEM NUMBER           197- 203*/
+ 3 SPAD06               CHAR(4), /*                          204- 207*/
+ 3 CPROBNUM2            CHAR(7), /* CAD PROBLEM NUMBER       208- 214*/
+ 3 S0ICSS               CHAR(12),/* CSS CONTRACT             215- 226*/
+ 3 S0ICSS2              CHAR(12), /* ORIGINAL CE CONTRACT#   227- 238*/
+ 3 S0IASSFT             CHAR(1),  /* ASSIGNED SHIFT          239- 239*/
+ 3 S0QMETRE             CHAR(9),  /* METER READING QTY       240- 248*/
+ 3 S0QUSAGE             CHAR(4),  /* USAGE CREDIT            249- 252*/
+ 3 S0IPARTR             CHAR(1),  /* PART TRAILER            253- 253*/
+ 3 S0ISENBO             CHAR(3),  /* SENDING BRANCH OFFICE   254- 256*/
+ 3 S0ISENOL             CHAR(3),  /* SENDING OUT LOCATION    257- 259*/
+ 3 S0IALTRB             CHAR(3),  /* ALTERNATE SHIP BRANCH   260- 262*/
+ 3 S0CDELPT             CHAR(2),  /* DELIVERY POINT CODE     263- 264*/
+ 3 S0CSEQNO             CHAR(3),  /* SEQUENCE NUMBER         265- 267*/
+ 3 S0IERSFG             CHAR(1),  /* PT ERROR/MSG SENT FLAG  268- 268*/
+ 3 S0ISRCPT             CHAR(1),  /* SOURCED FROM PT         269- 269*/
+ 3 S0ISRCNS             CHAR(1),  /* SOURCED FROM NSD        270- 270*/
+ 3 S0IRESUB             CHAR(1),  /* RESUBMIT DOC            271- 271*/
+ 3 S0IRECYC             CHAR(1),  /* RECYCLED DOC            272- 272*/
+ 3 S0IHSDNR             CHAR(9),  /* HOURLY SERVICE DOC      273- 281*/
+ 3 S0QPNDCT             CHAR(3),  /* COUNTS OF TIME PENDED   282- 284*/
+ 3 CHCDATIT             CHAR(1),  /* TYPE OF DATA ON QSAR    285- 285*/
+ 3 CHICEWK              CHAR(4),  /* CE WEEK NUMBER          286- 289*/
+ 3 CHDSCAPR             CHAR(8),  /* YYYYMMDD                290- 297*/
+ 3 CHDORIRR             CHAR(8),  /* YYYYMMDD                298- 305*/
+ 3 CHIREPPY             CHAR(6),  /* YYYYMM                  306- 311*/
+ 3 CHIREPPW             CHAR(1),  /* REPORT WEEK FOR CECAL   312- 312*/
+ 3 CGIOTHPB             CHAR(3),  /* OTHER B/O-PARENT        313- 315*/
+ 3 CGIASGPB             CHAR(3),  /* SR ASGND B/O-PARENT     316- 318*/
+ 3 CGCCLAFG             CHAR(2),  /* CLASS FROM MPI CD       319- 320*/
+ 3 CGCCLAPI             CHAR(1),  /* CLASS FOR PIMS I/F      321- 321*/
+ 3 CGCSTAPI             CHAR(1),  /* STATUS FOR PIMS I/F     322- 322*/
+ 3 CGCEFFST             CHAR(1),  /* EFFECTIVE STATUS CODE   323- 323*/
+ 3 CGIEFFIT             CHAR(1),  /* EFFECTIVE INVENT TYPE   324- 324*/
+ 3 CGCBILCL             CHAR(1),  /* BILLING CLASS           325- 325*/
+ 3 CGIOTHDV             CHAR(2),  /* OTHER OFFICE DIVISION   326- 327*/
+ 3 CGIOTHOP             CHAR(1),  /* OTHER OP AREA           328- 328*/
+ 3 CGIOTHRG             CHAR(2),  /* OTHER AREA              329- 330*/
+ 3 CGIOTHAR             CHAR(1),  /* OTHER REGION            331- 331*/
+ 3 CIICEAB              CHAR(3),  /* CE ASSIGNED BRANCH      332- 334*/
+ 3 CICGROUP             CHAR(1),  /* FIELD MANAGER CODE      335- 335*/
+ 3 CINEMP1I             CHAR(1),  /* EMP FIRST INIT          336- 336*/
+ 3 CINEMP2I             CHAR(1),  /* EMP SECOND INIT         337- 337*/
+ 3 CINEMPLA             CHAR(17), /* EMP LAST NAME           338- 354*/
+ 3 CIIASSDV             CHAR(2),  /* EMP DIVISION            355- 356*/
+ 3 CIIOPRAR             CHAR(1),  /* OP AREA                 357- 357*/
+ 3 CIIREG               CHAR(2),  /* AREA                    358- 359*/
+ 3 CIIRAREA             CHAR(1),  /* REGION                  360- 360*/
+ 3 CICPOSTY             CHAR(1),  /* POSITION TYPE CODE      361- 361*/
+ 3 CIDEFFST             CHAR(8),  /* EFFECTIVE STATUS DATE   362- 369*/
+ 3 CICIRWG              CHAR(1),  /* IR WRITING CODE         370- 370*/
+ 3 CICCEACP             CHAR(1),  /* CAREER PATH CODE        371- 371*/
+ 3 CICPSTN              CHAR(2),  /* EXTENDED POS TYPE       372- 373*/
+ 3 CGSRCBO              CHAR(1),  /* SRC B/O Y = YES N = NO  374- 374*/
+ 3 R_VER                CHAR(4),  /* AUDIT RULE              375- 378*/
+ 3 NSDC_DEL             CHAR(1),  /* QSAR DELETE FLAG        379- 379*/
+ 3 NSDC_MULTRESUB       CHAR(1),  /* QSAR MULTI RESUBMIT     380- 380*/
+ 3 S0CVEND              CHAR(1),  /* VENDOR COORDINATION     381- 381*/
+ 3 S0CZIPCDE            CHAR(9),  /* SERVER ZIP CODE         382- 390*/
+ 3 CTAXCD               CHAR(2),  /* MTM TAX CODE            391- 392*/
+ 3 TMACHDSC             CHAR(15), /* MTM MACHINE DESCRIPTION 393- 407*/
+ 3 ICNVMSER             CHAR(7),  /* PSD /OEM SERIAL         408- 414*/
+ 3 CBASEWAR             CHAR(4),  /* MTM BASE WAR CODE       415- 418*/
+ 3 CCOURSE              CHAR(5),  /* CANADA COURSE CODE      419- 423*/
+ 3 IREQEMPL             CHAR(6),  /* REQUESTING EMPLOYEE     424- 429*/
+ 3 CBRANCH              CHAR(5),  /* BRANCH USE CODES        430- 434*/
+ 3 CGUNTIME             CHAR(2),  /* UNAVAILABLE TIME        435- 436*/
+ 3 IREQDIV              CHAR(2),  /* REQUESTING EMP DIV      437- 438*/
+ 3 CEAMT                CHAR(1),  /* EAMT RECORD FOUND       439- 439*/
+ 3 FMTMCSU              CHAR(1),  /* CUSTOMER SETUP Y/N      440- 440*/
+ 3 NSD_HRTG             CHAR(1),  /* HERITAGE FLAG           441- 441*/
+ 3 FHOLDFILE            CHAR(1),  /* RECORD WAS IN HOLD FILE 442- 442*/
+ 3 FMPIBUSY             CHAR(1),  /*                         443- 443*/
+ 3 FSAVBUSY             CHAR(1),  /*                         444- 444*/
+ 3 FSPWN08              CHAR(1),  /* WAS SC 08 REC SPAWNED   445- 445*/
+ 3 FPTCORR              CHAR(1),  /* QSAR CORRECTED VIA PT   446- 446*/
+ 3 FSYSSPWN             CHAR(1),  /* SYS SPAWNED PART TRLR   447- 447*/
+ 3 FOEMTYPE             CHAR(1),  /* IS MACH TYPE OEM        448- 448*/
+ 3 FOEMCNTR             CHAR(1),  /* OEM CONTRACT            449- 449*/
+ 3 FAUDUNAV             CHAR(1),  /* AUDIT TRAIL DB UNAVAIL  450- 450*/
+ 3 FAUDBUNA             CHAR(1),  /* AUDIT TRAIL DB UNAVAIL  451- 451*/
+ 3 FMPIDBUN             CHAR(1),  /* MPI DB RECOVERY IND     452- 452*/
+ 3 FISSCNTR             CHAR(1),  /* CONTRACT FLD - ISSC     453- 453*/
+ 3 FIBM                 CHAR(1),  /* SERVICE ACT IS FOR IBM  454- 454*/
+ 3 FONMA                CHAR(1),  /* MACHINE ON MA           455- 455*/
+ 3 FWARRNTY             CHAR(1),  /* MACHINE UNDER WARRANTY  456- 456*/
+ 3 FOEEUNA              CHAR(1),  /* OEE DATA BASE IS        457- 457*/
+ 3 FPRTORD              CHAR(1),  /* WAS PART(S) ORDERED Y|N 458- 458*/
+ 3 IAIC                 CHAR(2),  /* AIC FROM BOREF          459- 460*/
+ 3 CGSASCH              CHAR(1),  /* GSA SCHED FROM MTM A|C  461- 461*/
+ 3 S0IPRDID             CHAR(4),  /* PRODUCT ID              462- 465*/
+ 3 PEND_HDA             CHAR(1),  /* PEND FOR HDA?           466- 466*/
+ 3 CCECUSTY             CHAR(1),  /* CE CUSTOMER TYPE        467- 467*/
+ 3 CCOTYPE              CHAR(3),  /* CONTRACT TYPE           468- 470*/
+ 3 COWNCALC             CHAR(2),  /* CALCULATED MACH OWN     471- 472*/
+ 3 SPAD08               CHAR(3),  /*                         473- 475*/
+ 3 CSAVSRC              CHAR(1),  /* SAVED SOURCE OF PEND    476- 476*/
+ 3 FSTATRST             CHAR(1),  /* WAS MA STATUS RESET?    477- 477*/
+ 3 CVALLOC              CHAR(1),  /* CONTRACT# SOURCE        478- 478*/
+ 3 CEBBILL              CHAR(1),  /* ORIGINAL CE BA CODE     479- 479*/
+ 3 CNTRDIAG             CHAR(1),  /* CONTRACT TRACE VARIABLE 480- 480*/
+ 3 CINVCNTR             CHAR(1),  /* INVALID CONTRACT FLAG   481- 481*/
+ 3 CSRCHCNT             CHAR(2),  /* COUNTER FOR CONTRACT    482- 483*/
+ 3 IAVALCTR             CHAR(3),  /* B/O FOR CE              484- 486*/
+ 3 IAVALRSO             CHAR(3),  /* B/O FOR MACH RSO        487- 489*/
+ 3 IMFGMOD              CHAR(19), /* MANUFACTURER/MODEL      490- 508*/
+ 3 CFAILCD              CHAR(6),  /* DART FAILURE CODE       509- 514*/
+ 3 FECICALL             CHAR(1),  /*                         515- 515*/
+ 3 FEBCONT              CHAR(1),  /* IS THIS AN EB CONTRACT  516- 516*/
+ 3 FRSTCNTR             CHAR(1),  /* RESET CINVCNTR IND      517- 517*/
+ 3 FCADMTCH             CHAR(1),  /* MATCHED TO CAD RECORD   518- 518*/
+ 3 FSRCNSS              CHAR(1),  /* SOURCED NSS SCHEDULER   519- 519*/
+ 3 FTSSMACH             CHAR(1),  /*                         520- 520*/
+ 3 FPETMSG              CHAR(1),  /* MSG SENT TO PET/2 TRUER 521- 521*/
+ 3 FSYSBILL             CHAR(1),  /* SYSTEM BILL?            522- 522*/
+ 3 FMICRO               CHAR(1),  /* THIS IS MICROCODE QSAR  523- 523*/
+ 3 FMES                 CHAR(1),  /* THIS IS A MES QSAR      524- 524*/
+ 3 FECA                 CHAR(1),  /* THIS IS A ECA QSAR      525- 525*/
+ 3 FREA                 CHAR(1),  /* THIS IS A REA QSAR      526- 526*/
+ 3 FCTRBUSY             CHAR(1),  /* CONTRACT DATA BASE BUSY 527- 527*/
+ 3 FCTRDBUN             CHAR(1),  /* CONTRACT DB UNAVAILABLE 528- 528*/
+ 3 FSPCCNTR             CHAR(1),  /* CONTRACT IS A SPECIAL   529- 529*/
+ 3 FPREPEND             CHAR(1),  /*                         530- 530*/
+ 3 ICUSTPH              CHAR(10), /* CUSTOMER PHONE          531- 540*/
+ 3 ISRVGCE              CHAR(4),  /* SERVICE GROUP - CE      541- 544*/
+ 3 ISRVGRSO             CHAR(4),  /* SERVICE GROUP - RSO     545- 548*/
+ 3 IPETLVL              CHAR(3),  /* PET/2 LEVEL (>=115)     549- 551*/
+ 3 IPARTCNT             CHAR(1),  /* NUMBER OF PARTS ON QSAR 552- 552*/
+ 3 HOFFSHFT             CHAR(3),  /* OFFSHIFT HOURS          553- 555*/
+ 3 CHERITAG             CHAR(1),  /* RECORD HERITAGE         556- 556*/
+ 3 CSEVRITY             CHAR(1),  /* PROBLEM SEVERITY        557- 557*/
+ 3 FACTPLAN             CHAR(1),  /* AN ACTION PLAN   Y/N    558- 558*/
+ 3 FACTWORK             CHAR(1),  /* ACTION PLAN WORKED(Y/N) 559- 559*/
+ 3 CACTFAIL             CHAR(1),  /* REASON FOR ACTION PLAN  560- 560*/
+ 3 CRTSSTAT             CHAR(1),  /* RTS RECORD STATUS       561- 561*/
+ 3 FCLM_S               CHAR(1),  /* QSAR SENT FOR  BMS      562- 562*/
+ 3 CIACTIND             CHAR(1),  /* LAST DAILY ACTIVITY     563- 563*/
+ 3 IGROUP               CHAR(8),  /* CLAIM IDENTIFIER OF GEO 564- 571*/
+ 3 CCNTRSRC             CHAR(1),  /* CONTRACT PROCESS        572- 572*/
+ 3 CPRODDIV             CHAR(2),  /* PRODUCT DIVISION        573- 574*/
+ 3 ISOURCE              CHAR(3),  /* SOURCE INDICATOR OF STD 575- 577*/
+ 3 FSTDER_S             CHAR(01), /* STD ERROR REC BEEN OFF  578- 578*/
+ 3 FSFTPEND             CHAR(01), /* SOFT PEND FOR CUSTOMER# 579- 579*/
+ 3 IQARMOD              CHAR(3),  /* QAR ENTRY MODULE        580- 582*/
+ 3 IWKNUMAC             CHAR(6),  /* WORK NUMBER ACTIVITY ID 583- 588*/
+ 3 FWNUCHG              CHAR(1),  /* WORK NO ACTIVITY        589- 589*/
+ 3 FCEDBTS              CHAR(1),  /* TYPE SERIAL ON CEDB     590- 590*/
+ 3 FBILACTH             CHAR(1),  /* BILL ACTUAL HRS         591- 591*/
+ 3 FBILTRVH             CHAR(1),  /* BILL TRAVEL HRS         592- 592*/
+ 3 FBILPART             CHAR(1),  /* BILL PARTS USED         593- 593*/
+ 3 FBILDIST             CHAR(1),  /* BILL DISTANCE           594- 594*/
+ 3 FBILEXP              CHAR(1),  /* BILL EXPENSE            595- 595*/
+ 3 CCSTACTH             CHAR(1),  /* COST CODE ACTUAL HRS    596- 596*/
+ 3 CCSTTRVH             CHAR(1),  /* COST CODE TRAVEL HRS    597- 597*/
+ 3 CCSTPART             CHAR(1),  /* COST CODE FOR PARTS     598- 598*/
+ 3 ICOSTSET             CHAR(3),  /* HOW COST FLAGS ARE SET  599- 601*/
+ 3 IHRSSRC              CHAR(3),  /* SOURCE OF DAILY HOURS   602- 604*/
+ 3 QJBILMTR             CHAR(9),  /* J-BILLING/COPY COUNT    605- 613*/
+ 3 FOEMMTCH             CHAR(1),  /* PSD converted serial    614- 614*/
+ 3 FMPI24X7             CHAR(1),  /* MPI 24x7 DAYS A WEEK    615- 615*/
+ 3 FCNT24X7             CHAR(1),  /* CONTRACT 24x7 DAYS/WEEK 616- 616*/
+ 3 FWAR24X7             CHAR(1),  /* WARRANTY 24x7 DAYS/WEEK 617- 617*/
+ 3 FSOMACH              CHAR(1),  /* SPECIAL OFFERING MACH   618- 618*/
+ 3 FOEE                 CHAR(1),  /* OEE - OEM Entitlement   619- 619*/
+ 3 FLNVEMPL             CHAR(1),  /* Lenovo employee         620- 620*/
+ 3 IENTSRC              CHAR(3),  /* QSAR ENTITLEMENT SOURCE 621- 623*/
+ 3 FOVRTIME             CHAR(1),  /* Canada overtime ind     624- 624*/
+ 3 FSEROVRD             CHAR(1),  /* Machine serial          625- 625*/
+ 3 CWARLIAB             CHAR(1),  /* WHO IS LIABLE FOR BASE  626- 626*/
+ 3 CWUPLIAB             CHAR(1),  /* LIABLE FOR  WARR UPG    627- 627*/
+ 3 CMALIAB              CHAR(1),  /* RESPONS. FOR MAINT AG   628- 628*/
+ 3 FPERCALL             CHAR(1),  /* PER CALL BILLABLE Y/N   629- 629*/
+ 3 CSPECAPR             CHAR(1),  /* SPECIAL APPROVAL BILL   630- 630*/
+ 3 ILIABSRC             CHAR(3),  /* source of liability set 631- 633*/
+ 3 CWARRUP              CHAR(4),  /* Warranty upgrade/maint  634- 637*/
+ 3 NWARPHSE             CHAR(1),  /* base warranty phase     638- 638*/
+ 3 NWUPHSE              CHAR(1),  /* Warranty maint phase    639- 639*/
+ 3 IPLATFRM             CHAR(2),  /* platform identifier MTM 640- 641*/
+ 3 IMACOWNR             CHAR(2),  /* machine owner code      642- 643*/
+ 3 CCOSTCAT(5)          CHAR(2),  /* COST category code      644- 653*/
+ 3 IMACMFGR             CHAR(2),  /* Manufacturer            654- 655*/
+ 3 CWUMP                CHAR(1),  /* MACHINE STATUS          656- 656*/
+ 3 CGWSCNTRY            CHAR(3),  /* COUNTRY CODE FROM MTM   657- 659*/
+ 3 CWARSERV             CHAR(1),  /* MACHINE for SPEC WARR   660- 660*/
+ 3 ICCOSTSQ             CHAR(8), /* sequence number of cost  661- 668*/
+ 3 SPAD09               CHAR(23), /* UNUSED PAD              669- 691*/
+ 3 IAPPLID              CHAR(3),  /* CICS SYSTEM owning Tran 692- 694*/
+ 3 ITRANSID             CHAR(4),  /* Last CICS transaction   695- 698*/
+ 3 S8REFFSY             CHAR (12),/* REFERENCE/FAULT/SYMPTOM 699- 710*/
+ 3 S8FEATLO             CHAR (8), /* FEATURE/LOCATION        711- 718*/
+ 3 S8CUSTNM             CHAR(17), /* CUSTOMER NAME           719- 735*/
+ 3 S8CUSTRF             CHAR (19),/* CUSTOMER REFERENCE      736- 754*/
+ 3 S8TFREFN             CHAR(70), /* FREE FORM NARR TEXT     755- 824*/
+ 3 QSNARR_PAD           CHAR (44),/* PADDING                 825- 868*/
+ 3 GJIMMOD              CHAR(3),  /* MACHINE MODEL           869- 871*/
+ 3 GJDEFFRE             CHAR(8),  /* CHANGE EFFECTIVE DATE   872- 879*/
+ 3 GJFCMFEA             CHAR(1),  /* COMM. FEATURE PRESENT   880- 880*/
+ 3 GJFDCMFE             CHAR(1),  /* COMM. FEATURE DELETED   881- 881*/
+ 3 GJFSYST              CHAR(1),  /* PART OF A SYSTEM        882- 882*/
+ 3 GJISYSTY             CHAR(4),  /* SYSTEM TYPE             883- 886*/
+ 3 GJISYSNO             CHAR(7),  /* SYSTEM NUMBER           887- 893*/
+ 3 ICOUNTRY             CHAR(3),  /* COUNTRY CODE            894- 896*/
+ 3 CRESTRCT             CHAR(3),  /* RESTRICTED CUST CODE    897- 899*/
+ 3 GJDPMLAS             CHAR(8),  /* LAST PM DATE YYYYMMDD   900- 907*/
+ 3 GJIPMSCH             CHAR(2),   /* PM FREQUENCY           908- 909*/
+ 3 GJF30PCT             CHAR(1),  /* 30% SERVICE             910- 910*/
+ 3 GJF40PCT             CHAR(1),  /* 40% SERVICE             911- 911*/
+ 3 GJFDEMO              CHAR(1),  /* DEMONSTRATOR            912- 912*/
+ 3 GJFCELOA             CHAR(1),  /* SR LOANER               913- 913*/
+ 3 GJFMLCAU             CHAR(1),  /* MLC AUTOMATIC           914- 914*/
+ 3 GJFAUTOR             CHAR(1),  /* AUTOMATIC SA            915- 915*/
+ 3 GJFDCFTS             CHAR(1),  /* DCF TYPE/SERIAL         916- 916*/
+ 3 GJFSOLIC             CHAR(1),  /* CUSTOMER SOLICATION     917- 917*/
+ 3 GJCTYPEQ             CHAR(1),  /* TYPE EQUIPMENT          918- 918*/
+ 3 GJDTYPEQ             CHAR(8),  /* TYPE EQUIP EFFECT DTE   919- 926*/
+ 3 GJDMFGDT             CHAR(8),  /* DATE OF MANUFACTURE     927- 934*/
+ 3 GJDOINST             CHAR(8),  /* ORIGINAL INSTALL DATE   935- 942*/
+ 3 GJDRECON             CHAR(8),  /* DATE OF RECON           943- 950*/
+ 3 GJDSTEFF             CHAR(8),  /* STATUS EFFECTIVE DATE   951- 958*/
+ 3 GJCSTAT              CHAR(2),  /* STATUS CODE             959- 960*/
+ 3 GJDCINST             CHAR(8),  /* CURRENT INSTALL DATE    961- 968*/
+ 3 GJDWAREX             CHAR(8),  /* WARRANTY EXPIRATION     969- 976*/
+ 3 GJDDISC              CHAR(8),  /* DATE DISC FOR CUSTOMER  977- 984*/
+ 3 GJCLOCAT             CHAR(1),  /* LOCATION CODE           985- 985*/
+ 3 GJCSVCPL             CHAR(2),  /* SERVICE PLAN CODE       986- 987*/
+ 3 GJCPROLE             CHAR(1),  /* PROCESS LEVEL CODE      988- 988*/
+ 3 GJCCUSTP             CHAR(1),  /* TYPE CUSTOMER           989- 989*/
+ 3 GJICUST              CHAR(7),  /* CUSTOMER NUMBER         990- 996*/
+ 3 GJFARBI              CHAR(1),  /* SOURCED FROM ARBI       997- 997*/
+ 3 GJFPAD04             CHAR(2),  /* UNUSED                  998- 999*/
+ 3 GJFIMI               CHAR(1),  /* SOURCED FROM IMI       1000-1000*/
+ 3 GJFROPS              CHAR(1),  /* SOURCED FROM ROPS      1001-1001*/
+ 3 GJFDSI               CHAR(1),  /* SOURCED FROM DSI       1002-1002*/
+ 3 GJFPMD               CHAR(1),  /* SOURCED FROM PM        1003-1003*/
+ 3 GJFBTH               CHAR(1),  /* SOURCED FROM BETHESDA  1004-1004*/
+ 3 GJFBRV               CHAR(1),  /* SOURCED FROM RV        1005-1005*/
+ 3 GJFBSF               CHAR(1),  /* SOURCED FROM SF        1006-1006*/
+ 3 GJFBSO               CHAR(1),  /* SOURCED FROM SO        1007-1007*/
+ 3 GJFPAD06             CHAR(1),  /* UNUSED                 1008-1008*/
+ 3 GJFRT                CHAR(1),  /* UPDATED BY R/T         1009-1009*/
+ 3 GJFNUS               CHAR(3),  /* UNUSED                 1010-1012*/
+ 3 GJDACTV              CHAR(8),  /* LAST ACTIVITY DATE     1013-1020*/
+ 3 GJCACTIV             CHAR(1),  /* ACTIVITY CODE          1021-1021*/
+ 3 GJIMFGPL             CHAR(2),  /* PLANT OF MANUFACTURE   1022-1023*/ 
+ 3 GMICNM               CHAR(15), /* CUSTOMER NAME          1024-1038*/
+ 3 GJIOP                CHAR(1),  /* OP                     1039-1039*/
+ 3 GJIAREA              CHAR(2),  /* AREA                   1040-1041*/
+ 3 GJIREG               CHAR(1),  /* REGION                 1042-1042*/
+ 3 GMIRSO               CHAR(03), /* RSO - FROM RSO         1043-1045*/
+ 3 CGCPRBRO             CHAR(03), /* PARENT BRANCH OFFICE   1046-1048*/
+ 3 CMIBOMKT             CHAR(03), /* MARKETING B/O          1049-1051*/
+ 3 GJITERR              CHAR(3),  /* MACHINE TERRITORY      1052-1054*/
+ 3 CMIZONE              CHAR(4),  /* ZONE                   1055-1058*/
+ 3 CGCESTAB             CHAR(7),  /* CMR CMIESTAB EST       1059-1065*/
+ 3 CGCIENNO             CHAR(7),  /* CMR CMIENNO  ENt       1066-1072*/
+ 3 CGCMCNAC             CHAR(3),  /* CMR CMCNAC NAT'L ACC   1073-1075*/
+ 3 CGCTCUS1             CHAR(1),  /* CMR CMCTCUS1 TYPE CUST 1076-1076*/
+ 3 CGCTAX1              CHAR(3),  /* CMR CMCTAX1 TAX CLASS  1077-1079*/
+ 3 CGCTCUS2             CHAR(1),  /* CMR CMCTCUS2 TYPE CUST 1080-1080*/
+ 3 CGCTAX2              CHAR(3),  /* CMR CMCTAX2 TAX CLASS  1081-1083*/
+ 3 CGCTCUS3             CHAR(1),  /* CMR CMCTCUS3 TYPE CUST 1084-1084*/
+ 3 CGCTAX3              CHAR(3),  /* CMR CMCTAX3 TAX CLASS  1085-1087*/
+ 3 CGCCD                CHAR(9),  /* CMR CMCTCD             1088-1096*/
+ 3 CGFOCL               CHAR(1),  /* OUTSIDE CITY LIMITS    1097-1097*/
+ 3 CGFCOD               CHAR(1),  /* COD BIT                1098-1098*/
+ 3 CGFIIC               CHAR(1),  /* INTERNAL IBM CUSTOMER  1099-1099*/
+ 3 FINVTCHG             CHAR(1),  /* INVENT DATA changed?   1100-1100*/
+ 3 GJCSDT               CHAR(3),  /* PEW SERVICE DELIVERY   1101-1103*/
+ 3 IORGCUST             CHAR(7),  /* ORIGINAL CUSTOMER      1104-1110*/
+ 3 ICUSTBIL             CHAR(7),  /* MA/BILL TO CUSTOMER #  1111-1117*/
+ 3 ICUSTOWN             CHAR(7),  /* OWNING CUSTOMER NUM    1118-1124*/
+ 3 IRCUST               CHAR(1),  /* IR CUST FLAG           1125-1125*/
+ 3 CUPSRCE              CHAR(2),  /* UPSTREAM SOURCE        1126-1127*/
+ 3 IMKTAFFN             CHAR(7),  /* MARKETING AFFILIATED # 1128-1134*/
+ 3 FRESTIND             CHAR(1),  /* RESTRICTED IND  Y|N    1135-1135*/
+ 3 NRESABRV             CHAR(5),  /* RESTRICTED ABBREV      1136-1140*/
+ 3 FOEMIND              CHAR(1),  /* OEM INDICATOR          1141-1141*/
+ 3 IBPACCT              CHAR(1),  /* BUSINESS ACCOUNT TYPE  1142-1142*/
+ 3 IENTRBIL             CHAR(7),  /* BILL TO ENTERPRISE #   1143-1149*/
+ 3 IENTROWN             CHAR(7),  /* OWNING ENTERPRISE #    1150-1156*/
+ 3 CISOCTRY             CHAR(2),  /* ISO COUNTRY CODE       1157-1158*/
+ 3 CSNPRFIX             CHAR(2),  /* PLANT OF MANUFACTURER  1159-1160*/
+ 3 QSINVT_PAD           CHAR(35), /* PADDING                1161-1195*/
+ 3 PARTS (4),                     /*                        1196-2043*/
+   5 S0CFUNC            CHAR(2),  /* FUNCTION CODE          1196-1197*/
+   5 S0QDISUS           CHAR(2),  /* DISB.-USAGE SUB QTY    1198-1199*/
+   5 S0IPART            CHAR(8),  /* PART NUMBER            1200-1207*/
+   5 S0IRECBO           CHAR(3),  /* RECEIVING BRANCH OFF   1208-1210*/
+   5 S0IRECOL           CHAR(3),  /* RECEIVING OUT LOCATION 1211-1213*/
+   5 S0QREPOR           CHAR(2),  /* REPLENISH - ORD -QTY   1214-1215*/
+   5 CAPC               CHAR(1),  /* ASSET PROTECTION CLASS 1216-1216*/
+   5 S0IMATL2           CHAR(4),  /* MACHINE TYPE           1217-1220*/
+   5 FPARTYPE           CHAR(1),  /* TYPE OF PART           1221-1221*/
+   5 SPAD10             CHAR(2),  /* PADDING                1222-1223*/
+   5 CGPARTPR           CHAR(10), /* PART UNIT PRICE CENTS  1224-1233*/
+   5 CGPART1T           CHAR(1),  /* RED TAG INDICATOR      1234-1234*/
+   5 DESCR              CHAR(10), /* PART DESCRIPTION       1235-1244*/
+   5 FOEMFLAG           CHAR(1),  /* OEM FLAG               1245-1245*/
+   5 S0CQUOTE           CHAR(1),  /* QUOTE/NO QUOTE         1246-1246*/
+   5 IOEMPART           CHAR(20), /* OEM PART NUMBER        1247-1266*/
+   5 ITINNBR            CHAR(25), /* TIN NUMBER             1267-1291*/
+   5 CGPARTCS           CHAR(10),/* PART UNIT COST          1292-1301*/
+   5 IPETPOS            CHAR(1),  /* POSITION IN INBD REC   1302-1302*/
+   5 IPRFNUM            CHAR(7),  /* PARTS RETURN FORM      1303-1309*/
+   5 ICONSGND           CHAR(1),  /* CONSIGNED PART         1310-1310*/
+   5 CRETREAS           CHAR(1),  /* REASON FOR RETURN PART 1311-1311*/
+   5 IRTSORD#           CHAR(6),  /* RTS ORDER NUMBER       1312-1317*/
+   5 IRETRNBO           CHAR(3),  /* RETURN BRANCH OFFICE   1318-1320*/
+   5 FRETRNLB           CHAR(1),  /* RETURN LABEL (Y/N)     1321-1321*/
+   5 CPRTORGN           CHAR(1),  /* PART ORIGIN            1322-1322*/
+   5 TRETCMNT           CHAR(20), /* FC 99 reason return    1323-1342*/
+   5 ISHPTRKG           CHAR(25), /* SHIPPING TRACKING      1343-1367*/
+   5 QSPART_PAD         CHAR(40), /* PADDING                1368-1407*/
+ 3 TACTCOMT             CHAR(60), /* ACTION PLAN COMMENTS   2044-2103*/
+ 3 IUNIQUE              CHAR(15), /* STD IN UNIQUENESS NUM  2104-2118*/
+ 3 IECCONUM             CHAR( 7), /* ECCO NUMBER            2119-2125*/
+ 3 NNSSCUST             CHAR(17), /* CAD CUSTOMER NAME      2126-2142*/
+ 3 ICUSTNUM             CHAR(7),  /* CAD CUSTOMER NUMBER    2143-2149*/
+ 3 IWAYBILL             CHAR(16), /* PART WAYBILL NUMBER    2150-2165*/
+ 3 IPONUM               CHAR(25), /* PURCHASE ORDER NUMBER  2166-2190*/
+ 3 TCUSTADR             CHAR(18), /* CUSTOMER ADDRESS       2191-2208*/
+ 3 NCONTACT             CHAR(22), /* CUST CONTACT NAME      2209-2230*/
+ 3 CCHIS(5)             CHAR(02), /* CHIS contract codes    2231-2240*/
+ 3 M_FEDF               CHAR(01), /* FEDF MATCH             2241-2241*/
+ 3 M_FROMBO             CHAR(01), /* FROM BO MATCH          2242-2242*/
+ 3 M_FROMOL             CHAR(01), /* FROM OL MATCH          2243-2243*/
+ 3 M_MPI                CHAR(01), /* MPI/RSO MATCH          2244-2244*/
+ 3 M_MTM_REG            CHAR(01), /* MTM MODEL MATCH        2245-2245*/
+ 3 M_MTM_SUPERLOW       CHAR(01), /* MTM GENERIC MATCH      2246-2246*/
+ 3 M_SRC                CHAR(01), /* SERVICE REPAIR B/O     2247-2247*/
+ 3 M_MPIREQ             CHAR(01), /* MPI MATCH REQUIRED     2248-2248*/
+ 3 M_OTHOFF_S           CHAR(01), /* BOREF - SERVICE OFF    2249-2249*/
+ 3 M_OTHOFF_M           CHAR(01), /* BOREF - MKTNG. OFF     2250-2250*/
+ 3 M_PART1              CHAR(01), /* PART REF FILE-PART1    2251-2251*/
+ 3 M_PART2              CHAR(01), /* PART REF FILE-PART2    2252-2252*/
+ 3 M_PART3              CHAR(01), /* PART REF FILE-PART3    2253-2253*/
+ 3 M_PART4              CHAR(01), /* PART REF FILE-PART4    2254-2254*/
+ 3 M_PTBO_BOREF         CHAR(01), /* BOREF - PT ASS. B/O    2255-2255*/
+ 3 M_PMSCHED            CHAR(01), /* PM SCHED MACHINE (MTM) 2256-2256*/
+ 3 M_RCVBO_1            CHAR(01), /* MATCH RCV B/O - PART1  2257-2257*/
+ 3 M_RCVBO_2            CHAR(01), /* MATCH RCV B/O - PART2  2258-2258*/
+ 3 M_RCVBO_3            CHAR(01), /* MATCH RCV B/O - PART3  2259-2259*/
+ 3 M_RCVBO_4            CHAR(01), /* MATCH RCV B/O - PART4  2260-2260*/
+ 3 M_RCVOL_1            CHAR(01), /* MATCH RCV O/L - PART1  2261-2261*/
+ 3 M_RCVOL_2            CHAR(01), /* MATCH RCV O/L - PART2  2262-2262*/
+ 3 M_RCVOL_3            CHAR(01), /* MATCH RCV O/L - PART3  2263-2263*/
+ 3 M_RCVOL_4            CHAR(01), /* MATCH RCV O/L - PART4  2264-2264*/
+ 3 BRFUNC               CHAR(01), /* BOREF FUNCTION CODE    2265-2265*/
+ 3 HAZ_PART (4)         CHAR(01), /* HAZARDOUS FLAG         2266-2269*/
+ 3 PTUID                CHAR(06), /* PT USER ID             2270-2275*/
+ 3 M_COS                CHAR(01), /* MATCH TO COS CONTRACT  2276-2276*/
+ 3 FMPIABND             CHAR(01), /* FLAG - MPI ABEND       2277-2277*/
+ 3 PEND_PM              CHAR(01), /* ACTHRS < PMHRS PEND FL 2278-2278*/
+ 3 M_PRODID             CHAR(01), /* MATCH TO PRODUCT ID    2279-2279*/
+ 3 M_ISSC               CHAR(01), /* MATCH TO ISSC ENT      2280-2280*/
+ 3 MT_IS_PRODID         CHAR(01), /* IS M/T A PRODUCT ID?   2281-2281*/
+ 3 COS_VALID            CHAR(01), /* COS CONTRACT IS VALID  2282-2282*/
+ 3 SCORE_VALID          CHAR(01), /* SCORE CONTRACT VALID   2283-2283*/
+ 3 M_CMR                CHAR(01), /* CE ENTERED CMR VALID?  2284-2284*/
+ 3 TIN_REQ(4)           CHAR(01), /* PART TIN REQUIRED?     2285-2288*/
+ 3 PRF_REQ(4)           CHAR(01), /* UPR PART NUM REQUIRED  2289-2292*/
+ 3 CMTMOVRD             CHAR(06), /* HOW TO HANDLE MTM      2293-2298*/
+ 3 CTARGET              CHAR(07), /* HOW TO HANDLE QSAR     2299-2305*/
+ 3 CPERCALL             CHAR(01), /* PER CALL DISPOSITION   2306-2306*/
+ 3 FPARTUSE             CHAR(01), /* PARTS USAGE ALLOWED    2307-2307*/
+ 3 FTYPECHK             CHAR(01), /* TYPE CHECK REQUIRED    2308-2308*/
+ 3 CBILLABOR            CHAR(01), /* PEW/SDT BILL LABOR?    2309-2309*/
+ 3 CBILLEXP             CHAR(01), /* PEW/SDT BILL EXPENSES? 2310-2310*/
+ 3 CBILLPART            CHAR(01), /* PEW/SDT BILL PARTS?    2311-2311*/
+ 3 HSTRTSAT             CHAR(04), /* SAT START TIME         2312-2315*/
+ 3 HENDSAT              CHAR(04), /* SAT END   TIME         2316-2319*/
+ 3 HSTRTSUN             CHAR(04), /* SUN START TIME         2320-2323*/
+ 3 HENDSUN              CHAR(04), /* SUN END   TIME         2324-2327*/
+ 3 HSTRTMON             CHAR(04), /* MON START TIME         2328-2331*/
+ 3 HENDMON              CHAR(04), /* MON END   TIME         2332-2335*/
+ 3 HSTRTTUE             CHAR(04), /* TUE START TIME         2336-2339*/
+ 3 HENDTUE              CHAR(04), /* TUE END   TIME         2340-2343*/
+ 3 HSTRTWED             CHAR(04), /* WED START TIME         2344-2347*/
+ 3 HENDWED              CHAR(04), /* WED END   TIME         2348-2351*/
+ 3 HSTRTTHU             CHAR(04), /* THU START TIME         2352-2355*/
+ 3 HENDTHU              CHAR(04), /* THU END   TIME         2356-2359*/
+ 3 HSTRTFRI             CHAR(04), /* FRI START TIME         2360-2363*/
+ 3 HENDFRI              CHAR(04), /* FRI END   TIME         2364-2367*/
+ 3 FCTRABND             CHAR(01), /* FLAG TO IND CPCNTR     2368-2368*/
+ 3 LINKFAIL_CNTR        CHAR(01), /* REMOTE SUPPORT FL LINK 2369-2369*/
+ 3 FOLINVLD(4)          CHAR(01), /* OWNER CD/FROMOL ERROR  2370-2373*/
+ 3 QMSERMIN             CHAR(2), /* M/SERIAL MIN LEN (NN)   2374-2375*/
+ 3 QMSERMAX             CHAR(2), /* M/SERIAL MAX LEN (NN)   2376-2377*/
+ 3 FMTYPCHK             CHAR(01), /* MACH TYPE FOUND ON TMF 2378-2378*/
+ 3 M_MACH_REG           CHAR(01), /* MATCH TO CANADA MACH   2379-2379*/
+ 3 CSDTOPTN             CHAR(01), /* SDF OPTIONS            2380-2380*/
+ 3 CCADISO              CHAR(02), /* CAD ISO COUNTRY CODE   2381-2382*/
+ 3 IEMERGBO             CHAR(03), /* EMERG PARTS SERVICE    2383-2385*/
+ 3 ICVGTYPE             CHAR(03), /* WAR, W/U, CNT, MA      2386-2388*/
+ 3 FPASTDEACT           CHAR(01), /* QSAR DT > FEDF DEACT   2389-2389*/
+ 3 FPREACT              CHAR(01), /* QSAR DT FEDF ACT DAT   2390-2390*/
+ 3 FHRSINV              CHAR(01), /* HOURS INVALID          2391-2391*/
+ 3 VALID_ZIP_CODE       CHAR(01), /* IS THERE VALID ZIP CD  2392-2392*/
+ 3 VALID_BILL_CODE      CHAR(01), /* IS THERE VALID BILL CD 2393-2393*/
+ 3 ISERVPLN             CHAR(07), /* SERVICE PLAN           2394-2400*/
+ 3 IBILLSTAT            CHAR(01), /* BILLABLE STATUS CODE   2401-2401*/
+ 3 FLNVSPCL             CHAR(01), /* Y = LENOVO SPL MACH    2402-2402*/
+ 3 SDT_WARR_LEN         CHAR(2),  /* SDT WARR LEN MONTH     2403-2404*/
+ 3 SPAD11               CHAR(22), /*                        2405-2426*/
+ 3 ICONPHON             CHAR(15), /* CONTACT PHONE          2427-2441*/
+ 3 ICCAUTH              CHAR(14), /* CREDIT CARD AUTH #     2442-2455*/
+ 3 IHELDCNTR            CHAR(12), /* FOUND CONTRACT         2456-2467*/
+ 3 ICADENT              CHAR(01), /* CAD ENTITLEMENT SRC    2468-2468*/
+ 3 FINCDPRT             CHAR(01), /* INCIDENT FEE CODE      2469-2469*/
+ 3 CWARRPHS             CHAR(02), /* SDT WARRANTY PHASE     2470-2471*/
+ 3 FONSITE              CHAR(01), /* ONSITE SERVICE AVAIL   2472-2472*/
+ 3 ISERVTYP             CHAR(03), /* SERVICE TYPE DESC      2473-2475*/
+ 3 ISTPMNT              CHAR(05), /* CEDB - MAINT TYPE      2476-2480*/
+ 3 CSDTBILL             CHAR(01), /* BILLING CODE FROM SDT  2481-2481*/
+ 3 FHVCNTR              CHAR(01), /* CEDB HV CONTRACT       2482-2482*/
+ 3 FCORABND             CHAR(01), /* ABEND IN COR PROCESS   2483-2483*/
+ 3 FLIABRECALC          CHAR(01), /* CONTRACT MATCH TO QSAR 2484-2484*/
+ 3 CMTMBASEW            CHAR(01), /* MTM base warr IND      2485-2485*/
+ 3 COFRLIAB             CHAR(01), /* MTM Lenovo MACH        2486-2486*/
+ 3 CCDBSRCIND           CHAR(01), /* CEDB source indicator  2487-2487*/
+ 3 CMPISPLN             CHAR(03), /* MPI SERVICE PLAN       2488-2490*/
+ 3 ISVCTYPE             CHAR(03), /* CAD CALL SERVICE TYPE  2491-2493*/
+ 3 ISVCCLAS             CHAR(03), /* CAD CALL SERVICE CLASS 2494-2496*/
+ 3 TCALLRSP             CHAR(04), /* CALL RESPONSE TIME     2497-2500*/
+ 3 TDALYHRS             CHAR(08), /* CAD DAILY TIME         2501-2508*/
+ 3 DRECCALL             CHAR(08), /* CALL RECEIVE DATE      2509-2516*/
+ 3 FWARUPGD             CHAR(03), /* Contract Repository    2517-2519*/
+ 3 CCONTYPE             CHAR(03), /* CAD contract type edit 2520-2522*/
+ 3 CCDBSERV             CHAR(01), /* CEDB service type      2523-2523*/
+ 3 FSERVUPG             CHAR(01), /* WARRANTY UPGSERVICE    2524-2524*/
+ 3 SPAD12               CHAR(23)  /*PADDING                 2525-2547*/
+ /*------------------------------------------------------------------*/
+ /*                      END  QBMQIN1                                */
+ /*------------------------------------------------------------------*/

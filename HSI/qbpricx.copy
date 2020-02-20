@@ -1,0 +1,1219 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* NAME:   QBPRICX     VERSION NR:  01           DATE:  04/02/90   */
+ /*                                               TIME:  00:21:04   */
+ /*                                                                 */
+ /* TITLE:  COMMON PRICING LOGIC FOR QBPRIC2 MODULES                */
+ /*                                                                 */
+ /* IMS SEGMENT NAME:  N/A                                          */
+ /*                                                                 */
+ /* TYPE:  OTHER                                                    */
+ /*                                                                 */
+ /* LANGUAGE:  PL/I                                                 */
+ /*                                                                 */
+ /* DESCRIPTION:  COMMON PRICING LOGIC FOR QBPRIC2 MODULES (BOTH    */
+ /*               0NSA (NSS) AND 0CSA (CONS) DRIVERS.               */
+ /*                                                                 */
+ /*           --> NOTE !! THIS COPY MEMBER IS MAINTAINED IN THE     */
+ /*                       NSS DRIVER AND IS "SHARED" WITH THE CONS  */
+ /*                       DRIVER.                                   */
+ /*                       WHEN PROMOTED TO NSS, PLEASE ADD A NOTE ON*/
+ /*                       THE MPR TO COPY THE CHANGE TO CONS.       */
+ /*                                                                 */
+ /* CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER: */
+ /*  -------- -------- ---- --------------------------- ----------- */
+ /*  04/01/90 I95354   0NSA INITIAL CREATE                     JWJ  */
+ /*  01/02/91 I107402  0NSM RECALC IN HRS IF ACTHR=0           KMS  */
+ /*  11/24/93 I212510  3NSN PROBLEM WITH ATOTPART & QOUTHRS    LBS  */
+ /*                         0C7 ABENDS                              */
+ /*  11/07/96 S9600308 6NSR ADD SDT MIN HRS LOGIC              LBS  */
+ /*12/17/2002 HSIPROD  3NSE  CHANGE PLIDATE TO CEEDATE          DLP */
+ /*  01/15/04 RQ031502359 4NSC SUPPORT FOR INSIDE/OUTSIDE HOURS DLP */
+ /*04/20/2007 prodsupt 7NSM fix RETURS statment on function     LBS */
+ /*                         PERFORM_LABOR_CHECKS                    */
+ /*03/04/2016 RCQ2983 15HSC INCREASE MINIMUM HRS TO 4         ABDUL */
+ /*07/06/2016 RCQ0345 15HSC MODIFY MIN HRS AS PER CALL DATE GAYATRI */ 
+ /*******************************************************************/
+
+ PERFORM_MINADJUST_CHECK: PROC;
+ /* --------------------------------------------------------------- */
+ /* IF THE BILL SWITCHES ARE SET TO NOT BILL FOR LABOR THEN THERE IS*/
+ /* NO REASON TO GO AND PERFORM MINIMUM ADJUSTMENT CALCULATION.     */
+ /* THE CHECK ALSO HAS TO TAKE INTO ACCOUNT THAT EITHER QINHOURS OR */
+ /* QOUTHRS CAN BE 0.                                               */
+ /* --------------------------------------------------------------- */
+ /* POSSIBLE BILLING FLAG VALUES:                                   */
+ /* N = DO NOT BILL                                                 */
+ /* I = BILL INSIDE HOURS ONLY                                      */
+ /* O = BILL OUTSIDE HOURS ONLY                                     */
+ /* Y = BILL INSIDE/OUTSIDE HOURS                                   */
+ /* --------------------------------------------------------------- */
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: PERFORM_MINADJUST_CHECK';
+      CALL WTO;  
+    END;
+    
+  SELECT;
+    /* ------------------------------------------------------------ */
+    /* COVERS THE CONDITION WHERE BILL ACTUAL HOURS IS "N" AND      */
+    /* BILL TRAVEL IS "N".                                          */
+    /* ------------------------------------------------------------ */
+    WHEN (FBILACTH  = 'N' & FBILTRVH = 'N')
+       CMININD      = NO; /* ADJUSTMENT NOT NEEDED */
+    /* ------------------------------------------------------------ */
+    /* COVERS THE CONDITION WHERE BILL ACTUAL HOURS IS "N" AND      */
+    /* BILL TRAVEL IS EITHER "I", "O" OR "Y" AND THERE IS NO TRAVEL */
+    /* HOURS.                                                       */
+    /* ------------------------------------------------------------ */
+    WHEN (FBILACTH  = 'N' & FBILTRVH ^= 'N' & QTRAHR = 0)
+       CMININD      = NO; /* ADJUSTMENT NOT NEEDED */
+    /* ------------------------------------------------------------ */
+    /* COVERS THE CONDITION WHERE BILL TRAVEL HOURS IS "N" AND      */
+    /* BILL ACTUAL IS EITHER "I", "O" OR "Y" AND THERE IS NO ACTUAL */
+    /* HOURS.                                                       */
+    /* ------------------------------------------------------------ */
+    WHEN (FBILACTH ^= 'N' & FBILTRVH = 'N' & QSVCHR = 0)
+       CMININD      = NO; /* ADJUSTMENT NOT NEEDED */
+    /* ------------------------------------------------------------ */
+    /* COVERS THE CONDITION WHERE THERE ARE NO OUTSIDE HOURS TO     */
+    /* ADJUST.                                                      */
+    /* ------------------------------------------------------------ */
+    WHEN (QINHRS    = 0 & QOUTHRS = 0)
+       CMININD      = NO; /* ADJUSTMENT NOT NEEDED */
+    OTHERWISE;
+  END; /* END OF SELECT */
+
+ END PERFORM_MINADJUST_CHECK;
+
+
+ %PAGE;
+ PERFORM_LABOR_CHECKS: PROC RETURNS(BIT(1));
+ /* --------------------------------------------------------------- */
+ /* IF THE BILL SWITCHES ARE SET TO NOT BILL FOR LABOR THEN THERE IS*/
+ /* NO REASON TO GO AND PERFORM LABOR CALCULATIONS. THE CHECK ALSO  */
+ /* HAS TO TAKE INTO ACCOUNT THE FACT THAT EITHER ACTUAL OR TRAVEL  */
+ /* HOURS CAN BE 0.                                                 */
+ /* ----------------------------------------------------------------*/
+ /* NOTE: WE DO NOT KNOW INSIDE/OUTSIDE HOURS AT THIS TIME.         */
+ /* ----------------------------------------------------------------*/
+ /* POSSIBLE BILLING FLAG VALUES:                                   */
+ /* N = DO NOT BILL                                                 */
+ /* I = BILL INSIDE HOURS ONLY                                      */
+ /* O = BILL OUTSIDE HOURS ONLY                                     */
+ /* Y = BILL INSIDE/OUTSIDE HOURS                                   */
+ /* --------------------------------------------------------------- */
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: PERFORM_LABOR_CHECKS';
+      CALL WTO; 
+    END;
+
+  SELECT;
+    /* ----------------------------------------------------------- */
+    /* COVERS THE CONDITION WHERE BILL ACTUAL HOURS IS "N" AND     */
+    /* BILL TRAVEL IS EITHER "N".                                  */
+    /* ----------------------------------------------------------- */
+    WHEN (FBILACTH = 'N' & FBILTRVH = 'N')
+       RETURN('0'B);
+    /* ----------------------------------------------------------- */
+    /* COVERS THE CONDITION WHERE BILL ACTUAL HOURS IS "N" AND     */
+    /* BILL TRAVEL IS EITHER "I", "O" OR "Y" AND THERE IS NO ARAVEL*/
+    /* HOURS.                                                      */
+    /* ----------------------------------------------------------- */
+    WHEN (FBILACTH = 'N' & FBILTRVH ^= 'N' & QTRAHR = 0)
+       RETURN('0'B);
+    /* ----------------------------------------------------------- */
+    /* COVERS THE CONDITION WHERE BILL TRAVEL HOURS IS "N" AND     */
+    /* BILL ACTUAL IS EITHER "I", "O" OR "Y" AND THERE IS NO ACTUAL*/
+    /* HOURS.                                                      */
+    /* ----------------------------------------------------------- */
+    WHEN (FBILACTH ^= 'N' & FBILTRVH = 'N' & QSVCHR = 0)
+       RETURN('0'B);
+    /* ----------------------------------------------------------- */
+    /* THIS COVERS THE CASE WHERE THERE ARE NO HOURS TO ROLL UP.   */
+    /* MAY NOT BE ABLE TO GET THIS CASE, BUT HERE FOR CLARITY.     */
+    /* ----------------------------------------------------------- */
+    WHEN (QSVCHR = 0 & QTRAHR = 0)
+       RETURN('0'B);
+    OTHERWISE
+      RETURN('1'B);
+  END; /* END OF SELECT */
+  
+ END PERFORM_LABOR_CHECKS;
+
+ %PAGE;
+ SETUP_DATA: PROC;
+ 
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: SETUP_DATA';
+      CALL WTO; 
+    END;
+ /* --------------------------------------------------------------- */
+ /* SET UP DATA FOR PROCESSING.                                     */
+ /* --------------------------------------------------------------- */
+ /* EXTRACT DASHES FROM DATE SO THAT THE DATE IS IN GREGORIAN FORMAT*/
+ /* --------------------------------------------------------------- */
+   YEAR         = SUBSTR(DCALL,1,4);   /* PULL THE YEAR YYYY        */
+   MONTH        = SUBSTR(DCALL,6,2);   /* PULL THE MONTH MM         */
+   DAY          = SUBSTR(DCALL,9,2);   /* PULL THE DAY              */
+
+   CURDATE      = YEAR || MONTH || DAY;/* SET DATE TO ACTIVITY DATE */
+   ACTIVITY_DAY(*) = '';
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: SETUP_DATA';
+      CALL WTO; 
+    END;
+   CALL LOAD_START_END_ARRAY; /*LOAD THE START/END ARRAY FOR 3DAYS*/
+
+   /* ------------------------------------------------------------- */
+   /* SET THE OUTPUT  START AND STOP FOR CURRENT ACTIVITY DATE      */
+   /* ------------------------------------------------------------- */
+   QINSTART       = ACTIVITY_DAY(3).START;/*STARTTIME FOR ACT DATE  */
+   QINSTOP        = ACTIVITY_DAY(3).STOP; /*STOP TIME FOR ACT DATE  */
+   INDEX_POSITION = 3;
+   QINHRS         = 0;                /* INIT TO 0 TO START FRESH   */
+   QOUTHRS        = 0;                /* INIT TO 0 TO START FRESH   */
+
+   IF CMININD     = 'N' THEN;   /* DO NOTHING */
+   ELSE CMININD   = '';         /* LET THE LOGIC SET */
+
+   AMINCHG        = 0;
+
+   /* ------------------------------------------------------------- */
+   /* IF THERE IS AN INCIDENT FEE OR THE TRAVEL HOURS ARE 0 THEN    */
+   /* THERE IS NO NEED TO ROLL UP HOURS FOR TRAVEL.                 */
+   /* ------------------------------------------------------------- */
+   IF AINCDNT > 0 | QTRAHR = 0 THEN /*IF THERE IS AN INCIDENT CHARGE*/
+     DO;
+       QTOTHOUR = QSVCHR;            /* DON'T INCLUDE TRAVEL HOURS  */
+       HSTART   = QSTOTI - QSVCHR;   /* STOP TIME -   ACTUAL HOURS  */
+     END;
+   ELSE
+     DO;
+       QTOTHOUR = QSVCHR + QTRAHR;         /*ACTUAL HRS + TRAVEL HRS*/
+       HSTART   = QSTOTI - QSVCHR - QTRAHR;/*STOP TIME - ACTUAL HRS */
+     END;                                  /*          - TRAVEL HRS */
+
+   /* ------------------------------------------------------------- */
+   /* IF THE START TIME AND THE STOP TIME ARE THE SAME AND ACTUAL   */
+   /* HOURS IS 0 (COULD BE 24) THEN ENSURE THAT THE INSIDE AND      */
+   /* OUTSIDE HOURS ARE BOTH ZERO.                               KMS*/
+   /* ------------------------------------------------------------- */
+   IF HSTART    = QSTOTI & QTOTHOUR = 0  THEN
+     DO;
+       QINHRS   = 0;
+       QOUTHRS  = 0;
+     END;
+
+ END SETUP_DATA;
+
+ %PAGE;
+ LOAD_START_END_ARRAY: PROC;
+ /* --------------------------------------------------------------- */
+ /* LOAD UP THE START/STOP TIME ARRAY WITH THE INSIDE HOURS START   */
+ /* AND STOP TIME FOR 3 DAYS. BECAUSE THERE IS THE POSSIBILITY FOR  */
+ /* THE INPUT TO BE BLANK, WE HAVE TO ASSIGN THE DEFAULT OF 0800 AND*/
+ /* 1700 FOR THE INSIDE HOURS START AND STOP TIMES.                 */
+ /* --------------------------------------------------------------- */
+    IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = 'QBPRICX: LOAD_START_END_ARRAY';
+        CALL WTO; 
+      END;
+  
+    TEMP_DATE           = CURDATE;    /* YYYYMMDD */
+
+    DO I                = 3 TO 1 BY -1;
+     /* ----------------------------------------------------------- */
+     /* START WITH THE CURRENT DATE AND WORK TO THE PREVIOUS DAY.   */
+     /* CONVERT THE HOURS FORMAT TO TENTHS, HH:MM -> HH.M           */
+     /* ----------------------------------------------------------- */
+      ACTIVITY_DAY(I).DATE  = TEMP_DATE;                /* YYYYMMDD */
+
+   /* CONVERT THE HHMM INPUT TO HHT and assign back into input array */
+      ACTIVITY_DAY(I).START = CONVERT_TO_TENTHS(INSIDE_HRS(I).START);
+    /*  INSIDE_HRS(I).START = ACTIVITY_DAY(I).START * 10 */
+
+      ACTIVITY_DAY(I).STOP  = CONVERT_TO_TENTHS(INSIDE_HRS(I).END);
+    /*  INSIDE_HSR(I).END  = ACTIVITY_DAY(I).STOP  * 10  */
+
+      ACTIVITY_DAY(I).MAX_HRS_IN =
+                         ACTIVITY_DAY(I).STOP - ACTIVITY_DAY(I).START;
+
+      /* ---------------------------------------------------------- */
+      /* SET THE DATE TO ACTIVITY DATE - 1                          */
+      /* ---------------------------------------------------------- */
+      TEMP_LILDATE      = GREGORIAN_TO_LILIAN(TEMP_DATE,'1');
+      TEMP_LILDATE      = TEMP_LILDATE - 1;/*SET THE DAY TO PREV DAY*/
+      TEMP_DATE         = LILIAN_TO_GREGORIAN(TEMP_LILDATE,'1');
+    END;
+ END LOAD_START_END_ARRAY;
+
+ %PAGE;
+ CALCULATE_HOURS: PROC(STOPTIME,HOURS);
+ /*******************************************************************/
+ /* THIS WILL BREAKOUT THE HOURS INTO INSIDE AND OUTSIDE HOURS      */
+ /*******************************************************************/
+ DCL HOURS    FIXED DEC(3,1) UNALIGNED;      /* HOURS TO WORK WITH  */
+ DCL STOPTIME FIXED DEC(3,1) UNALIGNED;      /* STOP TIME           */
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: CALCULATE_HOURS';
+      CALL WTO;
+    END;
+
+   HSTART = STOPTIME - HOURS;      /* STOP TIME - HOURS             */
+
+   CALL CAL_START_TIME;            /* CALCULATE START TIME          */
+
+   /* ------------------------------------------------------------- */
+   /* AT THIS POINT IN TIME WE KNOW THE NUMBER OF DAYS(QTOTDAYS)    */
+   /* THIS RECORD COVERS, THE BILLING START TIME(HSTART) AND THE    */
+   /* TOTAL HOURS TO BE BILLED(HOURS).                              */
+   /*                                                               */
+   /* NOW WE NEED TO FIGURE OUT WHICH BUCKET THE HOURS WE           */
+   /* HAVE FALL INTO, INSIDE(QINHRS) OR OUTSIDE(QOUTHRS) HOURS.     */
+   /* --------------------------------------------------------------*/
+   /* NOTE: THE STOP TIME OF TRAVEL IS THE START TIME OF ACTUAL.    */
+   /* --------------------------------------------------------------*/
+
+   TEMP_QSTOTI        = STOPTIME;  /* STOP TIME OF HOURS            */
+   TEMP_QTOTHOUR      = HOURS;     /* TOTAL HOURS                   */
+   NUMBER_OF_DAYS     = QTOTDAYS;  /* GET THE NUMBER OF DAYS        */
+
+   /* --------------------------------------------------------------*/
+   /* NOT GET PUT THE HOURS IN SEPARATE BUCKETS                     */
+   /* --------------------------------------------------------------*/
+   CALL CAL_IN_OUT_HRS;                /* CALC ACT IN/OUT SIDE HRS  */
+
+ END CALCULATE_HOURS;
+
+ %PAGE;
+ CAL_START_TIME: PROC;
+ /*******************************************************************/
+ /* THIS PROCEDURE WILL DETERMINE THE ACTUAL START TIME OF THE      */
+ /* ACTIVITY AND THE NUMBER OF DAYS THAT ARE INVOLVED IN THE        */
+ /* SERVICE TIME. (CROSSING INTO THE NEXT DAY)                      */
+ /* --------------------------------------------------------------- */
+ /* SET HSTART, QTOTDAYS                                            */
+ /*******************************************************************/
+ DCL TEMSTART             FIXED DEC(3,1) INIT(0);
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: CAL_START_TIME';
+      CALL WTO;
+    END;
+
+   QTOTDAYS     = 1;
+
+ /* --------------------------------------------------------------- */
+ /* IF THE START TIME IS NEGATIVE THEN THE DAY BOUNDARY WAS CROSSED */
+ /* THIS MEANS THAT THERE IS MORE THAN ONE DAY INVOLVED. FIGURE OUT */
+ /* HOW MANY DAYS ARE INVOLVED                                      */
+ /* --------------------------------------------------------------- */
+ /* IF HSTART IS A NEGATIVE NUMBER THEN THIS MEANS THAT THERE IS    */
+ /* MORE THAN ONE DAY INVOLVED.                                     */
+ /* --------------------------------------------------------------- */
+ /* EXAMPLE 1                                                       */
+ /* --------------------------------------------------------------- */
+ /* STOP TIME    = 10.0                                             */
+ /* ACTUAL HOURS = 23.0                                             */
+ /* TRAVEL HOURS = 23.0                                             */
+ /* HSTART = STOP TIME(10.0) - ACTUAL HOURS(23.0)-TRAVEL HOURS(23.0)*/
+ /* HSTART = -36                                                    */
+ /* --------------------------------------------------------------- */
+ /* IF HSTART IS -36 THIS MEANS THERE ARE 2 MORE DAYS TO TAKE IN    */
+ /* TO ACCOUNT(A FULL DAY + A PARTIAL DAY). IF THE STOP TIME IS 1800*/
+ /* AND THE ACTUAL HOURS IS 23.5 AND THE TRAVEL HOURS IS 23, THEN   */
+ /* THIS WOULD COVER A 3 DAY TIME SPAN.                             */
+ /* --------------------------------------------------------------- */
+ /* EXAMPLE 2                                                       */
+ /* --------------------------------------------------------------- */
+ /* HSTART = STOPTIME (18.0) - (ACTUAL HOURS(23.5)+TRAVEL HRS(23.0))*/
+ /* HSTART = -28.5                                                  */
+ /*     18.0 HOURS WOULD BE IN THE CURRENT DAY,                     */
+ /* AND 24.0 HOURS WOULD BE IN THE PREVIOUS DAY,                    */
+ /* AND  4.5 HOURS WOULD BE IN THE DAY BEFORE THAT                  */
+ /* FOR A TOTAL OF 46.5 HOURS.                                      */
+ /* --------------------------------------------------------------- */
+ /* FIGURE OUT HOW MANY HOURS ARE LEFT AFTER THE FIRST DAY.         */
+ /* THE HOURS LEFT IS THE NEGATIVE NUMBER. TO GET THE NUMBER OF DAYS*/
+ /* DO THE MATH TO CONVERT HOURS TO DAYS. YOU ARE ALL READY WORKING */
+ /* WITH ONE DAY YOU JUST HAVE TO FIGURE OUT HOW MANY OTHER DAYS ARE*/
+ /* INVOLVED.                                                       */
+ /* --------------------------------------------------------------- */
+   IF HSTART < 0   THEN
+     DO;
+       TEMSTART = ABS(HSTART);  /* ASBOLUTE VALUE  OF HSTART*/
+       QTOTDAYS = QTOTDAYS  + CEIL(TEMSTART / HRS24);
+       HSTART   = (QTOTDAYS * HRS24) + (HSTART - HRS24);
+     END;
+
+ END CAL_START_TIME;
+
+ %PAGE;
+ CAL_IN_OUT_HRS: PROC;
+ /*******************************************************************/
+ /*                                                                 */
+ /* THERE ARE TWO ITEMS THAT WILL BE DETERMINED IN PROCEDURES       */
+ /* CAL_IN_OUT_HRS AND IN_OUT_HRS. THOSE ITEMS ARE INSIDE HOURS AND */
+ /* OUTSIDE HOURS OF SERVICE PERFORMED.                             */
+ /*                                                                 */
+ /* THIS PROCESS WILL START FROM THE STOP TIME AND WORK BACKWARDS IN*/
+ /* TIME BECAUSE I AM GIVEN THE STOP TIME AND DATE THAT THE SERVICE */
+ /* WAS STOPPED.                                                    */
+ /*                                                                 */
+ /* PRIOR TO APRIL 2004   THE INSIDE HOURS WAS A HARD CODED VALUE:  */
+ /* INSIDE IBM HOURS ARE: 8:00 TO 17:30, BEFORE 12/7/96 AND         */
+ /*                       8:00 TO 17:00, BEFORE APRIL 2004          */
+ /*                       ALL OTHER HOURS ARE OUTSIDE HOURS.        */
+ /* --------------------------------------------------------------- */
+ /* WITH THE CHANGES IN 2004 COMES THE ABILITY TO PASS 3 DAYS OF    */
+ /* START AND STOP TIMES. SO THERE WILL NO LONGER NEED TO BE A      */
+ /* WEEKEND CHECK BECAUSE THREE DAYS WORTH OF START AND STOP TIME   */
+ /* WILL BE PASSED IN. SO THE ONLY EVENT THAT NEEDS TO BE DETERMINED*/
+ /* IS IF ANY DAY IS A HOLIDAY OR NOT.                              */
+ /* --------------------------------------------------------------- */
+ /* IF THE CURRENT DATE YOUR WORKING WITH IS A HOLIDAY THEN ALL THE */
+ /* HOURS FOR THAT DAY ARE OUTSIDE HOURS. BUT, ANY OTHER HOURS THAT */
+ /* THAT ARE NOT FOR THAT DAY(HOLIDAY) COULD BE EITHER INSIDE OR    */
+ /* OUTSIDE HOURS DEPENDING ON THE HOURS OF COVERAGE.               */
+ /*******************************************************************/
+ /* --------------------------------------------------------------- */
+ /* BOTH OF THESE FIELDS HAVE BEEN MOVED OUT TO THE CALLING SPOT    */
+ /* BECAUSE THEY CAN BE DIFFERENT VALUES NOW.                       */
+ /* --------------------------------------------------------------- */
+ /* TEMP_QSTOTI    = QSTOTI                    GET STOP TIME        */
+ /* TEMP_QTOTHOUR  = QTOTHOUR                  BILLABLE HOURS       */
+ /* --------------------------------------------------------------- */
+
+ /* --------------------------------------------------------------- */
+ /* KEEP PROCESSING UNTIL THERE ARE NO MORE DAYS                    */
+ /* --------------------------------------------------------------- */
+ /* NOTE: THE INDEX POSITION IS THE DRIVING FORCE FOR THE START AND */
+ /*       STOP TIME FOR THE DAY YOU ARE WORKING WITH. IT IS NOT THE */
+ /*       NUMBER OF DAYS, BECAUSE THAT CAN BE 1 AND THE ACTIVITY    */
+ /*       DATE IS ALL WAYS IN POSITION 3 IN THE ACTIVITY_DAY ARRAY. */
+ /* --------------------------------------------------------------- */
+ /* EXAMPLE:                                                        */
+ /* --------------------------------------------------------------- */
+ /*  ARRAY    | SERVICE    | START | STOP | MAX                     */
+ /*  POSITION | ACT-DATE   | TIME  | TIME | IN HOURS                */
+ /* --------------------------------------------------------------- */
+ /*  3        | 2004/01/16 | 08.0  | 17.0 | 09.0 NOTE: MAX_IN_HRS IS*/
+ /*  2        | 2004/01/15 | 06.0  | 12.0 | 06.0 DIFFERENT FOR EACH */
+ /*  1        | 2004/01/14 | 09.0  | 14.0 | 05.0 DAY.               */
+ /* --------------------------------------------------------------- */
+ /* SO IF YOU HAD 1 DAY OF ACTUAL HOURS THE INDEX POSITION WOULD    */
+ /* START IN 3.                                                     */
+ /* --------------------------------------------------------------- */
+
+ /* --------------------------------------------------------------- */
+ /* THREE ARE 5 THINGS TO CONSIDER WHEN PROCESSING.                 */
+ /* --------------------------------------------------------------- */
+ /* 1. THE DATE IN THE START/STOP ARRAY. (HOLDS INFORMATION)        */
+ /* 2. THE DAY TO START IN/OUT CALCULATION                          */
+ /* 3. THE NUMBER OF DAYS FOR ACTUAL/TRAVEL IN/OUT CALCULATION      */
+ /* 4. THE START TIME FOR THE HOURS YOUR PROCESSING.                */
+ /* 5. IS IT A HOLIDAY                                              */
+ /* --------------------------------------------------------------- */
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: CAL_IN_OUT_HRS';
+      CALL WTO;
+    END;
+
+ 
+ DO I = INDEX_POSITION TO 1 BY -1 WHILE (NUMBER_OF_DAYS ^= 0);
+
+   /* ------------------------------------------------------------- */
+   /* IS THIS A HOLIDAY, CHECK ALL DAYS. THE VALID HOLIDAYS COMES   */
+   /* FROM DATA THAT IS PASSED IN.                                  */
+   /* ------------------------------------------------------------- */
+   IF ISHOLIDAY(DHOLIDAY,ACTIVITY_DAY(I).DATE,QHCOUNT)    THEN
+     /* ----------------------------------------------------------- */
+     /* THE CURRENT DAY YOU ARE  WORKING WITH IS A HOLIDAY.         */
+     /* ----------------------------------------------------------- */
+     /* IF ALL THE SERVICE HOURS <= TO THE ACTIVITY STOP TIME THEN  */
+     /* this MEANS THAT THE HOURS ARE OUTSIDE HOURS FOR THE CURRENT */
+     /* DAY.                                                        */
+     /* ----------------------------------------------------------- */
+     /* THIS IS A HOLIDAY SO THIS MEANS THAT ALL THE HOURS ARE FOR  */
+     /* THE CURRENT DAY ARE OUTSIDE HOURS. ROLL HOURS FOR CURRENT   */
+     /* DAY TO OUTSIDE HOURS AND CONTINUE PROCESSING WHILE MORE     */
+     /* HOURS ARE THERE.                                            */
+     /* ----------------------------------------------------------- */
+     IF (TEMP_QTOTHOUR <= TEMP_QSTOTI) THEN  /* WITHIN THE DAY      */
+        QOUTHRS  = QOUTHRS + TEMP_QTOTHOUR;  /* ALL OUTSIDE HOURS   */
+                                             /* AND HOURS IN ONE DAY*/
+     /* ----------------------------------------------------------- */
+     /* THERE ARE MORE HOURS TO WORK WITH THEN IS LEFT IN THE       */
+     /* CURRENT DAY. THIS MEANS THAT THE SERVICE HOURS ARE IN       */
+     /* MULTIPLE DAYS.                                              */
+     /* ----------------------------------------------------------- */
+     /* ADD THE HOURS FOR CURRENT DAY TO OUTSIDE HOURS AND CONTINUE */
+     /* PROCESSING WHILE THERE ARE MORE HOURS TO PROCESS.           */
+     /* ----------------------------------------------------------- */
+     ELSE
+       DO;
+         QOUTHRS       = QOUTHRS       + TEMP_QSTOTI;/*HRSFORCURDAY*/
+         TEMP_QTOTHOUR = TEMP_QTOTHOUR - TEMP_QSTOTI;/* HRS LEFT   */
+         TEMP_QSTOTI   = MIDNIGHT; /*SET STOP TIME FOR PREVIOUS DAT*/
+       END;
+   ELSE   /* ELSE, THE CURRENT DAY YOU ARE WORKING IS NOT A HOLIDAY*/
+     CALL IN_OUT_HRS;                /*COMPUTE INSIDE,OUTSIDE HOURS*/
+                                     /* FOR NORMAL DAYS            */
+
+   NUMBER_OF_DAYS = NUMBER_OF_DAYS - 1;
+
+  /* -------------------------------------------------------------- */
+  /* Curdate is not in the array the dates in use have already been */
+  /* been loaded. Curdate is in array position(3)                   */
+  /* -------------------------------------------------------------- */
+  /*IF NUMBER_OF_DAYS > 0 THEN  NO REASON TO PROCESS IF NO MORE DAYS*/
+  /*   DO                                                           */
+  /*     TEMP_DATE      = CURDATE                                   */
+  /*     TEMP_LILDATE   = GREGORIAN_TO_LILIAN(TEMP_DATE,'1')        */
+  /*     TEMP_LILDATE   = TEMP_LILDATE - 1 SET THE DAY TO PREV DAY  */
+  /*     CURDATE        = LILIAN_TO_GREGORIAN(TEMP_LILDATE,'1')     */
+  /*   END                                                          */
+  /* -------------------------------------------------------------- */
+
+ END; /* END OF DO WHILE, KEEP PROCESSING UNTIL THERE ARE NO MORE   */
+      /* DAYS TO WORK WITH                                          */
+
+ /* --------------------------------------------------------------- */
+ /* INSIDE START TIME FOR ACTIVITY DATE FOR THE START OF THE ACTIVIT*/
+ /* --------------------------------------------------------------- */
+ QINSTART     = ACTIVITY_DAY(I).START;
+
+ END CAL_IN_OUT_HRS;
+
+ %PAGE;
+ IN_OUT_HRS: PROC;
+ /*******************************************************************/
+ /*       DETERMINE INSIDE,OUTSIDE HRS IF NOT HOLIDAY               */
+ /*******************************************************************/
+
+ /* --------------------------------------------------------------- */
+ /* DIFFERENT CASES TO CONSIDER                                     */
+ /* --------------------------------------------------------------- */
+ /* PREV DAY  |         DAY               |                         */
+ /* ---------00.0------------------------24.0(MIDNIGHT)             */
+ /*           |    INSIDE         INSIDE  |                         */
+ /*           |    START TIME     END     |                         */
+ /*           |      |             |      |                         */
+ /* -----------------|-------------|------------------------------- */
+ /* CASE 1 <--|----->|             |      | OUTSIDE HOURS MULTI DAYS*/
+ /* CASE 2    |   <->|             |      | OUTSIDE HOURS SAME  DAY */
+ /* CASE 3A   |   <--|---->        |      | IN/OUT  HOURS SAME  DAY */
+ /* CASE 3B   |      |        <----|----> | IN/OUT  HOURS SAME  DAY */
+ /* CASE 4    |      |             |<---->| OUTSIDE HOURS SAME  DAY */
+ /* CASE 5 <--|------|---->        |      | IN/OUT  HOURS MULTI DAYS*/
+ /* CASE 6A   |      |<----------->|      | IN      HOURS SAME  DAY */
+ /* CASE 6B   |      |<---->       |      | IN      HOURS SAME  DAY */
+ /* ----------------------------------------------------------------*/
+ /* NOTE: THIS PROCESS CAN COVER 2 DAYS BECAUSE THE ACTUAL OR TRAVEL*/
+ /*       HOURS CAN 24.0. BOTH ARE HANDLED SEPARATELY, SO THE TOTAL */
+ /*       NUMBER OF POSSIBLE DAYS FOR THE ACTIVITY CAN COVER A THREE*/
+ /*       DAY TIME SPAN.                                            */
+ /* --------------------------------------------------------------- */
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: IN_OUT_HRS';
+      CALL WTO;
+    END;
+
+ 
+ DO UNTIL (TEMP_QTOTHOUR = 0 | TEMP_QSTOTI = MIDNIGHT);
+   SELECT;
+     /* ----------------------------------------------------------- */
+     /* CASE 1                                                      */
+     /* ----------------------------------------------------------- */
+     /* STOP HOURS BETWEEN MIDNIGHT & INSIDE START TIME,            */
+     /* MIDNIGHT(TEMP_QSTOTI) IS SET BY THE CALLING ROUTINE.        */
+     /* ----------------------------------------------------------- */
+     WHEN (TEMP_QSTOTI <= ACTIVITY_DAY(I).START)
+                              /* MORE THAN ONE DAY, CROSSES MIDNIGHT*/
+       IF TEMP_QTOTHOUR > TEMP_QSTOTI THEN /*TOTAL HOURS > STOP TIME*/
+         DO;        /* SHIFT HOURS A ROUND TO BE IN THE RIGHT BUCKET*/
+           QOUTHRS       = QOUTHRS       + TEMP_QSTOTI;/*ALL OUTSIDE*/
+           TEMP_QTOTHOUR = TEMP_QTOTHOUR - TEMP_QSTOTI;/*REMOVE HRS */
+           TEMP_QSTOTI   = MIDNIGHT; /* RESET STOP TIME FOR NEXT DAY*/
+
+         END;
+       ELSE
+         /* ------------------------------------------------------- */
+         /* CASE 2                                                  */
+         /* ------------------------------------------------------- */
+         DO;
+           QOUTHRS       = QOUTHRS + TEMP_QTOTHOUR;/*ALL OUTSIDE HRS*/
+           TEMP_QTOTHOUR = 0;                      /* RESET         */
+
+         END;
+
+     /* ----------------------------------------------------------- */
+     /* CASE 3B                                                     */
+     /* ----------------------------------------------------------- */
+     /* STOP HOURS ARE BETWEEN INSIDE END TIME & MIDNIGHT.          */
+     /* MIDNIGHT(TEMP_STOTI) IS SET BY THE CALLING ROUTINE.         */
+     /* ----------------------------------------------------------- */
+     WHEN (TEMP_QSTOTI > ACTIVITY_DAY(I).STOP)
+       DO;
+         IF TEMP_QTOTHOUR >
+                   (TEMP_QSTOTI - ACTIVITY_DAY(I).STOP) THEN
+                   /* --------------------------------------------- */
+           DO;     /* SHIFT HOURS A ROUND TO BE IN THE RIGHT BUCKET */
+                   /* GRAB THE OUTSIDE HOURS & ADJUST THE TEMP HOURS*/
+                   /* --------------------------------------------- */
+             QOUTHRS       = QOUTHRS +
+                                 (TEMP_QSTOTI -ACTIVITY_DAY(I).STOP);
+             TEMP_QTOTHOUR = TEMP_QTOTHOUR -
+                                 (TEMP_QSTOTI - ACTIVITY_DAY(I).STOP);
+
+             /* --------------------------------------------------- */
+             /* RESET INSIDE STOP TIME FOR THE CURRENT DAY          */
+             /* --------------------------------------------------- */
+             TEMP_QSTOTI   = ACTIVITY_DAY(I).STOP;
+
+           END;
+         ELSE
+           /* ----------------------------------------------------- */
+           /* CASE 4                                                */
+           /* ----------------------------------------------------- */
+           DO;   /* ALL ARE OUTSIDE HOURS, MOVE AND RESET TOTAL HRS */
+             QOUTHRS       = QOUTHRS + TEMP_QTOTHOUR;/*ALLOUTSIDEHRS*/
+             TEMP_QTOTHOUR = 0;                      /* RESET       */
+
+           END;
+       END;
+          /* ------------------------------------------------------ */
+          /* THERE ARE INSIDE HOURS TO SHIFT INTO THE CORRECT BUCKET*/
+          /* ------------------------------------------------------ */
+     OTHERWISE
+       DO;
+         CALL IN_HRS;
+
+       END;
+   END;  /* SELECT */
+ END;    /* UNTIL  */
+
+ END IN_OUT_HRS;
+
+ %PAGE;
+ IN_HRS: PROC;
+ /*******************************************************************/
+ /*                   DETERMINE INSIDE HOURS                        */
+ /*******************************************************************/
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: IN_HRS';
+      CALL WTO;
+    END;
+
+ /* --------------------------------------------------------------- */
+ /* IF THE STOP TIME IS = INSIDE END TIME                           */
+ /* --------------------------------------------------------------- */
+ IF TEMP_QSTOTI = ACTIVITY_DAY(I).STOP    THEN
+    /* ------------------------------------------------------------ */
+    /* IF THE TEMP HOURS  <= MAX HOURS IN (DEFINED VIA CALCULATION  */
+    /* OF INSIDE_END_TIME - INSIDE_START_TIME)                      */
+    /* ------------------------------------------------------------ */
+    /* THIS IS CASE 6A WHERE THERE ARE ALL INSIDE HOURS             */
+    /* ------------------------------------------------------------ */
+    IF TEMP_QTOTHOUR <= ACTIVITY_DAY(I).MAX_HRS_IN  THEN
+       DO;
+         QINHRS        = QINHRS + TEMP_QTOTHOUR;   /*ALL INSIDE HRS */
+         TEMP_QTOTHOUR = 0;                        /* RESET         */
+
+       END;
+    ELSE
+       DO;
+         /* ------------------------------------------------------- */
+         /* THIS IS CASE 3A WHERE THERE ARE BOTH IN/OUT SIDE HOURS  */
+         /* ------------------------------------------------------- */
+         QINHRS        = QINHRS        +
+                               ACTIVITY_DAY(I).MAX_HRS_IN;
+         TEMP_QTOTHOUR = TEMP_QTOTHOUR -
+                               ACTIVITY_DAY(I).MAX_HRS_IN;
+         TEMP_QSTOTI   = ACTIVITY_DAY(I).START;
+
+       END;
+ ELSE
+      /* ---------------------------------------------------------- */
+      /* IF THE START TIME OF THE ACTIVITY ALL IS < THAN THE INSIDE */
+      /* START TIME OR THE NUMBER OF DAYS IS > 1 THEN THERE ARE     */
+      /* INSIDE HOURS TO ADJUST INTO THE CORRECT BUCKET.            */
+      /* ---------------------------------------------------------- */
+    IF HSTART < ACTIVITY_DAY(I).START |
+                                   NUMBER_OF_DAYS > 1        THEN
+      /* ---------------------------------------------------------- */
+      /* THIS IS CASE 5  WHERE THERE ARE BOTH IN/OUT SIDE HOURS     */
+      /* ---------------------------------------------------------- */
+      DO;
+        TEMP_QINHRS    = TEMP_QSTOTI  - ACTIVITY_DAY(I).START;
+        QINHRS         = QINHRS        + TEMP_QINHRS; /*ADD HRS HERE*/
+        TEMP_QTOTHOUR  = TEMP_QTOTHOUR - TEMP_QINHRS; /*REMOVE HOURS*/
+        TEMP_QSTOTI    = ACTIVITY_DAY(I).START;
+
+      END;
+    ELSE                       /* ALL INSIDE HRS IN SAME DAY */
+      DO;
+        /* -------------------------------------------------------- */
+        /* THIS IS CASE 6B WHERE THERE ARE ALL INSIDE HOURS         */
+        /* -------------------------------------------------------- */
+        QINHRS         = TEMP_QSTOTI - HSTART; /* MOVE HOURS HERE   */
+        TEMP_QTOTHOUR  = 0;           /* NO MORE HOURS TO WORK WITH */
+
+      END;
+
+ END IN_HRS;
+
+ %PAGE;
+ COMPUTE: PROC;
+ /*******************************************************************/
+ /*               CALCULATE LABOR,EXPENSE AND PARTS                 */
+ /*                                                                 */
+ /* NOTES:                                                          */
+ /*   - A DISCOUNT WILL RESET THE INSIDE, OUTSIDE RATES             */
+ /*     (AINRATE, AOUTRATE)                                         */
+ /*                                                                 */
+ /*******************************************************************/
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: COMPUTE';
+      CALL WTO;
+    END;
+
+ /*-----------------------------------------------------------------*/
+ /*                      CALCULATE LABOR AMOUNT                     */
+ /*-----------------------------------------------------------------*/
+
+   IF PDISCNT > 0                           /* DOES A DISCOUNT APPLY*/
+     THEN DO;
+       DISCOUNT_AMT = AINRATE  * PDISCNT;   /* COMPUTE DISCOUNT     */
+       AINRATE      = AINRATE  - DISCOUNT_AMT;/*AND SET NEW IN  RATE*/
+       DISCOUNT_AMT = AOUTRATE * PDISCNT;   /* COMPUTE DISCOUNT     */
+       AOUTRATE     = AOUTRATE - DISCOUNT_AMT;/*AND SET NEW OUT RATE*/
+     END;
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: COMPUTE 2';
+      CALL WTO;
+    END;
+
+   /* ------------------------------------------------------------- */
+   /* DO WE WANT TO BACK OUT HOURS ALSO, OR JUST REMOVE THE HOURS   */
+   /* BEFORE APPLYING THE RATE                                      */
+   /* ------------------------------------------------------------- */
+   AINLAB   = QINHRS  * AINRATE;             /* INSIDE  LABOR AMOUNT*/
+   AOUTLAB  = QOUTHRS * AOUTRATE;            /* OUTSIDE LABOR AMOUNT*/
+   ATOTTIME = AINLAB  + AOUTLAB;             /* TOTAL   LABOR AMOUNT*/
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: COMPUTE 3';
+      CALL WTO;
+    END;
+
+   /*---------------------------------------------------------------*/
+   /*                    CALCULATE EXPENSE AMOUNT                   */
+   /*---------------------------------------------------------------*/
+
+   IF QTRAMI > 0 & FBILDIST = 'Y' THEN
+     AMILEXP = QTRAMI * AMILRATE;  /* MILEAGE EXPENSE               */
+   ELSE
+     AMILEXP = 0; /* DO NOT BILL EXP - RESET MILEAGE EXPENSE TO 0   */
+
+   IF ATRAEX > 0 & FBILEXP  = 'Y' THEN; /* NOTHING TO DO            */
+   ELSE
+     ATRAEX  = 0; /* DO NOT BILL TVL EXP - RESET TRAVEL EXPENSE TO 0*/
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: COMPUTE 4';
+      CALL WTO;
+    END;
+
+   IF AINCDNT = 0                     /* IS THERE AN INCIDENT CHARGE*/
+                                        /* TOTAL EXPENSES           */
+     THEN ATOTEXP = AMILEXP + ATRAEX;   /* ROLL UP EXPENSES         */
+          /* YES, INCIDENT CHARGE APPLIES, SO DON'T INCLUDE MILEAGE */
+          /* AND OTHER CE EXPENSE IN TOTAL EXPENSES                 */
+     ELSE ATOTEXP = AINCDNT;
+
+
+   /*---------------------------------------------------------------*/
+   /*                    CALCULATE PARTS AMOUNT                     */
+   /*---------------------------------------------------------------*/
+                                         /* NOTE: THE FOLLOWING STMT*/
+                                         /* WILL GENERATE A COMPILER*/
+                                         /* WARNING MESSAGE         */
+   ATOTPART = 0;
+  DCL PIC_PART     PIC'999'  INIT(0);
+  PIC_PART  = X##PARTS;
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = 'QBPRICX: FBILPART '||FBILPART||
+                         ' NUM PARTS '||PIC_PART;
+      CALL WTO;
+      DIAG_TEXT = 'QBPRICX: x##parts '||X##PARTS;
+      CALL WTO;
+    END;
+
+
+   IF FBILPART = 'Y' THEN     /* ACCUMLATE PARTS TOTAL PRICE IF Y   */
+     DO I = 1 TO X##PARTS WHILE(UPARTS.QDISUS(I) ^= 0);  
+     /*DO I = 1 TO 50 WHILE(UPARTS.QDISUS(I) ^= 0);  */
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBPRICX: PART COUNT '||I;
+           CALL WTO;
+           DIAG_TEXT = 'QBPRICX: usage/price '||QDISUS(I)||APARTPR(I);
+           CALL WTO;
+
+         END;
+      APARTAMT(I) = QDISUS(I) * APARTPR(I);
+
+      IF PDISCNT > 0                     /* DOES A DISCOUNT APPLY   */
+        THEN DO;
+          DISCOUNT_AMT = APARTAMT(I) * PDISCNT;
+          APARTAMT(I)  = APARTAMT(I) - DISCOUNT_AMT;
+       END;
+
+       ATOTPART = ATOTPART + APARTAMT(I);        /* TOTAL PARTS AMT*/
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBPRICX: PART COUNT EXIT '||I;
+           CALL WTO;
+           DIAG_TEXT = 'QBPRICX: PART AMOUNT '||ATOTPART||' I '||I;
+           CALL WTO;
+         END;
+
+     END;
+   ELSE   /* DO NOT BILL PARTS   - RESET PARTS TOTAL COST TO 0     */
+     ATOTPART = 0;
+
+
+
+
+ END COMPUTE;
+
+ %PAGE;
+ /*******************************************************************/
+ /* BASED ON THE ACTUAL AND TRAVEL SWITCHES ADJUST THE INSIDE AND   */
+ /* OUTSIDE LABOR CHARGE BASED ON IF THEY ARE TO BE CHARGED FOR     */
+ /* INSIDE, OUTSIDE OR BOTH OR DO NOT BILL EITHER                   */
+ /* --------------------------------------------------------------- */
+ /*  POSSIBLE BILLING FLAG VALUES:                                  */
+ /*  N = DO NOT BILL                                                */
+ /*  I = BILL INSIDE HOURS ONLY                                     */
+ /*  O = BILL OUTSIDE HOURS ONLY                                    */
+ /*  Y = BILL INSIDE/OUTSIDE HOURS                                  */
+ /* --------------------------------------------------------------- */
+ /*  YY  NN II OO  THIS HANDLES ALL 16 CONDITIONS. BY HANDLING      */
+ /*  YN  NY IY OY  ACTUAL AND TRAVEL SEPARATELY,                    */
+ /*  YI  NI II OI                                                   */
+ /*  YO  NO II ON                                                   */
+ /*******************************************************************/
+ CHECK_BILL_SWITCHES: PROC;
+   SELECT(FBILACTH);
+     WHEN ('Y')           /* USE ALL ACTUAL HOURS                   */
+       DO;
+         QINHRS  = ACT_INSIDE_HRS;
+         QOUTHRS = ACT_OUTSIDEHRS;
+       END;
+
+     WHEN ('I')           /* ONLY USE INSIDE ACTUAL HOURS           */
+         QINHRS  = ACT_INSIDE_HRS;
+
+     WHEN ('O')           /* ONLY USE OUTSIDE ACTUAL HOURS          */
+         QOUTHRS = ACT_OUTSIDEHRS;
+
+     OTHERWISE            /* NO ACTUAL HOURS ARE TO BE USED.        */
+       DO;
+         QINHRS  = 0;
+         QOUTHRS = 0;
+       END;
+   END;  /* END OF SELECT */
+
+   SELECT(FBILTRVH);
+    WHEN ('Y')            /* USE ALL TRAVEL HOURS                   */
+      DO;
+        QINHRS   = QINHRS  + TVL_INSIDE_HRS;
+        QOUTHRS  = QOUTHRS + TVL_OUTSIDEHRS;
+      END;
+
+    WHEN ('I')            /* ONLY     INSIDE TRAVEL HOURS           */
+        QINHRS   = QINHRS  + TVL_INSIDE_HRS;
+
+    WHEN ('O')            /* ONLY USE OUTSIDE TRAVEL HOURS          */
+        QOUTHRS  = QOUTHRS + TVL_OUTSIDEHRS;
+
+    OTHERWISE;            /* NO TRAVEL HOURS ARE TO BE USED.        */
+   END;  /* END OF SELECT */
+ END CHECK_BILL_SWITCHES;
+
+ %PAGE;
+ MIN_CHARGE_ADJ: PROC;
+ /*******************************************************************/
+ /*                DETERMINE MINIMUM CHARGE ADJUSTMENT              */
+ /*                                                                 */
+ /* MINIMUM CHARGE ADJUSTMENT IS DETERMINED AS FOLLOWS:             */
+ /*                                                                 */
+ /* 1. IF A SDT IS PRESENT AND INSIDE AND OUTSIDE HOURS ARE         */
+ /*    PRESENT, BILL THE ACTUAL HOURS. (NOT MINIMUM)                */
+ /*                                                                 */
+ /* 2. IF A SDT IS PRESENT AND THE ACTIVITY END TIME IS EQUAL TO    */
+ /*    THE INSIDE START TIME, DO NOT BILL MINIMUM CHARGE.           */
+ /*                                                                 */
+ /* 3. IF A SDT IS PRESENT AND THE ACTIVITY START TIME IS EQUAL TO  */
+ /*    THE INSIDE END TIME, DO NOT BILL MINIMUM CHARGE.             */
+ /*                                                                 */
+ /* 4. IF A SDT IS PRESENT AND ONLY OUTSIDE HOURS ARE PRESENT       */
+ /*    (NO INSIDE HOURS) AND OUTSIDE HOURS IS LESS THAN 1 HR        */
+ /*    BILL THE MINIMUM OF 1 HOUR.                                  */
+ /*                                                                 */
+ /* 5. DETERMINE THE MINIMUM CHARGE HOURS IN EFFECT                 */
+ /*    - HVLC     IS 1 HOUR                                         */
+ /*                                                                 */
+ /* 6. DETERMINE THE MINIMUM CHARGE HOURS IN EFFECT                 */
+ /*    - NON-HVLC IS 2 HOURS                                        */
+ /*                                                                 */
+ /* 7. - IF SPECIAL CONTRACT SPECIFIES MIN CHARGE HOURS, USE THAT   */
+ /*      VALUE (QMINCHG) - NOTE: COULD BE MORE THAN 2 HOURS         */
+ /*                                                                 */
+ /* NOTE:                                                           */
+ /* --------------------------------------------------------------- */
+ /*  - IF WE ARE UNDER THE MINIMUM CHARGE HOURS THEN APPLY          */
+ /*    MINIMUM CHARGE ADJUSTMENT AS FOLLOWS:                        */
+ /*                                                                 */
+ /*   - IF THE SERVICE WAS PERFORMED ENTIRELY INSIDE IBM HOURS THEN */
+ /*     THE MINIMUM CHARGE WILL BE APPLIED AT THE INSIDE RATE.      */
+ /*                                                                 */
+ /*   - IF THE SERVICE WAS PERFORMED ENTIRELY OUTSIDE IBM HOURS OR  */
+ /*     THE SERVICE IS PERFORMED IN BOTH INSIDE AND OUTSIDE IBMHOURS*/
+ /*     THEN THE MINIMUM CHARGE WILL BE APPLIED AT THE OUTSIDE RATE.*/
+ /*                                                                 */
+ /* THIS ROUTINE SETS                                               */
+ /*   - CMININD                                                     */
+ /*   - AMINCHG                                                     */
+ /* AND MAY UPDATE ATOTTIME (IF A MINIMUM CHARGE APPLIES)           */
+ /*                                                                 */
+ /* (THIS PROC REWRITTEN IN RESPONSE TO I95221)                     */
+ /*                                                                 */
+ /*******************************************************************/
+
+ DCL MIN_ADJ_TIME FIXED DEC(3,1);        /* MIN CHARGE ADJUST TIME  */
+ 
+                
+      DIAG_TEXT = 'QBPRICX: DISPLAY IBOCE' || IBOCE;
+      CALL WTO;
+      DIAG_TEXT = 'QBPRICX: DISPLAY DCALL' || DCALL;
+      CALL WTO;  
+ /*-----------------------------------------------------------------*/
+ /* SET MINIMUM CHARGE HOURS IN EFFECT                              */
+ /*-----------------------------------------------------------------*/
+ /*-----------------RCQ0345 LOGIC START-------------------------------*/
+  IF(DCALL < '2016-03-18' | IBOCE = 'BKQ' | IBOCE = 'DKE') THEN           
+  DO;                                                                
+  SELECT;                      /* SDT MIN CHARGE HOURS           */  
+  WHEN(ISDTCODE ^= '' & PRICDATA.QINHRS > 0 & PRICDATA.QOUTHRS > 0)  
+   QMINHRS = 0; /* CASE 1      */                                    
+                                                  /* CASE 2      */  
+  WHEN (ISDTCODE ^= '' & QSTOTI = ACTIVITY_DAY(3).START)             
+   QMINHRS = 0;                                                      
+                                                  /* CASE 3      */  
+  WHEN (ISDTCODE ^= '' & PRICDATA.HSTART = ACTIVITY_DAY(3).STOP)     
+   QMINHRS = 0;                                                      
+                                                                     
+  WHEN(ISDTCODE ^= '' & PRICDATA.QINHRS = 0 & PRICDATA.QOUTHRS < 1.0)
+  QMINHRS = 1; /* CASE 4      */                                     
+                                                                     
+  WHEN(PRICDATA.CHVLC = HVLC_PRODUCT) 
+    QMINHRS = 1;                 /*        WITH HVLC PRODUCT      */  
+                                                                       
+    WHEN(PRICDATA.CHVLC = NON_HVLC_PRODUCT)                            
+    QMINHRS = 2;                 /* WITHOUT HVLC PRODUCTS         */  
+                                                                       
+    OTHERWISE                      /* SHOULD NEVER EXECUTE!       */
+    QMINHRS = 1;                                                       
+                                                                       
+    END;                                                               
+    IF QMINCHG > 0            /* CASE 7 - CHECK SPECIAL CONTRACT*/     
+      THEN QMINHRS = QMINCHG;                                          
+    END;                                                               
+                                                                       
+  ELSE                                                                 
+    DO;                                                                                            
+   SELECT;                          /* SDT MIN CHARGE HOURS        */
+   WHEN (ISDTCODE ^= '' & QINHRS > 0 & QOUTHRS > 0)  /* CASE 1     */
+     QMINHRS = 0;
+                                                     /* CASE 2     */
+   WHEN (ISDTCODE ^= '' & QSTOTI = ACTIVITY_DAY(3).START)
+     QMINHRS = 0;
+                                                     /* CASE 3     */
+   WHEN (ISDTCODE ^= '' & HSTART = ACTIVITY_DAY(3).STOP)
+     QMINHRS = 0;
+
+   WHEN (ISDTCODE ^= '' & QINHRS = 0 & QOUTHRS < 1.0)/* CASE 4     */
+     QMINHRS = 4;
+
+   WHEN(CHVLC = HVLC_PRODUCT)     /* CASE 5 NORMAL PER CALL MIN CHRG*/
+     QMINHRS = 4;                 /*        WITH HVLC PRODUCT       */
+
+   WHEN(CHVLC = NON_HVLC_PRODUCT) /* CASE 6 NORMAL PER CALL MIN CHRG*/
+     QMINHRS = 4;                 /* WITHOOT HVLC PRODUCTS          */
+
+   OTHERWISE                      /* SHOULD NEVER EXECUTE!          */
+     QMINHRS = 4;
+
+   END;
+
+  IF QMINCHG > 0                  /* CASE 7 - CHECK SPECIAL CONTRACT*/
+   THEN QMINHRS = QMINCHG;
+  END;
+ /*-----------------RCQ0345 LOGIC END-------------------------------*/
+ /*-----------------------------------------------------------------*/
+ /* HANDLE MINIMUM CHARGE, IF IT APPLIES                            */
+ /* --------------------------------------------------------------- */
+ /* NOTE: MINIMUM CHARGE ONLY APPLIES TO BILLABLE HOURS (^TOTAL HRS)*/
+ /*   THE QTOTHOUR FIELD IS ADJUSTED TO REFLECT THE TOTAL           */
+ /*       INSIDE/OUTSIDE BILLABLE HOURS (NOT TOTAL HOURS).          */
+ /* --------------------------------------------------------------- */
+ /* NOTE: SO IT LOOKS AT QTOTHOUR HOURS WHICH IS THE ACCUMULATED    */
+ /*       BILLIABLE QINHRS PLUS QOUTHRS (NOT TOTAL HOURS) HOURS TO  */
+ /*       DETERMINE IF THERE IS A NEED TO APPLY A MINIMUM CHARGE.   */
+ /* --------------------------------------------------------------- */
+
+ /* --------------------------------------------------------------- */
+ /* EXAMPLE:                                                        */
+ /* --------------------------------------------------------------- */
+ /* CHVLC    = 1 HOURS (NON_HVLC_PRODUCT)                           */
+ /* QTOTHOUR = .3                                                   */
+ /* QINHRS   = 0                                                    */
+ /* QOUTHS   = .3                                                   */
+ /* AINRATE  = $100.00                                              */
+ /* AOUTRATE = $200.00                                              */
+ /* --------------------------------------------------------------- */
+ /*  MIN ADJUSTED TIME = 1 - (0 (INHRS) +.3 (OUT HRS)) = 0.7        */
+ /*  AMINCHG = 0.7 * $200.00 (OUTSIDE RATE)            = $140.00    */
+ /*  ATOTTIME = ATOTTIME($60.00) + AMINCHG($140.00)    = $200.00    */
+ /* MIN INDICATOR (Y) MINCHG 40.0| 1.0| 0.7| 0.3|0.00| 0.3|YY|200.00*/
+ /* --------------------------------------------------------------- */
+ MIN_ADJ_TIME = QMINHRS - QTOTHOUR; /* MINIMUM HOURS -BILLABLE HOURS*/
+
+   IF MIN_ADJ_TIME > 0
+     THEN DO;                           /* MINIMUM CHARGE APPLIES   */
+       CMININD = YES;
+
+       IF QOUTHRS > 0
+         THEN AMINCHG = MIN_ADJ_TIME * AOUTRATE;/* ALL/PART OUTSIDE */
+         ELSE AMINCHG = MIN_ADJ_TIME *  AINRATE;/* ENTIRELY  INSIDE */
+     END;
+                                        /* NO MINIMUM CHARGE APPLIES*/
+   ELSE DO;
+       CMININD = NO;
+       AMINCHG = 0;
+     END;
+                                        /* ADD MIN CHARGE ADJUSTMENT*/
+   ATOTTIME = ATOTTIME + AMINCHG;       /* AMOUNT TO TOTAL LABOR    */
+
+ END MIN_CHARGE_ADJ;
+
+ %PAGE;
+ ISHOLIDAY: PROC (HOLIDAY_DATE,IN_DATE,COUNT) RETURNS (BIT(1));
+ /*******************************************************************/
+ /* DETERMINE IF THE SERVICE DATE IS A HOLIDAY BASED ON THE LIST    */
+ /* OF PASSED HOLIDAYS.                                             */
+ /*                   .                                             */
+ /* FUNCTION RETURNS BOOLEAN VALUE:                                 */
+ /*   '1' IF THE 'CURRENT_DATE' IS A HOLIDAY                        */
+ /*   '0' OTHERWISE (I.E., IF A NORMAL WORK DAY, OR WEEKEND)        */
+ /*******************************************************************/
+
+ DCL HOLIDAY_DATE(*) CHAR(10);             /* HOLIDAY DATE ARRAY    */
+ DCL COUNT         FIXED BIN(15) UNALIGNED;/* NUM OF DATES IN ARRAY */
+ DCL IN_DATE     CHAR(8);
+
+
+ DCL CUR_DATE      PIC'(8)9' INIT(0);    /* 'YYYYMMDD'              */
+ DCL INDEX         FIXED BIN(15) INIT(0);   /* INDEX COUNT          */
+ DCL TEMP_DATE     CHAR(8)      INIT('');
+ DCL CUR_DATE_DB2  CHAR(10);             /* DB2 'YYYY-MM-DD' FORMAT */
+ DCL 1 CUR_OVR BASED(ADDR(CUR_DATE)),
+       3 YYYY      CHAR(4),
+       3 MM        CHAR(2),
+       3 DD        CHAR(2);
+
+ DCL ANS         BIT (1) INIT('0'B);     /* BOOLEAN RESULT          */
+
+ /* --------------------------------------------------------------- */
+ /* THIS IS COMMENTED OUT BECAUSE WE NO LONGER CARE IF IT IS A      */
+ /* WEEKEND DAY. THE START AND STOP TIMES FOR THE CURRENT DAY AND   */
+ /* THE PREVIOUS 2 DAYS ARE PASSED TO QPPRIC2. SO THE WEEK END TIMES*/
+ /* WOULD BE PASSED IN.                                             */
+ /* --------------------------------------------------------------- */
+ /* DCL DAY_OF_WEEK   FIXED DEC(1,0)        RETURNED BY 'DAYGRG'    */
+ /*                                           1=MON, ... 7=SUN      */
+ /* --------------------------------------------------------------- */
+ /* DCL SATURDAY  FIXED DEC(1,0) INIT(6)    AS DEFINED BY 'DAYGRG'  */
+ /* DCL SUNDAY    FIXED DEC(1,0) INIT(7)    AS DEFINED BY 'DAYGRG'  */
+ /* --------------------------------------------------------------- */
+ /* TEMP_DATE    = CUR_DATE                                         */
+ /* LIL_DATE     = GREGORIAN_TO_LILIAN(TEMP_DATE,'2')               */
+ /* TEMP_LILDATE = LIL_DATE                                         */
+ /* DAY_OF_WEEK  = GET_DAYNUM(TEMP_LILDATE,'1')                     */
+ /*                                                                 */
+ /* SELECT(DAY_OF_WEEK)                   ( FIRST CHECK IF WEEKEND  */
+ /*   WHEN(SATURDAY,SUNDAY)                                         */
+ /*     ANS = '1'B                                                  */
+ /*   OTHERWISE                                                     */
+ /*    ANS = '0'B                                                   */
+ /* END   END OF SELECT                                             */
+ /* --------------------------------------------------------------- */
+                                         /* PUT CURRENT DATE IN DB2 */
+                                         /* FORMAT FOR COMPARE TO   */
+                                         /* HOLIDAY TABLE DATES     */
+   CUR_DATE = IN_DATE;
+   CUR_DATE_DB2 = YYYY||'-'||MM||'-'||DD;
+
+   DO INDEX = 1 TO COUNT                /* NOW, CHECK FOR HOLIDAY   */
+     WHILE((HOLIDAY_DATE(INDEX) ^= BLANK) & (ANS='0'B));
+        IF CUR_DATE_DB2 = HOLIDAY_DATE(INDEX)
+         THEN ANS = '1'B;
+   END;
+
+   RETURN(ANS);
+ END ISHOLIDAY;
+
+  %PAGE;
+ /*******************************************************************/
+ /* CONVERT  4 DIGIT HHMM TO 3 DIGITS HHT                           */
+ /* WHERE HH IS HOURS AND MM IS MINUTES AND  T  OF AN HOUR          */
+ /* --------------------------------------------------------------- */
+ /* THE RULE FOR CONVERSION FROM MINUTES TO TENTH OF HOURS IS:      */
+ /*   FOR EVERY 6 MINUTES                                           */
+ /*     IF THE MINUTES ARE >= 50% THROUGH THE 6 MINUTES THEN        */
+ /*       ROUND UP TO THE NEXT TENTH.                               */
+ /*   NOTE: IF MINUTES IS > 56 THEN                                 */
+ /*         TENTHS IS 0 AND ADD 1 TO THE HOUR                       */
+ /* --------------------------------------------------------------- */
+ /*         HH:MM -> HH.T                                           */
+ /* e.g. 1 - 00:01 -> 00.0 TENTHS                                    */
+ /* e.g. 2 - 00:03 -> 00.1 TENTHS                                    */
+ /* e.g. 3 - 00:23 -> 00.4 TENTHS                                    */
+ /* e.g. 4 - 00:57 -> 01.0 TENTHS                                    */
+ /*                                                                  */
+ /********************************************************************/
+ CONVERT_TO_TENTHS: PROC(HRSMINS) RETURNS(DEC(3,1));
+
+  DCL HRSMINS      FIXED DEC(5,0) UNALIGNED;
+  DCL HRSTENTHS    PIC'99V9'       BASED(ADDR(PIC_HRS_TENTHS));
+  DCL PIC_HH_MM    PIC'9999'       INIT(0);
+  DCL PIC_MINS     PIC'99'         INIT(0);
+  DCL 1 PIC_HRS_TENTHS,
+        3 PIC_HOURS   PIC'99'       INIT(0),
+        3 PIC_TENTHS  PIC'9'        INIT(0);
+
+  DCL TEMP_DEC     FIXED DEC(3,1)   INIT(0);
+  
+  PIC_HH_MM = HRSMINS;
+  PIC_HOURS = SUBSTR(PIC_HH_MM,1,2);   /* HOURS PORTION              */
+  PIC_MINS  = SUBSTR(PIC_HH_MM,3,2);   /* MINUTES PORTION            */
+  
+  /* ------------------------------------------------------------- */
+  /* This will add 3 minutes to the total to round correctly if    */
+  /* the minutes is not > 56 and then it divides by 6 to convert   */
+  /* the minutes to tenths form                                    */
+  /* ------------------------------------------------------------- */
+  IF PIC_MINS > 56 
+     THEN PIC_HOURS  = PIC_HOURS + 1;
+     ELSE PIC_TENTHS = (PIC_MINS + 3)/6;
+     
+  TEMP_DEC      = HRSTENTHS;
+  RETURN(TEMP_DEC);
+  
+ END CONVERT_TO_TENTHS;
+
+ %PAGE;
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+ GREGORIAN_TO_LILIAN: PROC(INGREG_DATE,LOC) RETURNS(FIXED BIN(31));
+   DCL INGREG_DATE          CHAR(8);
+   DCL LOC                  CHAR(1);
+   DCL GREG_DATE            CHAR(255) VARYING;
+   DCL OUTLIL_DATE    FIXED BIN(31);
+
+   DCL 01 FC1,                     /* Feedback token */
+               03 MsgSev    REAL FIXED BINARY(15,0),
+               03 MsgNo     REAL FIXED BINARY(15,0),
+               03 Flags,
+                  05 Case      BIT(2),
+                  05 Severity  BIT(3),
+                  05 Control   BIT(3),
+               03 FacID     CHAR(3),      /* Facility ID */
+               03 ISI   /* Instance-Specific Information */
+                            REAL FIXED BINARY(31,0);
+   GREG_DATE   = INGREG_DATE;
+                     /*  GREGORIAN DATE TO LILIAN DATE              */
+   CALL CEEDAYS (GREG_DATE,'YYYYMMDD',OUTLIL_DATE,FC1);
+
+   IF FBCHECK (FC1, CEE000)
+     THEN;
+     ELSE DO;
+       DIAG_TEXT = MODULE||': CEEDAYS failed with msg '||
+                            FC1.MsgNo||' FROM LOC '||LOC;
+
+       CALL WTO;
+       OUTLIL_DATE = 1;
+     END;
+
+   RETURN(OUTLIL_DATE);
+
+ END GREGORIAN_TO_LILIAN;
+
+ %PAGE;
+ /*******************************************************************/
+ /*                                                                 */
+ /*******************************************************************/
+ LILIAN_TO_GREGORIAN: PROC(INLIL_DATE,LOC) RETURNS(CHAR(8));
+   DCL INLIL_DATE    FIXED BIN(31);
+   DCL LOC                 CHAR(1);
+   DCL DATE_FORMAT    CHAR(255) VARYING;
+   DCL OUTGREG_DATE   CHAR(80);
+   DCL OUT_DATE       CHAR(8) BASED(ADDR(OUTGREG_DATE));
+   DCL 01 FC2,                     /* Feedback token */
+               03 MsgSev    REAL FIXED BINARY(15,0),
+               03 MsgNo     REAL FIXED BINARY(15,0),
+               03 Flags,
+                  05 Case      BIT(2),
+                  05 Severity  BIT(3),
+                  05 Control   BIT(3),
+               03 FacID     CHAR(3),      /* Facility ID */
+               03 ISI   /* Instance-Specific Information */
+                            REAL FIXED BINARY(31,0);
+
+   /*DATE_FORMAT = 'YYYYMMDD' */
+   CALL CEEDATE (INLIL_DATE,'YYYYMMDD',OUTGREG_DATE,FC2);
+
+    IF FBCHECK (FC2, CEE000)
+     THEN;
+
+     ELSE DO;
+       DIAG_TEXT = MODULE||': CEEDATE failed with msg '||
+                           FC2.MsgNo;
+       CALL WTO;
+       OUT_DATE = '19000101';
+     END;
+
+   RETURN(OUT_DATE);
+
+ END LILIAN_TO_GREGORIAN;
+
+ /*-----------------------------------------------------------------*/
+ /* END OF QBPRICX COPY - PRICING LOGIC FOR QBPRIC2                 */
+ /*-----------------------------------------------------------------*/

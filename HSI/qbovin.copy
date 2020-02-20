@@ -1,0 +1,41 @@
+ /***************************************************************** **/
+ /*                                                                  */
+ /* NAME:   QBOVIN     VERSION NR:  01            DATE:  06/17/10    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  OVERRIDE REC FOR BILLING OVERRIDE IN qbovr1              */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* CURRENT LENGTH:                                                  */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  OVERRIDE MESSAGE FROM NSS/CROSS                    */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  06/17/10 IT4422  0NSE INITIAL VERSION                     AM    */
+ /********************************* **********************************/
+ 3 CAREA                  CHAR(2), /* CROSS = 'CR'        01- 02    */
+ 3 SPAD01                 CHAR(1), /* PAD                 03- 03    */
+ 3 PTD1                   CHAR(6), /* PT USER ID          04- 09    */
+ 3 SPAD02                 CHAR(1), /* PAD                 10- 10    */
+ 3 QSARBO                 CHAR(3), /* QSAR BRANCH OFFICE  11- 13    */
+ 3 SPAD03                 CHAR(1), /* PAD                 14- 14    */
+ 3 QSARTERR               CHAR(3), /* QSAR TERRITORY      15- 17    */
+ 3 SPAD04                 CHAR(1), /* PAD                 18- 18    */
+ 3 OVRMSG,                         /* MSG TO BE SENT                */
+     7  IINVOICE          CHAR(7), /* INVOICE NUMBER      19- 25    */               
+     7  SPAD05            CHAR(1), /* PAD                 26- 26    */
+     7  CCODE             CHAR(2), /* OVERRIDE CODE       27- 28    */
+     7  SPAD06            CHAR(1), /* PAD                 29- 29    */
+     7  NARRATIVE         CHAR(44) /* NARRATIVE           30- 73    */
+ /*------------------------------------------------------------------*/
+ /*                      END  QBOVIN                                 */
+ /*------------------------------------------------------------------*/

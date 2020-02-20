@@ -1,0 +1,38 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSNARR     VERSION NR:  01           DATE:  04/10/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  (QSAR) BILLING OVERRIDE NARRATIVE SEGMENT                */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QBNARR                                        */
+ /*                                                                  */
+ /* TYPE:  SEGMENT                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF BILLING NARRATIVE (CE OVERRIDE)         */
+ /*               SEGMENT.  OVERRIDE NARRATIVE IS PRODUCED WHEN THE  */
+ /*               CE TRANSMITS AN OVERRIDE MESSAGE CONTAINING AN     */
+ /*               OVERRIDE CODE AND TEXT (NARRATIVE).                */
+ /*                                                                  */
+ /* LENGTH:   64 BYTES                                               */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/10/89 SR0028   0NSK INITIAL VERSION                 JWJ      */
+ /*  10/11/89 SR9892   0NSA INITIAL VERSION (NO CHANGE)     JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+  3 QBNARR,
+    5 XOVERSTP,                     /* DATE/TIMESTAMP                */
+      7 DCEOVER    CHAR(8),         /*   DATE (YYYYMMDD)    001- 008 */
+      7 HCEOVER    CHAR(6),         /*   TIME (HHMMSS)      009- 014 */
+    5 CCEOVER      CHAR(2),         /* OVERRIDE CODE        015- 016 */
+    5 SPAD01       CHAR(4),         /* (PAD)                017- 020 */
+    5 TCECOMM      CHAR(44)         /* OVERRIDE NARRATIVE   021- 064 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSNARR                            */
+ /*------------------------------------------------------------------*/
+

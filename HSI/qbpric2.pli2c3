@@ -1,0 +1,761 @@
+ QBPRIC2 :  PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBPRIC2     VERSION NR:  01        DATE:  07/13/89    */
+ /*                                               TIME:   8:00       */
+ /*                                                                  */
+ /*  TITLE: CALCULATE PRICE OF SERVICE                               */
+ /*                                                                  */
+ /*  FUNCTION: THERE ARE FOUR FUNCTIONS THIS PROGRAM IS TO PERFORM.  */
+ /*            (1) CALCULATE THE START TIME OF SERVICE. (2) CALCULATE*/
+ /*            INSIDE AND OUTSIDE HOURS OF SERVICE. (3) COMPUTE LABOR*/
+ /*            ,EXPENSE AND PARTS AMOUNTS. (4) DETERMINE MINIMUM     */
+ /*            CHARGE ADJUSTMENT AMOUNT IF IT'S APPLICABLE.          */
+ /*                                                                  */
+ /********************************************************************/
+ /*       NOTE: THIS PROGRAM EXISTS ON BOTH THE NSS AND CONS SYSTEMS.*/
+ /*             BOTH PROGRAMS INCLUDE A "SHARED" COPY MEMBER         */
+ /*             (QBPRICX) WHICH CONTAINS COMMON PRICING LOGIC.       */
+ /********************************************************************/
+ /*                                                                  */
+ /*  LANGUAGE: PLI                                                   */
+ /*                                                                  */
+ /*  MODULE TYPE: REALTIME (CICS)                                    */
+ /*                                                                  */
+ /*  PARMS: SEE COPY MEMBER - QBPRICE COPY                           */
+ /*                                                                  */
+ /*  INPUTS: COMMAREA PASSED - QBPRICE COPY                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  OUTPUTS: UPDATED COMMAREA - QBPRICE COPY                        */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                    PGMMR:*/
+ /*---------- -------- ----- ---------------------------------- ---- */
+ /*  09/27/89          0NSA  INITIAL CREATION                G. KYLE */
+ /*  12/19/89 I89308   0NSA  ADD PLIXOPT                         LBS */
+ /*  01/22/90 DCR9892E 0NSA  (UNDER THIS DCR)                    JWJ */
+ /*                          RENAME QSTART TO HSTART                 */
+ /*                          REWORD SOME ERROR MESSAGES              */
+ /*  04/01/90 I95354   0NSA  (RE)SET AINRATE, AOUTRATE           JWJ */
+ /*                          WHEN DISCOUNT APPLIES                   */
+ /*                          USE QBPRICX COPY MEMBER                 */
+ /*  02/11/95 S9500023 5NSA  REVISE SC 94 BILLING                LBS */
+ /*  11/06/96 S9600308 6NSR  PC CO ENTITLEMENT WAREHOUSE         LBS */
+ /*  01/06/97 I523913  6NSR  Reset max hours in to 9.5           YDS */
+ /*  02/09/98 S970219  8NSC  REMOVE SPIE FROM PLIXOPT            MKP */
+ /*04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*12/20/2002 HSIPROD  3NSE  CHANGE PLIDATE TO CEEDATE           DLP */
+ /*01/27/2004 RQ031502359 4NSC SUPPORT INSIDE/OUTSIDE HOURS      DLP */
+ /*                            CHANGES                               */
+ /*08/01/2005 RQ7017  5NSM   RECOMPILED TO PICKUP NEW CHANGES ARCHANA*/
+ /*                          DONE IN QBPRICE                         */
+ /*04/20/2007 prodsupt 7NSM  fix returns on PERFORM_LABOR_CHECKS  LBS*/
+ /*02/20/2009 prodsupt 9NSG  add diagnostic for calling module    LBS*/
+ /*09/12/2010 prodsupt 0NSE  add diagnostics for zOS v1.11 debug  LBS*/
+ /*                                                                  */
+ /*01/27/2012 RCQ1882  2HSC  RECOMPILED TO USE THE NEW CWA        NAK*/
+ /*03/06/2012 RCQ1882  2HSC  fix diagnostic on QTRAHR             LBS*/
+ /*                                                                  */
+ /*03/04/2016 RCQ2983 15HSC  RECOMPILED TO PICK NEW CHANGES IN  ABDUL*/
+ /*                          QBPRICX                                 */
+ /*07/28/2016 RCQ0345 15HSC RECOMPILED TO PICK NEW CHANGES IN GAYATRI*/
+ /*                           QBPRICX                                */   
+ /********************************************************************/
+ DCL VERSION      CHAR(18) STATIC INIT('15HSC - 07/28/2016');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBPRIC2');
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ /********************************************************************/
+ /*                     COMPILE TIMESTAMP                            */
+ /********************************************************************/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+  DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*                     BUILTIN FUNCTIONS                            */
+ /********************************************************************/
+ /* DCL ADDR BUILTIN in ceeibmaw */
+ DCL (CSTG,
+      PLIRETC,
+      PLIDUMP,
+      ONCHAR,
+      ONLOC,
+      ONSOURCE,
+      NULL,
+      STRING,
+      SUBSTR,
+      ADDR,  
+      ABS,
+      CEIL) BUILTIN;
+
+ /* DCL PLIXOPT CHAR(30) VARYING EXT INIT('STAE') */
+ DCL PLIXOPT    CHAR(250)
+     INIT('STACK(40K,4K,ANY,FREE),HEAP(4K,2K,ANYWHERE,KEEP,2K,2K),
+     MSGFILE(SYSPRINT),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,1K,FREE),
+     ANYHEAP(10K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+     TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                             STATIC VARYING EXTERNAL;
+ /********************************************************************/
+ /*                        FILE DECLARES                             */
+ /********************************************************************/
+ DCL SYSPRINT FILE PRINT;
+
+ /********************************************************************/
+ /*                    DATE CONVERSION PROGRAMS                      */
+ /********************************************************************/
+ /* %INCLUDE QBDATE */
+
+ %INCLUDE CEEIBMAW;
+ %INCLUDE CEEIBMCT;
+
+ %PAGE;
+ /********************************************************************/
+ /*                      DECLARE POINTERS                            */
+ /********************************************************************/
+ DCL @COMM  POINTER;                     /* PTR TO COMMAREA          */
+ /********************************************************************/
+ /*                    LAYOUT OF PRICING DATA                        */
+ /********************************************************************/
+ DCL 1 PRICDATA BASED(@COMM) UNALIGNED,
+ %INCLUDE QBPRICE;;
+
+ %PAGE;
+ /********************************************************************/
+ /*                  MISCELLANEOUS DECLARATIONS                      */
+ /********************************************************************/
+ DCL ABEND_CODE           FIXED BIN(31)  INIT(2222);
+ DCL ACT_INSIDE_HRS       FIXED DEC(3,1) INIT(00.0);
+ DCL ACT_OUTSIDEHRS       FIXED DEC(3,1) INIT(00.0);
+ DCL BLANK                   CHAR(1)     INIT('');
+
+ DCL 1 ACTIVITY_DAY(3),
+       3 DATE                CHAR(8),         /* YYYYMMDD */
+       3 START            FIXED DEC(3,1),     /* HHM      */
+       3 STOP             FIXED DEC(3,1),     /* HHM      */
+       3 MAX_HRS_IN       FIXED DEC(3,1);     /* HHM      */
+
+
+ DCL CURDATE                 PIC'(8)9'  INIT(0);
+ DCL DAY                     CHAR(2)    INIT('');
+ DCL DIAG_TEXT               CHAR(80)   INIT('');
+ DCL DISCOUNT_AMT        FIXED DEC(5,2) INIT(0);
+ DCL H#                  FIXED BIN(31)  INIT(0);
+ DCL HRS24               FIXED DEC(3,1) INIT(24.0);
+ DCL HVLC_PRODUCT            CHAR(1)    INIT('H');
+ DCL I                   FIXED BIN(31)  INIT(0);
+ DCL INDEX_POSITION      FIXED BIN(15)  UNALIGNED INIT(0);
+
+ /* DCL LIL_DATE         FIXED DEC(7,0) INIT(0)*/
+ DCL LIL_DATE            FIXED BIN(31)  INIT(1);
+ DCL MIDNIGHT            FIXED DEC(3,1) INIT(24.0);
+ DCL MONTH                   CHAR(2)    INIT('');
+ DCL NO                      CHAR(1)    INIT('N');
+ DCL NON_HVLC_PRODUCT        CHAR(1)    INIT('N');
+ DCL NUMBER_OF_DAYS      FIXED DEC(2,0) INIT(0);
+ DCL P#                  FIXED BIN(31)  INIT(0);
+ DCL PIC_DAYNUM                PIC'9'   INIT(0);
+ DCL PERFORM_LABCALC         CHAR(1)    INIT ('Y');/* DO LABOR CALC*/
+ DCL QTOTHOUR            FIXED DEC(3,1) INIT(0);
+ DCL RATEKEY                 CHAR(11)   VARYING;
+
+ DCL TEMP_ACTSTART_TIME  FIXED DEC(3,1) INIT(0) UNALIGNED;
+ DCL TEMP_DATE               CHAR(8)    INIT('');
+ DCL TEMP_LILDATE        FIXED BIN(31)  INIT(0);
+
+ DCL TEMP_QHCOUNT        FIXED BIN(15)  INIT(0) ALIGNED; /* ??? */
+ DCL TEMP_QSTOTI         FIXED DEC(3,1) INIT(0);
+ DCL TEMP_QTOTHOUR       FIXED DEC(3,1) INIT(0);
+
+ DCL TEMP_HRS_OUT        FIXED DEC(3,1) INIT(0);
+ DCL TEMP_QINHRS         FIXED DEC(3,1) INIT(0);
+ DCL TEMP_STOP_TIME      FIXED DEC(3,1) INIT(0);
+ DCL TEMSTART            FIXED DEC(3,1) INIT(0);
+
+ DCL TEMP_TVLSTOP_TIME   FIXED DEC(3,1) INIT(0);
+ DCL TEMP_TVLSTART_TIME  FIXED DEC(3,1) INIT(0);
+
+ DCL TVL_INSIDE_HRS      FIXED DEC(3,1) INIT(00.0);
+ DCL TVL_OUTSIDEHRS      FIXED DEC(3,1) INIT(00.0);
+
+ DCL YEAR                    CHAR(4)    INIT('');
+ DCL YES                     CHAR(1)    INIT('Y');
+
+
+ /********************************************************************/
+ /* PLIDATE Routines                                                 */
+ /********************************************************************/
+ /* removed in release 3nse                                          */
+ /* DCL LILGRG ENTRY(PIC'(8)9',CHAR(3))   RETURNS(FIXED(7)DEC)       */
+ /* DCL DAYGRG ENTRY(PIC'(8)9',CHAR(3))   RETURNS(FIXED(1)DEC)       */
+ /* DCL GRGLIL ENTRY(FIXED(7)DEC,CHAR(3)) RETURNS(PIC'99999999')     */
+
+ %PAGE;
+ /********************************************************************/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES. THIS STRING IS USED TO SAVE    */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED.                                                      */
+ /********************************************************************/
+ DCL EIB_STRING    CHAR(85) BASED(DFHEIPTR);
+
+ /********************************************************************/
+ /*                    LAYOUT OF ERROR STRUCTURE                     */
+ /********************************************************************/
+ DCL 1 ERRDATA,
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------  ERROR STRUCTURE  ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*                                                                 */
+ /*  DESC: MAPPING OF ERROR HANDLING DATA STRUCTURE                 */
+ /*                                                                 */
+ /*******************************************************************/
+                                       /* EIB SAVE IMAGE IS 85 BYTES*/
+                                       /* WITH CICS 1.7             */
+       3 ET_EIB            CHAR(85) INIT(''),  /*           001- 085*/
+                                               /* DESCRIPTION LINES */
+       3 ET_TEXT1          CHAR(80) INIT(''),  /*           086- 165*/
+       3 ET_TEXT2          CHAR(80) INIT(''),  /*           166- 245*/
+       3 ET_TEXT3          CHAR(80) INIT('');  /*           246- 325*/
+ /*-----------------------------------------------------------------*/
+ /*                    END OF ERROR STRUCTURE                       */
+ /*-----------------------------------------------------------------*/
+ %PAGE;
+ /*******************************************************************/
+ /*                        ERROR PROCESSING                         */
+ /*******************************************************************/
+ EXEC CICS IGNORE CONDITION
+           ERROR;
+
+ ON CONVERSION
+   BEGIN;
+     ET_TEXT2 = 'QBPRIC2: ONSOURCE ' || ONSOURCE ||' ON CHAR '||ONCHAR;
+     SIGNAL ERROR;
+   END;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                   /* PREVENT RECURSION ERROR */
+     CALL PLIDUMP ('T');
+     ET_EIB = EIB_STRING;
+     ET_TEXT1 = 'PROGRAM: QBPRIC2  ENTRY POINT = ' || ONLOC ||
+                ' DOC NUM ' || PRICDATA.IINVOICE;
+     EXEC CICS WRITE OPERATOR TEXT(ET_EIB);
+     EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+     EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+     EXEC CICS WRITE OPERATOR TEXT(ET_TEXT3);
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = ET_TEXT1;
+      CALL WTO;
+      DIAG_TEXT = ET_TEXT2;
+      CALL WTO;
+      ET_TEXT3 = 'QBPRIC2: ONSOURCE ' ||ONSOURCE||' ON CHAR '||ONCHAR;
+      DIAG_TEXT = ET_TEXT3;
+      CALL WTO;
+    END;
+     EXEC CICS ABEND
+          ABCODE('PRC2')
+          CANCEL;
+   END;
+ %PAGE;
+ /********************************************************************/
+ /*                        MAIN PROCEDURE                            */
+ /********************************************************************/
+
+ IF EIBCALEN = 0                /* IF DATA WAS NOT RECEIVED THEN     */
+   THEN DO;                     /* SIGNAL ERROR                      */
+     ET_TEXT2 = 'NO COMMAREA DATA FOR QBPRIC2 - APPLICATION PROBLEM';
+     SIGNAL ERROR;
+   END;
+
+ IF TEST_SW 
+   THEN DO;
+   /* -------------------------------------------------------------- */
+   /* PRICDATA.IINVOICE contains the last 7 digits of the QSAR       */
+   /* document number.  Put the area number in front of the 7 digits */
+   /* and you will have the complete document number.  For HUB       */
+   /* diagnostics add 30 to the area number.                         */
+   /* -------------------------------------------------------------- */
+      DIAG_TEXT = MODULE||
+       ': Start of QBPRIC2, DOC = '||PRICDATA.IINVOICE ||
+           ' FROM ';
+      IF FBIL1
+        THEN SUBSTR(DIAG_TEXT,48,7) = 'QBBIL1';
+        ELSE IF FBIL4
+               THEN SUBSTR(DIAG_TEXT,48,7) = 'QBBIL4';
+               ELSE SUBSTR(DIAG_TEXT,48,7) = 'UNKNOWN';
+      CALL WTO;
+      
+      DIAG_TEXT = MODULE||': COMM LENGTH '||EIBCALEN;
+      CALL WTO;
+    END;
+
+
+ IF PERFORM_LABOR_CHECKS() 
+   THEN DO;
+      CALL SETUP_DATA;          /* Set up data for the run            */
+
+      /* ------------------------------------------------------------ */
+      /* This PROC should Calculate the Inside and Outside hours for  */
+      /* the time frame that is given. The hours that are produced    */
+      /* will be used later to Calculate the total Inside and Outside */
+      /* hours. It will also Calculate the start time based on the    */
+      /* hours given.                                                 */
+      /* ------------------------------------------------------------ */
+      /* break out act hrs in to diff in/out buckets                  */
+      /* ------------------------------------------------------------ */
+      /* The start position has to start at position 3 for the        */
+      /* current day. This would be true because the current day is   */
+      /* in array position 3.                                         */
+      /* ------------------------------------------------------------ */
+
+      CALL CALCULATE_HOURS(QSTOTI,QSVCHR);
+
+                                                      
+     IF TEST_SW                                            
+      THEN DO;                                             
+        DIAG_TEXT = MODULE||': AFTER CALCULATE_HOURS';      
+        CALL WTO; 
+        DIAG_TEXT = MODULE||': QINHRS:  '||QINHRS||    
+                            ' AINRATE:  '||AINRATE; 
+        CALL WTO;                                           
+        DIAG_TEXT = MODULE||': QOUTHRS: '||QOUTHRS||    
+                            ' AOUTRATE: '||AOUTRATE; 
+        CALL WTO;                                           
+      END;                                                 
+
+      /* NOW PASS OFF THE INFORMATION */
+      TEMP_ACTSTART_TIME = HSTART; /* this is the stop time of travel */
+      ACT_INSIDE_HRS     = QINHRS;
+      ACT_OUTSIDEHRS     = QOUTHRS;
+      QINHRS             = 0;
+      QOUTHRS            = 0;
+
+      /* ----------------------------------------------------------- */
+      /* Now set up travel hours inside outside hours, if there is a */
+      /* Reason.  There is no reason to add Travel Hours if there is */
+      /* no travel hours to compute or if there is an Incident fee.  */
+      /* ----------------------------------------------------------- */
+      IF QTRAHR = 0 | AINCDNT > 0 THEN
+        DO;
+          TVL_OUTSIDEHRS     = 0;
+          TVL_INSIDE_HRS     = 0;
+        END;
+      ELSE
+        DO;
+          /* -------------------------------------------------------- */
+          /* If the total number of days that the actual hours spans  */
+          /* is more then 1 day, this means the date used to pint to  */
+          /* the correct hours of coverage is day 2. This is because  */
+          /* the travel stop time is in day 2. What this means is     */
+          /* that the stop time of Travel Hours could be in the       */
+          /* previous day. So the hours of coverage for travel hours  */
+          /* would be for the Current date - 1 day.                   */
+          /* -------------------------------------------------------- */
+          /* This is important because we have to know which date to  */
+          /* use for the inside/outside hours when dealing with       */
+          /* travel hours. If the number of days for actual hours is  */
+          /* 1 then travel start and stop for the service activity    */
+          /* date starts in array position 3. (See example in         */
+          /* CAL_IN_OUT_HRS:)                                         */
+          /* -------------------------------------------------------- */
+          /* NOTE: There is a special case where the start time of    */
+          /*       Actual hours is 00.0 and the stop time of travel   */
+          /*       is 24.0                                            */
+          /* -------------------------------------------------------- */
+
+          IF TEMP_ACTSTART_TIME = 0.0 THEN
+               TEMP_ACTSTART_TIME = 24.0;
+
+          /* -------------------------------------------------------- */
+          /* Actual Hours spans More than one day or your at the      */
+          /* midnight boundary                                        */
+          /* -------------------------------------------------------- */
+          IF QTOTDAYS > 1 |  TEMP_ACTSTART_TIME = 24.0 THEN
+             INDEX_POSITION  = 2;/* More than 1 day Travel starts in  */
+                                 /* Activity Date -1                  */
+          ELSE
+             INDEX_POSITION  = 3;/* Travel starts in the current      */
+                                 /* Activity Date                     */
+
+          CALL CALCULATE_HOURS(TEMP_ACTSTART_TIME,QTRAHR);
+
+          /* NOW PASS OFF THE INFORMATION */
+          TVL_INSIDE_HRS     = QINHRS;
+          TVL_OUTSIDEHRS     = QOUTHRS;
+          QINHRS             = 0;
+          QOUTHRS            = 0;
+        END;
+
+      /* ------------------------------------------------------------ */
+      /* Now we have to determine which buckets to put the hours in   */
+      /* ------------------------------------------------------------ */
+      CALL CHECK_BILL_SWITCHES;
+    END;
+ ELSE
+    DO;
+      QINSTART     = ACTIVITY_DAY(3).START;
+      QINSTOP      = ACTIVITY_DAY(3).STOP;
+    END;
+
+   /* -------------------------------------------------------------- */
+   /* Because we used the Hstart as a primer to figure out the       */
+   /* QTOTDAYS, we need to reset it and some other fields to pass    */
+   /* true start state based on bot hactual hours and travel hours.  */
+   /* the information being passed back to the calling program has   */
+   /* be reset to reflect this. We want the correct number of days,  */
+   /* start time and billable hours. The fields are QTOTDAYS, HSTART */
+   /* and QTOTHOUR.                                                  */
+   /* -------------------------------------------------------------- */
+   /* If there is an incident fee or the travel hours are 0 then     */
+   /* there is no need to roll up hours for travel.                  */
+   /* -------------------------------------------------------------- */
+ IF AINCDNT > 0 | QTRAHR = 0 THEN
+    HSTART   = QSTOTI - QSVCHR;          /* Stop Time - Actual Hours */
+ ELSE
+    HSTART   = QSTOTI - QSVCHR - QTRAHR; /* Stop Time - Actual Hours */
+                                         /*           - Travel Hours */
+                             /* ----------------------------------- */
+ CALL CAL_START_TIME;        /* CALCULATE START TIME                */
+                             /* ----------------------------------- */
+                             /* HSTART - COMES FROM CAL_START_TIME  */
+                             /* ----------------------------------- */
+                             /* This is just the Start Time of      */
+                             /* the activity (depending on if there */
+                             /* is an incident charge, Travel is not*/
+                             /* included if so) It does not care if */
+                             /* there are outside/inside hours      */
+                             /* that are not charged. It is based on*/
+                             /* the stop time and the actual and    */
+                             /* Travel hours.                       */
+                             /* ----------------------------------- */
+                             /* QTOTDAYS - COMES FROM CAL_START_TIME*/
+                             /* ----------------------------------- */
+                             /* This is the total number of days for*/
+                             /* the activity (depending on if there */
+                             /* is an incident charge, Travel is not*/
+                             /* included if so) It does not care if */
+                             /* there are outside/inside hours      */
+                             /* that are not charged. It is based on*/
+                             /* the stop time and the actual and    */
+                             /* Travel hours.                       */
+                             /* ----------------------------------- */
+                             /* QTOTHOUR - used in min charge calc  */
+                             /* ----------------------------------- */
+  QTOTHOUR = QINHRS + QOUTHRS;/* This is the total billable hours   */
+                             /* The billable hours = the total IN   */
+                             /* hours (ACT+TVL) + the total OUT     */
+                             /* hours (ACT+TVL)                     */
+                             /* (remember this value is adjusted    */
+                             /* based on the billable flags that    */
+                             /* indicate which hours are to be      */
+                             /* billed, so the hours are not just   */
+                             /* ACTUAL + TRAVEL hours.)             */
+  /* -------------------------------------------------------------- */
+  /* inside start time for service activity date for the start of   */
+  /* the activity                                                   */
+  /* -------------------------------------------------------------- */
+  SELECT (QTOTDAYS);
+    WHEN (1)                              /* WORKING WITH 1    DAY  */
+      QINSTART     = ACTIVITY_DAY(3).START;
+    WHEN (2)                              /* WORKING WITH 2    DAYS */
+      QINSTART     = ACTIVITY_DAY(2).START;
+    WHEN (3)                              /* WORKING WITH 3    DAYS */
+      QINSTART     = ACTIVITY_DAY(1).START;
+    OTHERWISE;
+  END;
+
+  /* -------------------------------------------------------------- */
+  /* inside stop time for service call date for the stop of the     */
+  /* activity                                                       */
+  /* -------------------------------------------------------------- */
+  QINSTOP      = ACTIVITY_DAY(3).STOP;/* THIS IS ALWAYS THE CURRDAY */
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': NUM OF PARTS '||X##PARTS||
+                         ' CALL COMPUTE ';
+      CALL WTO;
+    END;
+    
+    
+  CALL COMPUTE;             /*  COMPUTE LABOR,EXP,PARTS             */
+
+  /* -------------------------------------------------------------- */
+  /* Check to see if there is a reason to adjust for Minimum Charge */
+  /* -------------------------------------------------------------- */
+  CALL PERFORM_MINADJUST_CHECK;
+  
+  IF TEST_SW THEN
+    DO;
+      CALL PRINT_DEBUG6;
+      CALL PRINT_DEBUG7;
+      CALL PRINT_DEBUG8;
+      CALL PRINT_DEBUG9;
+    END;
+    
+  SELECT(CMININD);                      /* CHECK MIN CHG INDICATOR  */
+     WHEN(BLANK,YES)
+        CALL MIN_CHARGE_ADJ;
+     OTHERWISE;
+   END;   /* end of select */
+
+  IF TEST_SW THEN
+    DO;
+      CALL PRINT_DEBUG6;
+      CALL PRINT_DEBUG7;
+      CALL PRINT_DEBUG8;
+      CALL PRINT_DEBUG9;
+    END;
+
+ EXEC CICS RETURN;
+
+ %PAGE;
+ %INCLUDE QBPRICX;
+
+ %PAGE;
+ WTO: PROC;
+ /********************************************************************/
+ /* WRITE TO OPERATOR                 - ** FOR TEST ONLY **          */
+ /********************************************************************/
+
+   /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT) */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WTO;
+
+ %PAGE;
+ PRINT_DEBUG6: PROC;
+ /********************************************************************/
+ /* PRINT DEBUG INFORMATION ABOUT HOURS BUCKETS - ** FOR TEST ONLY   */
+ /********************************************************************/
+ DCL PIC_QSVCHR                PIC'Z9V.9'   INIT(0);
+ DCL PIC_QTRAHR                PIC'Z9V.9'   INIT(0);
+ DCL PIC_QSTOTI                PIC'Z9V.9'   INIT(0);
+ DCL PIC_ACT_INSIDE_HRS        PIC'Z9V.9'   INIT(0);
+ DCL PIC_ACT_OUTSIDEHRS        PIC'Z9V.9'   INIT(0);
+ DCL PIC_TVL_INSIDE_HRS        PIC'Z9V.9'   INIT(0);
+ DCL PIC_TVL_OUTSIDEHRS        PIC'Z9V.9'   INIT(0);
+ DCL PIC_QINHRS                PIC'Z9V.9'   INIT(0);
+ DCL PIC_QOUTHRS               PIC'Z9V.9'   INIT(0);
+ DCL PIC_QTOTDAYS              PIC'ZZ9'     INIT(0);
+ DCL PIC_HSTART                PIC'Z9V.9'   INIT(0);
+ DCL TEMP_DATE                 CHAR(8)      INIT('');
+
+  TEMP_DATE = SUBSTR(DCALL,1,4)||
+              SUBSTR(DCALL,6,2)||
+              SUBSTR(DCALL,9,2);
+   PIC_QSVCHR           = QSVCHR;
+   PIC_QTRAHR           = QTRAHR;
+   PIC_QSTOTI           = QSTOTI;
+   PIC_ACT_INSIDE_HRS   = ACT_INSIDE_HRS;
+   PIC_ACT_OUTSIDEHRS   = ACT_OUTSIDEHRS;
+   PIC_TVL_INSIDE_HRS   = TVL_INSIDE_HRS;
+   PIC_TVL_OUTSIDEHRS   = TVL_OUTSIDEHRS;
+   PIC_QINHRS           = QINHRS;
+   PIC_QOUTHRS          = QOUTHRS;
+   PIC_QTOTDAYS         = QTOTDAYS;
+   PIC_HSTART           = HSTART;
+
+  DIAG_TEXT = MODULE||
+    ': CALL    |ACT |TVL |STOP|ACTUAL   |TRAVEL   |'||
+    '#  | TOTAL   |FL| START';
+  CALL WTO;
+  DIAG_TEXT = MODULE||
+    ': DATE    |HRS |HRS |TIME|IN  |OUT |IN  |OUT |DAY'||
+        '|IN  |OUT |AG| HRS ';
+  CALL WTO;
+  DIAG_TEXT = MODULE||
+     '--------------------------------------------------------'||
+     '---------------';
+  CALL WTO;
+  DIAG_TEXT = MODULE||': '||TEMP_DATE               ||'|'||
+      PIC_QSVCHR        ||'|' ||PIC_QTRAHR          ||'|' ||
+      PIC_QSTOTI        ||'|' ||PIC_ACT_INSIDE_HRS  ||'|' ||
+      PIC_ACT_OUTSIDEHRS||'|' ||PIC_TVL_INSIDE_HRS  ||'|' ||
+      PIC_TVL_OUTSIDEHRS||'|' ||PIC_QTOTDAYS        ||'|' ||
+      PIC_QINHRS        ||'|' ||PIC_QOUTHRS         ||'|' ||
+      FBILACTH||FBILTRVH||'|' ||PIC_HSTART;
+
+  CALL WTO;
+  DIAG_TEXT = MODULE;
+  CALL WTO;
+ END PRINT_DEBUG6;
+
+ %PAGE;
+ PRINT_DEBUG7: PROC;
+ /********************************************************************/
+ /* PRINT DEBUG INFORMATION ABOUT HOURS BUCKETS - ** FOR TEST ONLY   */
+ /********************************************************************/
+  DCL PIC_QSVCHR             PIC'Z9V.9'   INIT(0);
+  DCL PIC_QTRAHR             PIC'Z9V.9'   INIT(0);
+  DCL PIC_QSTOTI             PIC'Z9V.9'   INIT(0);
+  DCL PIC_QINHRS             PIC'Z9V.9'   INIT(0);
+  DCL PIC_QOUTHRS            PIC'Z9V.9'   INIT(0);
+  DCL PIC_QTOTDAYS           PIC'ZZ9'     INIT(0);
+  DCL PIC_HSTART             PIC'Z9V.9'   INIT(0);
+  DCL PIC_QINSTART           PIC'Z9V.9'   INIT(0);
+  DCL PIC_QINSTOP            PIC'Z9V.9'   INIT(0);
+  DCL PIC_QMINHRS            PIC'Z9V.9'   INIT(0);
+  DCL TEMP_DATE              CHAR(8)      INIT('');
+
+   TEMP_DATE   = SUBSTR(DCALL,1,4)||
+                 SUBSTR(DCALL,6,2)||
+                 SUBSTR(DCALL,9,2);
+  DIAG_TEXT    = MODULE||' QSVCHR:   '||QSVCHR;
+  CALL WTO;  
+  PIC_QSVCHR   = QSVCHR;
+  DIAG_TEXT    = MODULE||' QTRAHR:   '||QTRAHR;
+  CALL WTO;  
+  PIC_QTRAHR   = QTRAHR;
+  DIAG_TEXT    = MODULE||' QSTOTI:   '||QSTOTI;
+  CALL WTO;  
+  PIC_QSTOTI   = QSTOTI;
+  DIAG_TEXT    = MODULE||' QINHRS:   '||QINHRS;
+  CALL WTO;  
+  PIC_QINHRS   = QINHRS;
+  DIAG_TEXT    = MODULE||' QOUTHRS:  '||QOUTHRS;
+  CALL WTO; 
+  PIC_QOUTHRS  = QOUTHRS;
+  DIAG_TEXT    = MODULE||' QTOTDAYS: '||QTOTDAYS;
+  CALL WTO;  
+  PIC_QTOTDAYS = QTOTDAYS;
+  DIAG_TEXT    = MODULE||' HSTART:   '||HSTART;
+  CALL WTO;  
+  PIC_HSTART   = HSTART;
+  DIAG_TEXT    = MODULE||' QINSTART: '||QINSTART;
+  CALL WTO;  
+  PIC_QINSTART = QINSTART;
+  DIAG_TEXT    = MODULE||' QINSTOP:  '||QINSTOP;
+  CALL WTO; 
+  PIC_QINSTOP  = QINSTOP;
+  DIAG_TEXT    = MODULE||' QMINHRS:  '||QMINHRS;
+  CALL WTO; 
+  PIC_QMINHRS  = QMINHRS;
+
+  DIAG_TEXT    = MODULE||': '||'CALL    |'||
+          'ACT |TRAV|STOP|TOT|STRT|IN  | IN          |OUT |  OUT';
+  CALL WTO;
+  DIAG_TEXT    = MODULE||': '||
+     'DATE    |HRS |HRS |TIME|DAY|TIME|' ||
+     'HRS | AMOUNT      |HRS | AMOUNT     ';
+  CALL WTO;
+  DIAG_TEXT = MODULE||':'||
+     '--------------------------------------------------------'||
+     '---------------';
+  CALL WTO;
+
+  DIAG_TEXT = MODULE||': '     ||
+     TEMP_DATE ||'|' ||PIC_QSVCHR  ||'|'||PIC_QTRAHR ||'|'  ||
+     PIC_QSTOTI||'|' ||PIC_QTOTDAYS||'|'||PIC_HSTART ||'|'  ||
+     PIC_QINHRS||'|$'||AINLAB      ||'|'||PIC_QOUTHRS||'|$' ||
+     AOUTLAB;
+  CALL WTO;
+
+  DIAG_TEXT = MODULE||':';
+  CALL WTO;
+
+  DIAG_TEXT = MODULE||': '||'CALL    |'||
+        '    TOT      |MIN|      MIN    |MIN |  IN | IN |'||
+        'ATPDE';
+  CALL WTO;
+  DIAG_TEXT = MODULE||': '||'DATE    |  INVOICE    |IND|'||
+   '    CHARGE   |HRS |START|STOP|CRAIX';
+  CALL WTO;
+  DIAG_TEXT = MODULE||':'||
+     '--------------------------------------------------------'||
+     '---------------';
+  CALL WTO;
+  DIAG_TEXT = MODULE||': '||TEMP_DATE ||'|$'||ATOTTIME    ||'|  '||
+            CMININD    ||'|$'  || AMINCHG   ||'|'||PIC_QMINHRS  ||
+            '| '||PIC_QINSTART   ||'|'   ||PIC_QINSTOP   ||'|' ||
+            FBILACTH||FBILTRVH||FBILPART||FBILDIST||FBILEXP;
+  CALL WTO;
+  DIAG_TEXT = MODULE||':';
+  CALL WTO;
+  
+ END PRINT_DEBUG7;
+
+ %PAGE;
+ PRINT_DEBUG8: PROC;
+ /********************************************************************/
+ /* PRINT DEBUG INFORMATION ABOUT HOURS BUCKETS - ** FOR TEST ONLY   */
+ /********************************************************************/
+ DCL PIC_START1              PIC'Z9V.9'   INIT(0);
+ DCL PIC_END1                PIC'Z9V.9'   INIT(0);
+ DCL PIC_START2              PIC'Z9V.9'   INIT(0);
+ DCL PIC_END2                PIC'Z9V.9'   INIT(0);
+ DCL PIC_START3              PIC'Z9V.9'   INIT(0);
+ DCL PIC_END3                PIC'Z9V.9'   INIT(0);
+
+  PIC_START1  = ACTIVITY_DAY(1).START;
+  PIC_END1    = ACTIVITY_DAY(1).STOP;
+  PIC_START2  = ACTIVITY_DAY(2).START;
+  PIC_END2    = ACTIVITY_DAY(2).STOP;
+  PIC_START3  = ACTIVITY_DAY(3).START;
+  PIC_END3    = ACTIVITY_DAY(3).STOP;
+
+   DIAG_TEXT = MODULE  ||':'  ||
+       ' CURRDATE|    |    |CURRDATE|    |    |CURRDATE'||
+       '|    |      ';
+   CALL WTO;
+   DIAG_TEXT = MODULE  ||':'  ||
+       '         |STRT|STOP| -1     |STRT|STOP| -2     '||
+       '|STRT|STOP';
+   CALL WTO;
+   DIAG_TEXT = MODULE  ||':'  ||
+     '--------------------------------------------------------'||
+     '---------------';
+   CALL WTO;
+   DIAG_TEXT = MODULE  ||': '  ||
+      ACTIVITY_DAY(3).DATE ||'|'||PIC_START3||'|'||
+      PIC_END3 ||'|'||ACTIVITY_DAY(2).DATE ||'|'||
+      PIC_START2||'|'||PIC_END2 ||'|'||
+      ACTIVITY_DAY(1).DATE ||'|'||PIC_START1||'|'||
+      PIC_END1;
+   CALL WTO;
+   DIAG_TEXT = MODULE||':';
+   CALL WTO;
+ END PRINT_DEBUG8;
+
+ %PAGE;
+ PRINT_DEBUG9: PROC;
+ /********************************************************************/
+ /* PRINT DEBUG INFORMATION ABOUT HOURS BUCKETS - ** FOR TEST ONLY   */
+ /********************************************************************/
+  DCL PIC_PARTCNT                PIC'ZZ9'   INIT(0);
+  TEMP_DATE = SUBSTR(DCALL,1,4)||
+              SUBSTR(DCALL,6,2)||
+              SUBSTR(DCALL,9,2);
+  PIC_PARTCNT = X##PARTS;
+
+  DIAG_TEXT = 'QBPRIC2: |FLAG|TOTPART     |NUM|TOTDIST     |'||
+              'TOTRVEXP  |INCIDENT   | TOT';
+    
+  CALL WTO;
+  DIAG_TEXT = 'QBPRIC2: |PDE |AMOUNT      |PRT|AMOUNT      |'||
+              'AMOUNT    |CHARGE     |EXPNS';
+
+  CALL WTO;
+  DIAG_TEXT = 'QBPRIC2'||
+     ':--------------------------------------------------------'||
+     '---------------';
+  CALL WTO;
+
+  DIAG_TEXT = 'QBPRIC2: |'||
+      FBILPART||FBILDIST||FBILEXP||' |'||ATOTPART ||'|'||
+      PIC_PARTCNT||'|'||AMILEXP||'|'||ATRAEX||'|'||
+      AINCDNT||'|'||ATOTEXP;
+
+  CALL WTO;
+  DIAG_TEXT = MODULE;
+  CALL WTO;
+  
+ END PRINT_DEBUG9;
+
+ END QBPRIC2;

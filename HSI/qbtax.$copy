@@ -1,0 +1,73 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBTAX       VERSION NR:  01           DATE:  03/30/89    */
+ /*                                               TIME:  15:30:00    */
+ /*                                                                  */
+ /* TITLE:  TAX DATA USED BY QBTAX1                                  */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF TAXING DATA REQUIRED BY QBTAX1  TO      */
+ /*               TALK TO TAXCALC.                                   */
+ /*                                                                  */
+ /* NOTE:  PROGRAM SHOULD INCLUDE THE FOLLOWING DCL FOR 'REFER'      */
+ /*        DCL Q# FIXED BIN(15)                                      */
+ /*                                                                  */
+ /*        !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! */
+ /*        THIS IS THE NSS VERSION OF THE SAME COPY MEMBER WHICH     */
+ /*        IS USED IN BSS (DRIVER SYSTEM CONS).  ANY CHANGES MADE    */
+ /*        HERE SHOULD BE REFLECTED IN THE BSS VERSION.              */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  03/30/89 SR 9892  0NSA INITIAL VERSION             L. BARKER    */
+ /*  09/10/90 I102184  0NSK QDISUS FROM DEC(2) TO DEC(3)        LBS  */
+ /*  11/13/98 B0286354 TEMP FIX FOR ENVIRONMENT PROBLEM         LBS  */
+ /*                                                                  */
+ /********************************************************************/
+
+    3 CSTATCD      CHAR (2),       /*  STATE LOCATION CODE           */
+    3 CCNTYCD      CHAR (3),       /*  COUNTY LOCATION CODE          */
+    3 CCITYCD      CHAR (4),       /*  CITY LOCATION CODE            */
+    3 COCL         CHAR (1),       /*  OUTSIDE CITY LIMIT            */
+    3 ICUSTNO      CHAR (7),       /*  CUSTOMER NUMBER               */
+    3 CCUSTYPE     CHAR (1),       /*  TYPE CUSTOMER CODE            */
+    3 CTAXCL       CHAR (3),       /*  STATE/CNTY/CITY TAX CLS       */
+    3 DINVDTE      CHAR (6),       /*  CALL COMPLETE -- YYMMDD       */
+    3 CTAXCD       CHAR (2),       /*  PRODUCT CODE CATEGORY         */
+    3 CBOMKT       CHAR (3),       /*  MARKETING BRANCH OFFICE       */
+    3 CBOSVC       CHAR (3),       /*  SERVICE BRANCH OFFICE         */
+    3 CSVC         CHAR (2),       /*  SERVICE CODE                  */
+    3 CIDM         CHAR (1),       /*  IDM CODE                      */
+    3 ATOTTIME     FIXED DEC(9,2), /*  TOTAL $TIME (LABOR)           */
+    3 ATOTEXP      FIXED DEC(9,2), /*  TOTAL $EXPENSE                */
+    3 TEST_SW      CHAR (1),       /*  SWITCH USED IN TESTING (Y=ON) */
+    3 Q#PARTS      FIXED BIN(15),  /*  NUMBER OF PARTS IN PARTS ARRAY*/
+  /*3 UPARTS(Q# REFER(Q#PARTS)),       PARTS                         */
+    3 UPARTS(20),                  /*  PARTS                         */
+      5 QDISUS     FIXED DEC(3),   /*  PART QUANTITY                 */
+      5 APARTAMT   FIXED DEC(9,2), /*  PART AMOUNT (QTY*UNIT$)       */
+ /*------------------------------------------------------------------*/
+ /* FOLLOWING DATA RETURNED FROM QBTAX1                              */
+ /*------------------------------------------------------------------*/
+    3 ATOTTAX      FIXED DEC(9,2), /*  TOTAL $TAX -- SUM OF          */
+                                   /*  STATE, COUNTY, & CITY         */
+                                   /*  TAXES FROM TAXCALC            */
+    3 MESSAGE      CHAR (50),      /*  MESSAGE TO CORRESPOND         */
+                                   /*  WITH TAXCALC RET CODE         */
+ /*------------------------------------------------------------------*/
+ /* FOLLOWING DATA RETURNED FROM TAXCALC                             */
+ /*------------------------------------------------------------------*/
+    3 ASTATTAX     FIXED DEC(9,2), /*  STATE  TAX                    */
+    3 ACNTYTAX     FIXED DEC(9,2), /*  COUNTY TAX                    */
+    3 ACITYTAX     FIXED DEC(9,2), /*  CITY   TAX                    */
+    3 RET_CODE     CHAR (2)        /*  RETURN CODE                   */
+ /*------------------------------------------------------------------*/
+ /*               END OF QBTAX LAYOUT                                */
+ /*------------------------------------------------------------------*/
+

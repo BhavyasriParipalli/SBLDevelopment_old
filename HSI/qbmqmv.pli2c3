@@ -1,0 +1,1753 @@
+ QBMQMV  :
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBMQMV                             DATE:  06/18/2010  */
+ /*                                                                  */
+ /*  TITLE:  FORMAT CROSS/LAR DATA FOR HSI BILLING                   */
+ /*                                                                  */
+ /*  FUNCTION:  MOVE DATA RECEIVED FROM CROSS INTO REQUIRED RECORD   */
+ /*             LAYOUT                                               */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I                                                 */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*  INPUTS:   QBMQIN1, QBMQIN5, QBCROSS FROM QBMAIN                 */
+ /*                                                                  */
+ /*                                                                  */
+ /*  OUTPUTS:  AEQCOMM OR QBOVIN                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                     PGMR:*/
+ /* --------- -------- ------ --------------------------------- -----*/
+ /*06/09/2010 IT4211   0NSE    INITIAL VERSION                   AM  */	
+ /*11/18/2010 IT4211   0NSE    ADDED ASSIGNMENT FOR S0IPECLV     SK  */
+ /*12/01/2010 IT4211   0NSE    ADDED IOEMPART WITH S0IPART       SK  */
+ /*                            WHEN THERE IS NO IOEMPART             */
+ /*12/08/2010 IT4211   0NSE    ADDED SOME ASSIGNMENT STATEMENTS  NM  */
+ /*03/08/2011 HSI0NSE002 0NSE  corrected QSAR error array        LBS */
+ /*                            assignment                            */
+ /*02/09/2012 RCQ1882  2HSC   Added TRIM, MOD and LENGTH         NAK */
+ /*                           Declared PIC_2                         */
+ /********************************************************************/
+ DCL VERSION    CHAR(17) STATIC INIT('2HSC - 02/09/2012');
+ DCL MODULE     CHAR( 7) STATIC INIT('QBMQMV');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    BILL   = 'B'                                                  */
+ /*    NOBILL = 'N'                                                  */
+ /*    REVIEW = 'R'                                                  */
+ /*    NOT_ELIGIBLE = 'X'                                            */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE = '''X''';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  SUBSTR       BUILTIN;
+ DCL  VERIFY       BUILTIN;
+ DCL  TRIM         BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  MOD          BUILTIN;
+
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(12K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),,BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* POINTER TO COMMAREA --        */
+                                    /* (PASSED FROM CALLING PROGRAM) */
+                                    
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ 
+ %PAGE;
+
+ DCL 1 OUT_COMM BASED(@COMM) UNALIGNED,
+       2 TYPE_1,
+         %INCLUDE QBMQIN1;,
+       2 TYPE_5,
+       	 %INCLUDE QBMQIN5;,
+       2 COMMON_VARIABLES,
+       	 %INCLUDE QBCROSS;,
+       2 CP_AEQCOMM,
+       	 %INCLUDE AEQCOMM;,
+       2 CP_QBOVIN,
+       	 %INCLUDE QBOVIN;;
+       
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+       %INCLUDE AEQERRT ; ;
+  
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL CHAR_BYTE_1(4)    CHAR(1)    INIT((4)(''));
+ DCL CHAR_BYTE_2(4)    CHAR(1)    INIT((4)(''));
+ DCL CHAR_FUNCT        CHAR(2)    BASED(ADDR(FIXB_FUNCT));
+ DCL COMMLENGTH        PIC'(9)9'  INIT(0); 
+ DCL FIXB1(4)    FIXED BIN(15)    INIT((4)(0));
+ DCL FIXB2(4)    FIXED BIN(15)    INIT((4)(0));
+ DCL FIXB_FUNCT  FIXED BIN(15)    INIT(0);
+ DCL DIAG_TEXT         CHAR(80)   INIT('');
+ DCL I           FIXED BIN(15)    INIT(0);
+ DCL J           FIXED BIN(15)    INIT(0);
+ DCL LEN_CS1TABID FIXED BIN(15)   INIT(0);
+ DCL PIC1              PIC'9'     INIT(0);
+ DCL PIC2              PIC'99'    INIT(0);
+ DCL PIC_2             PIC'99'    INIT(0); /* RCQ1882 */
+ DCL PIC3              PIC'999'   INIT(0);
+ DCL PIC4              PIC'9999'  INIT(0);
+ DCL PIC7              PIC'(7)9'  INIT(0);
+ DCL PIC8              PIC'(8)9'  INIT(0);
+ DCL PIC_CUST          PIC'(7)9'  INIT(0);
+ DCL PIC_DATE          PIC'(8)9'  INIT(0);
+ DCL PIC_PARTPR        PIC'(10)9' INIT(0);
+ DCL PIC_PARTCS        PIC'(10)9' INIT(0);
+ DCL PIC_TIME          PIC'(6)9'  INIT(0);
+ DCL PIC_S0IPECLV      PIC'999'   INIT(0);
+ DCL TRIM_CS1TABID     CHAR(4)    VARYING INIT('');
+ 
+ DCL 1 PIC_TIME_OVER   BASED(ADDR(PIC_TIME)),
+       3 PIC_HR        PIC'99',
+       3 PIC_MIN       PIC'99',
+       3 PIC_SEC       PIC'99'; 
+       
+
+ DCL FOUND             BIT(1)    INIT('0'B);
+ DCL TEST_SW           BIT(1)    INIT('0'B);
+ 
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING        CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE    FIXED BIN(31) INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SNAP SYSTEM;                /* PREVENT RECURSION ERROR */
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+     ET_PROGRAM_ID = 'QBMQMV ';
+     ET_EIB        = EIB_STRING;
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'N';
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': DATE: '   || PIC_DATE ||
+                     ' TIME: '   || PIC_TIME ||
+                     ' LOCATION: '||ONLOC;
+         CALL WRITE_TO_OPER;
+       END;
+     CERROR = '300';
+     TERROR = 'INTERNAL ERROR : CONTACT HSI DEVLOPMENT';
+     EXEC CICS RETURN;
+
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     DIAG_TEXT = 'QBMQMV ENTERED.'|| ' FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+
+ IF CWA_QSAR_TRACE = 'Y' | 
+    CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = 'QBMQMV ENTERED BEFORE INITIALIZE';
+     CALL WRITE_TO_OPER;
+   END;
+
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': TYPE OF MESSAGE '||OUT_COMM.CMSGIND;
+     CALL WRITE_TO_OPER;
+     COMMLENGTH = EIBCALEN;
+     DIAG_TEXT = MODULE||': COMM LENGTH '||COMMLENGTH;
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF OUT_COMM.CMSGIND = '01' 
+   THEN CALL ASSIGN_AEQCOMM;
+   ELSE IF OUT_COMM.CMSGIND = '05' 
+          THEN CALL CREATE_OVR1;
+
+ EXEC CICS RETURN;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* MOVE INPUT DATA INTO THE AEQCOMM STRUCTURE FOR QBBIL1            */
+ /********************************************************************/
+ ASSIGN_AEQCOMM : PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CROSS sent Document number '||
+                   TYPE_1.S0IDOCMN;
+       CALL WRITE_TO_OPER;
+     END;
+
+   CP_AEQCOMM.S0IDOCMN   =  TYPE_1.S0IDOCMN;
+   
+   CP_AEQCOMM.S0CBMATR    =  '';
+   CP_AEQCOMM.S0IBOEMP    =  '999';
+   CP_AEQCOMM.S0IBRGFG    =  'N';
+   CP_AEQCOMM.S0IDCIFL    =  '';
+   CP_AEQCOMM.S0CTAC      =  '';
+   CP_AEQCOMM.S0CTACAT    =  '';
+   CP_AEQCOMM.CGQERRSE(*) =  '';
+   CP_AEQCOMM.CGIERRMS(*) =  0;
+   CP_AEQCOMM.CGIAURDE(*) =  0;
+   CP_AEQCOMM.CGFMETER    =  '';
+   CP_AEQCOMM.CGCINVRQ    =  '';
+   CP_AEQCOMM.CGCACTCL    =  '';
+   CP_AEQCOMM.CGCPMSCH    =  '';
+   CP_AEQCOMM.CGCMLCSP    =  '';
+   CP_AEQCOMM.CGCPOCP     =  '';
+   CP_AEQCOMM.CGCPMLCC    =  '';
+   CP_AEQCOMM.CGCTCP      =  '';
+   CP_AEQCOMM.CIIASSHN    =  '';
+   CP_AEQCOMM.CICCEHTG    =  '';
+   CP_AEQCOMM.CFUTRUSE    =  '';
+                          
+   CP_AEQCOMM.CGCSTAPI    =  TYPE_1.CGCSTAPI;
+   CP_AEQCOMM.CGQHIGSE    =  TYPE_1.CGQHIGSE;
+   CP_AEQCOMM.CMIBOCE     =  TYPE_1.CMIBOCE;
+   CP_AEQCOMM.CIICETER    =  TYPE_1.CIICETER;
+   CP_AEQCOMM.S0CAECMP    =  TYPE_1.S0CAECMP;
+   CP_AEQCOMM.S0IEMPSE    =  TYPE_1.S0IEMPSE;
+   CP_AEQCOMM.EMPL_DATE   =  TYPE_1.EMPL_DATE;
+   CP_AEQCOMM.EMPL_DATE   =  CP_AEQCOMM.EMPL_DATE * -1 ;
+   CP_AEQCOMM.AUDIT_DATE  =  TYPE_1.AUDIT_DATE ;
+   CP_AEQCOMM.AUDIT_TIME  =  TYPE_1.AUDIT_TIME;
+   CP_AEQCOMM.MIRROR_IND  =  TYPE_1.MIRROR_IND;
+   CP_AEQCOMM.CS1EMPSE    =  TYPE_1.CS1EMPSE;
+   CP_AEQCOMM.CS1BOEMP    =  TYPE_1.CS1BOEMP;
+   CP_AEQCOMM.CS1ETERR    =  TYPE_1.CS1ETERR;
+   CP_AEQCOMM.CS1AREA     =  TYPE_1.CS1AREA;
+   CP_AEQCOMM.CS1DIVSN    =  TYPE_1.CS1DIVSN;
+   CP_AEQCOMM.CS1APPLD    =  TYPE_1.CS1APPLD ;
+   
+   IF (TYPE_1.CS1FUNCT = '') 
+     THEN DO;
+       CP_AEQCOMM.CS1FUNCT   =  SUBSTR(TYPE_1.CS1FUNCT,2,1);
+     END;
+     ELSE DO;
+       CHAR_FUNCT            =  TYPE_1.CS1FUNCT;
+       CP_AEQCOMM.CS1FUNCT   =  SUBSTR(CHAR_FUNCT,2,1);
+     END;
+
+   CP_AEQCOMM.CS1BSRTI.CS1BSRHH   =  TYPE_1.CS1BSRHH;
+   CP_AEQCOMM.CS1BSRTI.CS1BSRMM   =  TYPE_1.CS1BSRMM;
+   CP_AEQCOMM.CS1BSRTI.CS1BSRSS   =  TYPE_1.CS1BSRSS;
+
+   CP_AEQCOMM.CS1BSRDT.CS1BSRYY   =  TYPE_1.CS1BSRYY;
+   CP_AEQCOMM.CS1BSRDT.CS1BSRMM   =  TYPE_1.CS1BSRMO;
+   CP_AEQCOMM.CS1BSRDT.CS1BSRDD   =  TYPE_1.CS1BSRDD;
+
+   CP_AEQCOMM.CS1MSCTL   =  TYPE_1.CS1MSCTL;
+
+   /*---------------------------------------------------*/
+   /* NEED CLARIFICATIONS ON HEXDECIMAL VALUE FROM CROSS*/
+
+   CALL CONV_CROSS1_HEX;
+
+   /* CP_AEQCOMM.CS1DOCMN   =  TYPE_1.CS1DOCMN;            */
+   /*---------------------------------------------------*/
+
+   CP_AEQCOMM.CS1CFUNC   =  TYPE_1.CS1CFUNC;
+   CP_AEQCOMM.CS1COMLT   =  TYPE_1.CS1COMLT;
+   
+   /*--------------------------------------------------*/
+   /* NEED CLARIFICATIONS ON HEXADEC VALUE FROM CROSS  */
+     
+   CALL CONV_CROSS2_HEX;
+
+   /*  CP_AEQCOMM.CS1TABID   =  TYPE_1.CS1TABID;          */
+   /*--------------------------------------------------*/
+
+   PIC_S0IPECLV          =  MOD(CP_AEQCOMM.CS1TABID,1000);
+   CP_AEQCOMM.S0IPECLV   =  PIC_S0IPECLV; 
+   CP_AEQCOMM.S0IMACTC   =  TYPE_1.S0IMACTC;
+   CP_AEQCOMM.S0IMACSE   =  TYPE_1.S0IMACSE;
+   CP_AEQCOMM.S0ICSTLC   =  TYPE_1.S0ICSTLC;
+
+    
+   PIC_CUST = TYPE_1.S0ICUST; 
+   CP_AEQCOMM.S0ICUST    =  PIC_CUST;
+
+   CP_AEQCOMM.S0DCALCM   =  TYPE_1.S0DCALCM;
+   CP_AEQCOMM.S0DCALCD   =  TYPE_1.S0DCALCD;
+   CP_AEQCOMM.S0DCALCY   =  TYPE_1.S0DCALCY;
+   CP_AEQCOMM.S0CBIOSA   =  TYPE_1.S0CBIOSA;
+
+   PIC3                  =  TYPE_1.S0QSTOTI; 
+   CP_AEQCOMM.S0QSTOTI   =  PIC3;
+
+   CP_AEQCOMM.S0UIPARE.SPAD01 =  TYPE_1.SPAD01;
+   CP_AEQCOMM.S0QTRAMI   =  TYPE_1.S0QTRAMI;
+   CP_AEQCOMM.S0ATRAEX   =  TYPE_1.S0ATRAEX;
+   CP_AEQCOMM.S0QTRAHR   =  TYPE_1.S0QTRAHR;
+   CP_AEQCOMM.SPAD02     =  TYPE_1.SPAD02;
+   CP_AEQCOMM.S0QOVTHR   =  TYPE_1.S0QOVTHR ;
+   CP_AEQCOMM.S0UIPARE.S0UIRDL.SPAD03 =  TYPE_1.SPAD03 ;
+   CP_AEQCOMM.S0QSVCHR   =  TYPE_1.S0QSVCHR ;
+   CP_AEQCOMM.SPAD04     =  TYPE_1.SPAD04;
+   CP_AEQCOMM.S0CCIA     =  TYPE_1.S0CCIA;
+   CP_AEQCOMM.S0CSVC     =  TYPE_1.S0CSVC;
+   CP_AEQCOMM.S0CHACT    =  TYPE_1.S0CHACT;
+   CP_AEQCOMM.S0CIDM     =  TYPE_1.S0CIDM;
+   CP_AEQCOMM.S0CMOD     =  TYPE_1.S0CMOD;
+   CP_AEQCOMM.S0CMODNA   =  TYPE_1.S0CMODNA;
+   CP_AEQCOMM.S0CMSCM    =  TYPE_1.S0CMSCM;
+   CP_AEQCOMM.S0IPMFSA   =  TYPE_1.S0IPMFSA;
+   CP_AEQCOMM.S0IOTBCW   =  TYPE_1.S0IOTBCW;
+   CP_AEQCOMM.S0CSREQ    =  TYPE_1.S0CSREQ;
+   CP_AEQCOMM.S0CSTYPE   =  TYPE_1.S0CSTYPE;
+   CP_AEQCOMM.SPAD05     =  TYPE_1.SPAD05;
+   CP_AEQCOMM.S0CCSCPC   =  TYPE_1.S0CCSCPC;
+   CP_AEQCOMM.SPAD06     =  TYPE_1.SPAD06;
+   CP_AEQCOMM.CPROBNUM2  =  TYPE_1.CPROBNUM2;
+   CP_AEQCOMM.S0ICSS     =  TYPE_1.S0ICSS;
+   CP_AEQCOMM.S0ICSS2    =  TYPE_1.S0ICSS2 ;
+   CP_AEQCOMM.S0IASSFT   =  TYPE_1.S0IASSFT;
+   CP_AEQCOMM.S0QMETRE   =  TYPE_1.S0QMETRE;
+   CP_AEQCOMM.S0QUSAGE   =  TYPE_1.S0QUSAGE;
+   CP_AEQCOMM.S0IPARTR   =  TYPE_1.S0IPARTR;
+   CP_AEQCOMM.S0ISENBO   =  TYPE_1.S0ISENBO;
+   CP_AEQCOMM.S0ISENOL   =  TYPE_1.S0ISENOL;
+   CP_AEQCOMM.S0IALTRB   =  TYPE_1.S0IALTRB;
+   CP_AEQCOMM.S0CDELPT   =  TYPE_1.S0CDELPT;
+   CP_AEQCOMM.S0CSEQNO   =  TYPE_1.S0CSEQNO;                
+   CP_AEQCOMM.S0IHSDNR   =  TYPE_1.S0IHSDNR;
+
+   /*--------------------------------------------*/
+   /* MOVE PEND TIME TO FIXED BIN VARIABLE       */
+   /*--------------------------------------------*/
+   
+   PIC3                  =  TYPE_1.S0QPNDCT;
+   CP_AEQCOMM.S0QPNDCT   =  PIC3;
+
+   CP_AEQCOMM.CHCDATIT   =  TYPE_1.CHCDATIT;
+
+   /*--------------------------------------------*/
+   /* MOVE CE WEEK NUM TO FIXED BIN VARIABLE     */
+   /*--------------------------------------------*/
+       
+   PIC4                  =  TYPE_1.CHICEWK;
+   CP_AEQCOMM.CHICEWK    =  PIC4;
+
+   CP_AEQCOMM.CHDSCAPR   =  TYPE_1.CHDSCAPR;
+   CP_AEQCOMM.CHDORIRR   =  TYPE_1.CHDORIRR;
+   CP_AEQCOMM.CHIREPPY   =  TYPE_1.CHIREPPY;
+   CP_AEQCOMM.CHIREPPW   =  TYPE_1.CHIREPPW;
+   CP_AEQCOMM.CGIOTHPB   =  TYPE_1.CGIOTHPB;
+   CP_AEQCOMM.CGIASGPB   =  TYPE_1.CGIASGPB;
+   CP_AEQCOMM.CGCCLAFG   =  TYPE_1.CGCCLAFG;
+   CP_AEQCOMM.CGCCLAPI   =  TYPE_1.CGCCLAPI;
+   CP_AEQCOMM.CGCEFFST   =  TYPE_1.CGCEFFST;
+   CP_AEQCOMM.CGIEFFIT   =  TYPE_1.CGIEFFIT;
+   CP_AEQCOMM.CGCBILCL   =  TYPE_1.CGCBILCL;
+   CP_AEQCOMM.CGIOTHDV   =  TYPE_1.CGIOTHDV;
+   CP_AEQCOMM.CGIOTHOP   =  TYPE_1.CGIOTHOP;
+   CP_AEQCOMM.CGIOTHRG   =  TYPE_1.CGIOTHRG;
+   CP_AEQCOMM.CGIOTHAR   =  TYPE_1.CGIOTHAR;
+   CP_AEQCOMM.CIICEAB    =  TYPE_1.CIICEAB;
+   CP_AEQCOMM.CICGROUP   =  TYPE_1.CICGROUP;
+   CP_AEQCOMM.CINEMP1I   =  TYPE_1.CINEMP1I;
+   CP_AEQCOMM.CINEMP2I   =  TYPE_1.CINEMP2I;
+   CP_AEQCOMM.CINEMPLA   =  TYPE_1.CINEMPLA;
+   CP_AEQCOMM.CIIASSDV   =  TYPE_1.CIIASSDV;
+   CP_AEQCOMM.CIIOPRAR   =  TYPE_1.CIIOPRAR;
+   CP_AEQCOMM.CIIREG     =  TYPE_1.CIIREG;
+   CP_AEQCOMM.CIIRAREA   =  TYPE_1.CIIRAREA;
+   CP_AEQCOMM.CICPOSTY   =  TYPE_1.CICPOSTY;
+   CP_AEQCOMM.CIDEFFST   =  TYPE_1.CIDEFFST;
+   CP_AEQCOMM.CICIRWG    =  TYPE_1.CICIRWG;
+   CP_AEQCOMM.CICCEACP   =  TYPE_1.CICCEACP;
+   CP_AEQCOMM.CICPSTN    =  TYPE_1.CICPSTN;
+   CP_AEQCOMM.CGSRCBO    =  TYPE_1.CGSRCBO;
+   CP_AEQCOMM.R_VER      =  TYPE_1.R_VER;
+   CP_AEQCOMM.NSDC_DEL   =  TYPE_1.NSDC_DEL;
+   CP_AEQCOMM.NSDC_MULTRESUB =  TYPE_1.NSDC_MULTRESUB;
+   CP_AEQCOMM.S0CVEND    =  TYPE_1.S0CVEND;
+   CP_AEQCOMM.S0CZIPCDE  =  TYPE_1.S0CZIPCDE;
+   CP_AEQCOMM.CTAXCD     =  TYPE_1.CTAXCD;
+   CP_AEQCOMM.TMACHDSC   =  TYPE_1.TMACHDSC;
+   CP_AEQCOMM.ICNVMSER   =  TYPE_1.ICNVMSER;
+   CP_AEQCOMM.CBASEWAR   =  TYPE_1.CBASEWAR;
+   CP_AEQCOMM.CCOURSE    =  TYPE_1.CCOURSE;
+   CP_AEQCOMM.IREQEMPL   =  TYPE_1.IREQEMPL ;
+   CP_AEQCOMM.CBRANCH    =  TYPE_1.CBRANCH;
+   CP_AEQCOMM.CGUNTIME   =  TYPE_1.CGUNTIME;
+   CP_AEQCOMM.IREQDIV    =  TYPE_1.IREQDIV;
+   CP_AEQCOMM.CEAMT      =  TYPE_1.CEAMT;
+   CP_AEQCOMM.FMTMCSU    =  TYPE_1.FMTMCSU ;
+   CP_AEQCOMM.SPAD07     =  '';
+   CP_AEQCOMM.NSD_HRTG   =  TYPE_1.NSD_HRTG ; 
+   CP_AEQCOMM.FPRTORD    =  TYPE_1.FPRTORD;
+   CP_AEQCOMM.IAIC       =  TYPE_1.IAIC;
+   CP_AEQCOMM.CGSASCH    =  TYPE_1.CGSASCH;
+   CP_AEQCOMM.S0IPRDID   =  TYPE_1.S0IPRDID;
+   CP_AEQCOMM.PEND_HDA   =  TYPE_1.PEND_HDA;
+   CP_AEQCOMM.CCECUSTY   =  TYPE_1.CCECUSTY;
+   CP_AEQCOMM.CCOTYPE    =  TYPE_1.CCOTYPE;
+   CP_AEQCOMM.COWNCALC   =  TYPE_1.COWNCALC;
+   CP_AEQCOMM.SPAD08     =  TYPE_1.SPAD08;
+   CP_AEQCOMM.CSAVSRC    =  TYPE_1.CSAVSRC;
+   CP_AEQCOMM.FSTATRST   =  TYPE_1.FSTATRST ;
+   CP_AEQCOMM.CVALLOC    =  TYPE_1.CVALLOC  ;
+   CP_AEQCOMM.CEBBILL    =  TYPE_1.CEBBILL ;
+   CP_AEQCOMM.CNTRDIAG   =  TYPE_1.CNTRDIAG;
+   CP_AEQCOMM.CINVCNTR   =  TYPE_1.CINVCNTR;
+
+   /*--------------------------------------------*/
+   /* MOVE CROSS RECEIVED CSRCHCNT TO FIXED BIN  */
+   /*--------------------------------------------*/
+
+   PIC1                  =  TYPE_1.CSRCHCNT; 
+   CP_AEQCOMM.CSRCHCNT   =  PIC1;
+
+   CP_AEQCOMM.IAVALCTR   =  TYPE_1.IAVALCTR;
+   CP_AEQCOMM.IAVALRSO   =  TYPE_1.IAVALRSO;
+   CP_AEQCOMM.IMFGMOD    =  TYPE_1.IMFGMOD;
+   CP_AEQCOMM.CFAILCD    =  TYPE_1.CFAILCD;
+  
+   CP_AEQCOMM.ICUSTPH    =  TYPE_1.ICUSTPH;
+   CP_AEQCOMM.ISRVGCE    =  TYPE_1.ISRVGCE;
+   CP_AEQCOMM.ISRVGRSO   =  TYPE_1.ISRVGRSO;
+
+   /*---------------------------------------------*/
+   /* MOVE PET LEVEL TO FIXED BIN VARIABLE        */
+   /*---------------------------------------------*/
+
+   PIC3                  =  TYPE_1.IPETLVL;
+   CP_AEQCOMM.IPETLVL    =  PIC3;   
+
+   /*---------------------------------------------*/
+   /* MOVE PART CNT TO FIXED BIN VARIABLE         */
+   /*---------------------------------------------*/
+      
+   PIC1                  =  TYPE_1.IPARTCNT;
+   CP_AEQCOMM.IPARTCNT   =  PIC1; 
+
+   CP_AEQCOMM.HOFFSHFT   =  TYPE_1.HOFFSHFT;
+   CP_AEQCOMM.CHERITAG   =  TYPE_1.CHERITAG;
+   CP_AEQCOMM.CSEVRITY   =  TYPE_1.CSEVRITY;
+   CP_AEQCOMM.FACTPLAN   =  TYPE_1.FACTPLAN;
+   CP_AEQCOMM.FACTWORK   =  TYPE_1.FACTWORK;
+   CP_AEQCOMM.CACTFAIL   =  TYPE_1.CACTFAIL;
+   CP_AEQCOMM.CRTSSTAT   =  TYPE_1.CRTSSTAT;
+   CP_AEQCOMM.FCLM_S     =  TYPE_1.FCLM_S;
+   CP_AEQCOMM.CIACTIND   =  TYPE_1.CIACTIND;
+   CP_AEQCOMM.IGROUP     =  TYPE_1.IGROUP;
+   CP_AEQCOMM.CCNTRSRC   =  TYPE_1.CCNTRSRC;
+   CP_AEQCOMM.CPRODDIV   =  TYPE_1.CPRODDIV;
+   CP_AEQCOMM.ISOURCE    =  TYPE_1.ISOURCE;
+   CP_AEQCOMM.FSTDER_S   =  TYPE_1.FSTDER_S;
+   CP_AEQCOMM.FSFTPEND   =  TYPE_1.FSFTPEND;
+   CP_AEQCOMM.IQARMOD    =  TYPE_1.IQARMOD;
+   CP_AEQCOMM.IWKNUMAC   =  TYPE_1.IWKNUMAC;
+   CP_AEQCOMM.FWNUCHG    =  TYPE_1.FWNUCHG;
+   CP_AEQCOMM.FCEDBTS    =  TYPE_1.FCEDBTS;
+   CP_AEQCOMM.FBILACTH   =  TYPE_1.FBILACTH;
+   CP_AEQCOMM.FBILTRVH   =  TYPE_1.FBILTRVH;
+   CP_AEQCOMM.FBILPART   =  TYPE_1.FBILPART;
+   CP_AEQCOMM.FBILDIST   =  TYPE_1.FBILDIST;
+   CP_AEQCOMM.FBILEXP    =  TYPE_1.FBILEXP;
+   CP_AEQCOMM.CCSTACTH   =  TYPE_1.CCSTACTH;
+   CP_AEQCOMM.CCSTTRVH   =  TYPE_1.CCSTTRVH;
+   CP_AEQCOMM.CCSTPART   =  TYPE_1.CCSTPART;
+   CP_AEQCOMM.ICOSTSET   =  TYPE_1.ICOSTSET;
+   CP_AEQCOMM.IHRSSRC    =  TYPE_1.IHRSSRC;
+   CP_AEQCOMM.QJBILMTR   =  TYPE_1.QJBILMTR;
+   CP_AEQCOMM.FOEMMTCH   =  TYPE_1.FOEMMTCH;        
+   CP_AEQCOMM.IENTSRC    =  TYPE_1.IENTSRC;
+   CP_AEQCOMM.FOVRTIME   =  TYPE_1.FOVRTIME;
+   CP_AEQCOMM.FSEROVRD   =  TYPE_1.FSEROVRD;
+   CP_AEQCOMM.CWARLIAB   =  TYPE_1.CWARLIAB;
+   CP_AEQCOMM.CWUPLIAB   =  TYPE_1.CWUPLIAB;
+   CP_AEQCOMM.CMALIAB    =  TYPE_1.CMALIAB;
+   CP_AEQCOMM.FPERCALL   =  TYPE_1.FPERCALL;
+   CP_AEQCOMM.CSPECAPR   =  TYPE_1.CSPECAPR;
+   CP_AEQCOMM.ILIABSRC   =  TYPE_1.ILIABSRC;
+   CP_AEQCOMM.CWARRUP    =  TYPE_1.CWARRUP;
+   CP_AEQCOMM.NWARPHSE   =  TYPE_1.NWARPHSE;
+   CP_AEQCOMM.NWUPHSE    =  TYPE_1.NWUPHSE;
+   CP_AEQCOMM.IPLATFRM   =  TYPE_1.IPLATFRM;
+   CP_AEQCOMM.IMACOWNR   =  TYPE_1.IMACOWNR;
+
+   DO I= 1 TO 5;
+    CP_AEQCOMM.CCOSTCAT(I)   =  TYPE_1.CCOSTCAT(I);
+   END;
+   
+   CP_AEQCOMM.IMACMFGR   =  TYPE_1.IMACMFGR;
+   CP_AEQCOMM.CWUMP      =  TYPE_1.CWUMP;
+   CP_AEQCOMM.CGWSCNTRY  =  TYPE_1.CGWSCNTRY;
+   CP_AEQCOMM.CWARSERV   =  TYPE_1.CWARSERV;
+
+   /*--------------------------------------------*/
+   /* MOVE SEQ NUM TO FIXED BIN VARIABLE         */
+   /*--------------------------------------------*/
+      
+   PIC8                  =  TYPE_1.ICCOSTSQ;
+   CP_AEQCOMM.ICCOSTSQ   =  PIC8;  
+
+   CP_AEQCOMM.SPAD99     =  TYPE_1.SPAD09;
+   CP_AEQCOMM.IAPPLID    =  TYPE_1.IAPPLID;
+   CP_AEQCOMM.ITRANSID   =  TYPE_1.ITRANSID;
+   CP_AEQCOMM.S8REFFSY   =  TYPE_1.S8REFFSY;
+   CP_AEQCOMM.S8FEATLO   =  TYPE_1.S8FEATLO;
+   CP_AEQCOMM.S8CUSTNM   =  TYPE_1.S8CUSTNM;
+   CP_AEQCOMM.S8CUSTRF   =  TYPE_1.S8CUSTRF;
+   CP_AEQCOMM.S8TFREFN   =  TYPE_1.S8TFREFN;
+   CP_AEQCOMM.QSNARR_PAD =  TYPE_1.QSNARR_PAD;
+   CP_AEQCOMM.GJIMMOD    =  TYPE_1.GJIMMOD;
+   CP_AEQCOMM.GJDEFFRE   =  TYPE_1.GJDEFFRE;
+   CP_AEQCOMM.GJISYSTY   =  TYPE_1.GJISYSTY;
+   CP_AEQCOMM.GJISYSNO   =  TYPE_1.GJISYSNO;
+   CP_AEQCOMM.ICOUNTRY   =  TYPE_1.ICOUNTRY;
+   CP_AEQCOMM.CRESTRCT   =  TYPE_1.CRESTRCT;
+   CP_AEQCOMM.GJDPMLAS   =  TYPE_1.GJDPMLAS;
+
+
+    /*---------------------------------------------*/
+    /* MOVE PM FREQ TO FIXED BIN VARIABLE          */
+    /*---------------------------------------------*/
+
+   PIC2                  =  TYPE_1.GJIPMSCH;
+   CP_AEQCOMM.GJIPMSCH   =  PIC2;
+   
+   CP_AEQCOMM.GJCTYPEQ   =  TYPE_1.GJCTYPEQ;
+   CP_AEQCOMM.GJDTYPEQ   =  TYPE_1.GJDTYPEQ;
+   CP_AEQCOMM.GJDMFGDT   =  TYPE_1.GJDMFGDT;
+   CP_AEQCOMM.GJDOINST   =  TYPE_1.GJDOINST;
+   CP_AEQCOMM.GJDRECON   =  TYPE_1.GJDRECON;
+   CP_AEQCOMM.GJDSTEFF   =  TYPE_1.GJDSTEFF;
+   CP_AEQCOMM.GJCSTAT    =  TYPE_1.GJCSTAT;
+   CP_AEQCOMM.GJDCINST   =  TYPE_1.GJDCINST;
+   CP_AEQCOMM.GJDWAREX   =  TYPE_1.GJDWAREX;
+   CP_AEQCOMM.GJDDISC    =  TYPE_1.GJDDISC;
+   CP_AEQCOMM.GJCLOCAT   =  TYPE_1.GJCLOCAT;
+   CP_AEQCOMM.GJCSVCPL   =  TYPE_1.GJCSVCPL;
+   CP_AEQCOMM.GJCPROLE   =  TYPE_1.GJCPROLE;
+   CP_AEQCOMM.GJCCUSTP   =  TYPE_1.GJCCUSTP;
+
+    /*-------------------------------------------*/
+    /* MOVE CUST NO TO FIXED BIN VARIABLE        */
+    /*-------------------------------------------*/
+   
+   PIC7                  =  TYPE_1.GJICUST;
+   CP_AEQCOMM.GJICUST    =  PIC7;
+   
+   CP_AEQCOMM.GJDACTV    =  TYPE_1.GJDACTV;
+   CP_AEQCOMM.GJCACTIV   =  TYPE_1.GJCACTIV;
+   CP_AEQCOMM.GJIMFGPL   =  TYPE_1.GJIMFGPL;
+   CP_AEQCOMM.GMICNM     =  TYPE_1.GMICNM;
+   CP_AEQCOMM.GJIOP      =  TYPE_1.GJIOP;
+   CP_AEQCOMM.GJIAREA    =  TYPE_1.GJIAREA;
+   CP_AEQCOMM.GJIREG     =  TYPE_1.GJIREG;
+   CP_AEQCOMM.GMIRSO     =  TYPE_1.GMIRSO;
+   CP_AEQCOMM.CGCPRBRO   =  TYPE_1.CGCPRBRO;
+   CP_AEQCOMM.CMIBOMKT   =  TYPE_1.CMIBOMKT;
+   CP_AEQCOMM.GJITERR    =  TYPE_1.GJITERR;
+   CP_AEQCOMM.CMIZONE    =  TYPE_1.CMIZONE;
+   
+      /*--------------------------------------------------*/
+      /* MOVE CGCESTAB & CGCIENNO TO FIXED BIN VARIABLE   */
+      /*------------------------------------------------ -*/
+        
+   PIC7                  =  TYPE_1.CGCESTAB;
+   CP_AEQCOMM.CGCESTAB   =  PIC7;
+
+   PIC7                   = TYPE_1.CGCIENNO;
+   CP_AEQCOMM.CGCIENNO   =  PIC7;
+
+   CP_AEQCOMM.CGCMCNAC   =  TYPE_1.CGCMCNAC;
+   CP_AEQCOMM.CGCTCUS1   =  TYPE_1.CGCTCUS1;
+   CP_AEQCOMM.CGCTAX1    =  TYPE_1.CGCTAX1;
+   CP_AEQCOMM.CGCTCUS2   =  TYPE_1.CGCTCUS2;
+   CP_AEQCOMM.CGCTAX2    =  TYPE_1.CGCTAX2;
+   CP_AEQCOMM.CGCTCUS3   =  TYPE_1.CGCTCUS3;
+   CP_AEQCOMM.CGCTAX3    =  TYPE_1.CGCTAX3;
+   CP_AEQCOMM.CGCCD      =  TYPE_1.CGCCD;
+   CP_AEQCOMM.FINVTCHG   =  TYPE_1.FINVTCHG;
+   CP_AEQCOMM.GJCSDT     =  TYPE_1.GJCSDT;
+
+      /*--------------------------------------------------*/
+      /* MOVE IORGCUST,ICUSTBIL & CGCIENNO TO FIXED BIN   */
+      /*------------------------------------------------ -*/
+
+   PIC7                  =  TYPE_1.IORGCUST;
+   CP_AEQCOMM.IORGCUST   =  PIC7;
+     
+   PIC7                  =  TYPE_1.ICUSTBIL; 
+   CP_AEQCOMM.ICUSTBIL   =  PIC7;    
+
+   PIC7                  =  TYPE_1.ICUSTOWN;
+   CP_AEQCOMM.ICUSTOWN   =  PIC7;    
+
+   CP_AEQCOMM.IRCUST     =  TYPE_1.IRCUST;
+   CP_AEQCOMM.CUPSRCE    =  TYPE_1.CUPSRCE;
+   CP_AEQCOMM.IMKTAFFN   =  TYPE_1.IMKTAFFN;
+   CP_AEQCOMM.FRESTIND   =  TYPE_1.FRESTIND;
+   CP_AEQCOMM.NRESABRV   =  TYPE_1.NRESABRV;
+   CP_AEQCOMM.FOEMIND    =  TYPE_1.FOEMIND;
+   CP_AEQCOMM.IBPACCT    =  TYPE_1.IBPACCT;
+
+     /*----------------------------------------------*/
+     /* MOVE IENTRBIL AND IENTRWON TO FIXED BIN      */
+     /*----------------------------------------------*/
+   
+   PIC7                  =  TYPE_1.IENTRBIL; 
+   CP_AEQCOMM.IENTRBIL   =  PIC7;         
+
+   PIC7                  =  TYPE_1.IENTROWN;
+   CP_AEQCOMM.IENTROWN   =  PIC7;
+
+   CP_AEQCOMM.CISOCTRY   =  TYPE_1.CISOCTRY;
+   CP_AEQCOMM.CSNPRFIX   =  TYPE_1.CSNPRFIX;
+   CP_AEQCOMM.QSINVT_PAD =  TYPE_1.QSINVT_PAD;
+   
+   CALL MOVE_PARTS; 
+
+   CP_AEQCOMM.TACTCOMT   =  TYPE_1.TACTCOMT;
+   CP_AEQCOMM.IUNIQUE    =  TYPE_1.IUNIQUE;
+   CP_AEQCOMM.IECCONUM   =  TYPE_1.IECCONUM;
+   CP_AEQCOMM.NNSSCUST   =  TYPE_1.NNSSCUST;
+   CP_AEQCOMM.ICUSTNUM   =  TYPE_1.ICUSTNUM;  
+   CP_AEQCOMM.IWAYBILL   =  TYPE_1.IWAYBILL;  
+   CP_AEQCOMM.IPONUM     =  TYPE_1.IPONUM;
+   CP_AEQCOMM.TCUSTADR   =  TYPE_1.TCUSTADR;
+   CP_AEQCOMM.NCONTACT   =  TYPE_1.NCONTACT;
+   
+   DO I = 1 TO 5;
+      CP_AEQCOMM.CCHIS(I) =  TYPE_1.CCHIS(I);
+   END;
+   
+   CP_AEQCOMM.M_FEDF     =  TYPE_1.M_FEDF;
+   CP_AEQCOMM.M_FROMBO   =  TYPE_1.M_FROMBO;
+   CP_AEQCOMM.M_FROMOL   =  TYPE_1.M_FROMOL;
+   CP_AEQCOMM.M_MPI      =  TYPE_1.M_MPI;
+   CP_AEQCOMM.M_MTM_REG  =  TYPE_1.M_MTM_REG;
+   CP_AEQCOMM.M_MTM_SUPERLOW =  TYPE_1.M_MTM_SUPERLOW;
+   CP_AEQCOMM.M_SRC      =  TYPE_1.M_SRC;
+   CP_AEQCOMM.M_MPIREQ   =  TYPE_1.M_MPIREQ;
+   CP_AEQCOMM.M_OTHOFF_S =  TYPE_1.M_OTHOFF_S;
+   CP_AEQCOMM.M_OTHOFF_M =  TYPE_1.M_OTHOFF_M;
+   CP_AEQCOMM.M_PART1    =  TYPE_1.M_PART1;
+   CP_AEQCOMM.M_PART2    =  TYPE_1.M_PART2;
+   CP_AEQCOMM.M_PART3    =  TYPE_1.M_PART3;
+   CP_AEQCOMM.M_PART4    =  TYPE_1.M_PART4;
+   CP_AEQCOMM.M_PTBO_BOREF   =  TYPE_1.M_PTBO_BOREF;
+   CP_AEQCOMM.M_PMSCHED  =  TYPE_1.M_PMSCHED;
+   CP_AEQCOMM.M_RCVBO_1  =  TYPE_1.M_RCVBO_1;
+   CP_AEQCOMM.M_RCVBO_2  =  TYPE_1.M_RCVBO_2;
+   CP_AEQCOMM.M_RCVBO_3  =  TYPE_1.M_RCVBO_3;
+   CP_AEQCOMM.M_RCVBO_4  =  TYPE_1.M_RCVBO_4;
+   CP_AEQCOMM.M_RCVOL_1  =  TYPE_1.M_RCVOL_1;
+   CP_AEQCOMM.M_RCVOL_2  =  TYPE_1.M_RCVOL_2;
+   CP_AEQCOMM.M_RCVOL_3  =  TYPE_1.M_RCVOL_3;
+   CP_AEQCOMM.M_RCVOL_4  =  TYPE_1.M_RCVOL_4;
+   CP_AEQCOMM.BRFUNC     =  TYPE_1.BRFUNC;
+        
+   DO I = 1 TO 4;
+      CP_AEQCOMM.HAZ_PART(I) =  TYPE_1.HAZ_PART(I);
+   END;
+
+   CP_AEQCOMM.PTUID       =  TYPE_1.PTUID;
+   CP_AEQCOMM.M_COS       =  TYPE_1.M_COS;
+   CP_AEQCOMM.FMPIABND    =  TYPE_1.FMPIABND;
+   CP_AEQCOMM.PEND_PM     =  TYPE_1.PEND_PM;
+   CP_AEQCOMM.M_PRODID    =  TYPE_1.M_PRODID;
+   CP_AEQCOMM.M_ISSC      =  TYPE_1.M_ISSC;
+   CP_AEQCOMM.MT_IS_PRODID   =  TYPE_1.MT_IS_PRODID;
+   CP_AEQCOMM.COS_VALID   =  TYPE_1.COS_VALID;
+   CP_AEQCOMM.SCORE_VALID =  TYPE_1.SCORE_VALID;
+   CP_AEQCOMM.M_CMR       =  TYPE_1.M_CMR;
+      
+   DO I= 1 TO 4;
+
+     CP_AEQCOMM.TIN_REQ(I)  =  TYPE_1.TIN_REQ(I);
+   END;
+
+   DO I = 1 TO 4;
+     
+     CP_AEQCOMM.PRF_REQ(I)  =  TYPE_1.PRF_REQ(I);
+   END;
+
+   CP_AEQCOMM.CMTMOVRD      =  TYPE_1.CMTMOVRD;
+   CP_AEQCOMM.CTARGET       =  TYPE_1.CTARGET;
+   CP_AEQCOMM.CPERCALL      =  TYPE_1.CPERCALL;
+   CP_AEQCOMM.FPARTUSE      =  TYPE_1.FPARTUSE;
+   CP_AEQCOMM.FTYPECHK      =  TYPE_1.FTYPECHK;
+   CP_AEQCOMM.CBILLABOR     =  TYPE_1.CBILLABOR;
+   CP_AEQCOMM.CBILLEXP      =  TYPE_1.CBILLEXP;
+   CP_AEQCOMM.CBILLPART     =  TYPE_1.CBILLPART;
+   CP_AEQCOMM.HSTRTSAT      =  TYPE_1.HSTRTSAT;
+   CP_AEQCOMM.HENDSAT       =  TYPE_1.HENDSAT;
+   CP_AEQCOMM.HSTRTSUN      =  TYPE_1.HSTRTSUN;
+   CP_AEQCOMM.HENDSUN       =  TYPE_1.HENDSUN;
+   CP_AEQCOMM.HSTRTMON      =  TYPE_1.HSTRTMON;
+   CP_AEQCOMM.HENDMON       =  TYPE_1.HENDMON;
+   CP_AEQCOMM.HSTRTTUE      =  TYPE_1.HSTRTTUE;
+   CP_AEQCOMM.HENDTUE       =  TYPE_1.HENDTUE;
+   CP_AEQCOMM.HSTRTWED      =  TYPE_1.HSTRTWED;
+   CP_AEQCOMM.HENDWED       =  TYPE_1.HENDWED;
+   CP_AEQCOMM.HSTRTTHU      =  TYPE_1.HSTRTTHU;
+   CP_AEQCOMM.HENDTHU       =  TYPE_1.HENDTHU;
+   CP_AEQCOMM.HSTRTFRI      =  TYPE_1.HSTRTFRI;
+   CP_AEQCOMM.HENDFRI       =  TYPE_1.HENDFRI;
+   CP_AEQCOMM.FCTRABND      =  TYPE_1.FCTRABND;
+   CP_AEQCOMM.LINKFAIL_CNTR =  TYPE_1.LINKFAIL_CNTR;
+
+   DO  I = 1 TO 4;
+     CP_AEQCOMM.FOLINVLD (I) =  TYPE_1.FOLINVLD(I);
+   END;
+   
+   /*--------------------------------------------*/
+   /* MOVE QMSERMIN AND QMSERMAX TO FIXED BIN    */
+   /*--------------------------------------------*/
+   
+   PIC2                  =  TYPE_1.QMSERMIN;
+   CP_AEQCOMM.QMSERMIN   =  PIC2; 
+
+   PIC2                   = TYPE_1.QMSERMAX;
+   CP_AEQCOMM.QMSERMAX    = PIC2; 
+
+   CP_AEQCOMM.FMTYPCHK    = TYPE_1.FMTYPCHK;
+   CP_AEQCOMM.M_MACH_REG  = TYPE_1.M_MACH_REG;
+   CP_AEQCOMM.CSDTOPTN    = TYPE_1.CSDTOPTN;
+   CP_AEQCOMM.CCADISO     = TYPE_1.CCADISO;
+   CP_AEQCOMM.IEMERGBO    = TYPE_1.IEMERGBO;
+   CP_AEQCOMM.ICVGTYPE    = TYPE_1.ICVGTYPE;
+   CP_AEQCOMM.FPASTDEACT  = TYPE_1.FPASTDEACT;
+   CP_AEQCOMM.FPREACT     = TYPE_1.FPREACT;
+   CP_AEQCOMM.FHRSINV     = TYPE_1.FHRSINV;
+
+   CP_AEQCOMM.VALID_ZIP_CODE =  TYPE_1.VALID_ZIP_CODE;
+   CP_AEQCOMM.VALID_BILL_CODE=  TYPE_1.VALID_BILL_CODE;
+
+   CP_AEQCOMM.ISERVPLN    = TYPE_1.ISERVPLN;
+   CP_AEQCOMM.IBILLSTAT   = TYPE_1.IBILLSTAT;
+   CP_AEQCOMM.FLNVSPCL    = TYPE_1.FLNVSPCL;
+
+   /*------------------------------------------------*/
+   /* MOVE SDT WARR TO FIXED BIN VARIABLE            */
+   /*------------------------------------------------*/
+
+   PIC2                    = TYPE_1.SDT_WARR_LEN;
+   CP_AEQCOMM.SDT_WARR_LEN = PIC2;
+
+   /* CP_AEQCOMM.SPAD11       = TYPE_1.SPAD11;         */
+
+   CP_AEQCOMM.ICONPHON     = TYPE_1.ICONPHON;
+   CP_AEQCOMM.ICCAUTH      = TYPE_1.ICCAUTH;
+   CP_AEQCOMM.IHELDCNTR    = TYPE_1.IHELDCNTR;
+   CP_AEQCOMM.ICADENT      = TYPE_1.ICADENT;
+   CP_AEQCOMM.FINCDPRT     = TYPE_1.FINCDPRT;
+   CP_AEQCOMM.CWARRPHS     = TYPE_1.CWARRPHS;
+   CP_AEQCOMM.FONSITE      = TYPE_1.FONSITE;
+   CP_AEQCOMM.ISERVTYP     = TYPE_1.ISERVTYP;
+   CP_AEQCOMM.ISTPMNT      = TYPE_1.ISTPMNT;
+   CP_AEQCOMM.CSDTBILL     = TYPE_1.CSDTBILL;
+   CP_AEQCOMM.FHVCNTR      = TYPE_1.FHVCNTR;
+   CP_AEQCOMM.FCORABND     = TYPE_1.FCORABND;
+   CP_AEQCOMM.FLIABRECALC  = TYPE_1.FLIABRECALC;
+   CP_AEQCOMM.CMTMBASEW    = TYPE_1.CMTMBASEW;
+   CP_AEQCOMM.COFRLIAB     = TYPE_1.COFRLIAB;
+   CP_AEQCOMM.CCDBSRCIND   = TYPE_1.CCDBSRCIND;
+   CP_AEQCOMM.CMPISPLN     = TYPE_1.CMPISPLN ;
+   CP_AEQCOMM.ISVCTYPE     = TYPE_1.ISVCTYPE;
+   CP_AEQCOMM.ISVCCLAS     = TYPE_1.ISVCCLAS;
+   CP_AEQCOMM.TCALLRSP     = TYPE_1.TCALLRSP;
+   CP_AEQCOMM.TDALYHRS     = TYPE_1.TDALYHRS;
+   CP_AEQCOMM.DRECCALL     = TYPE_1.DRECCALL;
+   CP_AEQCOMM.FWARUPGD     = TYPE_1.FWARUPGD;
+   CP_AEQCOMM.CCONTYPE     = TYPE_1.CCONTYPE;
+   CP_AEQCOMM.CCDBSERV     = TYPE_1.CCDBSERV;
+   CP_AEQCOMM.FSERVUPG     = TYPE_1.FSERVUPG;
+
+   /*  CP_AEQCOMM.SPAD12       = TYPE_1.SPAD12;  */
+
+   CALL SET_BIT_FLDS;
+
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': FILLED AEQCOMM FOR '|| TYPE_1.S0IDOCMN;
+        CALL WRITE_TO_OPER;
+     END;
+
+ END ASSIGN_AEQCOMM;
+ 
+ 
+  %PAGE;
+ /********************************************************************/
+ /* CONVERT HEX STRINGS RECEIVED FROM CROSS TO STORE IN FIX BIN 31   */
+ /********************************************************************/
+ CONV_CROSS1_HEX : PROC;
+     
+       
+   DO I = 1 TO 4;
+     CHAR_BYTE_1(I) = SUBSTR(TYPE_1.CS1DOCMN,I,1);
+     
+     SELECT(CHAR_BYTE_1(I));
+        WHEN('A')
+              PIC2 =  '10';
+        WHEN('B')
+              PIC2 = '11';
+        WHEN('C')
+              PIC2 = '12';
+        WHEN('D')
+              PIC2 = '13';
+        WHEN('E')
+              PIC2 = '14';
+        WHEN('F')
+              PIC2 = '15';
+        OTHERWISE
+              PIC2 = CHAR_BYTE_1(I);
+     END;
+       FIXB1(I) = PIC2;
+   END;
+
+   CP_AEQCOMM.CS1DOCMN = FIXB1(1) * 16 * 16 * 16 +
+                         FIXB1(2) * 16 * 16      +
+                         FIXB1(3) * 16           +
+                         FIXB1(4) * 1;                 
+       
+
+ END CONV_CROSS1_HEX; 
+ 
+  %PAGE;
+ /********************************************************************/
+ /********************************************************************/ 
+ CONV_CROSS2_HEX : PROC;
+     
+   TRIM_CS1TABID = TRIM(TYPE_1.CS1TABID);
+   LEN_CS1TABID  = LENGTH(TRIM_CS1TABID);
+   CP_AEQCOMM.CS1TABID = 0;
+   
+   DO I = LEN_CS1TABID TO 1 BY -1;
+     CHAR_BYTE_2(I) = SUBSTR(TYPE_1.CS1TABID,I,1);
+     
+     SELECT(CHAR_BYTE_2(I));
+        WHEN('A')
+              PIC_2 =  '10';
+        WHEN('B')
+              PIC_2 = '11';
+        WHEN('C')
+              PIC_2 = '12';
+        WHEN('D')
+              PIC_2 = '13';
+        WHEN('E')
+              PIC_2 = '14';
+        WHEN('F')
+              PIC_2 = '15';
+        OTHERWISE
+              PIC_2 = CHAR_BYTE_2(I);
+     END;
+     FIXB2(I) = PIC_2;
+     CP_AEQCOMM.CS1TABID = CP_AEQCOMM.CS1TABID + 
+                              FIXB2(I)*(16**(LEN_CS1TABID-I));
+   END;
+
+ END CONV_CROSS2_HEX;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* MOVE PARTS RECEIVED FROM CROSS TO AEQCOMM                        */
+ /********************************************************************/
+ MOVE_PARTS : PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': FILL PARTS INTO PART SEGMENTS';
+       CALL WRITE_TO_OPER;
+     END;
+
+   DO I =  1 TO 4;
+     CP_AEQCOMM.S0CFUNC (I) = TYPE_1.PARTS.S0CFUNC (I);
+     CP_AEQCOMM.S0QDISUS(I) = TYPE_1.PARTS.S0QDISUS(I);
+     
+     IF TEST_SW
+       THEN DO;
+          DIAG_TEXT = MODULE||': PART ' || TYPE_1.PARTS.S0IPART(I);
+          CALL WRITE_TO_OPER;
+       END;
+
+     CP_AEQCOMM.S0IPART (I) = TYPE_1.PARTS.S0IPART(I);
+     CP_AEQCOMM.S0IRECBO(I) = TYPE_1.PARTS.S0IRECBO(I);
+     CP_AEQCOMM.S0IRECOL(I) = TYPE_1.PARTS.S0IRECOL(I);
+     CP_AEQCOMM.S0QREPOR(I) = TYPE_1.PARTS.S0QREPOR(I);
+     CP_AEQCOMM.CAPC(I)     = TYPE_1.PARTS.CAPC(I);
+     CP_AEQCOMM.S0IMATL2(I) = TYPE_1.PARTS.S0IMATL2(I);
+     CP_AEQCOMM.FPARTYPE(I) = TYPE_1.PARTS.FPARTYPE(I);
+
+     CP_AEQCOMM.PARTS.SPAD01(I)   = TYPE_1.PARTS.SPAD10(I);
+
+     PIC_PARTPR = TYPE_1.PARTS.CGPARTPR(I);
+     CP_AEQCOMM.CGPARTPR(I) = PIC_PARTPR;
+
+     CP_AEQCOMM.CGPART1T(I) = TYPE_1.PARTS.CGPART1T(I);
+     CP_AEQCOMM.DESCR(I)    = TYPE_1.PARTS.DESCR(I);
+
+      IF TEST_SW
+       THEN DO;
+          DIAG_TEXT = MODULE||': PART DESC ' || TYPE_1.PARTS.DESCR(I);
+          CALL WRITE_TO_OPER;
+       END;
+
+     CP_AEQCOMM.FOEMFLAG(I)   = TYPE_1.PARTS.FOEMFLAG(I);
+     CP_AEQCOMM.S0CQUOTE(I)   = TYPE_1.PARTS.S0CQUOTE(I);
+     CP_AEQCOMM.IOEMPART(I)   = TYPE_1.PARTS.IOEMPART(I);
+     IF CP_AEQCOMM.IOEMPART(I) = ''
+       THEN DO;
+        CP_AEQCOMM.IOEMPART(I)= TYPE_1.PARTS.S0IPART(I);
+       END;
+     CP_AEQCOMM.ITINNBR(I)  = TYPE_1.PARTS.ITINNBR(I);
+
+     PIC_PARTCS = TYPE_1.PARTS.CGPARTCS(I);
+     CP_AEQCOMM.CGPARTCS(I)   = TYPE_1.PARTS.CGPARTCS(I);
+
+     CP_AEQCOMM.IPETPOS(I)    = TYPE_1.PARTS.IPETPOS(I);
+     CP_AEQCOMM.IPRFNUM(I)    = TYPE_1.PARTS.IPRFNUM(I);
+     CP_AEQCOMM.ICONSGND(I)   = TYPE_1.PARTS.ICONSGND(I);
+     CP_AEQCOMM.CRETREAS(I)   = TYPE_1.PARTS.CRETREAS(I);
+     CP_AEQCOMM.IRTSORD#(I)   = TYPE_1.PARTS.IRTSORD#(I);
+     CP_AEQCOMM.IRETRNBO(I)   = TYPE_1.PARTS.IRETRNBO(I);
+     CP_AEQCOMM.FRETRNLB(I)   = TYPE_1.PARTS.FRETRNLB(I);
+     CP_AEQCOMM.CPRTORGN(I)   = TYPE_1.PARTS.CPRTORGN(I);
+     CP_AEQCOMM.TRETCMNT(I)   = TYPE_1.PARTS.TRETCMNT(I);
+     CP_AEQCOMM.ISHPTRKG(I)   = TYPE_1.PARTS.ISHPTRKG(I);
+     CP_AEQCOMM.QSPART_PAD(I) = TYPE_1.PARTS.QSPART_PAD(I);
+   END;
+
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': PARTS SEGMENTS POPULATED';
+        CALL WRITE_TO_OPER;
+     END;
+  
+ END MOVE_PARTS;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* SET FLAG FIELDS RECEIVED AS 'Y' OR 'N' FROM CROSS AS BIT VALUES  */
+ /********************************************************************/
+ SET_BIT_FLDS : PROC;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': INSIDE PROC TO SET BIT FLAGS';
+       CALL WRITE_TO_OPER;
+     END;
+
+   SELECT(TYPE_1.S0IERSFG);
+     WHEN('Y') 
+       CP_AEQCOMM.S0IERSFG = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.S0IERSFG = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.S0IERSFG = '0'B;
+   END;
+
+   SELECT(TYPE_1.S0ISRCPT);
+     WHEN('Y') 
+       CP_AEQCOMM.S0ISRCPT = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.S0ISRCPT = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.S0ISRCPT = '0'B;
+    END;
+
+   SELECT(TYPE_1.S0ISRCNS);
+     WHEN('Y') 
+       CP_AEQCOMM.S0ISRCNS = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.S0ISRCNS = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.S0ISRCNS = '0'B;
+    END;
+ 
+   SELECT(TYPE_1.S0IRESUB);
+      WHEN('Y') 
+        CP_AEQCOMM.S0IRESUB = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.S0IRESUB = '0'B;
+      OTHERWISE 
+        CP_AEQCOMM.S0IRESUB = '0'B;
+    END;
+
+   SELECT(TYPE_1.S0IRECYC);
+     WHEN('Y')
+       CP_AEQCOMM.S0IRECYC = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.S0IRECYC = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.S0IRECYC = '0'B;
+    END;
+
+
+   SELECT(TYPE_1.FHOLDFILE);
+     WHEN('Y')
+       CP_AEQCOMM.FHOLDFILE = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FHOLDFILE = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FHOLDFILE = '0'B;
+   END;
+
+   SELECT(TYPE_1.FMPIBUSY);
+     WHEN('Y')
+       CP_AEQCOMM.FMPIBUSY = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FMPIBUSY = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FMPIBUSY = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FSAVBUSY);
+      WHEN('Y')
+        CP_AEQCOMM.FSAVBUSY = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FSAVBUSY = '0'B;
+      OTHERWISE
+        CP_AEQCOMM.FSAVBUSY = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FSPWN08);
+      WHEN('Y')
+        CP_AEQCOMM.FSPWN08 = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FSPWN08 = '0'B;
+      OTHERWISE 
+        CP_AEQCOMM.FSPWN08 = '0'B;
+      END;
+
+   SELECT(TYPE_1.FPTCORR);
+      WHEN('Y')
+        CP_AEQCOMM.FPTCORR = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FPTCORR = '0'B;
+      OTHERWISE 
+        CP_AEQCOMM.FPTCORR = '0'B;
+   END;
+
+   SELECT(TYPE_1.FSYSSPWN);
+      WHEN('Y')
+        CP_AEQCOMM.FSYSSPWN = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FSYSSPWN = '0'B;
+      OTHERWISE 
+        CP_AEQCOMM.FSYSSPWN = '0'B;
+   END;
+
+   SELECT(TYPE_1.FOEMTYPE);
+       WHEN('Y')
+         CP_AEQCOMM.FOEMTYPE = '1'B;
+       WHEN('N')
+         CP_AEQCOMM.FOEMTYPE = '0'B;
+       OTHERWISE
+         CP_AEQCOMM.FOEMTYPE = '0'B;
+   END;
+
+   SELECT(TYPE_1.FOEMCNTR);
+     WHEN('Y')
+        CP_AEQCOMM.FOEMCNTR = '1'B;
+     WHEN('N')
+        CP_AEQCOMM.FOEMCNTR = '0'B;
+     OTHERWISE
+        CP_AEQCOMM.FOEMCNTR = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FAUDUNAV);
+     WHEN('Y')
+       CP_AEQCOMM.FAUDUNAV = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FAUDUNAV = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FAUDUNAV = '0'B;
+   END;
+         
+   SELECT(TYPE_1.FAUDBUNA);
+     WHEN('Y')
+       CP_AEQCOMM.FAUDBUNA = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FAUDBUNA = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FAUDBUNA = '0'B;
+   END;
+
+   SELECT(TYPE_1.FMPIDBUN);
+     WHEN('Y')
+       CP_AEQCOMM.FMPIDBUN = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FMPIDBUN = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FMPIDBUN = '0'B;
+   END;
+
+
+   SELECT(TYPE_1.FISSCNTR);
+     WHEN('Y')
+       CP_AEQCOMM.FISSCNTR = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FISSCNTR = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FISSCNTR = '0'B;
+   END;
+
+   SELECT(TYPE_1.FIBM);
+     WHEN('Y')
+       CP_AEQCOMM.FIBM = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FIBM = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.FIBM = '0'B;
+   END;
+
+   SELECT(TYPE_1.FONMA);
+     WHEN('Y')
+        CP_AEQCOMM.FONMA = '1'B;
+     WHEN('N')
+        CP_AEQCOMM.FONMA = '0'B;
+     OTHERWISE
+        CP_AEQCOMM.FONMA = '0'B;
+   END;
+
+   SELECT(TYPE_1.FWARRNTY);
+      WHEN('Y')
+        CP_AEQCOMM.FWARRNTY = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FWARRNTY = '0'B;
+      OTHERWISE
+        CP_AEQCOMM.FWARRNTY = '0'B;
+   END;
+
+   
+   SELECT(TYPE_1.FOEEUNA);
+     WHEN('Y')
+       CP_AEQCOMM.FOEEUNA = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FOEEUNA = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FOEEUNA = '0'B;
+   END;
+
+   SELECT(TYPE_1.FECICALL);
+     WHEN('Y')
+       CP_AEQCOMM.FECICALL = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FECICALL = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FECICALL = '0'B;
+   END;
+
+   
+   SELECT(TYPE_1.FEBCONT);
+     WHEN('Y')
+       CP_AEQCOMM.FEBCONT = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FEBCONT = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FEBCONT = '0'B;
+   END;
+
+   SELECT(TYPE_1.FRSTCNTR);
+     WHEN('Y')
+       CP_AEQCOMM.FRSTCNTR = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FRSTCNTR = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FRSTCNTR = '0'B;
+   END;
+
+   SELECT(TYPE_1.FCADMTCH);
+     WHEN('Y')
+       CP_AEQCOMM.FCADMTCH = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FCADMTCH = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FCADMTCH = '0'B;
+   END;
+
+   SELECT(TYPE_1.FSRCNSS);
+     WHEN('Y')
+       CP_AEQCOMM.FSRCNSS = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FSRCNSS = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FSRCNSS = '0'B;
+   END;
+
+
+   SELECT(TYPE_1.FTSSMACH);
+     WHEN('Y')
+       CP_AEQCOMM.FTSSMACH = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FTSSMACH = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FTSSMACH = '0'B;
+   END;
+
+   SELECT(TYPE_1.FPETMSG);
+     WHEN('Y')
+       CP_AEQCOMM.FPETMSG = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FPETMSG = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FPETMSG = '0'B;
+   END;
+
+   SELECT(TYPE_1.FSYSBILL);
+     WHEN('Y')
+       CP_AEQCOMM.FSYSBILL = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FSYSBILL = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FSYSBILL = '0'B;
+   END;
+
+   SELECT(TYPE_1.FMICRO);
+     WHEN('Y')
+       CP_AEQCOMM.FMICRO = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FMICRO = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FMICRO = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FMES);
+     WHEN('Y')
+       CP_AEQCOMM.FMES = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FMES = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FMES = '0'B;
+   END;
+
+   SELECT(TYPE_1.FECA);
+     WHEN('Y')
+       CP_AEQCOMM.FECA = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FECA = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FECA = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FREA);
+     WHEN('Y')
+       CP_AEQCOMM.FREA  = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FREA  = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FREA  = '0'B;
+   END;
+
+   SELECT(TYPE_1.FCTRBUSY);
+     WHEN('Y')
+       CP_AEQCOMM.FCTRBUSY = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FCTRBUSY = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FCTRBUSY = '0'B;
+   END;
+
+   SELECT(TYPE_1.FCTRDBUN);
+      WHEN('Y')
+        CP_AEQCOMM.FCTRDBUN = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FCTRDBUN = '0'B;
+      OTHERWISE
+        CP_AEQCOMM.FCTRDBUN = '0'B;
+   END;
+
+   SELECT(TYPE_1.FSPCCNTR);
+      WHEN('Y')
+        CP_AEQCOMM.FSPCCNTR = '1'B;
+      WHEN('N')
+        CP_AEQCOMM.FSPCCNTR = '0'B;
+      OTHERWISE
+        CP_AEQCOMM.FSPCCNTR = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FPREPEND);
+     WHEN('Y')
+       CP_AEQCOMM.FPREPEND = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FPREPEND = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FPREPEND = '0'B;
+   END;
+
+   SELECT(TYPE_1.FMPI24X7);
+     WHEN('Y')
+       CP_AEQCOMM.FMPI24X7 = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FMPI24X7 = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FMPI24X7 = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FCNT24X7);
+     WHEN('Y')
+       CP_AEQCOMM.FCNT24X7 = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FCNT24X7 = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FCNT24X7 = '0'B;
+   END;
+
+   SELECT(TYPE_1.FWAR24X7);
+     WHEN('Y')
+       CP_AEQCOMM.FWAR24X7 = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FWAR24X7 = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FWAR24X7 = '0'B;
+   END;
+
+   SELECT(TYPE_1.FSOMACH);
+     WHEN('Y')
+       CP_AEQCOMM.FSOMACH = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FSOMACH = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FSOMACH = '0'B;
+   END;
+   
+   SELECT(TYPE_1.FOEE);
+     WHEN('Y')
+       CP_AEQCOMM.FOEE = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FOEE = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FOEE = '0'B;
+   END;
+
+   SELECT(TYPE_1.FLNVEMPL);
+     WHEN('Y')
+       CP_AEQCOMM.FLNVEMPL = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.FLNVEMPL = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.FLNVEMPL = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFCMFEA);
+     WHEN('Y')
+       CP_AEQCOMM.GJFCMFEA = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFCMFEA = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFCMFEA = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFDCMFE);
+     WHEN('Y')
+       CP_AEQCOMM.GJFDCMFE = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFDCMFE = '0'B;
+     OTHERWISE 
+       CP_AEQCOMM.GJFDCMFE = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFSYST);
+     WHEN('Y')
+       CP_AEQCOMM.GJFSYST = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFSYST = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFSYST = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJF30PCT);
+     WHEN('Y')
+       CP_AEQCOMM.GJF30PCT = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJF30PCT = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJF30PCT = '0'B;
+   END;
+ 
+   SELECT(TYPE_1.GJF40PCT);
+     WHEN('Y')
+       CP_AEQCOMM.GJF40PCT = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJF40PCT = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJF40PCT = '0'B;
+   END;
+    
+   SELECT(TYPE_1.GJFDEMO);
+     WHEN('Y')
+       CP_AEQCOMM.GJFDEMO = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFDEMO = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFDEMO = '0'B;
+   END;
+ 
+   SELECT(TYPE_1.GJFCELOA);
+     WHEN('Y')
+       CP_AEQCOMM.GJFCELOA   = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFCELOA   = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFCELOA   = '0'B;
+   END;
+   
+         
+   SELECT(TYPE_1.GJFMLCAU);
+     WHEN('Y')
+       CP_AEQCOMM.GJFMLCAU   = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFMLCAU   = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFMLCAU   = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFAUTOR);
+     WHEN('Y')
+        CP_AEQCOMM.GJFAUTOR   = '1'B;
+     WHEN('N')
+        CP_AEQCOMM.GJFAUTOR   = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFAUTOR   = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFDCFTS);
+     WHEN('Y')
+       CP_AEQCOMM.GJFDCFTS = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFDCFTS   = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFDCFTS   = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFSOLIC);
+     WHEN('Y')
+       CP_AEQCOMM.GJFSOLIC = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFSOLIC = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFSOLIC = '0'B;
+   END;
+   
+
+   SELECT(TYPE_1.GJFARBI);
+     WHEN('Y')
+       CP_AEQCOMM.GJFARBI = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFARBI = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFARBI = '0'B;
+   END;
+     
+   SELECT(TYPE_1.GJFPAD04);
+     WHEN('Y')
+       CP_AEQCOMM.GJFPAD04 = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFPAD04 = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFPAD04 = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFIMI);
+     WHEN('Y')
+       CP_AEQCOMM.GJFIMI = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFIMI = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFIMI = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFROPS);
+     WHEN('Y')
+       CP_AEQCOMM.GJFROPS = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFROPS = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFROPS = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFDSI);
+     WHEN('Y')
+       CP_AEQCOMM.GJFDSI = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFDSI =  '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFDSI =  '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFPMD);
+     WHEN('Y')
+       CP_AEQCOMM.GJFPMD = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFPMD = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFPMD = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFBTH);
+     WHEN('Y')
+       CP_AEQCOMM.GJFBTH = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFBTH = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFBTH = '0'B;
+   END;
+   
+   SELECT(TYPE_1.GJFBRV);
+     WHEN('Y')
+       CP_AEQCOMM.GJFBRV = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFBRV = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFBRV = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFBSF);
+     WHEN('Y')
+       CP_AEQCOMM.GJFBSF = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFBSF = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFBSF = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFBSO);
+     WHEN('Y')
+       CP_AEQCOMM.GJFBSO = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFBSO = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFBSO = '0'B;
+   END;
+   
+   SELECT(TYPE_1.GJFPAD06);
+     WHEN('Y')
+       CP_AEQCOMM.GJFPAD06 = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFPAD06 = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFPAD06 = '0'B;
+   END;
+
+   SELECT(TYPE_1.GJFRT);
+     WHEN('Y')
+       CP_AEQCOMM.GJFRT = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFRT = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFRT = '0'B;
+   END;
+   
+   SELECT(TYPE_1.GJFNUS);
+     WHEN('Y')
+       CP_AEQCOMM.GJFNUS = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.GJFNUS = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.GJFNUS = '0'B;
+   END; 
+      
+
+   SELECT(TYPE_1.CGFOCL);
+      WHEN('Y')
+        CP_AEQCOMM.CGFOCL =  '1'B;
+      WHEN('N')
+        CP_AEQCOMM.CGFOCL =  '0'B;
+      OTHERWISE
+        CP_AEQCOMM.CGFOCL =  '0'B;
+   END;
+
+   SELECT(TYPE_1.CGFCOD);
+     WHEN('Y')
+        CP_AEQCOMM.CGFCOD     = '1'B;
+     WHEN('N')
+        CP_AEQCOMM.CGFCOD     = '0'B;
+     OTHERWISE
+        CP_AEQCOMM.CGFCOD     = '0'B;
+   END;
+    
+   SELECT(TYPE_1.CGFIIC);
+     WHEN('Y')
+       CP_AEQCOMM.CGFIIC = '1'B;
+     WHEN('N')
+       CP_AEQCOMM.CGFIIC = '0'B;
+     OTHERWISE
+       CP_AEQCOMM.CGFIIC = '0'B;
+   END;
+
+   IF TEST_SW
+    THEN DO;
+       DIAG_TEXT = MODULE||': BIT FIELD SET PROPERLY';
+       CALL WRITE_TO_OPER;
+    END;
+                
+ END SET_BIT_FLDS;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* MOVE INPUT DATA INTO OVERRIDE STRUCTURE FOR QBOVR1               */
+ /********************************************************************/
+ CREATE_OVR1 : PROC;
+
+   IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = MODULE||': FILL OVERRIDE MESSAGE FOR QBOVR1';
+        CALL WRITE_TO_OPER;
+      END;
+
+   CP_QBOVIN.CAREA     = TYPE_5.CAREA;
+   CP_QBOVIN.PTD1      = TYPE_5.PTD1;
+   CP_QBOVIN.QSARBO    = TYPE_5.QSARBO;
+   CP_QBOVIN.QSARTERR  = TYPE_5.QSARTERR;
+
+   CP_QBOVIN.OVRMSG.IINVOICE  = TYPE_5.OVRMSG.IINVOICE;
+   CP_QBOVIN.OVRMSG.CCODE     = TYPE_5.OVRMSG.CCODE;
+   CP_QBOVIN.OVRMSG.NARRATIVE =  TYPE_5.OVRMSG.NARRATIVE;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': FILLED OVERRIDE MESSAGE ' ||
+                   TYPE_5.OVRMSG.IINVOICE;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END CREATE_OVR1; 
+
+ %PAGE;
+ /********************************************************************/
+ /*  WRITE DIAGNOSTIC MESSAGE TO OPERATOR CONSOLE                    */
+ /********************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ END QBMQMV ;

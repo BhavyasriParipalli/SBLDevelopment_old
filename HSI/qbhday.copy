@@ -1,0 +1,40 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBHDAY      VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  HOLIDAY TABLE                                            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE HOLIDAY TABLE.                      */
+ /*               THE VSAM VERSION USED BY THE BILLING PROCESSOR     */
+ /*               EXTRACTED FROM THE FOLLOWING DB2 VIEW:             */
+ /*                  QBVWLN04   HOLIDAY TABLE                        */
+ /*                                                                  */
+ /*               PLEASE NOTE:  THIS MAPPING MUST MATCH THE SELECT   */
+ /*               FROM THE DXT EXTRACT!                              */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+    3 SDXT1        CHAR( 1),        /* PAD (DXT)            001- 001 */
+    3 XPKEY,                        /* PRIMARY KEY ------------------*/
+      5 DHOLIDAY   CHAR(10),        /* HOLIDAY DATE         002- 011 */
+                                    /*   ('YYYY-MM-DD')              */
+                                    /* ------------------------------*/
+    3 SDXT2        CHAR( 1),        /* PAD (DXT)            012- 012 */
+    3 TDESCR25     CHAR(25),        /* HOLIDAY DESCRIPTION  013- 037 */
+    3 SDXT3        CHAR(43)         /* PAD (DXT)            038- 080 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBHDAY                             */
+ /*------------------------------------------------------------------*/
+

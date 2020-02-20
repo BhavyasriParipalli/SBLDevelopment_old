@@ -1,0 +1,57 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBFLAGS     VERSION NR:  01           DATE:  04/12/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  NSS QSAR-BILLING FLAGS                                   */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* CURRENT LENGTH: 50                                               */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPS MISCELLANEOUS FLAGS USED IN BILLING           */
+ /*               PROCESSOR, TO BE INCLUDED IN COMMAREA.             */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                     JWJ  */
+ /*  10/23/89 SR 9892  0NSA ADD CAD_MATCH                       JWJ  */
+ /*  12/01/89 I87752   0NSA ADD REPRICE FLAG FOR PT TRLR MATCH  LBS  */
+ /*                         TO ORIGINAL QSAR DOCUMENT                */
+ /*  10/14/92 SR 1084  2NSJ ADD AOTHREXP FIELD                  LBS  */
+ /*  10/14/92 SR 1084  4NSM INCREASE OTHER EXPENSE FIELD        DLK  */
+ /*  09/05/03          4NSC Support for PCD Stewart products.   REY  */
+ /*                    FITS GP0619035151  Add IOL indicator.         */
+ /*                                                                  */
+ /********************************************************************/
+ 3 BILL_DECISION   CHAR(1),         /* BILLABLE DECISION      01- 01 */
+                                    /*   X = NOT ELIGIBLE            */
+                                    /*   B = BILLABLE                */
+                                    /*   N = NOT BILLABLE            */
+                                    /*   R = ADMIN REVIEW            */
+ 3 PERFORM_PRICING CHAR(1),         /* PERFORM PRICING? Y/N   02- 02 */
+ 3 SEND_TO_CE      CHAR(1),         /* BILL INFO TO CE? Y/N   03- 03 */
+ 3 HVLC_INDICATOR  CHAR(1),         /* HVLC INDICATOR         04- 04 */
+                                    /*   H = HVLC                    */
+                                    /*   N = NON-HVLC                */
+ 3 ORIG_TLR_DOC    CHAR(9),         /* ORIGINAL QSAR          05- 13 */
+                                    /* DOCUMENT NUMBER, IF           */
+                                    /* THIS IS A PARTS TRAILER       */
+                                    /* (SEE S0IPARTR)                */
+ 3 CAD_MATCH       CHAR(1),         /* CAD MATCH?       Y/N   14- 14 */
+ 3 REPRICE         CHAR(1),         /* REPRICE QSAR?    Y/N   15- 15 */
+ 3 AOTHREXP        DEC(7,2),        /* OTHER EXPENSES         16- 19 */
+ 3 QTRAVMI         PIC '999',       /* CE MILES TRAVELED      20- 22 */
+ 3 IOL             CHAR(1),         /* IBM ON-SITE LMTD SUPT  23- 23 */
+                                    /*   Y = BILL LABOR ON WARR      */
+ 3 SQBFPAD         CHAR(27)         /* (PAD)                  24- 50 */
+ /*------------------------------------------------------------------*/
+ /*                      END  QBFLAGS                                */
+ /*------------------------------------------------------------------*/
+

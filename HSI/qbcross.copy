@@ -1,0 +1,81 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBCROSS     VERSION NR:  01           DATE:  06/10/10    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  MQ AND CONTROL VARIABLES                                 */
+ /*                                                                  */
+ /* DESCRIPTION:  MQSERIES VARIABLES AND CONTROL VARIABLES FOR       */
+ /*               ONE UNIT OF MQSERIES COMMUNICATION                 */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:     REASON:  DRVR:   DESCRIPTION:                   PGMR:  */
+ /*---------- -------- ---- ---------------------------------- ----- */
+ /*06/10/2010 0317104211 0NSE INITIAL VERSION                   AM   */
+ /*                                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* MQ COMMUNICATION INTERFACE VARIABLES                             */
+ /*------------------------------------------------------------------*/
+  3 IQUEMGR        CHAR(48),     /* QUEUE MANAGER NAME       001- 048*/
+  3 IGETQUE        CHAR(48),     /* INPUT QUEUE NAME         049- 096*/
+  3 IPUTQUE        CHAR(48),     /* OUTPUT QUEUE NAME        097- 144*/
+  3 IMQHCONN       FIXED BIN(31),/* ID OF MQSERIES CONNECTION145- 148*/
+  3 IHOBJGET       FIXED BIN(31),/* ID OF MQSERIES GET OBJECT149- 152*/
+  3 IHOBJPUT       FIXED BIN(31),/* ID OF MQSERIES PUT OBJECT153- 156*/
+  3 UPUTDATA,                    /* DH ADDED 06/16                   */
+    5 FCONNECT     CHAR( 1),     /* 'Y'=YES, 'N'= NO         157- 157*/
+    5 FMQWRITE     CHAR( 1),     /* 'Y'=YES, 'N'=NO          158- 158*/
+  3 UGETDATA,                    /* DH ADDED 06/16                   */
+    5 FIRSTRD      CHAR( 1),     /* '1'= FIRST TIME          159- 159*/
+    5 FENDOFMQ     CHAR( 1),     /* '0'=NO '1'= YES          160- 160*/
+  3 QBACKOUT       FIXED DEC(11,0),/* PREV ERROR RECORD      161- 166*/
+ /*------------------------------------------------------------------*/
+ /* POINTER TO ALLOCATED MEMORY                                      */
+ /*------------------------------------------------------------------*/
+  3 XMEMORY        FIXED  BIN(31),/*                         167- 170*/
+ /*------------------------------------------------------------------*/
+ /* TO CHECK ALL VALID FIELDS                                        */
+ /*------------------------------------------------------------------*/
+  3 FVALID         CHAR( 1),     /*                          171- 171*/
+ /*------------------------------------------------------------------*/
+ /* TO CHECK IF NOTHING TO BILL - 'Y' WILL BE SET IN QBBIL1          */
+ /*------------------------------------------------------------------*/   
+  3 FNOBILL        CHAR( 1),     /* 'Y' = NOT BILLED         172- 172*/
+  3 CMSGIND        CHAR (2),     /*                          173- 174*/
+ /*------------------------------------------------------------------*/
+ /* TYPE OF MESSAGE FROM CROSS/LAR (CMSGIND)                         */
+ /* INPUT -                                                          */
+ /*  01 - SERVICE CALL RECORD TO BE BILLED                           */
+ /*  05 - OVERRIDE MESSAGE RECORD                                    */
+ /* OUTPUT - TYPE OF MESSAGE TO CROSS/LAR                            */
+ /*  02 - ACKNOWLEDGEMENT                                            */
+ /*  03 - HSI                                                        */
+ /*  04 - HSD                                                        */
+ /*  06 - UPDATED OVRRIDE MSG                                        */
+ /*------------------------------------------------------------------*/
+ /*------------------------------------------------------------------*/
+ /* ERROR CODE VARIABLES                                             */
+ /*------------------------------------------------------------------*/
+  3 CERROR         CHAR (3),     /* ERROR MSG CODE           175- 177*/
+  3 TERROR         CHAR(50),     /* ERROR MSG DESCRIPTION    178- 227*/
+ /*------------------------------------------------------------------*/
+ /* OTHER VARIABLES                                                  */
+ /*------------------------------------------------------------------*/
+  3 CRECIND        CHAR( 1),     /* Type of Record           228- 228*/
+                                 /* E = ERROR DURING PROCESSING      */
+                                 /* D = DISCARD                      */
+                                 /* P = PROCESSED                    */
+  3 CINVTYPE       CHAR( 3),     /* TYPE OF INVOICE          229- 231*/
+                                 /* 'HSI' or 'HSD'                   */
+  3 SPAD98         CHAR( 50)     /* PAD                      232- 281*/
+ /*------------------------------------------------------------------*/
+ /*                      END  QBCROSS                                */
+ /*------------------------------------------------------------------*/
+

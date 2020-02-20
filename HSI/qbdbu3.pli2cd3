@@ -1,0 +1,1570 @@
+ QBDBU3: PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBDBU3                             DATE:  07/09/2010  */
+ /*                                                                  */
+ /*  TITLE: INSERT LAR RECORDS INTO THE IMS DB                       */
+ /*                                                                  */
+ /*  FUNCTION:   THE PURPOSE OF THIS MODULE IS TO UPDATE THE QSAR    */
+ /*              DATA BASE WITH THE DATA FROM HSI AND LAR            */
+ /*              PROCESS.                                            */
+ /*                                                                  */
+ /*              ALL SEGMENTS IN THE COMMAREA ARE REPLACED IF        */
+ /*              PRESENT.  IF NEW SEGMENTS ARE PRESENT, THEY ARE     */
+ /*              INSERTED INTO THE DATA BASE.                        */
+ /*              BY AUDIT EDIT.                                      */
+ /*                                                                  */
+ /*              AFTER UPDATING THE QSAR DATA BASE, THE CONTROL      */
+ /*              DATA BASE IS UPDATED TO REFLECT THE ACTIVITY        */
+ /*              PROCESSED.  IF THIS IS A REPRICED QSAR DON'T        */
+ /*              UPDATE THE CONTROL DATE BASE.                       */
+ /*                                                                  */
+ /*              SEND ACKNOWLEDGEMENT MESSAGE TO CROSS/LAR.          */
+ /*                                                                  */
+ /*              IF THE QSAR JUST PROCESSED IS A RESUBMITTED PARTS   */
+ /*              TRAILER, XCTL TO QBBIL6 TO MATCH PART TRAILER TO THE*/
+ /*              ORIGINAL QSAR DOCUMENT AND REDO PRICING AND TAXING  */
+ /*                                                                  */
+ /*  LANGUAGE: PLI                                                   */
+ /*                                                                  */
+ /*  MODULE TYPE: REAL-TIME (CICS) - MAIN                            */
+ /*                                                                  */
+ /*  PARM: NONE                                                      */
+ /*                                                                  */
+ /*  INTERFACES: NONE                                                */
+ /*                                                                  */
+ /*  INPUTS:     COMMAREA FROM QBMAIN  or  (no billing segs)         */
+ /*              COMMAREA FROM QBBIL1  or  (no billing segs)         */
+ /*              COMMAREA FROM QBMSG1      (with billing segments)   */
+ /*                                                                  */
+ /*  OUTPUTS:    UPDATED QSAR IMS DATA BASE                          */
+ /*              UPDATED QSAR CONTROL DATA BASE                      */
+ /*              JOURNAL 7 RECORD                                    */
+ /*                                                                  */
+ /*  REPORTS: NONE                                                   */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                     PGMR:*/
+ /* ---------- ------- ------- -------------------------------- -----*/
+ /*07/19/2010 0317104211 0NSE  orginal promote                   LBS */
+ /*11/23/2010 0317104211 0NSE  Changes for ASCA                  NM  */
+ /*07/06/2011 PRODSUPT   1NSE  add check for TIERED part and     LBS */
+ /*                            do not insert part trailer if tiered  */
+ /*07/10/2011 PRODSUPT   1NSE  add when clause for part only chk LBS */
+ /*                                                                  */
+ /*02/16/2012 RCQ1882    2HSC  Remove Area and region            NAK */
+ /*                            ASSIGN 31 FOR HUB                     */
+ /*03/07/2012 HSI_2HSC_005     add not TIERED_PART on XCTl to    LBS */
+ /*                            to QBBIL6                             */
+ /********************************************************************/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 03/07/2012');
+ DCL MODULE            CHAR(7)  STATIC INIT('QBDBU3');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ 
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL PENDED_REC CHAR;
+ %PENDED_REC = '''P''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE = '''X''';
+ %PAGE;
+ /********************************************************************/
+ /*                         DECLARES                                 */
+ /********************************************************************/
+ /*                  PL/I BUILTIN FUNCTIONS                          */
+ /********************************************************************/
+ DCL (ADDR,
+      CSTG,
+      DATAFIELD,
+      DATE,
+      DIM,
+      HBOUND,
+      INDEX,
+      LENGTH,
+      LOW,
+      ONLOC,
+      PLIDUMP,
+      STG,
+      SUBSTR,
+      TRANSLATE,
+      VERIFY) BUILTIN;
+
+ DCL PLITDLI ENTRY EXTERNAL;                   /* IMS CALL INTERFACE */
+ 
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(10K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)') STATIC VARYING EXTERNAL;
+
+ DCL SYSPRINT FILE PRINT;
+
+ %PAGE;
+ /********************************************************************/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /********************************************************************/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE     FIXED BIN(31) INIT(0);
+ DCL RESPONSE2    FIXED BIN(31) INIT(0);
+
+
+ %PAGE;
+ /********************************************************************/
+ /* COMMAREA POINTER (PASSED FROM CALLING PGM) AND FORMAT            */
+ /********************************************************************/
+
+ DCL @COMM              POINTER;
+                                         /* QSAR TOTAL LENGTH W/O    */
+                                         /* BILLING SEGMENTS         */
+                  /* ------------- */
+                  /* 725 QSGENL    */
+                  /* 800 QSPART(4) */
+                  /* 275 QSINVT    */
+                  /* 170 QSNARR    */
+                  /* 200 QSMISC    */
+                  /* 330 QSFLAG    */
+                  /* ====          */
+                  /*2500           */
+                  /* ------------- */
+ DCL 1 COMM             BASED(@COMM) UNALIGNED,
+    %INCLUDE AEQCOMM ; ,
+    %INCLUDE QBCOMM ; ;
+
+ /* ---------------------------------------------------------------- */
+ /* IO_BUFFER IS A GENERIC DL/I INPUT BUFFER.  WE READ INTO THIS     */
+ /* THIS SO WE DON'T WIPE OUT OUR COMMAREA SEGMENTS.                 */
+ /* ---------------------------------------------------------------- */
+ DCL IO_BUFFER          CHAR(1000);
+
+ %PAGE;
+ DCL 1 QSGENL_SEG BASED(ADDR(COMM.DOCUMENT_KEY)) UNALIGNED,
+    %INCLUDE AEQSGENL; ;
+
+ %PAGE;
+ DCL 1 ROOT UNALIGNED,
+    %INCLUDE AEQSGENL; ;
+
+ DCL 1 PART_GENL UNALIGNED,
+    %INCLUDE AEQSGENL; ;
+
+ %PAGE;
+ DCL 1 QSINVT_SEG BASED(ADDR(COMM.INVENTORY)) UNALIGNED,
+    %INCLUDE AEQSINVT; ;
+
+ %PAGE;
+ DCL 1 QSNARR_SEG BASED(ADDR(COMM.NARRATIVE)) UNALIGNED,
+    %INCLUDE AEQSNARR; ; 
+
+ /* ---------------------------------------------------------------- */
+ /* BE SURE TO CHANGE THE FOLLOWING LENGTH IF THE LENGTH IN THE      */
+ /* QSGENL SEGMENT CHANGES.                                          */
+ /* ---------------------------------------------------------------- */
+ DCL QSGENL_BUF CHAR(725) BASED(ADDR(COMM.DOCUMENT_KEY));
+
+ DCL QSINVT_BUF CHAR(275) BASED(ADDR(COMM.INVENTORY));
+
+ DCL QSNARR_BUF CHAR(170) BASED(ADDR(COMM.NARRATIVE));
+
+ DCL QSMISC_BUF CHAR(200) BASED(ADDR(COMM.UMISCELL));
+
+ 
+ %PAGE; 
+ DCL @QSPART          POINTER   INIT(ADDR(COMM.PARTS(1)));
+ DCL QSPART_BUF       CHAR(200) BASED(@QSPART);
+ DCL 1 PART_SEG       BASED(@QSPART) UNALIGNED,
+    %INCLUDE AEQSPART; ;
+
+ %PAGE;
+ DCL 1 QSMISC_SEG BASED(ADDR(COMM.UMISCELL)) UNALIGNED,
+    %INCLUDE AEQSMISC; ; 
+
+ %PAGE;
+ DCL 1 QBBILL_SEG BASED(ADDR(COMM.QBBILL)) UNALIGNED,
+    %INCLUDE QBSBILL; ;
+
+ %PAGE;
+ DCL @QBPARTS             POINTER BASED(ADDR(COMM.QBPARTS(1)));
+ DCL QBPART_BUF    CHAR(55)       BASED(@QBPARTS);
+ DCL 1 QBPART_SEG BASED(@QBPARTS) UNALIGNED, 
+    %INCLUDE QBSPART; ;
+
+ %PAGE;
+ DCL 1 TEMP_QBPART UNALIGNED,
+    %INCLUDE QBSPART; ;
+
+ %PAGE;
+ DCL 1 TEMP_NARR BASED(ADDR(IO_BUFFER)) UNALIGNED,
+    %INCLUDE AEQSNARR; ;
+
+ %PAGE;
+ DCL 1 TEMP_PART BASED(ADDR(IO_BUFFER)) UNALIGNED,
+    %INCLUDE AEQSPART; ;
+    
+ %PAGE;
+ DCL 1 TEMP_MISC BASED(ADDR(IO_BUFFER)) UNALIGNED,
+    %INCLUDE AEQSMISC; ;
+
+ %PAGE;
+ DCL 1 ERROR_DATA       UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL 1 STATS           UNALIGNED,
+    %INCLUDE AEQQSRC ; ;
+
+ %PAGE;
+ DCL @CWA           POINTER;
+ DCL 1 CWA             UNALIGNED BASED(@CWA),
+    %INCLUDE CWA ;
+
+ %PAGE;
+ DCL 1 LARACK UNALIGNED,         /* CROSS ACK MESSAGE                */
+    %INCLUDE QBMQACK;;
+
+ /* ---------------------------------------------------------------- */
+ /*  JOURNAL RECORD PREFIX                                           */
+ /* ---------------------------------------------------------------- */
+ DCL 1 TP_PREFIX,
+      3  TP_APPLID  CHAR(8),        /* CICS APPLID                   */
+      3  TP_QSARID  CHAR(10),       /*                               */
+      3  TP_CEBO    CHAR(3),        /*                               */
+      3  TP_CETERR  CHAR(3),        /*                               */
+      3  TP_DATE    CHAR(8),        /* CURRENT DATE (YYMMDD)         */
+      3  TP_TIME    CHAR(6),        /* CURRENT TIME (HHMMSS)         */
+      3  TP_RC    FIXED BIN(15),    /* GI HEADER RETURN CODE         */
+      3  TP_ABSTIME CHAR(8),        /* ABS TIME FROM INTERFACE REC   */
+      3  TP_FTYPE FIXED BIN(15);    /* ERROR FIELD DATA TYPE         */
+
+ %PAGE;
+ %INCLUDE DLIUIB;
+
+ /* ---------------------------------------------------------------- */
+ /* IMS DECLARES                                                     */
+ /* ---------------------------------------------------------------- */
+ DCL 1 PCBN_POINTERS BASED(UIBPCBAL),
+       2 QSAR_PTR POINTER,
+       2 CNTL_PTR POINTER,
+       2 AUDT_PTR POINTER;
+
+ DCL 1 QSAR_PCB BASED(QSAR_PTR),
+       2 Q_DBDNAME       CHAR(8),
+       2 Q_SEG_LEVEL     CHAR(2),
+       2 Q_STAT          CHAR(2),
+       2 Q_PROC_OPT      CHAR(4),
+       2 Q_DLI_RESERVED  FIXED BIN(31),
+       2 Q_SEGNAME       CHAR(8),
+       2 Q_FB_LENGTH     FIXED BIN(31),
+       2 Q_NBR_SENS_SEGS FIXED BIN(31),
+       2 Q_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 CNTL_PCB BASED(CNTL_PTR),
+       2 C_DBDNAME       CHAR(8),
+       2 C_SEG_LEVEL     CHAR(2),
+       2 C_STAT          CHAR(2),
+       2 C_PROC_OPT      CHAR(4),
+       2 C_DLI_RESERVED  FIXED BIN(31),
+       2 C_SEGNAME       CHAR(8),
+       2 C_FB_LENGTH     FIXED BIN(31),
+       2 C_NBR_SENS_SEGS FIXED BIN(31),
+       2 C_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 AUDT_PCB BASED(AUDT_PTR),
+       2 A_DBDNAME       CHAR(8),
+       2 A_SEG_LEVEL     CHAR(2),
+       2 A_STAT          CHAR(2),
+       2 A_PROC_OPT      CHAR(4),
+       2 A_DLI_RESERVED  FIXED BIN(31),
+       2 A_SEGNAME       CHAR(8),
+       2 A_FB_LENGTH     FIXED BIN(31),
+       2 A_NBR_SENS_SEGS FIXED BIN(31),
+       2 A_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 SSA_QSGENL_QUAL UNALIGNED,
+       2 QSGENL_NAME      CHAR(8) INIT('QSGENL  '),
+       2 QSGENL_QUAL      CHAR(1) INIT('('),
+       2 QSGENL_KEYNAME   CHAR(8) INIT('IDOCUMNT'),
+       2 QSGENL_OPR       CHAR(2) INIT(' ='),
+       2 QSGENL_KEYVAL    CHAR(9) INIT(''),
+       2 QSGENL_ENDCHAR   CHAR(1) INIT(')');
+
+
+ DCL 1 SSA_QSGENL_UNQUAL UNALIGNED,
+       2 QSGENL_NAME2     CHAR(9) INIT('QSGENL   ');
+
+ DCL 1 SSA_QSPART_UNQUAL UNALIGNED,
+       2 QSPART_NAME      CHAR(9) INIT('QSPART   ');
+
+ DCL 1 SSA_QSNARR_UNQUAL UNALIGNED,
+       2 QSNARR_NAME      CHAR(9) INIT('QSNARR   ');  
+
+ DCL 1 SSA_QSMISC_UNQUAL UNALIGNED,
+       2 QSMISC_NAME      CHAR(9) INIT('QSMISC   ');  
+
+ DCL 1 SSA_QSINVT_UNQUAL UNALIGNED,
+       2 QSINVT_NAME      CHAR(9) INIT('QSINVT   ');
+
+ DCL 1 SSA_QBBILL_UNQUAL UNALIGNED, 
+       2 QBBILL_NAME      CHAR(9) INIT('QBBILL   ');
+
+ DCL 1 SSA_QBNARR_UNQUAL UNALIGNED, 
+       2 QBNARR_NAME      CHAR(9) INIT('QBNARR   ');
+
+ DCL 1 SSA_QBPART_UNQUAL UNALIGNED, 
+       2 QBPART_NAME      CHAR(9) INIT('QBPART   ');
+       
+ DCL 1 SSA_CAASCRSC_UNQUAL UNALIGNED,
+       2 CAASCRSC_NAME2    CHAR(9) INIT('CAASCRSC ');
+
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8)  INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1)  INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2)  INIT(' ='),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1)  INIT(')');
+
+ %PAGE;
+ /********************************************************************/
+ /*    MISCELLANEOUS DECLARES                                        */
+ /********************************************************************/
+ DCL ABSHHMMSS         CHAR(6)    INIT('');
+ DCL ABSMMDD           CHAR(4)    INIT('');
+ DCL ABSOLTIME   FIXED DEC(15)    INIT(0);
+ DCL ABSTIME     FIXED DEC(15)    INIT(0);
+ DCL ABSYEAR     FIXED BIN(31)    INIT(0);
+ DCL ABSYEAR_PIC       PIC'9999'  INIT(0);
+ DCL ABSYYMMDD         CHAR(6)    INIT('');
+ DCL ACT_HOURS         PIC'999'   BASED(ADDR(COMM.S0QSVCHR));
+ DCL AREA_CHAR         CHAR(2)    INIT('');
+ DCL AREA_PIC          PIC '99'   BASED(ADDR(AREA_CHAR));
+ DCL APPLID            CHAR(8)    INIT('');
+ DCL COMMLENGTH        PIC'(9)9'  INIT(0);
+ DCL DATE_YYYYMMDD     CHAR(10)   INIT('');
+ DCL DIAG_TEXT         CHAR(80)   INIT('');
+ DCL ERR1              CHAR(9)    INIT('QSR9000: ');
+ DCL ERR2              CHAR(9)    INIT('QSR9002: ');
+ DCL FUNC              CHAR(4)    INIT('');
+ DCL HSI_PART(50)      CHAR(8)    INIT((50)(''));
+ DCL I           FIXED BIN(31)    INIT(0);
+ /*DCL IMS_PSB           CHAR(8)    INIT('QBDBU3 ');*/
+ DCL IMS_PSB           CHAR(8)    INIT('AEQDBU3 ');
+ DCL J           FIXED BIN(31)    INIT(0);
+ DCL JRNLREC_LEN FIXED BIN(31)    INIT(0);
+ DCL PARM_CT1    FIXED BIN(31)    INIT(1);
+ DCL PARM_CT2    FIXED BIN(31)    INIT(2);
+ DCL PARM_CT3    FIXED BIN(31)    INIT(3);
+ DCL PARM_CT4    FIXED BIN(31)    INIT(4);
+ DCL PARM_CT5    FIXED BIN(31)    INIT(5);
+ DCL PARM_CT6    FIXED BIN(31)    INIT(6);
+ DCL PCB1              CHAR(2)    INIT('');
+ DCL PCB2              CHAR(2)    INIT('');
+ DCL PCB3              CHAR(2)    INIT('');
+ DCL PFXLENGTH   FIXED BIN(15)    INIT(0);
+ DCL AREA_CROSS        PIC'99'    INIT('01');
+ DCL PIC2              PIC'99'    INIT(0);
+ DCL PIC_DATE          PIC'(6)9'  INIT(0);   /* DATE CONVERSIONS     */
+ DCL PIC_TIME          PIC'(6)9'  INIT(0);   /* DATE CONVERSIONS     */
+ DCL PIC_RESP          PIC'(4)9'  INIT(0);
+ DCL PIC_RESP2         PIC'(4)9'  INIT(0);
+
+ DCL NO                BIT(1)     INIT('0'B);
+ DCL PSB_SCHED         BIT(1)     INIT('0'B);
+ DCL QUIT              BIT(1)     INIT('0'B);
+ DCL STAT_ZERO         BIT(8)     INIT((8)'0'B);
+ DCL TEST_SW           BIT(1)     INIT('0'B);
+ DCL TIERED_PART       BIT(1)     INIT('0'B);
+ DCL YES               BIT(1)     INIT('1'B);
+
+ %PAGE;
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                      /* PREVENT RECURSION ERROR */
+     FUNC = 'ROLB';                        /* ROLL BACK ANY CHANGES   */
+
+     /* CALL PLITDLI (PARM_CT1,
+                   FUNC)     LBS  12/08/99   */
+
+     ET_PROGRAM_ID = 'QBDBU3';
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'Y';
+
+     ET_TEXT5 = ERR2||MODULE||' ABEND IN PROC: '||ONLOC;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_DATA)
+                    RESP(RESPONSE);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;
+         /* IF ALL ELSE FAILS, DUMP AND RETURN TO CICS */
+         EXEC CICS ABEND
+              ABCODE('DBU3')
+              CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /* SCHEDULE PSB AND THEN CALL DATA BASE UPDATE ROUTINES             */
+ /********************************************************************/
+ EXEC CICS ADDRESS CWA(@CWA) RESP(RESPONSE);
+
+ IF CWA_QSAR_TRACE = 'Y' | 
+    CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     TEST_SW   = '1'B;
+     DIAG_TEXT = MODULE||': START PROCESSING '||VERSION ||
+                 ' COMPILETIME '||COMPILE ;
+     CALL WRITE_TO_OPER();
+     PIC_DATE  = EIBDATE;
+     PIC_TIME  = EIBTIME;
+     DIAG_TEXT = MODULE||': STARTING THE PROGRAM, DOC# '||
+                            COMM.S0IDOCMN   || ' DATE ' ||
+                            PIC_DATE        || ' TIME ' ||
+                            PIC_TIME;
+     CALL WRITE_TO_OPER();
+   END;
+
+ IF EIBCALEN = 0
+   THEN DO;
+     ET_TEXT1 = ERR2||MODULE||' NO COMMAREA';
+     SIGNAL ERROR;
+   END;
+ DCL PART_NUMBER CHAR(8)  INIT('');
+ PART_NUMBER = COMM.QBPARTS(1).IPART;
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||' PART 1 '||PART_NUMBER;
+     CALL WRITE_TO_OPER();
+   END;
+ 
+ DO I = 1 TO 20 WHILE(COMM.QBPARTS(I).IPART ^= '');
+   HSI_PART(I) = COMM.QBPARTS(I).IPART;
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'HSI PART '||I||' '||HSI_PART(I);
+       CALL WRITE_TO_OPER();
+     END;
+ END;
+ 
+ IF TEST_SW
+   THEN DO;
+     COMMLENGTH = EIBCALEN;
+     DIAG_TEXT = MODULE||': COMMLENGTH '||COMMLENGTH;
+     CALL WRITE_TO_OPER();
+   END;
+
+
+ /* ---------------------------------------------------------------- */
+ /* QUERY THE PSBS TO SEE WHICH ONES ARE ACTIVE.                     */
+ /* ---------------------------------------------------------------- */
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': SCHEDULE PSB AEQDU3';
+     CALL WRITE_TO_OPER();
+   END;
+   
+ /* CALL PLITDLI (PARM_CT1,'TERM')  */
+ ET_TEXT1 = ERR2||MODULE||' ABOUT TO SCHEDULE PSB AEQDBU3';
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': EXEC DLI SCHEDULE AEQDBU3';
+     CALL WRITE_TO_OPER();
+   END;  
+
+ /* EXEC DLI SCHD PSB(AEQHLD);  */
+ EXEC DLI SCHD PSB(AEQDU3);
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': EXEC DLI SCHD PSB(AEQDU3) DIBSTAT ('||
+                   DIBSTAT||')';
+     CALL WRITE_TO_OPER();
+   END;
+
+ IF DIBSTAT = ''
+   THEN ;
+   ELSE DO;
+     DIAG_TEXT = ERR2||MODULE||
+                ' UNABLE TO SCHEDULE PSB AEQDU3, STAT = '
+                 ||DIBSTAT;
+     EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT);
+   END;
+
+ IF TEST_SW
+   THEN DO;
+     PART_NUMBER = COMM.QBPARTS(1).IPART;
+     DIAG_TEXT = MODULE||': again PART 1 '||PART_NUMBER;
+     CALL WRITE_TO_OPER();
+     DIAG_TEXT = MODULE||': OKAY TO CONTINUE PROCESSING';
+     CALL WRITE_TO_OPER();
+     /* @QBPARTS = ADDR(COMM.QBPARTS(1));  */
+     DIAG_TEXT = MODULE||': HSI PART SEGMENT 1 ';
+     CALL WRITE_TO_OPER();
+     DIAG_TEXT = MODULE||':'|| COMM.QBPARTS(1).IPART||' '||
+                               COMM.QBPARTS(1).NPARTDSC;
+     CALL WRITE_TO_OPER(); 
+   END;
+
+
+ QSGENL_KEYVAL = COMM.S0IDOCMN;
+     
+  IF (COMM.S0IPART(1) = '000T2222' |
+      COMM.S0IPART(1) = '000T3333' |
+      COMM.S0IPART(1) = '000T4444' |
+      COMM.S0IPART(1) = '000T5555' |
+      COMM.S0IPART(1) = '000T6666' |
+      COMM.S0IPART(1) = '000T7777' |
+      COMM.S0IPART(1) = '000T8888' |
+      COMM.S0IPART(1) = '000T9999'  )
+    THEN DO;
+      TIERED_PART = '1'B;
+      IF TEST_SW
+        THEN DO;
+          DIAG_TEXT = MODULE||': THIS IS A TIERED PART QSAR ';
+          CALL WRITE_TO_OPER();
+        END;
+    END;
+    ELSE TIERED_PART = '0'B;
+    
+ /* ---------------------------------------------------------------- */
+ /* IF THE LAR RECORD IS NOT BILLABLE AND IT IS NOT A PART TRAILER   */
+ /* DO NOT PUT THE DATA IN THE IMS DB.  IT IS NOT NEEDED FOR QSAR    */
+ /* LATER QSAR NOR HSI PROCESSING.                                   */
+ /* ---------------------------------------------------------------- */
+ SELECT;
+   WHEN (COMM.S0IPARTR ^= '') 
+     DO;
+       IF TIERED_PART 
+         THEN DO;
+           IF TEST_SW
+             THEN DO;
+              DIAG_TEXT = MODULE||': TIERED PART DO NOTHING-DISCARD';
+              CALL WRITE_TO_OPER();
+             END;
+           CALL UPDATE_CTLDB('X');
+         END;
+         ELSE CALL DB_INSERT_PART_TRLR_RECORD();  
+     END;
+   WHEN (COMM.BILL_DECISION = NOT_ELIGIBLE,
+         COMM.BILL_DECISION = PENDED_REC,
+         COMM.BILL_DECISION = NOBILL )
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': NOT BILLABLE, DO NOTHING- DISCARD';
+           CALL WRITE_TO_OPER();
+         END;
+       CALL UPDATE_CTLDB('X');
+     END;
+   WHEN (COMM.CHCDATIT = 'P')
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': PART ONLY, DO NOTHING- DISCARD';
+           CALL WRITE_TO_OPER();
+         END;
+     END;
+   OTHERWISE CALL DB_INSERT_IR_RECORD();  
+                                         /* ------------------------ */
+                                         /* UPDATE QSAR DATA BASE    */
+                                         /* WITH BILLED ACTIVITY     */
+                                         /* ------------------------ */
+
+   END;
+   
+ FUNC = 'TERM';                          /* TERMINATE PSB            */
+ /* CALL PLITDLI (PARM_CT1,FUNC); */
+
+ /*EXEC DLI TERMINATE;*/
+
+ 
+ CALL CREATE_ACK_MESSAGE();             /* CROSS/LAR CHANGES         */
+ CALL SEND_ACK_MESSAGE_TO_LAR();        /* CROSS/LAR CHANGES         */
+ 
+ /* INCREMENT QSRCQBB VALUE OF QSARACKC TO DENOTE TYPE 2             */
+ /* RECORDS SENT FOR SUCCESSFULLY PROCESSED TYPE 1                   */
+ CALL UPDATE_CTLDB_TYPE2();             /* ASCA CHANGES			     */
+ 
+ EXEC DLI TERMINATE;
+ 
+ CALL WRITE_JOURNAL_RECORD();
+                                        /* ------------------------- */
+                                        /* I87752                    */
+                                        /* If it is a part trailer   */
+                                        /* and not pended and is     */
+ IF COMM.S0IPARTR ^= ' '  &             /* not deleted and it is     */
+    COMM.CGQHIGSE  < '3'  &             /* being reprocessed         */
+    COMM.NSDC_DEL ^= 'Y'  &             /* ------------------------- */
+    (COMM.S0CFUNC(1) = '02' |           /* added 09/2008 to not go to*/
+     COMM.S0CFUNC(1) = '21' |           /* QBBIL6 if you do not have */
+     COMM.S0CFUNC(2) = '02' |           /* billable part usage       */
+     COMM.S0CFUNC(2) = '21' |           /* ------------------------- */
+     COMM.S0CFUNC(3) = '02' |
+     COMM.S0CFUNC(3) = '21' |
+     COMM.S0CFUNC(4) = '02' |
+     COMM.S0CFUNC(4) = '21' ) &
+    (EIBTRNID = 'QBMN' & COMM.S0QPNDCT > 1) &
+     ^TIERED_PART
+   THEN CALL TRANSFER_TO_QBBIL6();
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': AFTER UPDATE TRANSFER TO QBBIL6 ' ;
+     CALL WRITE_TO_OPER();
+     DIAG_TEXT = MODULE||': EXITING QBDBU3 ' ;
+     CALL WRITE_TO_OPER();
+   END;
+
+
+ EXEC CICS RETURN;
+
+ /* =============== END OF MAIN PROGRAM  =========================== */
+ /* =============== SUBROUTINES TO FOLLOW ========================== */
+
+ 
+  %PAGE;
+ /********************************************************************/
+ /* QSAR IMS DATA BASE UPDATE WITH PART TRAILER ACTIVITY DATA        */
+ /* ONLY (NO HSI BILLING SEGMENTS)                                   */
+ /* --------------------------------                                 */
+ /********************************************************************/
+ DB_INSERT_PART_TRLR_RECORD: PROC() REORDER;
+ 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': DB_INSERT_PART_TRLR_RECORD ' ;
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSGENL '||SUBSTR(QSGENL_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSINVT '||SUBSTR(QSINVT_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSNARR '||SUBSTR(QSNARR_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSMISC '||SUBSTR(QSMISC_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSPART '||SUBSTR(QSPART_BUF,1,60);
+       CALL WRITE_TO_OPER();
+     END;
+
+   CALL INSERT_LAR_RECORD();
+   CALL UPDATE_CTLDB('P');
+   
+ END DB_INSERT_PART_TRLR_RECORD;
+ 
+  %PAGE;
+ /********************************************************************/
+ /* QSAR IMS DATA BASE UPDATE WITH ACTIVITY DATA + HSI DATA          */
+ /* --------------------------------                                 */
+ /********************************************************************/
+ DB_INSERT_IR_RECORD: PROC() REORDER;
+ 
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': DB_INSERT_IR_RECORD ' ;
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSGENL '||SUBSTR(QSGENL_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSINVT '||SUBSTR(QSINVT_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSNARR '||SUBSTR(QSNARR_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSMISC '||SUBSTR(QSMISC_BUF,1,60);
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSPART '||SUBSTR(QSPART_BUF,1,60);
+       CALL WRITE_TO_OPER();
+     END;
+     
+     IF COMM.IINVOICE ^= ''
+       THEN DO;
+         QSGENL_SEG.S0IHSDNR = COMM.IINVOICE;
+         QSGENL_SEG.S0IDCIFL = BILL_DECISION; 
+         QSGENL_SEG.FPERCALL = '1';           
+       END;
+   CALL INSERT_LAR_RECORD();
+ /* ---------------------------------------------------------------- */
+ /* IF THE INVOICE WAS SENT THROUGH THE REPRICING PROCESS (QBBIL6),  */
+ /* DO NOT WANT TO COUNT IT TWICE.  DON'T UPDATE THE CONTROL DB      */
+ /* COUNTS.                                                          */
+ /* ---------------------------------------------------------------- */
+   IF REPRICE ^= 'Y'
+                                        /* UPDATE HSI ACTIVITY INFO */
+     THEN CALL UPDATE_CTLDB(COMM.BILL_DECISION);
+
+    
+   IF EIBCALEN > 2600
+     THEN IF COMM.IINVOICE ^= ''
+            THEN DO;
+              QSGENL_SEG.S0IHSDNR = COMM.IINVOICE;
+              QSGENL_SEG.S0IDCIFL = BILL_DECISION; 
+              QSGENL_SEG.FPERCALL = '1';           
+              CALL INSERT_HSI_SEGMENTS();
+            END;
+      
+ END DB_INSERT_IR_RECORD;
+
+  %PAGE;
+ /********************************************************************/
+ /* QSAR IMS DATA BASE UPDATE WITH LAR ACTIVITY DATA                 */
+ /* --------------------------------                                 */
+ /********************************************************************/
+ INSERT_LAR_RECORD: PROC();
+   ET_TEXT1 = ERR2||MODULE||' UNABLE GU QSGENL SEGMENT - DOC# '||
+                              COMM.S0IDOCMN;
+                              
+   EXEC DLI GU USING PCB(1)
+               SEGMENT (QSGENL)
+               INTO    (ROOT)
+               WHERE   (IDOCUMNT= COMM.S0IDOCMN);
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': GOT QSGENL '||COMM.S0IDOCMN||
+                           ' DIBSTAT ('|| DIBSTAT||')';
+       CALL WRITE_TO_OPER();
+     END;
+   IF DIBSTAT ^= ''   &
+      DIBSTAT ^= 'GE' &
+      DIBSTAT ^= 'GB'
+     THEN DO;
+       ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+ /* ---------------------------------------------------------------- */
+ /* IF YOU FIND THE LAR DOCUMENT IN THE IMS DB, DELETE THE CURRENT   */
+ /* EXISTING LAR DOCUMENT DATA.                                      */
+ /* ---------------------------------------------------------------- */
+   IF DIBSTAT = ''
+     THEN DO;                
+       EXEC DLI DLET USING PCB(1)
+                     SEGMENT (QSGENL)
+                     FROM    (ROOT);
+
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DLET QSGENL '||COMM.S0IDOCMN||
+                            ' DIBSTAT ('||DIBSTAT||')';
+           CALL WRITE_TO_OPER();
+         END;
+     END;
+     
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': INSERT QSGENL DOC: '||COMM.S0IDOCMN;
+       CALL WRITE_TO_OPER();
+     END;
+   ET_TEXT1 = ERR2||MODULE||' UNABLE INSERT QSGENL SEGMENT - DOC# '||
+                              COMM.S0IDOCMN;
+                              
+   QSGENL_SEG.ITRANSID = EIBTRNID;
+   QSGENL_SEG.QSARP_S   = 'Y';
+   IF COMM.S0IPARTR = ''
+     THEN QSGENL_SEG.BILL_S = 'N';
+     ELSE QSGENL_SEG.BILL_S = 'Y';
+   QSGENL_SEG.ORIGINS_S     = '2';
+   QSGENL_SEG.FCMPS_S       = 'Y';
+   QSGENL_SEG.PROC_LOC      = 'C';
+   QSGENL_SEG.MIRROR_IND    = '';
+   IF QSGENL_SEG.NSDC_DEL ^= 'Y'
+     THEN QSGENL_SEG.NSDC_DEL = '';
+     
+   EXEC CICS ASSIGN APPLID(APPLID) NOHANDLE;
+   QSGENL_SEG.IAPPLID  = SUBSTR(APPLID,6,3);
+
+   EXEC DLI INSERT SEGMENT('QSGENL')
+                   USING PCB(1)
+                   FROM(QSGENL_SEG);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': AFTER INSERT DIBSTAT ('||DIBSTAT||')';
+       CALL WRITE_TO_OPER();
+     END;
+   IF DIBSTAT ^= ''   &
+      DIBSTAT ^= 'GE' &
+      DIBSTAT ^= 'GB'
+     THEN DO;
+       ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+     
+   IF QSINVT_BUF ^= ''
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': INSERT QSINVT  ';
+           CALL WRITE_TO_OPER();
+         END;
+         
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QSINVT - DOC# : ' ||
+                   COMM.S0IDOCMN ;
+       EXEC DLI INSERT USING PCB(1)
+                       SEGMENT('QSGENL') WHERE(IDOCUMNT=COMM.S0IDOCMN)
+                       SEGMENT('QSINVT') FROM(QSINVT_SEG);
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': AFTER INSERT QSINVT DIBSTAT ('||
+                               DIBSTAT||')';
+           CALL WRITE_TO_OPER();
+           DIAG_TEXT = MODULE||': INSERT QSNARR '||
+                                       SUBSTR(COMM.S8TFREFN,1,40);
+           CALL WRITE_TO_OPER();
+         END;       
+       IF DIBSTAT ^= ''   &
+          DIBSTAT ^= 'GE' &
+          DIBSTAT ^= 'GB'
+         THEN DO;
+           ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+           SIGNAL ERROR;
+         END;
+
+     END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CHECK QSNARR '||
+                           SUBSTR(COMM.S8TFREFN,1,40);
+       CALL WRITE_TO_OPER();
+     END;       
+ 
+   IF QSNARR_BUF ^= ''
+     THEN DO;
+
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': INSERT QSNARR  ';
+           CALL WRITE_TO_OPER();
+         END;
+         
+        ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QSNARR - DOC# : '||
+                   COMM.S0IDOCMN ;
+        EXEC DLI INSERT USING PCB(1)
+                      SEGMENT('QSGENL') WHERE(IDOCUMNT=COMM.S0IDOCMN)
+                      SEGMENT('QSNARR') FROM(QSNARR_SEG);
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = MODULE||': AFTER INSERT QSNARR DIBSTAT ('||
+                                DIBSTAT||')';
+            CALL WRITE_TO_OPER();
+          END;       
+        IF DIBSTAT ^= ''   &
+           DIBSTAT ^= 'GE' &
+           DIBSTAT ^= 'GB'                                 
+          THEN DO;                                         
+            ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+            SIGNAL ERROR;                                  
+          END;                                             
+          
+     END; 
+          
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CHECK QSMISC - UNIQUENESS '||
+                           COMM.IUNIQUE||' ADDRESS '||COMM.TCUSTADR;
+       CALL WRITE_TO_OPER();
+     END;       
+
+   IF QSMISC_BUF ^= ''
+     THEN DO;
+
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': INSERT QSMISC  ';
+           CALL WRITE_TO_OPER();
+         END;
+         
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QSMISC - DOC# : ' ||
+                   COMM.S0IDOCMN ;
+       EXEC DLI INSERT USING PCB(1)
+                       SEGMENT('QSGENL') WHERE(IDOCUMNT=COMM.S0IDOCMN)
+                       SEGMENT('QSMISC') FROM(QSMISC_SEG);
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': AFTER INSERT QSMISC DIBSTAT ('||
+                               DIBSTAT||')';
+           CALL WRITE_TO_OPER();
+         END;       
+      IF DIBSTAT ^= ''   &
+         DIBSTAT ^= 'GE' &
+         DIBSTAT ^= 'GB'
+        THEN DO;
+          ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+          SIGNAL ERROR;
+        END;
+         
+     END;
+
+   DO I = 1 TO 4  WHILE (COMM.PARTS(I).S0CFUNC > '');
+
+     @QSPART = ADDR(COMM.PARTS(I));
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': INSERT LAR PARTS '||I||' FC '||
+                            COMM.PARTS(I).S0CFUNC||' PART '||
+                            COMM.PARTS(I).S0IPART;;
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = SUBSTR(QSPART_BUF,1,75); 
+         CALL WRITE_TO_OPER();
+       END;
+     PIC_RESP = I;
+     ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QSPART - DOC# : ' ||
+                   COMM.S0IDOCMN ||' PART LINE '||PIC_RESP;
+
+
+     IF COMM.PARTS(I).S0QREPOR = '00' /* REINIT ORDER QUANTITY TO*/
+       THEN COMM.PARTS(I).S0QREPOR = ''; /* BLANK                */
+
+     EXEC DLI INSERT USING PCB(1)
+                     SEGMENT('QSGENL') WHERE(IDOCUMNT=COMM.S0IDOCMN)
+                     SEGMENT('QSPART') FROM(PART_SEG);
+
+     IF DIBSTAT ^= ''   &
+        DIBSTAT ^= 'GE' &
+        DIBSTAT ^= 'GB'
+       THEN DO;
+         ET_TEXT2 = ERR2||MODULE||' DIBSTAT = '||DIBSTAT;
+         SIGNAL ERROR;
+       END;
+     
+    
+   END;        /* END OF DO PARTS LOOP   */
+   
+ END INSERT_LAR_RECORD;
+ 
+ INSERT_HSI_SEGMENTS: PROC() REORDER;
+ /********************************************************************/
+ /* QSAR IMS DATA BASE UPDATE WITH HSI DATA                          */
+ /* ---------------------------------------------------------------- */
+ /********************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': INSIDE INSERT_HSI_SEGMENTS ';
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': INVOICE - '||COMM.IINVOICE;
+       CALL WRITE_TO_OPER();
+      /*   @QBPARTS = ADDR(COMM.QBPARTS(1).IPART);  */
+       DIAG_TEXT = MODULE||': HSI PART SEGMENT 2';
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||':'|| COMM.QBPARTS(1).IPART||' '||
+                                  COMM.QBPARTS(1).NPARTDSC;
+       CALL WRITE_TO_OPER();  
+     END;
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QBBILL- DOC# : '||
+               COMM.S0IDOCMN ||' INVOICE# '||COMM.IINVOICE;
+               
+   EXEC DLI INSERT USING PCB(1)
+                 SEGMENT('QSGENL') WHERE(IDOCUMNT=COMM.S0IDOCMN)
+                 SEGMENT('QBBILL') FROM(QBBILL_SEG);
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': AFTER INSERT QBILL DIBSTAT ('||
+                           DIBSTAT||')';
+       CALL WRITE_TO_OPER();
+     END;       
+     
+   COMM.QBPARTS(1).IPART = HSI_PART(1);
+   
+   DO I = 1 TO 20 WHILE (COMM.QBPARTS(I).IPART ^= '');
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': ABOUT TO ISRT QBPART SEG ' || I;
+         CALL WRITE_TO_OPER();
+       END;
+       
+     @QBPARTS = ADDR(COMM.QBPARTS(I));
+     IF I = 1
+       THEN COMM.QBPARTS(1).IPART = HSI_PART(1);
+
+     IF TEST_SW
+       THEN DO;
+         DCL CHAR80   CHAR(80) BASED(ADDR(COMM.QBPARTS(I)));
+         DIAG_TEXT = MODULE||': HSI PART SEGMENT 3';
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = MODULE||':'|| COMM.QBPARTS(I).IPART||' '||
+                                   COMM.QBPARTS(I).NPARTDSC;
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = CHAR80;
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = I||' '||HSI_PART(I);
+         CALL WRITE_TO_OPER();
+       END;   
+       
+     PIC2 = I;
+     ET_TEXT1 = ERR2||MODULE||' UNABLE TO ISRT QBPART '||PIC2||
+                              '- DOC# '||COMM.S0IDOCMN ||
+                              ' INVOICE# '||COMM.IINVOICE;
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'insert qbpart '|| I;
+         CALL WRITE_TO_OPER();
+       END;
+         
+     EXEC DLI INSERT USING PCB(1)
+                 SEGMENT('QBPART') FROM(COMM.QBPARTS(I));    
+     
+   END;
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': EXIT INSERT_HSI_SEQMENTS';
+       CALL WRITE_TO_OPER();
+     END;       
+   
+   
+ 
+ END INSERT_HSI_SEGMENTS;
+ 
+ %PAGE;
+ UPDATE_CTLDB: PROC(STATUS) REORDER;
+ /********************************************************************/
+ /* ACTIVITY UPDATE - CONTROL DATA BASE                              */
+ /*                                                                  */
+ /* GHU QSARQSRC ACTIVITY RECORD FOR THIS DATE                       */
+ /* IF FOUND,                                                        */
+ /*   ADD TO ACTIVITY COUNTS ON EXISTING SEGMENT                     */
+ /*   REPL QSARQSRC                                                  */
+ /* ELSE                                                             */
+ /*   CREATE NEW QSARQSRC RECORD                                     */
+ /*   ISRT QSARQSRC                                                  */
+ /* CHANGED KEY FROM ACTIVITY DATE TO BASE SERVICES RECEIVED (BSR)   */
+ /* DATE.  SR 0268 07-27-89.                                         */
+ /*                                                                  */
+ /********************************************************************/
+ DCL STATUS CHAR(1);
+
+   IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = MODULE||': UPDATE_CTLDB';
+        CALL WRITE_TO_OPER();
+      END;
+
+
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME) YYMMDD(ABSYYMMDD)
+                                         YEAR(ABSYEAR)
+                                         TIME(ABSHHMMSS)
+                                         YYYYMMDD(DATE_YYYYMMDD)
+                                         RESP(RESPONSE);
+
+
+   /* PIC2 = CWAARNUM;     AREA NUMBER 01, 02, 03   RCQ1882
+
+   IF SUBSTR(CWAREGON,1,1) = 'H'                    RCQ1882
+     THEN PIC2 = PIC2 + 30;      ADD 30 AT THE HUB  RCQ1882
+      ELSE ;                NO CHANGE AT THE AREA   RCQ1882 */
+
+    PIC2 = '01';                                 /* RCQ1882 */
+
+    CAASCRSC_KEYVAL = 'QSARQSRC' || PIC2     ||
+                     COMM.CS1BSRDT.CS1BSRYY ||
+                     COMM.CS1BSRDT.CS1BSRMM ||
+                     COMM.CS1BSRDT.CS1BSRDD;
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER;
+     END;
+   EXEC DLI GU USING PCB(2)
+               SEGMENT('CAASCRSC')
+               INTO(STATS)
+               WHERE (IINTAREA= CAASCRSC_KEYVAL);
+
+   IF DIBSTAT = ''              /* RECORD FOUND */
+     THEN DO;
+       STATS.QSRCDATE = ABSYYMMDD;
+       STATS.QSRCTIME = ABSHHMMSS;
+       CALL INCREMENT_COUNTS(STATUS,'1');
+   
+       ET_TEXT1 = ERR1||MODULE||' UNABLE TO REPL CONTROL DATA BASE ';
+   
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': REPL CONTROL DB '||CAASCRSC_KEYVAL;
+           CALL WRITE_TO_OPER;    /* ********** TEST ONLY ********** */
+         END;
+                       
+   
+       EXEC DLI REPL USING PCB(2) 
+                     SEGMENT('CAASCRSC')
+                     FROM(STATS);  
+                     
+       ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DIBSTAT = '||DIBSTAT;
+           CALL WRITE_TO_OPER;
+         END;
+       IF DIBSTAT ^= ''
+         THEN SIGNAL ERROR;
+     END;
+     ELSE
+       IF DIBSTAT = 'GE'                     /* NO RECORD FOUND */
+       THEN DO;
+         STATS = '';
+         STATS.QSRCDATE = ABSYYMMDD;
+         STATS.QSRCTIME = ABSHHMMSS;
+         STATS.QSRCKEY1 = 'QSARQSRC';
+    
+         STATS.QSRCAREA = PIC2;
+         STATS.QSRCACTD = COMM.CS1BSRDT.CS1BSRYY ||
+                          COMM.CS1BSRDT.CS1BSRMM ||
+                          COMM.CS1BSRDT.CS1BSRDD;
+         CALL INCREMENT_COUNTS(STATUS,'2');    
+    
+         ET_TEXT1 = ERR1||MODULE||' UNABLE TO ISRT CONTROL DATA BASE';
+    
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': INSERT CONTROL DB '||
+                                            QSRCAREA||QSRCACTD;
+             CALL WRITE_TO_OPER;
+             DCL CHAR80 CHAR(80) BASED(ADDR(STATS));
+             DIAG_TEXT = MODULE||' ISRT CONTROL REC '||
+                                 SUBSTR(CHAR80,1,40);
+             CALL WRITE_TO_OPER;
+           END;
+           
+         EXEC DLI INSERT USING PCB(2)
+                         SEGMENT('CAASCRSC')
+                         FROM(STATS);
+    
+         ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+         ET_TEXT2 = ERR2||MODULE||' 3 cntl key= ' ||
+                     QSRCKEY1||QSRCAREA||QSRCACTD;
+         ET_TEXT3 = ERR1||MODULE||': DOC NUMBER '||COMM.S0IDOCMN;
+    
+         IF DIBSTAT ^= '  '
+           THEN SIGNAL ERROR;
+       END;
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': CONTROL DB DIBSTAT: ('||DIBSTAT||')';
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = MODULE||': OUT OF UPDATE CONTROL ' ;
+         CALL WRITE_TO_OPER();
+       END;
+     
+ END UPDATE_CTLDB;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* UPDATE CONTROL RECORD FIELDS FOR BILLING                         */
+ /* Part Trailers will not have a BILL_DECISION. This is OK.         */
+ /********************************************************************/
+ INCREMENT_COUNTS: PROC(TYPE,LOC);
+  DCL TYPE CHAR(1);
+  DCL LOC   CHAR(1);
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN INCREMENT_COUNTS FROM LOC '||LOC ;
+       CALL WRITE_TO_OPER();
+     END;  
+     
+                     /* -------------------------------------------- */
+                     /* THE FOLLOWING IS DONE TO FORCE A COUNT FOR   */     
+                     /* PART TRAILERS RECEIVED FROM LAR.  THEY DO NOT*/
+                     /* GO THROUGH QBBIL1 TO GET A BILL_DECISION.    */
+                     /* -------------------------------------------- */
+    /*---------------------------------------------------------------*/
+    /* UPDATE CONTROL RECORD FIELDS FOR BILLING                      */
+    /*---------------------------------------------------------------*/
+   QSRCQBIN = QSRCQBIN + 1;
+   
+   SELECT (TYPE);
+     WHEN ('P')                        /*                           */
+       QSRCQBX = QSRCQBX + 1;          /* # PENDED QSAR RECORDS     */
+     WHEN ('B')                        
+       QSRCQBB = QSRCQBB + 1;          /* # QSARS BILLABLE          */
+     WHEN ('R')                        
+       QSRCQBP = QSRCQBP + 1;          /* # QSARS POTENTIALLY BILL  */
+     WHEN ('N')                        
+       QSRCQBN = QSRCQBN + 1;          /* # QSARS NOT BILLABLE      */
+     WHEN ('X')                        /* 4nsc                      */
+       QSRCQBN = QSRCQBN + 1;          /* # QSARS NOT ELIGIBLE      */
+     OTHERWISE                         
+       DO;                             
+         QSRCQBN = QSRCQBN + 1;        /* # QSARS NOT BILLABLE      */
+         DIAG_TEXT = MODULE||': 2 DOC '||COMM.S0IDOCMN||
+                    ' BILL DECISION NOT P,X,B,R,N - IT IS ('||
+                          BILL_DECISION ||')';
+         CALL WRITE_TO_OPER;
+       END;
+   END;                          /* END OF SELECT             */
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': BILLING CTL LOGIC, QSRCQBIN= '
+                         ||QSRCQBIN;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = MODULE||': QSRCQBX= ' || QSRCQBX ||
+                            ' QSRCQBB= ' || QSRCQBB ;
+       CALL WRITE_TO_OPER;
+       DIAG_TEXT = MODULE||': QSRCQBP= '||QSRCQBP ||
+                           ' QSRCQBN= '|| QSRCQBN;
+       CALL WRITE_TO_OPER;
+     END;
+
+ END INCREMENT_COUNTS; 
+
+ %PAGE;
+ /********************************************************************/
+ /********************************************************************/
+ TRANSFER_TO_QBBIL6: PROC() REORDER;
+
+   EXEC CICS XCTL PROGRAM('QBBIL6')
+                  COMMAREA(COMM)
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': TRANSFER TO QBBIL6 ';
+       CALL WRITE_TO_OPER();
+     END;
+
+   IF RESPONSE ^= DFHRESP(NORMAL)
+     THEN DO;
+       PIC_RESP  = RESPONSE;
+       PIC_RESP2 = RESPONSE2;
+       ET_TEXT1 = ERR2||MODULE||'FAILURE ON XCTL TO QBBIL6-RESP '||
+                  PIC_RESP||' RESP2 '||PIC_RESP2;
+       SIGNAL ERROR;
+     END;
+
+ END TRANSFER_TO_QBBIL6;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* CREATES THE HSI/LAR TYPE 2 ACKNOWLEDGEMENT MESSAGE TO SEND TO    */
+ /* CROSS/LAR.                                                       */
+ /********************************************************************/
+ CREATE_ACK_MESSAGE: PROC(); 
+ 
+    IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN CREATE_ACK_MESSAGE PROC ';
+       CALL WRITE_TO_OPER();
+     END;
+    
+    LARACK              = '';
+    LARACK.CMSGTYPE     = '02';
+    LARACK.IDOCNUM      = COMM.S0IDOCMN;
+    LARACK.CHIGHSEV     = COMM.CGQHIGSE;
+    LARACK.ICEBRANCH    = COMM.CMIBOCE;
+    LARACK.ICETERR      = COMM.CIICETER;
+    LARACK.IEMPSER      = COMM.S0IEMPSE;
+    LARACK.DACTVTY      = COMM.S0DCALCY||
+                          COMM.S0DCALCM||
+                          COMM.S0DCALCD;
+    LARACK.DAUDIT       = COMM.AUDIT_DATE;
+    LARACK.TAUDIT       = COMM.AUDIT_TIME;
+    
+    IF EIBCALEN < 2600
+      THEN 
+        SELECT;
+          WHEN (COMM.S0IPARTR ^= '')
+            LARACK.CTYPE = 'D';
+          OTHERWISE LARACK.CTYPE = 'D';
+        END;
+      ELSE DO;
+        SELECT;
+          WHEN (COMM.IINVOICE ^= '')
+            DO;
+              LARACK.CTYPE    = 'P';
+              LARACK.IINVOICE = COMM.IINVOICE;
+              SELECT (COMM.CCONTROL);
+                WHEN ('QB') 
+                   LARACK.CINVOICE = 'HSI';
+                WHEN ('QP') 
+                   LARACK.CINVOICE = 'HSD';
+                OTHERWISE 
+                DO;
+                  DIAG_TEXT = MODULE||': CONTROL CODE - '||
+                                   COMM.CCONTROL||' IS NOT VALID';
+                  CALL WRITE_TO_OPER();
+                END;
+              END;
+            END;
+          OTHERWISE LARACK.CTYPE    = 'D';
+        END;  
+      END;
+      
+ END CREATE_ACK_MESSAGE;
+
+ %PAGE;
+ /********************************************************************/
+ /* SEND THE ACKNOWLEDGEMENT MESSAGE BACK TO CROSS/LAR               */
+ /********************************************************************/
+ SEND_ACK_MESSAGE_TO_LAR: PROC();   
+ 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN SEND_ACK_MESSAGE_TO_LAR PROC ';
+       CALL WRITE_TO_OPER();
+     END;
+
+   EXEC CICS LINK PROGRAM('QBMQWR')
+    /*            SYSID(CWA_COR_SYSID)  RCQ1882 */
+                  COMMAREA(LARACK)
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);      /* END EXEC CICS LINK ...  */
+
+   IF RESPONSE ^= DFHRESP(NORMAL)       /* IF ABNORMAL RESPONSE THEN*/
+     THEN DO;                           /* PASS CONTROL TO ERROR PGM*/
+       PIC_RESP  = RESPONSE;
+       PIC_RESP2 = RESPONSE2;
+       ET_TEXT1 = ERR2||MODULE||' FAILURE ON LINK TO QBMQWR RESP '||
+                        PIC_RESP|| ' RESP2 '||PIC_RESP2;
+       SIGNAL ERROR;
+   END;
+
+  ET_TEXT1 = '';
+
+ END SEND_ACK_MESSAGE_TO_LAR;
+
+ %PAGE;
+ 
+ /********************************************************************/
+ /* THIS PROCEDURE INCREMENTS THE QSRCQBB COUNTER IN IMS DB FOR      */
+ /* QSARACKC KEY TO DENOTE THE COUNT OF TYPE 2 RECORDS CREATED FOR   */
+ /* PROCESSED TYPE1 RECORDS                                          */
+ /********************************************************************/
+ UPDATE_CTLDB_TYPE2 : PROC;
+ 
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': UPDATE_CTLDB_TYPE2';
+        CALL WRITE_TO_OPER();
+     END;
+   
+   /* RCQ1882 :   Assign AREA_CROSS */
+   
+   IF CWAPRIHB = 'H' THEN AREA_CROSS='31';
+   
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME) YYMMDD(ABSYYMMDD)
+                                         YEAR(ABSYEAR)
+                                         TIME(ABSHHMMSS)
+                                         YYYYMMDD(DATE_YYYYMMDD)
+                                         RESP(RESPONSE);
+   
+   CAASCRSC_KEYVAL = 'QSARACKC' || AREA_CROSS ||
+                     SUBSTR(DATE_YYYYMMDD,1,8);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER;
+     END;
+	 
+   EXEC DLI GU USING PCB(2)
+               SEGMENT('CAASCRSC')
+               INTO(STATS)
+               WHERE (IINTAREA= CAASCRSC_KEYVAL);
+
+   IF DIBSTAT = ''              /* RECORD FOUND */
+     THEN DO;
+       STATS.QSRCDATE = ABSYYMMDD;
+       STATS.QSRCTIME = ABSHHMMSS;
+	   STATS.QSRCQBB = STATS.QSRCQBB + 1;
+   
+       ET_TEXT1 = ERR1||MODULE||' UNABLE TO REPL CONTROL DATA BASE ';
+   
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': REPL CONTROL DB '||CAASCRSC_KEYVAL;
+           CALL WRITE_TO_OPER;  /* ******** TEST ONLY ******** */
+         END;
+                       
+   
+       EXEC DLI REPL USING PCB(2) 
+                     SEGMENT('CAASCRSC')
+                     FROM(STATS);  
+                     
+       ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT = ' || DIBSTAT;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DIBSTAT = '||DIBSTAT;
+           CALL WRITE_TO_OPER;
+         END;
+       IF DIBSTAT ^= ''
+         THEN SIGNAL ERROR;
+     END;
+     ELSE
+       IF DIBSTAT = 'GE'                     /* NO RECORD FOUND */
+       THEN DO;
+         STATS = '';
+         STATS.QSRCDATE = ABSYYMMDD;
+         STATS.QSRCTIME = ABSHHMMSS;
+		 STATS.QSRCKEY1 = 'QSARACKC';
+		 STATS.QSRCACTD = SUBSTR(DATE_YYYYMMDD,1,8);
+    
+         STATS.QSRCAREA = AREA_CROSS;
+         
+		 STATS.QSRCQBB = STATS.QSRCQBB + 1;
+    
+         ET_TEXT1 = ERR1||MODULE||' UNABLE TO ISRT CONTROL DATA BASE';
+    
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': INSERT CONTROL DB '||
+                                            QSRCAREA||QSRCACTD;
+             CALL WRITE_TO_OPER;
+             DCL CHAR80 CHAR(80) BASED(ADDR(STATS));
+             DIAG_TEXT = MODULE||' ISRT CONTROL REC '||
+                                 SUBSTR(CHAR80,1,40);
+             CALL WRITE_TO_OPER;
+           END;
+           
+         EXEC DLI INSERT USING PCB(2)
+                         SEGMENT('CAASCRSC')
+                         FROM(STATS);
+    
+         ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+         ET_TEXT2 = ERR2||MODULE||' 3 CNTL KEY = ' ||
+                     QSRCKEY1||QSRCAREA||QSRCACTD;
+    
+         IF DIBSTAT ^= '  '
+           THEN SIGNAL ERROR;
+       END;
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': CONTROL DB DIBSTAT: ('||DIBSTAT||')';
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = MODULE||': OUT OF UPDATE CONTROL ' ;
+         CALL WRITE_TO_OPER();
+       END;
+        
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER;
+	   DIAG_TEXT = MODULE||': QSRCQBB= '||QSRCQBB;
+       CALL WRITE_TO_OPER;
+     END;
+	 
+ END UPDATE_CTLDB_TYPE2;
+ 
+ %PAGE;
+ 
+ WRITE_JOURNAL_RECORD: PROC();
+ /*********************************************************************/
+ /*  PLACE THE ROOT SEGMENT IN JOURNAL 7                              */
+ /*                                                                   */
+ /*********************************************************************/
+   IF TEST_SW 
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN WRITE_JOURNAL_RECORD PROCEDURE';
+       CALL WRITE_TO_OPER();
+     END;
+     
+   PART_GENL  = COMM, BY NAME;
+   TP_QSARID  = COMM.S0IEMPSE;
+   TP_CEBO    = COMM.CMIBOCE;
+   TP_CETERR  = COMM.CIICETER;
+   TP_DATE    = COMM.AUDIT_DATE;
+   TP_TIME    = COMM.AUDIT_TIME;
+   TP_ABSTIME = '';
+
+   EXEC CICS ASSIGN APPLID(TP_APPLID) NOHANDLE;
+
+   JRNLREC_LEN = CSTG(PART_GENL);
+   PFXLENGTH   = CSTG(TP_PREFIX);
+
+   EXEC CICS WRITE JOURNALNAME('DFHJ07')
+                   JTYPEID('B3')
+                   FROM(PART_GENL)
+                   FLENGTH(JRNLREC_LEN)
+                   PREFIX(TP_PREFIX)
+                   PFXLENG(PFXLENGTH)
+                   RESP(RESPONSE)
+                   RESP2(RESPONSE2);
+
+   SELECT (RESPONSE);
+     WHEN (DFHRESP (NORMAL))
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': SUCCESSFUL WRITE TO JOURNAL 7';
+             CALL WRITE_TO_OPER();
+           END;
+       END;
+     OTHERWISE
+       DO;
+         PIC_RESP  = RESPONSE;
+         PIC_RESP2 = RESPONSE2;
+         ET_TEXT1 = ERR2||MODULE||' FAILURE ON WRITE JOURNAL 7 RECORD';
+         ET_TEXT2 = ERR2||MODULE||' RESPONSE '||PIC_RESP||
+                                  ' RESP2 '||PIC_RESP2||
+                                  ' DOC '|| COMM.S0IDOCMN;
+
+         SIGNAL ERROR;
+       END;
+   END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': END WRITE JOURNAL RECORD';
+       CALL WRITE_TO_OPER();
+     END;
+
+ END WRITE_JOURNAL_RECORD;
+
+ %PAGE;
+ WRITE_TO_OPER: PROC();
+ /********************************************************************/
+ /*  CALL TO OPERATOR                                                */
+ /********************************************************************/
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ END QBDBU3;

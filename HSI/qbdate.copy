@@ -1,0 +1,34 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBDATE      VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  DECLARES FOR PLIDATE ROUTINES                            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+ %SKIP;
+ %INCLUDE DEFDATE;
+ $DEFDATE(CLLGRG);           /* COMPACT LILIAN <- GREGORIAN   */
+ $DEFDATE(CLLSGR);           /* COMPACT LILIAN <- SHORT GREG  */
+ $DEFDATE(GRGCLL);         /* GREGORIAN   <- COMPACT LILIAN */
+ $DEFDATE(SGRCLL);         /* SHORT GREG  <- COMPACT LILIAN */
+ $DEFDATE(DAYCLL);       /* DAY OF WEEK <- COMPACT LILIAN */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBDATE                             */
+ /*------------------------------------------------------------------*/
+

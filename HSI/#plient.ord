@@ -1,0 +1,19 @@
+$¬  5/01/1999 LE/OS390 profile order for PLI parts
+$¬  3/08/2004 Update for Enterprise PLI compile                            Peter Eck	
+$¬  changed CL and SOTYPE to PLIENT
+$¬  7/21/2004 remove CPROCESS=PLI=G                                                PEck
+$¬  7/20/2004 changed compiler options for Enterprise PL/1 compiler             LBS
+$¬
+&  SET  U,SOTYPE=PLIENT=G,
+&       CL=PLIENT=G,
+&       LIBSET=MSETA01=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='M,A(S),AG,STG,NIS,OF,OPT(2),S,STMT,RENT'=G,
+&       CPM2='OP,LC(60),X(S),SYSTEM(MVS),NEST,MAR(2,72,1)'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G,
+&       LEC1='XREF,LIST,AMODE(31),RMODE(ANY)'=G

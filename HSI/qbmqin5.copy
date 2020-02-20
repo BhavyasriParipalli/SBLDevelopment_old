@@ -1,0 +1,37 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBMQIN5                               DATE:  06/17/2010  */
+ /*                                                                  */
+ /* TITLE:  HSI OVERRIDE MESSAGE                                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  HSI BILLING OVERRIDE MESSAGE FROM PRISM THROUGH    */
+ /*               CROSS VIA MQSERIES TO HSI REAL TIME.               */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*06/17/2010 IT4422   0NSE INITIAL VERSION                       AM */
+ /********************************* **********************************/
+ 3 CMSGTYPE           CHAR(2),  /* CROSS MESSAGE TYPE        001- 002*/
+ 3 CAREA              CHAR(2),  /* CROSS = 'CR'              003- 004*/
+ 3 PTD1               CHAR(6),  /* PT USER ID                005- 010*/
+ 3 QSARBO             CHAR(3),  /* QSAR BRANCH OFFICE        011- 013*/
+ 3 QSARTERR           CHAR(3),  /* QSAR TERRITORY            014- 016*/
+ 3 OVRMSG,                      /* MSG TO BE SENT                    */
+   5 IINVOICE         CHAR(7),  /* INVOICE NUMBER            017- 023*/
+   5 SPAD01           CHAR(1),  /*                           024- 024*/
+   5 CCODE            CHAR(2),  /* OVERRIDE CODE             025- 026*/
+   5 SPAD02           CHAR(1),  /*                           027- 027*/
+   5 NARRATIVE        CHAR(44)  /* WHY SSR IS REQUESTING     028- 071*/
+                                /* THE OVERRIDE OF BILLING           */
+ /*------------------------------------------------------------------*/
+ /*                      END  QBMQIN5                                */
+ /*------------------------------------------------------------------*/
+ 

@@ -1,0 +1,57 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSRAT2     VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  SPECIAL  RATE TABLE                                      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE SPECIAL RATE TABLE.                 */
+ /*               THE VSAM VERSION USED BY THE BILLING PROCESSOR IS  */
+ /*               EXTRACTED FROM THE FOLLOWING DB2 VIEW:             */
+ /*                  QBVWLN04   SPECIAL RATE TABLE                   */
+ /*                                                                  */
+ /*               PLEASE NOTE:  THIS MAPPING MUST MATCH THE SELECT   */
+ /*               FROM THE DXT EXTRACT!                              */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+    3 SDXT1        CHAR( 1),        /* PAD (DXT)            001- 001 */
+    3 XPKEY,                        /* PRIMARY KEY ------------------*/
+      5 ISEQ       FIXED BIN(15),   /* CONTRACT SEQ NO.     002- 003 */
+      5 SDXT2      CHAR( 1),        /* PAD (DXT)            004- 004 */
+      5 CCPFIN     CHAR( 1),        /* BILLING CLASS,AKA    005- 005 */
+                                    /*   FINANCIAL CAREER PATH       */
+      5 SDXT3      CHAR( 1),        /* PAD (DXT)            006- 006 */
+      5 DEFFDTE    CHAR(10),        /* EFFECTIVE DATE       007- 016 */
+                                    /*   ('YYYY-MM-DD')              */
+                                    /* ------------------------------*/
+    3 SDXT4        CHAR( 1),        /* PAD (DXT)            017- 017 */
+    3 DEXPIRE      CHAR(10),        /* EXPIRATION DATE      018- 027 */
+                                    /*   ('YYYY-MM-DD')              */
+    3 SDXT5        CHAR( 1),        /* PAD (DXT)            028- 028 */
+    3 PDISCNT      FIXED DEC(2,2),  /* DISCOUNT PERCENT     029- 030 */
+    3 SDXT6        CHAR( 1),        /* PAD (DXT)            031- 031 */
+    3 AINCDNT      FIXED DEC(7,2),  /* INCIDENT CHARGE      032- 035 */
+    3 SDXT7        CHAR( 1),        /* PAD (DXT)            036- 036 */
+    3 QMINCHG      FIXED DEC(2,0),  /* MINIMUM CHARGE HOURS 037- 038 */
+    3 SDXT8        CHAR( 1),        /* PAD (DXT)            039- 039 */
+    3 AMAXCHG      FIXED DEC(7,2),  /* MAXIMUM CHARGE AMOUN 040- 043 */
+    3 SDXT9        CHAR( 1),        /* PAD (DXT)            044- 044 */
+    3 AINRATE      FIXED DEC(5,2),  /* INSIDE  LABOR RATE   045- 047 */
+    3 SDXT10       CHAR( 1),        /* PAD (DXT)            048- 048 */
+    3 AOUTRATE     FIXED DEC(5,2),  /* OUTSIDE LABOR RATE   049- 051 */
+    3 SDXT12       CHAR(29)         /* PAD (DXT)            052- 052 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSRAT2                            */
+ /*------------------------------------------------------------------*/
+

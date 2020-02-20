@@ -1,0 +1,15 @@
+$^ LE/OS390 profile order for PLI parts with EXEC DLI 05/01/99
+$^
+&  SET  U,SOTYPE=CICPL1=G,
+&       LIBSET=MSETA01=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='M,A(S),AG,ESD,STG,NIS,OF,SMSG,OPT(TIME)'=G,
+&       CPM2='LC(60),X(S),SYSTEM(IMS),NEST,MAR(2,72,1)'=G,
+&       P1PARM='DLI'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G,
+&       LEC1='RENT,XREF,LIST,AMODE(31),RMODE(ANY)'=G

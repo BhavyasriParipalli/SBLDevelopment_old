@@ -1,0 +1,1890 @@
+ QBMSG1  /*                                       07/07/89-09:11:20 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ %PAGE;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBMSG1      VERSION NR:  01        DATE:  07/07/89    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  (QSAR) BILLING MESSAGE                                  */
+ /*                                                                  */
+ /*  FUNCTION:  FORMAT BILLING INFORMATION AND SEND TO PT            */
+ /*                                                                  */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS:   COMMAREA - COMMAREA FROM CALLING MODULE               */
+ /*            QBEXCPCD - REVENUE ERROR CODE (VSAM)                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  OUTPUTS:  COMMAREA - UPDATED COMMAREA                           */
+ /*                                                                  */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ------- ------------------------------- ----  */
+ /*  09/27/89 SR9892   0NSA    INITIAL VERSION                  JWJ  */
+ /*  10/23/89 TU9892D  0NSA    CUSTOMER CONTACT                 JWJ  */
+ /*  12/27/89 I88738   0NSA    MSGS FOR MIN, MAX, AND           JWJ  */
+ /*                            INCIDENT CHARGES                      */
+ /*  01/15/90 I87811   0NSA    DOCMN NUMBER BEING CHANGED       LBS  */
+ /*                            DURING MESSAGE PROCESSING (NOT RIGHT) */
+ /*  01/31/90 DCR9892P 0NSA    CHANGE ORDER OF MESSAGES         JWJ  */
+ /*  02/26/90 DCR9892S 0NSA    REMOVE "Use billing override     JWJ  */
+ /*                            code xx for system bill" MESSAGE      */
+ /*  03/18/90 I90269   0NSA    USE THIS INFO TO IMPLEMENT HSD   JWJ  */
+ /*                            MESSAGE                               */
+ /*  03/25/90 I94769   0NSA    CHANGE LOGIC FOR DISPLAY OF      JWJ  */
+ /*                            SPECIAL CHARGES SO WE ARE             */
+ /*                            CONSISTENT WITH ON-LINE (CSP)         */
+ /*                                                                  */
+ /*  04/03/91 SR0554   1NSG    REV ERROR CODE VSAM FILE ADDED   JLH  */
+ /*  07/09/92 SR       2NSD    ADD CODE TO CHECK FOR RECYCLE/   LBS  */
+ /*                            RESUB/SOURCED FROM NSDC, DO NOT       */
+ /*                            SEND MESSAGE TO CE                    */
+ /*  10/06/92 SR1057   2NSJ    ADD CODE TO LOOK UP SVC CODE/ ACT LBS */
+ /*                            CODE KEY IN QBSVC DATASET             */
+ /*  03/23/93 SR93128  3NSH    CHANGE HSI/HSD MESSAGE INFO       LBS */
+ /*  03/15/93 S9500015 5NSC    CHANGE HSI/HSD MESSAGE INFO FOR   LBS */
+ /*                            SC 94 QSARS                           */
+ /*  07/10/95 I0367177 5NSE    CORRECT FORMATTING OF EXPENSES    LBS */
+ /*                            FOR 7 CHAR EXPENSE                    */
+ /*  09/09/95 I0XXXXXX 5NSF    CORRECT HSD MESSAGE SEND MACH     LBS */
+ /*                            TYPE AND SERIAL                       */
+ /*  05/01/96 I0453333 6NSF    CORRECT MESSAGE FORMATTING FOR    LBS */
+ /*                            PET/2                                 */
+ /*  06/27/96 S9500060 6NSG    CHANGE QSAR TO TRUER ON MESSAGES  LBS */
+ /*                            GOING BACK TO PET/2                   */
+ /*  05/07/97 S9600755 7NSI    SUPPORT NSS MRO PARALLEL SYSPLEX  LBS */
+ /*                            PHASE I                               */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*  04/16/98 S970187  8NSE    CHECK FOR TYPE OF DEVICE PET2,    LBS */
+ /*                            PT, RIM                               */
+ /*  06/06/98 B0260005 8NSG    CORRECT SEQNO CHECK               LBS */
+ /*  09/16/98 S98160   8NSM    REMOVE UNDER_WARRANTY FUNCTION    LBS */
+ /*  12/21/00 SUPPORT  0NSK    REMOVE TRUER REFERENCES           LBS */
+ /*  02/09/01 SUPPORT  0NSK    format Leave HSD message for PDA  LBS */
+ /*  02/12/01 SUPPORT  0NSK    add formatting HSI for PET/PDA    LBS */
+ /*  03/14/01 S01007   1NSK    add high level quailfiers to get  LBS */
+ /*                            rid of ambiguous declarations         */
+ /*  04/08/02 SR02013  2NSF    if transaction is AEQ6 (AUTO QSAR)LBS */
+ /*                            do not send any hsi type messages     */
+ /*                            info to the CE                        */
+ /*04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*                                                                  */
+ /*10/29/2002 GP021333 3NSE Add logic to use the new 3 digit     DLP */
+ /*                          field (CSPLCHG)in the standard rate     */
+ /*                          TABLE                                   */
+ /*01/10/2003 SRxxxxxx 3NSE remove 'leave HSD' part of messaging LBS */
+ /*09/23/2004 SR030051 4NSG format the messages for PRISM Ph2    LBS */
+ /*08/10/2010 IT4211   0NSE HSI CROSS PROJECT               RAJASREE */
+ /*11/23/2010 IT4211   0NSE ASCA CHANGES FOR HSI CROSS     NIRANJANAA*/
+ /*                                                                  */
+ /*02/16/2012 RCQ1882  2HSC   Removed CWA_COR_SYSID              NAK */
+ /*                           ASSIGN 31 FOR HUB                      */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 02/16/2012');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBMSG1');
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    BILL   = 'B'                                                  */
+ /*    NOBILL = 'N'                                                  */
+ /*    REVIEW = 'R'                                                  */
+ /*    NOT_ELIGIBLE = 'X'                                            */
+ /*    HVLC     = 'H'                                                */
+ /*    NON_HVLC = 'N'                                                */
+ /*    HSI    = 'I'                                                  */
+ /*    HSD    = 'D'                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL HVLC     CHAR;
+ %HVLC = '''H''';
+ %DCL NON_HVLC CHAR;
+ %NON_HVLC = '''N''';
+ %DCL HSI      CHAR;
+ %HSI = '''I''';
+ %DCL HSD      CHAR;
+ %HSD = '''D''';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  INDEX        BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  MIN          BUILTIN;
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  REPEAT       BUILTIN;
+ DCL  STG          BUILTIN;         /* STORAGE                       */
+ DCL  SUBSTR       BUILTIN;
+
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(14K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE), 
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* COMMAREA POINTER              */
+                                    /* (PASSED FROM CALLING PROGRAM) */
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL @SVCENTRY     PTR INIT(NULL);  /* POINTER TO SERVICE CODE ENTRY */
+
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM; ,
+    %INCLUDE QBCOMM ; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL 1 TEXT_COMM  UNALIGNED,
+    %INCLUDE AEQCOMT ; ;
+
+ %PAGE;				/* HSI CROSS/LAR   */
+ DCL 1 TEXT_CROSS  UNALIGNED,   /* HSI CROSS       */
+    %INCLUDE QBCRCOM ; ;	/* HSI CROSS       */
+
+ %PAGE;
+ DCL 1 SVCENTRY   UNALIGNED BASED(@SVCENTRY),
+    %INCLUDE QBSVC ; ;
+
+ %PAGE;
+
+ DCL 1 STATS           UNALIGNED,
+    %INCLUDE AEQQSRC ; ;
+ %PAGE;
+ 
+ /* ---------------------------------------------------------------- */
+ /* IMS DECLARES                                                     */
+ /* ---------------------------------------------------------------- */
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8)  INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1)  INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2)  INIT(' ='),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1)  INIT(')');
+	   
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL AMT3              PIC'$$$$V.99'         INIT(0);
+ DCL AMT5              PIC'$$,$$$V.99'       INIT(0);
+ DCL AMT6              PIC'$$$,$$$V.99'      INIT(0);
+ DCL AMT8              PIC'$$,$$$,$$$V.99'   INIT(0);
+ DCL AREA_CHAR         CHAR(2)     BASED(ADDR(S0IDOCMN));
+ DCL AREA_PIC          PIC'99'     BASED(ADDR(S0IDOCMN));
+ DCL COMMLEN     FIXED BIN(15)     INIT(0);
+ DCL DIAG_TEXT         CHAR(80)    INIT('');
+ DCL ERR1              CHAR( 9)    INIT('QSR9000: ');
+ DCL ERR2              CHAR( 9)    INIT('QSR9002: ');
+ DCL HRS               PIC'99V.9'  INIT(0);
+ DCL HUB_TRANSID       CHAR(4)     INIT('');;
+ DCL I           FIXED BIN(15)     INIT(0);
+ DCL J           FIXED BIN(15)     INIT(0);
+  /* DCL LFCR              CHAR(1)  INIT('0A0D'X)  */
+ DCL LFCR              CHAR(1)     INIT('0D'X);
+ DCL PIC_DATE          PIC'(8)9'   INIT(0);
+ DCL PIC_RATE          PIC'ZV.99'  INIT(0);
+ DCL PIC_RESP          PIC'9999'   INIT(0);
+ DCL PIC_RESP2         PIC'9999'   INIT(0);
+ DCL PIC_TIME          PIC'(6)9'   INIT(0);
+ DCL 1 PIC_TIME_OVER   BASED(ADDR(PIC_TIME)),
+       3 PIC_HR        PIC'99',
+       3 PIC_MIN       PIC'99',
+       3 PIC_SEC       PIC'99';
+
+ DCL PIC1              PIC'9'      INIT(0);
+ DCL PIC2              PIC'99'     INIT(0);
+ DCL PIC2_CHAR         CHAR(2)     BASED(ADDR(PIC2));
+ DCL PIC3              PIC'999'    INIT(0);
+ DCL SVCKEY            CHAR(7)     INIT('');
+ DCL VARTEXT           CHAR(340)   VARYING;
+ DCL WARIND            CHAR(1)     INIT('');
+ DCL AREA_CROSS        PIC'99'     INIT('01');
+ 
+ DCL TEST_SW           BIT(1)      INIT('0'B);
+ DCL PDA_RECORD        BIT(1)      INIT('0'B);
+ DCL PET2_RECORD       BIT(1)      INIT('0'B);
+ DCL PRISM_RECORD      BIT(1)      INIT('0'B);
+ DCL PT_RECORD         BIT(1)      INIT('0'B);
+ DCL RIM_RECORD        BIT(1)      INIT('0'B);
+
+ DCL ABSHHMMSS         CHAR(6)    INIT('');
+ DCL ABSMMDD           CHAR(4)    INIT('');
+ DCL ABSOLTIME   FIXED DEC(15)    INIT(0);
+ DCL ABSTIME     FIXED DEC(15)    INIT(0);
+ DCL ABSYEAR     FIXED BIN(31)    INIT(0);
+ DCL ABSYEAR_PIC       PIC'9999'  INIT(0);
+ DCL ABSYYMMDD         CHAR(6)    INIT('');
+ DCL DATE_YYYYMMDD     CHAR(10)   INIT('');
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THIS IS THE DECLARE FOR THE REVENUE ERROR MESSAGE CODE. IT       */
+ /* MATCHES TO THE VSAM FILE (QBEXCPCD).                             */
+ /* ADDED 03/14/91 - JLH                                             */
+ /*------------------------------------------------------------------*/
+ DCL 1 REV_ERROR UNALIGNED,
+    %INCLUDE QBEXCPCD ; ;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE           FIXED BIN(31) INIT(0);
+ DCL RESPONSE2          FIXED BIN(31) INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     ET_PROGRAM_ID = 'QBMSG1 ';
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('MSG1')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                     */
+ /*------------------------------------------------------------------*/
+
+ IF EIBCALEN = 0                    /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                         /* TRANSFER CONTROL TO ERROR PGM */
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = 'Y' |
+    CWA_QSAR_TRACE = 'W'
+   THEN DO;
+     TEST_SW = '1'B;              /* ********** TEST ONLY ********** */
+     DIAG_TEXT = MODULE||': ENTERED - DOC NUM '||COMMAREA.S0IDOCMN;
+     CALL WRITE_TO_OPER;
+   END;
+
+ SELECT;
+   WHEN (IPETLVL >= 115 & S0CSEQNO <  '500')  PET2_RECORD = '1'B;
+   WHEN (IPETLVL >= 115 & S0CSEQNO >= '900')  PDA_RECORD  = '1'B;
+   WHEN (IPETLVL >= 115 & S0CSEQNO >= '800')  RIM_RECORD  = '1'B;
+   WHEN (IPETLVL >= 115 & S0CSEQNO >= '700')  PRISM_RECORD = '1'B;
+   WHEN (S0CSEQNO >= '500'  & S0CSEQNO <  '800')  PT_RECORD   = '1'B;
+
+   OTHERWISE PT_RECORD = '1'B;
+ END;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* WE HAVE PREVIOUSLY DETERMINED WHAT (IF ANY) BILLING INFORMATION  */
+ /* NEEDS TO BE SENT.  ALL WE NEED DO IS INTERROGATE THE             */
+ /* 'SEND_TO_CE' CODE IN QBFLAGS.                                    */
+ /* IF BILLABLE (HSI) OR POTENTIALLY BILLABLE (HSD) THEN ...         */
+ /* FORMAT BILLING INFORMATION AND START TRANSACTION "AEQM" TO       */
+ /* SEND SYSTEM MESSAGE TO PT.                                       */
+ /*------------------------------------------------------------------*/
+ IF TEST_SW                              /* ******* TEST ONLY ****** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': SEND_TO_CE = ' || SEND_TO_CE;
+     CALL WRITE_TO_OPER;
+     SELECT;
+       WHEN (PRISM_RECORD) DIAG_TEXT = MODULE||': SENDING PRISM MSG';     
+       WHEN (PET2_RECORD)  DIAG_TEXT = MODULE||': SENDING PET2 MSG';
+       WHEN (RIM_RECORD)   DIAG_TEXT = MODULE||': SENDING RIM MSG';
+       WHEN (PT_RECORD)    DIAG_TEXT = MODULE||': SENDING PT MSG';
+       OTHERWISE;
+     END;
+     CALL WRITE_TO_OPER;
+
+   END;
+   
+ TEXT_CROSS = '';
+                                         /* ------------------------ */
+ IF COMMAREA.S0ISRCNS |                  /* IF SOURCE IS NSDC  OR    */
+    COMMAREA.S0IRESUB |                  /* NSDC RESUBMIT  OR        */
+                                         /* RECYCLE & NOT PT CORR    */
+    (COMMAREA.S0IRECYC & EIBTRNID ^= 'AEC4') |
+    COMMAREA.REPRICE = 'Y'               /* RESUBMITTED PART TRAILER */
+   THEN DO;                              /* NO MESSAGE TO CE         */
+     COMMAREA.SEND_TO_CE = NO;           /*                          */
+                                         /* SYSTEM MUST INVOICE CUST */
+     SELECT(COMMAREA.BILL_DECISION);     /* ------------------------ */
+       WHEN(BILL) COMMAREA.QBBILL.CSYSINV = YES;
+       WHEN(REVIEW) COMMAREA.QBBILL.CSYSINV = YES;
+       OTHERWISE;
+       END;
+   END;
+
+ IF COMMAREA.INVENTORY.CGCIENNO = 6222902 |
+         INDEX(COMMAREA.S0ICSS,'ISSC') > 0  |
+         INDEX(COMMAREA.S0ICSS,'ISC') > 0
+   THEN DO;
+     COMMAREA.SEND_TO_CE     = NO;
+     COMMAREA.QBBILL.CSYSINV = NO;
+   END;
+
+                             /* AUTO QSAR CREATION - CANNOT SEND HSI */
+                             /* DATA TO THE CREATOR                  */
+ IF EIBTRNID = 'AEQ6'
+   THEN DO;
+     COMMAREA.SEND_TO_CE     = NO;
+     COMMAREA.QBBILL.CSYSINV = YES;
+   END;
+
+ SELECT(SEND_TO_CE);
+   WHEN(HSI)
+     DO;
+       TEXT_CROSS.CMSGTYPE = '03';   /*  HSI  CROSS/LAR   */
+       IF TEST_SW                        /* ******* TEST ONLY ****** */
+         THEN DO;
+           DIAG_TEXT = MODULE||': CREATE HSI';
+           CALL WRITE_TO_OPER;
+         END;
+     CALL GET_SC_DESCR;
+     CALL SETUP_MSG_HDR;
+
+     CALL CREATE_MSG1;                  /* SEND QSAR DOC # AND       */
+     CALL SEND_MSG;                     /* INVOICE INFORMATION       */
+	 
+   IF EIBTRNID = 'QBMN'
+       THEN DO;
+	   /* INCREMENT QSRCQBIN VALUE OF QSARHSIC TO DENOTE TYPE 3   */
+	   /* RECORD SENT                                             */
+		 CALL SCHEDULE_PSB;
+	     CALL UPDATE_CTLDB('QSARHSIC');
+	   END;
+
+     CALL CREATE_MSG2;                  /* SEND CONTACT/PHONE MESSAGE*/
+     CALL SEND_MSG;
+
+     IF EIBTRNID = 'QBMN'
+       THEN DO;
+	  /* INCREMENT QSRCQBIN VALUE OF QSARHSIC TO DENOTE TYPE 3   */
+	  /* RECORD SENT                                             */
+	    CALL UPDATE_CTLDB('QSARHSIC');
+	   END;
+
+     IF S0CBIOSA = '7'
+      THEN ;                            /* DON'T SEND A LABOR MESSAGE*/
+      ELSE DO;
+        CALL CREATE_MSG3;
+        CALL SEND_MSG;
+
+	IF EIBTRNID = 'QBMN'
+          THEN DO;
+	    /* INCREMENT QSRCQBIN VALUE OF QSARHSIC TO DENOTE TYPE 3  */
+	    /* RECORD SENT                                            */
+	        CALL UPDATE_CTLDB('QSARHSIC');
+	      END;
+      END;
+
+     IF S0CSVC = '94'
+       THEN;
+       ELSE DO I=1 TO X#PARTS BY 4;     /* SEND PARTS MESSAGE       */
+        CALL CREATE_MSG4(I);
+        CALL SEND_MSG;
+
+	IF EIBTRNID = 'QBMN'
+          THEN DO;
+	   /* INCREMENT QSRCQBIN VALUE OF QSARHSIC TO DENOTE TYPE 3  */
+	   /* RECORD SENT                                            */
+	        CALL UPDATE_CTLDB('QSARHSIC');
+	      END;
+
+       END;
+
+     CALL CREATE_MSG5;                  /* SEND INVOICE TOTALS MSG   */
+     CALL SEND_MSG;
+
+    IF EIBTRNID = 'QBMN'
+      THEN DO;
+	   /* INCREMENT QSRCQBIN VALUE OF QSARHSIC TO DENOTE TYPE 3  */
+	   /* RECORD SENT                                            */
+	     CALL UPDATE_CTLDB('QSARHSIC');
+	     CALL TERM_PSB;
+	   END;
+
+     COMMAREA.S0IBLMSG = '1'B;
+     END;
+
+   WHEN(HSD)
+     DO;
+       TEXT_CROSS.CMSGTYPE = '04';   /*  HSI  CROSS/LAR   */
+       IF TEST_SW                       /* ******* TEST ONLY ****** */
+         THEN DO;
+           DIAG_TEXT = MODULE||': CREATE HSD';
+           CALL WRITE_TO_OPER;
+         END;
+       CALL SETUP_MSG_HDR;
+       CALL CREATE_RESERR_MSG;
+       CALL SEND_MSG;
+
+	 IF EIBTRNID = 'QBMN'
+         THEN DO;
+          /* INCREMENT QSRCQBIN VALUE OF QSARHSDC TO DENOTE TYPE 4 */
+          /* RECORD SENT                                           */
+		   CALL SCHEDULE_PSB;
+	       CALL UPDATE_CTLDB('QSARHSDC');
+		   CALL TERM_PSB;
+		 END;
+
+       COMMAREA.S0IBLMSG = '1'B;
+     END;
+
+   OTHERWISE                  /* NEITHER HSI NOR HSD ... SEND NOTHING*/
+     DO;
+       IF TEST_SW                        /* ******* TEST ONLY ****** */
+         THEN DO;
+           DIAG_TEXT = MODULE||': DO NOT SEND HSI OR HSD';
+           CALL WRITE_TO_OPER;
+         END;
+     END;
+
+   END;  /* SELECT */
+
+ IF TEST_SW                              /* ******* TEST ONLY ****** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': XCTL TO AEQDBU3';
+     CALL WRITE_TO_OPER;
+   END;
+
+ COMMLEN = CSTG(COMMAREA);
+ /*********************HSI CROSS/LAR CHANGE STARTS  ******************/
+ IF EIBTRNID = 'QBMN'
+   THEN DO;
+    EXEC CICS XCTL PROGRAM('QBDBU3')
+                COMMAREA(COMMAREA)
+                LENGTH(COMMLEN)
+                RESP(RESPONSE)
+                RESP2(RESPONSE2);
+
+   END;
+   ELSE DO;
+     EXEC CICS XCTL PROGRAM('AEQDBU3')
+                    COMMAREA(COMMAREA)
+                    LENGTH(COMMLEN)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+   END;
+ /*********************HSI CROSS/LAR CHANGE STARTS  ******************/
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     PIC_RESP  = RESPONSE;
+     PIC_RESP2 = RESPONSE2;
+     IF EIBTRNID = 'QBMN'
+       THEN DO;
+         DIAG_TEXT = MODULE||': CANNOT XCTL TO QBDBU3 RESP-'||
+                             PIC_RESP||' RESP2-'||PIC_RESP2;
+         ET_TEXT1 = ERR2||MODULE|| 'FAILURE TO XCTL TO AEQDBU3';
+       END;
+       ELSE DO;
+         DIAG_TEXT = MODULE||': CANNOT XCTL TO AEQDBU3 RESP-'||
+                               PIC_RESP||' RESP2-'||PIC_RESP2;
+         ET_TEXT1 = ERR2||MODULE|| 'FAILURE TO XCTL TO AEQDBU3';
+       END;
+     CALL WRITE_TO_OPER;
+     ET_TEXT2 = ERR1||MODULE||' RESP-'||PIC_RESP||
+                              ' RESP2-'||PIC_RESP2;
+     SIGNAL ERROR;
+   END;
+
+ %PAGE;
+ GET_SC_DESCR:  PROC;
+ /********************************************************************/
+ /* GET SERVICE CODE DESCRIPTION FROM 'QBSVCODE' VSAM FILE           */
+ /********************************************************************/
+
+ IF COMMAREA.GJCSDT > ''
+   THEN WARIND = 'Y';
+   ELSE WARIND = 'N';
+
+ SVCKEY = COMMAREA.S0CSVC||' '||COMMAREA.S0CHACT||' '||WARIND;
+
+ IF TEST_SW                              /* ******* TEST ONLY ****** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': GET_SC_DESC-KEY '||SVCKEY;
+     CALL WRITE_TO_OPER;
+   END;
+
+ CALL READ_SVC_CODE_TABLE;
+
+ SELECT (RESPONSE) ;
+   WHEN (DFHRESP(NORMAL));               /* ------------------------ */
+   WHEN (DFHRESP(NOTFND))                /* IF NOT FOUND USE A BLANK */
+     DO;                                 /* ACTIVITY CODE AND REREAD */
+                                         /* DATASET.                 */
+       SVCKEY = COMMAREA.S0CSVC||'    '||WARIND;
+       CALL READ_SVC_CODE_TABLE;         /* ------------------------ */
+
+       SELECT (RESPONSE) ;
+         WHEN (DFHRESP(NORMAL));
+         WHEN (DFHRESP(NOTFND));
+         OTHERWISE
+           DO;
+             PIC_RESP = RESPONSE;
+             ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ DATASET '||
+                                  'QBSVCODE, RESPONSE '||PIC_RESP;
+             ET_TEXT2 = ERR1 ||MODULE||'  RECORD KEY = '||
+                       COMMAREA.S0CSVC||' '||COMMAREA.S0CHACT;
+             ET_TEXT3 = '';
+             ET_TEXT4 = '';
+             SIGNAL ERROR;
+           END;
+       END;                              /* END OF SELECT            */
+     END;
+
+   OTHERWISE
+     DO;
+       PIC_RESP = RESPONSE;
+       ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ DATASET '||
+                        'QBSVCODE, RESPONSE '||PIC_RESP;
+       ET_TEXT2 = ERR1 ||MODULE||'  RECORD KEY = '||COMMAREA.S0CSVC||
+                                                    COMMAREA.S0CHACT;
+       ET_TEXT3 = '';
+       ET_TEXT4 = '';
+       SIGNAL ERROR;
+     END;
+ END;                                    /* END OF SELECT            */
+
+ END GET_SC_DESCR;
+
+ %PAGE;
+ /********************************************************************/
+ /********************************************************************/
+ READ_SVC_CODE_TABLE: PROC;
+
+ IF TEST_SW                              /* ******* TEST ONLY ****** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': READ_SVC_CODE_TABLE-KEY '||SVCKEY;
+     CALL WRITE_TO_OPER;
+   END;
+
+   EXEC CICS READ FILE('QBSVCODE')
+                  RIDFLD(SVCKEY)
+                  KEYLENGTH(7)
+                  SET(@SVCENTRY)
+                  RESP(RESPONSE);
+
+ END READ_SVC_CODE_TABLE;
+
+
+ %PAGE;
+ SETUP_MSG_HDR: PROC;
+ /********************************************************************/
+ /* CREATE MESSAGE HEADER FOR "AEQM" TRANSACTION                     */
+ /********************************************************************/
+ /* HSI CROSS/LAR CHANGES TO POPULATE HEADER FOR CROSS              */
+   SELECT (EIBTRNID);
+    WHEN ('QBMN')
+     DO;
+       TEXT_CROSS.PTID1    = DCS_HEADER.CS1EMPSE; 
+       TEXT_CROSS.QSARBO   = DCS_HEADER.CS1BOEMP; 
+       TEXT_CROSS.QSARTERR = DCS_HEADER.CS1ETERR; 
+       TEXT_CROSS.SENDER   = 'QB';                
+     END;
+    OTHERWISE
+     DO;
+       TEXT_COMM.PTID1    = DCS_HEADER.CS1EMPSE;
+       TEXT_COMM.QSARBO   = DCS_HEADER.CS1BOEMP;
+       TEXT_COMM.QSARTERR = DCS_HEADER.CS1ETERR;       
+       TEXT_COMM.SENDER   = 'QB';                     
+     END;
+   END;
+   
+ END SETUP_MSG_HDR;
+
+ %PAGE;
+ CREATE_RESERR_MSG: PROC;
+ /********************************************************************/
+ /* CREATE REVENUE ERROR MESSAGE                                     */
+ /********************************************************************/
+ IF TEST_SW                              /* ******* TEST ONLY ****** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': CREATE_RESERR_MSG-ERROR '||
+                         COMMAREA.CBILLERR;
+     CALL WRITE_TO_OPER;
+   END;
+ /********************************************************************/
+ /* SELECT (COMMAREA.CBILLERR )                                  */
+ /*   WHEN ('201','202','204','205','206','207','208','209')     */
+ /*     DO                                                       */
+ /*       CALL READ_ERROR_CODE     READ ERROR MSG VSAM FILE      */
+ /*       CALL CREATE_HSD_MSG                                    */
+ /*     END                                                      */
+ /*                                                              */
+ /*   OTHERWISE CALL CREATE_DEFAULT_HSD_MSG                      */
+ /* END                                                          */
+ /****************************************************************/
+
+   REV_ERROR = '';
+
+   EXEC CICS READ FILE('QBEXCPCD')
+                  INTO (REV_ERROR)
+                  RIDFLD (COMMAREA.CBILLERR)
+                  KEYLENGTH(3)
+                  LENGTH (STG(REV_ERROR))
+                  RESP (RESPONSE);
+
+   SELECT (RESPONSE) ;
+     WHEN (DFHRESP(NORMAL))
+       DO;
+         IF TDESCR27 = ' '
+           THEN CALL CREATE_DEFAULT_HSD_MSG; /* FOUND ERROR CODE BUT */
+                                             /* NO DESCR AVAILABLE   */
+           ELSE CALL CREATE_HSD_MSG;
+       END;
+     WHEN (DFHRESP(NOTFND)) CALL CREATE_DEFAULT_HSD_MSG;
+     OTHERWISE
+       DO;
+       PIC_RESP = RESPONSE;
+       ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ DATASET '||
+                         'QBEXCPCD, RESPONSE '||PIC_RESP;
+       ET_TEXT2 = ERR1 ||MODULE||'  RECORD KEY = '||COMMAREA.CBILLERR;
+       ET_TEXT3 = '';
+       ET_TEXT4 = '';
+       SIGNAL ERROR;
+       END;
+   END;
+
+ END CREATE_RESERR_MSG;
+
+ %PAGE;
+
+ CREATE_DEFAULT_HSD_MSG: PROC;
+ /********************************************************************/
+ /* CREATE MESSAGE HEADER FOR "AEQM" TRANSACTION                     */
+ /* UPDATE HSD MESSAGE FORMAT PER SR 93128                   3/93    */
+ /********************************************************************/
+   IF TEST_SW                            /* ******* TEST ONLY ****** */
+     THEN DO;
+       DIAG_TEXT = MODULE||': CREATE_DEFAULT_HSD_MSG';
+       CALL WRITE_TO_OPER;
+     END;
+     VARTEXT = '';
+
+   SELECT;
+     WHEN (PRISM_RECORD)
+       DO;
+         VARTEXT = VARTEXT ||'Invoicing error: ';
+
+         IF S0IMACTC = ''
+           THEN ;
+           ELSE DO;
+             J = INDEX(S0IMACSE,'  ');
+             VARTEXT = VARTEXT || 'TYPE/SERIAL: ' ||S0IMACTC ||'/'
+                                  || SUBSTR(S0IMACSE,1,J)||(2)' ' ;
+           END;
+
+         VARTEXT = VARTEXT || ' QSAR ' || S0IDOCMN || 
+                              ' Invoice # '|| IINVOICE||(2)' ';
+
+
+         VARTEXT = VARTEXT || ' @@';
+         IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR*/
+	   THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD   */
+           ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD  */
+       END;   
+     WHEN (PET2_RECORD)
+       DO;
+
+         VARTEXT = VARTEXT || 'Invoicing error           '||LFCR ;
+
+         IF S0IMACTC = ''
+           THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                  THEN VARTEXT = VARTEXT || 'Cust ' ||S0ICUST
+                                         ||(15)' '  ||LFCR;
+           ELSE VARTEXT = VARTEXT || 'M/T ' ||S0IMACTC ||
+                                    ' S/N ' ||S0IMACSE ||(7)' '||LFCR;
+
+         VARTEXT = VARTEXT || 'QSAR '     ||S0IDOCMN ||(13)' '||LFCR;
+         VARTEXT = VARTEXT || 'Invoice # '|| IINVOICE||(10)' '||LFCR;
+
+
+         VARTEXT = VARTEXT || ' @@';
+         IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR   */
+	   THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD      */
+           ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD     */
+       END;
+     WHEN (PDA_RECORD)
+       DO;
+
+         VARTEXT = VARTEXT || 'Invoicing error            ';
+
+         IF S0IMACTC = ''
+           THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                  THEN VARTEXT = VARTEXT ||'Cust '||S0ICUST ||(15)' ';
+
+           ELSE VARTEXT = VARTEXT || 'M/T ' ||S0IMACTC ||(23)' '||
+                                     'S/N ' ||S0IMACSE ||(5)' ';
+
+         VARTEXT = VARTEXT || 'QSAR ' || S0IDOCMN || (17)' ';
+         VARTEXT = VARTEXT || 'Invoice # '|| IINVOICE||(10)' ';
+
+
+         VARTEXT = VARTEXT || ' @@';
+         IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR   */
+	   THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD      */
+           ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD     */
+       END;
+     OTHERWISE
+       DO;
+
+         VARTEXT = VARTEXT || 'Invoicing error            ';
+
+         IF S0IMACTC = ''
+           THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                  THEN VARTEXT = VARTEXT || 'Cust ' ||S0ICUST
+                                         ||(15)' ';
+
+           ELSE VARTEXT = VARTEXT || 'M/T ' ||S0IMACTC ||
+                                    ' S/N ' ||S0IMACSE ||(7)' ';
+
+         VARTEXT = VARTEXT || 'QSAR ' || S0IDOCMN || (13)' ';
+         VARTEXT = VARTEXT || 'Invoice # '|| IINVOICE||(10)' ';
+
+
+         VARTEXT = VARTEXT || ' @@';
+         IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR   */
+	   THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD      */
+           ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD     */
+       END;
+   END;                            /* END OF SELECT              */
+
+ END CREATE_DEFAULT_HSD_MSG;
+
+ %PAGE;
+
+ READ_ERROR_CODE: PROC;
+ /********************************************************************/
+ /* READ VSAM ERROR MESSAGE FILE                                     */
+ /********************************************************************/
+   IF TEST_SW                            /* ******* TEST ONLY ****** */
+     THEN DO;
+       DIAG_TEXT = MODULE||': READ_ERROR_CODE';
+       CALL WRITE_TO_OPER;
+     END;
+
+   REV_ERROR = '';
+
+   EXEC CICS READ FILE('QBEXCPCD')
+                  INTO (REV_ERROR)
+                  RIDFLD (COMMAREA.CBILLERR)
+                  KEYLENGTH(3)
+                  LENGTH (STG(REV_ERROR))
+                  RESP (RESPONSE);
+
+   SELECT (RESPONSE) ;
+     WHEN (DFHRESP(NORMAL));
+     WHEN (DFHRESP(NOTFND));
+     OTHERWISE
+       DO;
+       PIC_RESP = RESPONSE;
+       ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ DATASET '||
+                         'QBEXCPCD, RESPONSE '||PIC_RESP;
+       ET_TEXT2 = ERR1 ||MODULE||'  RECORD KEY = '||COMMAREA.CBILLERR;
+       ET_TEXT3 = '';
+       ET_TEXT4 = '';
+       SIGNAL ERROR;
+       END;
+   END;                                  /* END OF SELECT            */
+
+ END READ_ERROR_CODE;
+
+ %PAGE;
+
+ CREATE_HSD_MSG: PROC;
+ /********************************************************************/
+ /* CREATE MESSAGE HEADER FOR "AEQM" TRANSACTION                     */
+ /* UPDATE HSD MESSAGE FORMAT PER SR 93128                   3/93    */
+ /********************************************************************/
+   IF TEST_SW                            /* ******* TEST ONLY ****** */
+     THEN DO;
+       DIAG_TEXT = MODULE||': CREATE_HSD_MSG';
+       CALL WRITE_TO_OPER;
+     END;
+
+   VARTEXT = '';
+   SELECT;
+     WHEN (PRISM_RECORD)
+       DO;
+           VARTEXT = VARTEXT || 'Invoicing error:'||' ' ;
+           J = INDEX(TDESCR27,'  ');
+           VARTEXT = VARTEXT || SUBSTR(TDESCR27,1,J)||(2)' ';
+           IF S0IMACTC = ''
+             THEN ;
+             ELSE DO;
+               VARTEXT = VARTEXT ||' TYPE/SERIAL ' ||S0IMACTC ||'/';
+               I = INDEX(S0IMACSE,' ');
+               IF I = 0
+                 THEN VARTEXT = VARTEXT ||S0IMACSE ;
+                 ELSE DO;
+                   VARTEXT =
+                      VARTEXT ||SUBSTR(S0IMACSE,1,I);
+                 END;
+             END;
+           VARTEXT = VARTEXT ||'QSAR # ' || S0IDOCMN ||
+                            ' Invoice # '|| IINVOICE;
+
+       END;
+     WHEN (PET2_RECORD)
+       DO;
+
+       VARTEXT = VARTEXT || 'Invoicing error'||LFCR;
+       VARTEXT = VARTEXT || TDESCR27||LFCR;
+       IF S0IMACTC = ''
+         THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                THEN VARTEXT = VARTEXT || 'Cust ' ||S0ICUST ||LFCR;
+                ELSE;
+         ELSE DO;
+           VARTEXT = VARTEXT ||'M/T ' ||S0IMACTC ||' ';
+           I = INDEX(S0IMACSE,' ');
+           IF I = 0
+             THEN VARTEXT = VARTEXT ||' S/N ' ||S0IMACSE||LFCR;
+             ELSE DO;
+               VARTEXT =
+                  VARTEXT ||'S/N ' ||SUBSTR(S0IMACSE,1,I-1)||
+                           REPEAT(' ',22-I)||LFCR;
+             END;
+         END;
+
+       VARTEXT = VARTEXT ||'QSAR # '|| S0IDOCMN ||LFCR;
+       VARTEXT = VARTEXT || 'Invoice # '|| IINVOICE;
+
+     END;     /* pet/2 input device  */
+     WHEN (PDA_RECORD)
+       DO;
+           VARTEXT = VARTEXT || 'Invoicing error'||(11)' ' ;
+           VARTEXT = VARTEXT || TDESCR27||(4)' ';
+           IF S0IMACTC = ''
+             THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                    THEN VARTEXT = VARTEXT || ' Cust ' ||
+                                               S0ICUST ||(18)' ';
+                    ELSE;
+             ELSE DO;
+               VARTEXT = VARTEXT ||' M/T ' ||S0IMACTC ||(22)' ';
+               I = INDEX(S0IMACSE,' ');
+               IF I = 0
+                 THEN VARTEXT = VARTEXT ||' S/N ' ||S0IMACSE ;
+                 ELSE DO;
+                   VARTEXT =
+                      VARTEXT ||' S/N ' ||SUBSTR(S0IMACSE,1,I-1)||
+                               REPEAT(' ',26-I);
+                 END;
+             END;
+           VARTEXT = VARTEXT ||'QSAR # ' || S0IDOCMN ||
+                            ' Invoice # '|| IINVOICE;
+
+       END;
+     OTHERWISE
+       DO;
+           VARTEXT = VARTEXT || 'Invoicing error'||(11)' ';
+           VARTEXT = VARTEXT || TDESCR27;
+           IF S0IMACTC = ''
+             THEN IF S0CSVC = '94' & S0ICUST ^= ''
+                THEN VARTEXT = VARTEXT ||' Cust '||S0ICUST ||(14)' ';
+                ELSE;
+             ELSE DO;
+               VARTEXT = VARTEXT ||' M/T ' ||S0IMACTC ||(18)' ';
+               I = INDEX(S0IMACSE,' ');
+               IF I = 0
+                 THEN VARTEXT = VARTEXT ||' S/N ' ||S0IMACSE ;
+                 ELSE DO;
+                   VARTEXT =
+                      VARTEXT ||' S/N ' ||SUBSTR(S0IMACSE,1,I-1)||
+                               REPEAT(' ',22-I);
+                  END;
+ 
+             END;
+           VARTEXT = VARTEXT ||'QSAR # ' || S0IDOCMN ||
+                            ' Invoice # '|| IINVOICE;
+
+       END;
+   END;                               /* END SELECT   */
+
+   VARTEXT = VARTEXT || ' @@';
+
+   IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR     */
+     THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD        */
+     ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD       */
+
+ END CREATE_HSD_MSG;
+
+ %PAGE;
+ CREATE_MSG1:  PROC;
+ /********************************************************************/
+ /* CREATE BILLING MESSAGE                                           */
+ /*                                                                  */
+ /* Until we figure out how to make lngmsg work, must break up       */
+ /* billing info into separate messages.                             */
+ /* each pt display line is 27 characters long                       */
+ /********************************************************************/
+ VARTEXT = '';
+
+ PIC1 = PIC1 + 1;
+   SELECT ;
+      WHEN (PRISM_RECORD)
+       DO;
+       IF GMICNM > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Name: ' || GMICNM ||(2)' ';
+         ELSE IF S8CUSTNM > ' '
+                THEN VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                          S8CUSTNM || (2)' ';
+                ELSE VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                          '(Not found)' ||(2)' ';
+   
+       VARTEXT = VARTEXT || 'QSAR: ' || S0IDOCMN || (2)' ';
+       VARTEXT = VARTEXT || 'Invoice: ' || IINVOICE || (2)' ';
+   
+       IF ICUST > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Number: ' || ICUST || (2)' ';
+         ELSE VARTEXT = VARTEXT || 'Cust Number: ' || '(Not found)'
+                                || (2)' '; 
+   
+       IF S0IMACTC = ''
+         THEN ;
+         ELSE  VARTEXT = VARTEXT || 'Type ' || S0IMACTC ||(2)' ';
+   
+       IF S0IMACSE = ''
+         THEN ;
+         ELSE DO;
+           J = INDEX(S0IMACSE,'  ');
+           VARTEXT = VARTEXT || 'Ser ' || SUBSTR(S0IMACSE,1,J)||(2)' ';
+         END;
+   
+       VARTEXT = VARTEXT || 'Date of Service ' || S0DCALCM || '/'
+                         || S0DCALCD || '/' || S0DCALCY ||(1)' ';
+       END;
+   
+     WHEN (PET2_RECORD)
+       DO;
+       VARTEXT = VARTEXT || pic1;
+       IF GMICNM > ' '
+         THEN VARTEXT = VARTEXT || '.  Cust name: ' || GMICNM || LFCR;
+         ELSE IF S8CUSTNM > ' '
+                THEN VARTEXT = VARTEXT || '.Cust Name: ' ||
+                                  SUBSTR(S8CUSTNM,1,15) || LFCR;
+                ELSE VARTEXT = VARTEXT || '.Cust Name: ' ||
+                                                '(Not found)' || LFCR;
+   
+         VARTEXT = VARTEXT ||'QSAR  '|| S0IDOCMN ||
+                              ' Invoice ' || IINVOICE || LFCR;
+   
+       IF ICUST > ' '
+         THEN
+           VARTEXT = VARTEXT || 'Cust number: ' || ICUST        ||LFCR;
+         ELSE
+           VARTEXT = VARTEXT || 'Cust number: ' || '(Not found)'||LFCR;
+   
+       IF S0IMACTC ^= '' & S0IMACSE ^= ''
+         then do;
+          VARTEXT = VARTEXT || 'Type: ' || S0IMACTC ||
+                                 ' SER: ' || S0IMACSE||LFCR;
+         end;
+         else do;
+           IF S0IMACTC = ''
+             THEN ;
+             ELSE  VARTEXT = VARTEXT || 'Type: ' || S0IMACTC ||LFCR;
+   
+           IF S0IMACSE = ''
+             THEN ;
+             ELSE  VARTEXT = VARTEXT || 'Serial: ' || S0IMACSE ||LFCR;
+         end;
+   
+       VARTEXT = VARTEXT || 'Date of Service: ' || S0DCALCM || '/'
+                         || S0DCALCD || '/' || S0DCALCY || (7)' ';
+   
+     END;                               /* pet/2 input device        */
+   
+     WHEN (PDA_RECORD)
+       DO;
+       IF GMICNM > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Name: ' || GMICNM || (1)' ';
+         ELSE IF S8CUSTNM > ' '
+                THEN VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                  SUBSTR(S8CUSTNM,1,15) || (1)' ';
+                ELSE VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                          '(Not found)' || (5)' ';
+   
+       VARTEXT = VARTEXT || 'QSAR ' || S0IDOCMN || (18)' ';
+       VARTEXT = VARTEXT || 'Invoice ' || IINVOICE || (17)' ';
+   
+       IF ICUST > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Number ' || ICUST || (13)' ';
+         ELSE VARTEXT = VARTEXT || 'Cust Number ' || '(Not found)'
+                                || (9)' ';
+   
+       IF S0IMACTC = ''
+         THEN ;
+         ELSE  VARTEXT = VARTEXT || 'Type ' || S0IMACTC ||(22)' ';
+   
+       IF S0IMACSE = ''
+         THEN ;
+         ELSE  VARTEXT = VARTEXT || 'Ser ' || S0IMACSE ||(5)' ';
+   
+       VARTEXT = VARTEXT || 'Date of Service ' || S0DCALCM || '/'
+                         || S0DCALCD || '/' || S0DCALCY ||(1)' ';
+       END;
+     OTHERWISE
+       DO;
+       IF GMICNM > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Name: ' || GMICNM || (1)' ';
+         ELSE IF S8CUSTNM > ' '
+                THEN VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                  SUBSTR(S8CUSTNM,1,15) || (1)' ';
+                ELSE VARTEXT = VARTEXT || 'Cust Name: ' ||
+                                          '(Not found)' || (5)' ';
+   
+       VARTEXT = VARTEXT || 'QSAR ' || S0IDOCMN || (13)' ';
+       VARTEXT = VARTEXT || 'Invoice ' || IINVOICE || (12)' ';
+   
+       IF ICUST > ' '
+         THEN VARTEXT = VARTEXT || 'Cust Number ' || ICUST || (8)' ';
+         ELSE VARTEXT = VARTEXT || 'Cust Number ' || '(Not found)'
+                                || (4)' ';
+   
+       IF S0IMACTC = ''
+         THEN ;
+         ELSE  VARTEXT = VARTEXT || 'Type ' || S0IMACTC ||(18)' ';
+   
+       IF S0IMACSE = ''
+         THEN ;
+         ELSE  VARTEXT = VARTEXT || 'Ser ' || S0IMACSE ||(1)' ';
+   
+       VARTEXT = VARTEXT || 'Date of Service ' || S0DCALCM || '/'
+                         || S0DCALCD || '/' || S0DCALCY || (1)' ';
+       END;
+   END;
+   
+   VARTEXT = VARTEXT || ' @@';
+
+   IF EIBTRNID = 'QBMN'                  /* HSI CROSS/LAR   */
+     THEN TEXT_CROSS.ALLTEXT = VARTEXT;  /* LAR RECORD      */
+     ELSE TEXT_COMM.ALLTEXT  = VARTEXT;  /* QSAR RECORD     */
+   
+ END CREATE_MSG1;
+
+ %PAGE;
+ CREATE_MSG2:  PROC;
+ /********************************************************************/
+ /* each pt display line is 27 characters long                       */
+ /********************************************************************/
+ VARTEXT = '';
+
+ SELECT;
+   WHEN (PRISM_RECORD)
+   DO;
+     VARTEXT = VARTEXT || 'Custref: ' || TCUSTREF||(2)' ';
+
+     IF CAD_MATCH = YES
+       THEN DO;
+         VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+         QBBILL.NCONTACT||' ';
+         VARTEXT = VARTEXT || 'Phone: ' ||
+         QBBILL.ICONPHON || (2)' ';
+       END;
+       ELSE VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+                      '(No requestor avail)' || (13)' ';
+     PIC_RATE = AMILRATE;
+     AMT3     = AMILEXP;
+     VARTEXT  = VARTEXT || QTRAVMI || ' Miles @ ' || PIC_RATE ||
+                           ' = ' || AMT3 || (8)' ';
+     AMT5     = AOTHREXP;
+     AMT6     = ATOTEXP;
+     VARTEXT  = VARTEXT || 'Other Expenses: '||AMT5 || (2)' ';
+     VARTEXT  = VARTEXT || 'Total Expenses: '||AMT6 || (2)' ';
+   END;
+
+   WHEN(PET2_RECORD)
+   DO;
+     PIC1 = PIC1 + 1;
+     VARTEXT = VARTEXT || PIC1 ||'. Custref: ' || SUBSTR(TCUSTREF,1,18)
+                                                              ||LFCR;
+     IF CAD_MATCH = YES
+       THEN DO;
+         VARTEXT = VARTEXT || 'Requestor of svc: ' ||
+         QBBILL.NCONTACT ||LFCR;
+         VARTEXT = VARTEXT || 'Phone: ' ||
+         QBBILL.ICONPHON || LFCR;
+         END;
+       ELSE VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+                      '(NO REQUESTOR AVAIL)' || LFCR;
+   END;
+   WHEN (PDA_RECORD)
+   DO;
+     VARTEXT = VARTEXT || 'Custref:' || SUBSTR(TCUSTREF,1,18)||' ';
+
+     IF CAD_MATCH = YES
+       THEN DO;
+         VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+         QBBILL.NCONTACT||(14)' ';
+         VARTEXT = VARTEXT || 'Phone: ' ||
+         QBBILL.ICONPHON || (5)' ';
+       END;
+       ELSE VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+                      '(No requestor avail)' || (25)' ';
+     PIC_RATE = AMILRATE;
+     AMT3     = AMILEXP;
+     VARTEXT  = VARTEXT || QTRAVMI || ' Miles @' || PIC_RATE ||
+                           ' =      ' || AMT3 || (1)' ';
+     AMT5     = AOTHREXP;
+     AMT6     = ATOTEXP;
+     VARTEXT  = VARTEXT || 'Other Expenses       '||
+                                                  AMT5 || (2)' ';
+     VARTEXT  = VARTEXT || 'Total Expenses      ' ||
+                                                  AMT6 || (2)' ';
+   END;
+   OTHERWISE
+   DO;
+
+     VARTEXT = VARTEXT || 'Custref:' || SUBSTR(TCUSTREF,1,18)||' ';
+
+     IF CAD_MATCH = YES
+       THEN DO;
+         VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+         QBBILL.NCONTACT||(14)' ';
+         VARTEXT = VARTEXT || 'Phone: ' ||
+         QBBILL.ICONPHON || (5)' ';
+       END;
+       ELSE VARTEXT = VARTEXT || 'Requestor of Svc: ' ||
+                      '(No requestor avail)' || (11)' ';
+    END;
+    END;                          /* END OF SELECT               */
+
+ VARTEXT = VARTEXT || ' @@';
+
+ IF EIBTRNID = 'QBMN'                 /* HSI CROSS/LAR   */
+   THEN TEXT_CROSS.ALLTEXT = VARTEXT; /* LAR RECORD      */
+   ELSE TEXT_COMM.ALLTEXT  = VARTEXT; /* QSAR RECORD     */
+
+ END CREATE_MSG2;
+
+ %PAGE;
+ CREATE_MSG3:  PROC;
+ /********************************************************************/
+ /* each pt display line is 27 characters long                       */
+ /********************************************************************/
+ VARTEXT = '';
+
+ HRS = QINHRS;
+ AMT3 = AINRATE;
+ AMT6 = AINLAB;
+ SELECT ;
+    WHEN (PRISM_RECORD)
+     DO;
+       VARTEXT = VARTEXT || HRS || ' Hrs in at  '|| 
+                                   AMT3||(2)' ';
+       VARTEXT = VARTEXT || ' Inside  Charge    ' ||AMT6 ||(8)' ';
+     END;
+
+   WHEN (PET2_RECORD)
+     DO;
+       PIC1 = PIC1 + 1;
+       VARTEXT = VARTEXT || PIC1||'. ';
+       VARTEXT = VARTEXT || HRS || ' Hrs  in at   '|| AMT3||LFCR;
+       VARTEXT = VARTEXT || 'Inside Charge ' || AMT6 || LFCR;
+     END;
+   WHEN (PDA_RECORD)
+     DO;
+       VARTEXT = VARTEXT || HRS || ' Hrs in at     '|| AMT3 ||(2)' ';
+       VARTEXT = VARTEXT || 'Inside  Charge       ' || AMT6 ||(2)' ';
+     END;
+
+   OTHERWISE                          /* RIMM 800 DEVICE             */
+     DO;
+       VARTEXT = VARTEXT || HRS || ' Hrs  in at    '|| AMT3 || (2)' ';
+       VARTEXT = VARTEXT || 'Inside  Charge '       || AMT6 || (2)' ';
+     END;
+  END;                               /* END OF SELECT               */
+
+ HRS  = QOUTHRS;
+ AMT3 = AOUTRATE;
+ AMT6 = AOUTLAB;
+
+ SELECT;
+    WHEN (PRISM_RECORD)
+     DO;
+       VARTEXT = VARTEXT || HRS ||' Hrs out at ' ||AMT3||(2)' ';
+       VARTEXT = VARTEXT || 'Outside Charge    '||AMT6||(8)' ';
+     END;
+   WHEN (PET2_RECORD)
+     DO;
+       VARTEXT = VARTEXT || HRS || ' Hrs out at  ' || AMT3||LFCR;
+       VARTEXT = VARTEXT || 'Outside Charge'       || AMT6 || LFCR;
+     END;
+   WHEN (PDA_RECORD)
+     DO;
+       VARTEXT = VARTEXT ||HRS||' Hrs out at         '||AMT3||(1)' ';
+       VARTEXT = VARTEXT || 'Outside Charge       '   ||AMT6 ||(1)' ';
+     END;
+   OTHERWISE
+     DO;
+       VARTEXT = VARTEXT || HRS || ' Hrs out at   ' || AMT3 ||(2)' ';
+       VARTEXT = VARTEXT || 'Outside Charge '       || AMT6 ||(2)' ';
+     END;
+ END;
+
+ AMT6 = ATOTTIME;
+ SELECT;
+    WHEN (PRISM_RECORD)
+     VARTEXT = VARTEXT || 'Total Labor  ' || AMT6 ||(2)' ';
+   WHEN (PET2_RECORD)
+     VARTEXT = VARTEXT || 'Total Labor   ' || AMT6||LFCR;
+   WHEN (PDA_RECORD)
+     VARTEXT = VARTEXT || ' Total Labor         ' || AMT6 || (1)' ';
+   OTHERWISE
+     VARTEXT = VARTEXT || ' Total Labor    ' || AMT6 || (2)' ';
+ END;
+
+ IF CINCDCHG = YES                       /* INCIDENT CHARGE APPLIES  */
+   THEN DO;
+     VARTEXT = VARTEXT || '(Incident Charge applies)  ';
+     IF PET2_RECORD
+       THEN VARTEXT = VARTEXT ||LFCR;
+   END;
+   ELSE DO;                              /* NO INCIDENT CHARGE       */
+     PIC_RATE = AMILRATE;
+     AMT3 = AMILEXP;
+     SELECT;
+       WHEN (PRISM_RECORD) ;
+         /*  SEE MESSAGE 2 CREATE  		                     */
+       WHEN (PET2_RECORD)
+         VARTEXT = VARTEXT || QTRAVMI || ' Miles @' || PIC_RATE ||
+                                        ' = '|| AMT3 || LFCR;
+       WHEN (PDA_RECORD);
+         /*  SEE MESSAGE 2 CREATE  		                     */
+     /*  VARTEXT = VARTEXT || QTRAVMI || ' Miles @' || PIC_RATE ||   */
+     /*                    ' =      ' || AMT3 || (1)' ' moved this up*/
+       OTHERWISE
+         VARTEXT = VARTEXT || QTRAVMI || ' Miles @' || PIC_RATE ||' = '
+                           || AMT3 || (2)' ';
+       END;
+     END;
+     AMT5 = AOTHREXP;
+     AMT6 = ATOTEXP;
+     SELECT;
+       WHEN (PRISM_RECORD) 
+         DO;
+           VARTEXT = VARTEXT || 'Other Expenses    ' || AMT5 || (8)' ';
+           VARTEXT = VARTEXT || 'Total Exp     ' || AMT6 ;
+         END;
+
+       WHEN (PET2_RECORD)
+         DO;
+           VARTEXT = VARTEXT || 'Other Expenses ' || AMT5 || LFCR;
+           VARTEXT = VARTEXT || 'Total Exp ' || AMT6 ||LFCR;
+         END;
+       WHEN (PDA_RECORD)
+         DO;
+
+         /*  SEE MESSAGE 3 CREATE  	code moved up       3/14/01  */
+         /*  VARTEXT = VARTEXT || 'Other Expenses       '||          */
+         /*                                         AMT5 || (7)' '   */
+         /*  VARTEXT = VARTEXT || 'Total Expenses      ' ||          */
+         /*                                         AMT6 || (2)' '   */
+
+         END;
+       OTHERWISE
+         DO;
+           VARTEXT = VARTEXT || 'Other Expenses  '|| AMT5 || (2)' ';
+           VARTEXT = VARTEXT || 'Total Expenses ' || AMT6 || (2)' ';
+         END;
+     END;
+
+ VARTEXT = VARTEXT || ' @@';
+
+ IF EIBTRNID = 'QBMN'                    /* HSI CROSS/LAR   */
+   THEN TEXT_CROSS.ALLTEXT = VARTEXT;    /* LAR RECORD      */
+   ELSE TEXT_COMM.ALLTEXT  = VARTEXT;    /* QSAR RECORD     */
+
+ END CREATE_MSG3;
+
+ %PAGE;
+ CREATE_MSG4:  PROC(START#);
+ /********************************************************************/
+ /* each pt display line is 27 characters long                       */
+ /********************************************************************/
+ DCL START#    FIXED BIN(15);            /* STARTING INDEX INTO PARTS*/
+ DCL I         FIXED BIN(15);
+
+ VARTEXT = '';
+                                         /* MAX OF 4 PARTS PER MSG   */
+ SELECT;
+    WHEN (PRISM_RECORD)
+     DO;                              /* MAX OF 4 PARTS PER MSG   */
+       DO I = START# TO MIN(START#+3,X#PARTS);
+         PIC2 = QDISUS(I);
+         AMT8 = APARTAMT(I);
+       /*  VARTEXT = VARTEXT || PIC2 || ' PN ' || IPART(I)
+                           || ' ' || NPARTDSC(I) || AMT8||' ' ;*/
+         VARTEXT = VARTEXT || 'Qty ' || PIC2 || ' PN ' || IPART(I)
+                           || ' ' || NPARTDSC(I) 
+                           || AMT8||(13)' ' ; 
+       END;
+     END;
+   WHEN (PET2_RECORD)
+     DO;
+       PIC1 = PIC1 + 1;
+       VARTEXT = VARTEXT || PIC1;
+       DO I = START# TO MIN(START#+3,X#PARTS);
+         PIC2 = QDISUS(I);
+         AMT8 = APARTAMT(I);
+         IF I = 1
+           THEN VARTEXT = VARTEXT || '. Qty ' || PIC2 || ' Part ' ||
+                   IPART(I)|| LFCR;
+           ELSE VARTEXT = VARTEXT || '  Qty ' || PIC2 || ' Part ' ||
+                   IPART(I)|| LFCR;
+         VARTEXT = VARTEXT || NPARTDSC(I) || (2)' ' || AMT8 || LFCR;
+       END;
+     END;
+   WHEN (PDA_RECORD)
+     DO;                              /* MAX OF 4 PARTS PER MSG   */
+       DO I = START# TO MIN(START#+3,X#PARTS);
+         PIC2 = QDISUS(I);
+         AMT8 = APARTAMT(I);
+         VARTEXT = VARTEXT || 'Qty ' || PIC2 || ' Part ' || IPART(I)
+                           || (7)' ';
+         VARTEXT = VARTEXT || NPARTDSC(I) || (8)' ' || AMT8 || (2)' ';
+       END;
+     END;
+   OTHERWISE
+     DO;                              /* MAX OF 4 PARTS PER MSG   */
+       DO I = START# TO MIN(START#+3,X#PARTS);
+         PIC2 = QDISUS(I);
+         AMT8 = APARTAMT(I);
+         VARTEXT = VARTEXT || 'Qty ' || PIC2 || ' Part ' || IPART(I)
+                           || (7)' ';
+         VARTEXT = VARTEXT || NPARTDSC(I) || (2)' ' || AMT8 || (2)' ';
+       END;
+     END;
+ END;
+
+ IF X#PARTS = 0
+   then VARTEXT = '(No billable parts)' || (13)' ';
+
+ VARTEXT = VARTEXT || ' @@';
+
+ IF EIBTRNID = 'QBMN'                  /* HSI CROSS/LAR   */
+   THEN TEXT_CROSS.ALLTEXT = VARTEXT;  /* LAR RECORD      */
+   ELSE TEXT_COMM.ALLTEXT  = VARTEXT;  /* QSAR RECORD     */
+
+ END CREATE_MSG4;
+
+ %PAGE;
+ CREATE_MSG5:  PROC;
+ /********************************************************************/
+ /* each pt display line is 27 characters long                       */
+ /********************************************************************/
+  VARTEXT = '';
+                                         /* ------------------------ */
+                                         /* DO NOT DISPLAY PARTS     */
+                                         /* TOTAL FOR SPECIAL CHARGES*/
+                                         /* (QBBIL4 CAN'T 0 THE PARTS*/
+                                         /* TOTAL BECAUSE IT IS USED */
+                                         /* BY QBCIS1)        I94769 */
+   SELECT;                               /* ------------------------ */
+     WHEN(CMAXCHG = YES)
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'U80')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UPG')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UOR')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UOS')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UDO')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UMO')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'UPO')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'RMI')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'RWI')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'DT1')
+       AMT8 = 0;
+     WHEN(CSPLCHG = 'DA1')
+       AMT8 = 0;
+     OTHERWISE
+       AMT8 = ATOTPART;
+   END;
+
+   SELECT ;
+     WHEN (PRISM_RECORD)
+       DO;
+         VARTEXT = VARTEXT || 'Total parts  ' || AMT8 || (2)' ';
+
+         AMT8 = ATOTTAX;
+         VARTEXT = VARTEXT || 'Tax         ' || AMT8 || (6)' ';
+
+         AMT8 = ATOTINV;
+         VARTEXT = VARTEXT || 'HSI Total    ' || AMT8 
+                           ||(2)' ';
+
+         SELECT;
+           WHEN(CSPLCHG ^= '' & CSPLCHG ^= 'SDT')
+             VARTEXT = VARTEXT || '(Special charge applies)'||(2)' ';
+           WHEN(CMININD = YES)
+             VARTEXT = VARTEXT || '(Minimum charge applies)'||(2)' ';
+           WHEN(CMAXCHG = YES)
+             VARTEXT = VARTEXT || '(Maximum charge applies)'||(2)' ';
+           OTHERWISE;
+           END;
+       END;
+     
+     WHEN (PET2_RECORD)
+       DO;
+         PIC1 = PIC1 + 1;
+         VARTEXT = VARTEXT || PIC1;
+         IF S0CSVC = '94'
+           THEN ;
+           ELSE VARTEXT = VARTEXT || '. Total parts' || AMT8 || LFCR;
+
+         AMT8 = ATOTTAX;
+         VARTEXT = VARTEXT || 'Tax            ' || AMT8 || LFCR;
+
+         AMT8 = ATOTINV;
+         VARTEXT = VARTEXT || 'HSI Total       ' || AMT8 || LFCR;
+
+         SELECT;
+           WHEN(CSPLCHG ^= '')
+             VARTEXT = VARTEXT || '(SPECIAL CHARGE APPLIES)'||LFCR;
+           WHEN(CMININD = YES)
+             VARTEXT = VARTEXT || '(MINIMUM CHARGE APPLIES)'||LFCR;
+           WHEN(CMAXCHG = YES)
+             VARTEXT = VARTEXT || '(MAXIMUM CHARGE APPLIES)'||LFCR;
+           OTHERWISE;
+           END;
+       END;
+     WHEN (PDA_RECORD)
+       DO;
+         IF S0CSVC = '94'
+           THEN ;
+           ELSE VARTEXT = VARTEXT || 'Total parts  ' || AMT8 || (1)' ';
+
+         AMT8 = ATOTTAX;
+         VARTEXT = VARTEXT || 'Tax               ' || AMT8 || (1)' ';
+
+         AMT8 = ATOTINV;
+         VARTEXT = VARTEXT || 'HSI Total         ' || AMT8 || (1)' ';
+
+         SELECT;
+           WHEN(CSPLCHG ^= '' & CSPLCHG ^= 'SDT')
+             VARTEXT = VARTEXT || '(Special charge applies)    ';
+           WHEN(CMININD = YES)
+             VARTEXT = VARTEXT || '(Minimum charge applies)    ';
+           WHEN(CMAXCHG = YES)
+             VARTEXT = VARTEXT || '(Maximum charge applies)    ';
+           OTHERWISE;
+           END;
+       END;
+     OTHERWISE
+       DO;
+         IF S0CSVC = '94'
+           THEN ;
+           ELSE VARTEXT = VARTEXT || 'Total parts ' || AMT8 || (2)' ';
+
+         AMT8 = ATOTTAX;
+         VARTEXT = VARTEXT || 'Tax         ' || AMT8 || (8)' ';
+
+         AMT8 = ATOTINV;
+         VARTEXT = VARTEXT || 'HSI Total ' || AMT8 || (2)' ';
+
+         SELECT;
+           WHEN(CSPLCHG ^= '')
+             VARTEXT = VARTEXT || '(Special charge applies)    ';
+           WHEN(CMININD = YES)
+             VARTEXT = VARTEXT || '(Minimum charge applies)    ';
+           WHEN(CMAXCHG = YES)
+             VARTEXT = VARTEXT || '(Maximum charge applies)    ';
+           OTHERWISE;
+           END;
+       END;
+     END;                             /* END OF SELECT               */
+
+   IF @SVCENTRY ^= NULL
+     THEN VARTEXT = VARTEXT || 'Service: ' || SUBSTR(TSCDESCR,1,55);
+
+   VARTEXT = VARTEXT || ' @@';
+ 
+   IF EIBTRNID = 'QBMN'                  /* HSI CROSS/LAR   */
+     THEN TEXT_CROSS.ALLTEXT = VARTEXT;  /* LAR RECORD      */
+     ELSE TEXT_COMM.ALLTEXT  = VARTEXT;  /* QSAR RECORD     */
+   
+ END CREATE_MSG5;
+
+ %PAGE;
+ SEND_MSG:  PROC;
+ /********************************************************************/
+ /* SEND   BILLING MESSAGE                                           */
+ /********************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': ABOUT TO START AEQM/QBMQWR '||
+                     TEXT_CROSS.CMSGTYPE;
+       CALL WRITE_TO_OPER;         /* ********** TEST ONLY ********* */
+     END;
+
+   EXEC CICS IGNORE CONDITION SYSIDERR;    /* END EXEC CICS IGNORE   */
+ /**********************HSI CROSS/LAR CHANGE STARTS*******************/ 
+ /* IF LAR RECORD TRANSACTION                                        */
+ /* ---------------------------------------------------------------- */
+   IF EIBTRNID = 'QBMN'
+     THEN EXEC CICS LINK PROGRAM('QBMQWR')
+                         COMMAREA(TEXT_CROSS)
+               /*        SYSID(CWA_COR_SYSID)   RCQ1882 */
+                         RESP(RESPONSE)
+                         RESP2(RESPONSE2);
+   
+ /**********************HSI CROSS/LAR CHANGE ENDS********************/   
+   ELSE EXEC CICS START TRANSID('AEQM')
+                   FROM(TEXT_COMM);      /* END EXEC CICS START ...  */
+ 
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;       
+     PIC_RESP  = RESPONSE;
+     PIC_RESP2 = RESPONSE2;
+     IF EIBTRNID = 'QBMN'
+       THEN DO;
+         DIAG_TEXT = MODULE||': CANNOT LINK TO QBMQWR RESP-'||
+                         PIC_RESP||' RESP2-'||PIC_RESP2;
+         ET_TEXT1 = ERR2|| MODULE ||'FAILURE TO LINK TO QBMQWR';
+
+       END;
+       ELSE DO;
+         DIAG_TEXT = MODULE||': CANNOT START TRANS AEQM '||PIC_RESP;
+         ET_TEXT1 = ERR2|| MODULE ||'FAILURE ON START TRANS AEQM';
+       END;
+     CALL WRITE_TO_OPER;
+     ET_TEXT2 = ERR1||' RESP-'||PIC_RESP||' RESP2 '||PIC_RESP2;
+     SIGNAL ERROR;
+   END;
+
+ END SEND_MSG;
+
+ SCHEDULE_PSB : PROC;
+ /********************************************************************/
+ /* THIS PROCEDURE SCHEDULES THE AEQDBU3 PSB                         */
+ /********************************************************************/
+ 
+   IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': SCHEDULE PSB AEQDU3';
+      CALL WRITE_TO_OPER();
+    END;
+   
+   ET_TEXT1 = ERR2||MODULE||' ABOUT TO SCHEDULE PSB AEQDBU3';
+   
+   EXEC DLI SCHD PSB(AEQDU3);
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': EXEC DLI SCHD PSB(AEQDU3) DIBSTAT ('||
+                   DIBSTAT||')';
+       CALL WRITE_TO_OPER();
+     END;
+
+   IF DIBSTAT = ''
+     THEN ;
+     ELSE DO;
+       DIAG_TEXT = ERR2||MODULE||
+                ' UNABLE TO SCHEDULE PSB AEQDU3, STAT = '
+                 ||DIBSTAT;
+       CALL WRITE_TO_OPER();
+	   SIGNAL ERROR;
+     END;
+ 
+ END SCHEDULE_PSB;
+   
+ /********************************************************************/
+ /* THIS PROCEDURE INCREMENTS THE QSRCQBIN COUNTER IN IMS DB FOR THE */
+ /* CORRESPONDING RECORD TYPE - QSARHSI FOR TYPE1 AND QSARHSDC FOR   */
+ /* TYPE4 TO DENOTE THE COUNT OF RECORDS SENT RESPECTIVELY           */
+ /********************************************************************/
+ UPDATE_CTLDB : PROC(DB_KEY);
+ 
+ DCL DB_KEY CHAR(8);
+ 
+ /* RCQ1882 :   Assign AREA_CROSS */
+   
+   IF CWAPRIHB = 'H' THEN AREA_CROSS='31';
+
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||': UPDATE_CTLDB';
+        CALL WRITE_TO_OPER();
+     END;
+   
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME) YYMMDD(ABSYYMMDD)
+                                         YEAR(ABSYEAR)
+                                         TIME(ABSHHMMSS)
+                                         YYYYMMDD(DATE_YYYYMMDD)
+                                         RESP(RESPONSE);
+
+   CAASCRSC_KEYVAL = DB_KEY || AREA_CROSS ||
+                     SUBSTR(DATE_YYYYMMDD,1,8);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER;
+     END;
+	 
+   EXEC DLI GU USING PCB(2)
+               SEGMENT('CAASCRSC')
+               INTO(STATS)
+               WHERE (IINTAREA= CAASCRSC_KEYVAL);
+
+   IF DIBSTAT = ''              /* RECORD FOUND */
+     THEN DO;
+       STATS.QSRCDATE = ABSYYMMDD;
+       STATS.QSRCTIME = ABSHHMMSS;
+	   STATS.QSRCQBIN = STATS.QSRCQBIN + 1;
+   
+       ET_TEXT1 = ERR1||MODULE||' UNABLE TO REPL CONTROL DATA BASE ';
+   
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': REPL CONTROL DB '||CAASCRSC_KEYVAL;
+           CALL WRITE_TO_OPER;  /* ******** TEST ONLY ******** */
+         END;
+                       
+   
+       EXEC DLI REPL USING PCB(2) 
+                     SEGMENT('CAASCRSC')
+                     FROM(STATS);  
+                     
+       ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT = ' || DIBSTAT;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DIBSTAT = '||DIBSTAT;
+           CALL WRITE_TO_OPER;
+         END;
+       IF DIBSTAT ^= ''
+         THEN SIGNAL ERROR;
+     END;
+     ELSE
+       IF DIBSTAT = 'GE'                     /* NO RECORD FOUND */
+       THEN DO;
+         STATS = '';
+         STATS.QSRCDATE = ABSYYMMDD;
+         STATS.QSRCTIME = ABSHHMMSS;
+		 STATS.QSRCKEY1 = DB_KEY;
+		 STATS.QSRCACTD = SUBSTR(DATE_YYYYMMDD,1,8);
+    
+         STATS.QSRCAREA = AREA_CROSS;
+         
+		 STATS.QSRCQBIN = STATS.QSRCQBIN + 1;
+    
+         ET_TEXT1 = ERR1||MODULE||' UNABLE TO ISRT CONTROL DATA BASE';
+    
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': INSERT CONTROL DB '||
+                                            QSRCAREA||QSRCACTD;
+             CALL WRITE_TO_OPER;
+             DCL CHAR80 CHAR(80) BASED(ADDR(STATS));
+             DIAG_TEXT = MODULE||' ISRT CONTROL REC '||
+                                 SUBSTR(CHAR80,1,40);
+             CALL WRITE_TO_OPER;
+           END;
+           
+         EXEC DLI INSERT USING PCB(2)
+                         SEGMENT('CAASCRSC')
+                         FROM(STATS);
+    
+         ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+         ET_TEXT2 = ERR2||MODULE||' 3 CNTL KEY = ' ||
+                     QSRCKEY1||QSRCAREA||QSRCACTD;
+    
+         IF DIBSTAT ^= '  '
+           THEN SIGNAL ERROR;
+       END;
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': CONTROL DB DIBSTAT: ('||DIBSTAT||')';
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = MODULE||': OUT OF UPDATE CONTROL ' ;
+         CALL WRITE_TO_OPER();
+       END;
+        
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER;
+	   DIAG_TEXT = MODULE||': QSRCQBIN= '||QSRCQBIN;
+       CALL WRITE_TO_OPER;
+     END;
+	 
+ END UPDATE_CTLDB;
+ 
+ %PAGE;
+ 
+ TERM_PSB : PROC;
+ /********************************************************************/
+ /* TERMINATE PSB                                                    */
+ /********************************************************************/
+ 
+    IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': TERMINATE PSB';
+       CALL WRITE_TO_OPER;
+     END;
+	 
+    EXEC DLI TERMINATE;
+	
+ END TERM_PSB;
+ 
+ WRITE_TO_OPER: PROC;
+ /********************************************************************/
+ /* WRITE TO OPERATOR USING WRITE TO OPERATOR--FOR TEST ONLY---      */
+ /********************************************************************/
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+
+ END QBMSG1 ;

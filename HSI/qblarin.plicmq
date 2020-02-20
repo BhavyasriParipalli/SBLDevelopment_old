@@ -1,0 +1,523 @@
+ QBLARIN:  PROC() OPTIONS(MAIN,REENTRANT) REORDER;
+ /*******************************************************************/
+ /*                                                                 */
+ /*  PROGRAM:  QBLARIN                            DATE:  08/10/2011 */
+ /*                                                                 */
+ /*  TITLE:  MQSERIES HSI WRITE TO INBOUND QUEUE                    */
+ /*                                                                 */
+ /*  FUNCTION:  THIS MODULE WILL READ A VSAM DATASET AND WRITE THE  */
+ /*             LAR TYPE 01 RECORD TO THE LAR INBOUND MQ QUEUE      */
+ /*                                                                 */
+ /*  LANGUAGE:  PL/I                                                */
+ /*                                                                 */
+ /*  MODULE TYPE:  REALTIME (CICS)                                  */
+ /*                                                                 */
+ /*  PARM:                                                          */
+ /*                                                                 */
+ /*  INPUTS:   VSAM DATASET                                         */
+ /*                                                                 */
+ /*  OUTPUTS:  TYPE 01 RECORD TO THE LAR INBOUND QUEUE              */
+ /*                                                                 */
+ /*  REPORTS:  NONE                                                 */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:    REASON:    DRIVER:  DESCRIPTION:                PGMR: */
+ /*---------- ---------- ------ ------------------------------ ---- */
+ /*08/10/2010 HS1882      2HSC  INITIAL VERSION                 LBS */
+ /*08/10/2010 HS1882      2HSC  UPDATE FOR QUEUE NAME AND CWA   LBS */
+ /*                             CHANGES                             */
+ /*02/17/2012 HS882       2HSC  ADD INPUT PARAMETER OPTION      LBS */
+ /*0224/2012  HSI_2HSC_003      FIX CHECK ON INPUT PARAMETER    LBS */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 02/24/2012');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBLARIN');
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ 
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING          */
+ /* PREPROCESSOR STATEMENTS:                                        */
+ /*                                                                 */
+ /*    %DCL CMPTIME CHAR                                            */
+ /*    %DCL COMPILETIME BUILTIN                                     */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                           */
+ /*                                                                 */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN    */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                          */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /*******************************************************************/
+ /*   BEGIN DECLARES                                                */
+ /*******************************************************************/
+
+ /*-----------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                     */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:               */
+ /*          DATE, TIME                                             */
+ /*-----------------------------------------------------------------*/
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE              */
+ DCL  HIGH         BUILTIN;         /* HEX 'FF...'                  */
+ DCL  INDEX        BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  LOW          BUILTIN;         /* HEX '00...'                  */
+ DCL  MOD          BUILTIN;
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE           */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITHERROR*/
+ DCL  ONSOURCE     BUILTIN;         /* NAME OF ENTRY-POINT WITHERROR*/
+ DCL  PLIRETV      BUILTIN;
+ DCL  PLIDUMP      BUILTIN;
+ DCL  STG          BUILTIN;         /* STORAGE                      */
+ DCL  SUBSTR       BUILTIN;
+ DCL  TRANSLATE    BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+ /*-----------------------------------------------------------------*/
+ /*  FILE DECLARES                                                  */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO        */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'  */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,   */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...              */
+ /*-----------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*-----------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                           */
+ /*-----------------------------------------------------------------*/
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(24K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE HSI CICS REGION                      */
+ /*-----------------------------------------------------------------*/
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA               */
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA; 
+ 
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* CROSS LAR DEFINITIONS FOR HSI INTERFACE VIA MQ SERIES           */
+ /*-----------------------------------------------------------------*/
+ DCL @LAR                     PTR;
+ DCL BUF360                   CHAR(360) BASED(@LAR);
+ DCL 1 LAR_TYPE01   UNALIGNED BASED(@LAR),
+    %INCLUDE QBMQIN1; ;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* MQ SERIES DECLARES                                              */
+ /*-----------------------------------------------------------------*/
+ %INCLUDE CMQP;;  
+ %INCLUDE CMQEPP;;
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* MISCELLANEOUS DECLARATIONS                                      */
+ /*-----------------------------------------------------------------*/
+ DCL BLANK_POS       FIXED DEC(1)    INIT(0);
+ DCL CHAR9                 CHAR(9)   BASED(ADDR(PIC9));
+ DCL DELAYTIME       FIXED DEC(7,0)  INIT(10);
+ DCL DIAG_TEXT             CHAR(80)  INIT('');
+ DCL EIB_STRING            CHAR(85)  BASED(DFHEIPTR);
+ DCL ERR1                  CHAR(9)   INIT('QSR9001: ');
+ DCL ERR2                  CHAR(9)   INIT('QSR9002: ');
+ DCL FB31            FIXED BIN(31)   INIT(0);
+ DCL KEYFLD                CHAR(9)   INIT('');
+ DCL LEN_TEXT        FIXED BIN(15)   INIT(80) STATIC;
+ DCL MQPUT_CNT       FIXED BIN(15)   INIT(0);
+ DCL PICDELAY              PIC'(7)9' INIT(0);
+ DCL PIC_RESP              PIC'9999' INIT(0);
+ DCL PIC_RESP2             PIC'9999' INIT(0);
+ DCL PIC_DATE              PIC'(8)9' INIT(0);
+ DCL PIC_TIME              PIC'(6)9' INIT(0);
+ DCL 1 PIC_TIME_OVER       BASED(ADDR(PIC_TIME)),
+       3 PIC_HR            PIC'99',
+       3 PIC_MIN           PIC'99',
+       3 PIC_SEC           PIC'99';
+ DCL PIC5                  PIC'(5)9' INIT(0);
+ DCL PIC9                  PIC'(9)9' INIT(0);
+ DCL RESPONSE        FIXED BIN(31)   INIT(0);
+ DCL RESPONSE2       FIXED BIN(31)   INIT(0);
+ DCL STORAGE_LENGTH  FIXED BIN(31,0) INIT(0);
+ DCL TEXT                  CHAR(50)  INIT('');
+ 
+ DCL TEST_SW               BIT(1)    INIT('0'B);
+ DCL FOUND                 BIT(1)    INIT('0'B);
+
+ 
+ %PAGE;
+ /*******************************************************************/
+ /*         MQSeries Working Storage Declarations                   */
+ /*******************************************************************/
+ DCL PRIORITY              PIC'9'    INIT(0);
+ DCL HCONN           FIXED BIN(31)   INIT(0);
+ DCL COMP_CODE       FIXED BIN(31)   INIT(0);
+ DCL REASON          FIXED BIN(31)   INIT(0);
+ DCL OPTIONS         FIXED BIN(31)   INIT(0);
+ DCL HOBJ_GET        FIXED BIN(31)   INIT(0);
+ DCL HOBJ_PUT        FIXED BIN(31)   INIT(0);
+
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* MQSERIES STRUCTURES                                             */
+ /*-----------------------------------------------------------------*/
+ DCL  MQ_MQOD       LIKE MQOD;  /* OBJECT DESCRIPTOR                */
+ DCL  MQ_MQPMO      LIKE MQPMO; /* PUT MESSAGE OPTIONS              */
+ DCL  MQ_MQGMO      LIKE MQGMO; /* GET MESSAGE OPTIONS              */
+ DCL  MQ_MQMD_GET   LIKE MQMD;  /* MESSAGE DESCRIPTOR GET           */
+ DCL  MQ_MQMD_PUT   LIKE MQMD;  /* MESSAGE DESCRIPTOR PUT           */
+
+  %PAGE;
+ /*******************************************************************/
+ /*  Local copy of various MQSeries Descriptors.                    */
+ /*******************************************************************/
+  DCL 1 LMQOD LIKE MQOD;
+  DCL 1 LMQMD LIKE MQMD;
+  DCL 1 LMQPMO LIKE MQPMO;
+
+ %PAGE;
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     ET_PROGRAM_ID = 'QBLARIN ';
+     ET_EIB      = EIB_STRING;
+     WTO_FLAG    = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||'/'||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('LRIN')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /* MAIN PROCESSING                                                 */
+ /*******************************************************************/
+ /* GET ADDRESSABILITY TO THE CWA                                   */
+ /*-----------------------------------------------------------------*/
+
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA           */
+           CWA(@CWA)  
+           RESP(RESPONSE)
+           RESP2(RESPONSE2);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)     /* IF ABNORMAL RESPONSE THEN    */
+   THEN DO;                         /* PASS CONTROL TO ERROR PGM    */
+     ET_TEXT1  = ERR2 || MODULE || ' FAILURE TO GET ADDRESS OF CWA';
+     PIC_RESP  = RESPONSE;
+     PIC_RESP2 = RESPONSE2;
+     ET_TEXT2  = ERR2 || MODULE ||' RESPONSE: '||PIC_RESP||
+                                  ' RESPONSE2: '||PIC_RESP2; 
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = 'Y' | 
+    CWA_QSAR_TRACE = 'T'
+    THEN DO;
+      TEST_SW   = '1'B;  
+      DIAG_TEXT = MODULE||': STARTING QBLARIN';
+      CALL WRITE_TO_CEEMSG();
+    END;
+
+ EXEC CICS RECEIVE INTO(TEXT)  /* RECEIVE TEXT */
+                   LENGTH(LEN_TEXT)     /* FROM SCREEN */
+                   RESP (RESPONSE)
+                   RESP2(RESPONSE2);
+
+  IF RESPONSE ^= DFHRESP(NORMAL) & 
+     RESPONSE ^= DFHRESP(EOC)
+    THEN DO;
+      PIC5 = RESPONSE;
+      DIAG_TEXT = MODULE||': NO DELAY OVERRIDE ENTERED, RESP '||PIC5;
+      CALL WRITE_TO_CEEMSG();
+      PIC5 = RESPONSE2;
+      DIAG_TEXT = MODULE||': RESP2 '||PIC5||' DELAY '||PICDELAY;
+      CALL WRITE_TO_CEEMSG();
+    END;
+    ELSE DO;
+      IF SUBSTR(TEXT,6,20) ^= ''
+         THEN DO;
+           IF VERIFY(SUBSTR(TEXT,6,20),'0123456789 ') = 0
+             THEN PICDELAY = SUBSTR(TEXT,6,20);
+             ELSE PICDELAY = 10;
+         END;
+         ELSE PICDELAY  = 10;
+      DELAYTIME = PICDELAY;
+      IF TEST_SW
+        THEN DO;	
+          DIAG_TEXT = MODULE||': DELAY '||PICDELAY||
+                              ' TEXT '||SUBSTR(TEXT,5,20);
+          CALL WRITE_TO_CEEMSG();
+        END;
+    END;
+    
+ CALL READ_VSAM_LAR(); /* INITIALIZING READ OF VSAM DATASET  */
+ 
+ DO WHILE(FOUND);
+   CALL MQ_PUT();  
+   IF DELAYTIME = 0
+     THEN;
+     ELSE DO ;
+       CALL MQ_COMMIT();
+       EXEC CICS DELAY INTERVAL(DELAYTIME) 
+                       REQID('QBLARIN1');  
+     END;
+   CALL READ_VSAM_LAR();
+ END;
+ 
+ PICDELAY = MQPUT_CNT;
+ DIAG_TEXT = MODULE||': NUMBER OF RECS WRITTEN: '||PICDELAY;
+ CALL WRITE_TO_CEEMSG();
+ 
+ EXEC CICS RETURN;
+
+ /* --------------------------------------------------------------- */
+ /* End of main program -  internal procedures to follow            */
+ /* --------------------------------------------------------------- */
+ 
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /* Read the VSAM dataset containing the LAR/HSI type 01 records    */
+ /* --------------------------------------------------------------- */
+ READ_VSAM_LAR: PROC();
+ 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': READ LAR VSAM ';
+       CALL WRITE_TO_CEEMSG();
+     END;
+   
+   EXEC CICS READ FILE('QBLARIN')
+                  RIDFLD(KEYFLD)
+                  SET(@LAR)
+                  GTEQ
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);
+                  
+   IF TEST_SW
+     THEN DO;
+       PIC_RESP = RESPONSE;
+       PIC_RESP2 = RESPONSE2;
+       DIAG_TEXT = MODULE||': RESPONSE  '||PIC_RESP||
+                            ' RESP2 '    ||PIC_RESP2;
+       CALL WRITE_TO_CEEMSG();
+     END;
+
+   SELECT (RESPONSE) ;
+     WHEN (DFHRESP(NORMAL))
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': '||SUBSTR(BUF360,1,60);
+             CALL WRITE_TO_CEEMSG();
+           END;
+          FOUND = '1'B;
+          PIC9 = LAR_TYPE01.S0IDOCMN;
+          PIC9 = PIC9 + 1;
+          KEYFLD = CHAR9;
+       END;
+     WHEN (DFHRESP(NOTFND))
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': NO RECORD FOUND ';
+             CALL WRITE_TO_CEEMSG();
+            END;
+
+         FOUND = '0'B;
+       END;
+     OTHERWISE
+       DO;
+         PIC_RESP = RESPONSE;
+         ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ FILE '||
+                         'QBLARIN, RESPONSE '||PIC_RESP;
+         PIC_RESP2 = RESPONSE2;
+         ET_TEXT2 = ERR1 ||MODULE||'  RESP2: '||PIC_RESP2;
+         ET_TEXT3 = '';
+         ET_TEXT4 = '';
+         SIGNAL ERROR;
+       END;
+   END;                                  /* END OF SELECT(RESPONSE)   */
+               
+ END READ_VSAM_LAR;
+ 
+ %PAGE;
+ /*******************************************************************/
+ /* PUT THE RECORD INTO MQSERIES HSI INBOUND QUEUE.                 */
+ /* Check the CWA for the indicator of which CICS region this is    */
+ /* running.  D = development, U = UAT, P = production              */
+ /*******************************************************************/
+ MQ_PUT: PROC();
+ 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': PROC MQ_PUT, CWA MQREGION: '||
+                            CWA.MQREGION;
+       CALL WRITE_TO_CEEMSG(); 
+     END;
+
+   SELECT(CWA.MQREGION);
+     WHEN('L')  /* Local */
+         MQ_MQOD.OBJECTNAME = 'HSI.MQ.L.CROSS.IN.ACTIVITY';
+     WHEN('D')  /* Dev */
+       MQ_MQOD.OBJECTNAME = 'HSI.CROSS.INBOUND.QUEUE.D1';
+     WHEN('U')  /* UAT */
+       MQ_MQOD.OBJECTNAME = 'HSI.CROSS.INBOUND.QUEUE.I2';
+     WHEN('P')  /* Prd*/
+       MQ_MQOD.OBJECTNAME = 'HSI.CROSS.INBOUND.QUEUE';
+     OTHERWISE
+       MQ_MQOD.OBJECTNAME = 'HSI.CROSS.INBOUND.QUEUE.'||MQREGION;
+    END;  
+   
+  
+   IF TEST_SW   
+     THEN DO;
+       DIAG_TEXT = MODULE||': MQPUT1 -'||SUBSTR(BUF360,1,60);
+       CALL WRITE_TO_CEEMSG();
+       DIAG_TEXT = MODULE||': WRITE TO QUEUE - '||
+                            MQ_MQOD.OBJECTNAME;
+       CALL WRITE_TO_CEEMSG();
+     END; 
+ 
+   /*  LMQMD.FORMAT   = MQFMT_STRING;  */
+   LMQMD.FORMAT   = 'BILLREC ';
+   LMQPMO.OPTIONS = MQPMO_SYNCPOINT            
+                  + MQPMO_FAIL_IF_QUIESCING  
+                  + MQPMO_DEFAULT_CONTEXT;
+                
+   FB31 = EIBCALEN;
+   CALL MQPUT1(MQHC_DEF_HCONN,
+               MQ_MQOD,  
+               LMQMD,
+               LMQPMO,
+               CSTG(LAR_TYPE01),
+               LAR_TYPE01,
+               COMP_CODE,
+               REASON); 
+
+
+   SELECT(COMP_CODE);
+     WHEN(MQCC_OK)
+       DO;
+         IF TEST_SW    
+           THEN DO;
+             DIAG_TEXT = MODULE||': SUCCESSFUL WRITE TO '||
+                  		MQ_MQOD.OBJECTNAME;
+             CALL WRITE_TO_CEEMSG();
+             MQPUT_CNT = MQPUT_CNT + 1;
+           END;
+       END;
+     OTHERWISE
+       DO;
+         PIC5 = COMP_CODE;
+         DIAG_TEXT = MODULE||': MSG TYPE '||LAR_TYPE01.CMSGTYPE||
+                        ' WRITE TO QUEUE FAILED, CC:'||PIC5;
+         CALL WRITE_TO_CEEMSG();
+         PIC5 = REASON;
+         DIAG_TEXT = MODULE||': REASON CODE '||PIC5;
+         CALL WRITE_TO_CEEMSG();  
+       END;
+
+ END;
+
+ END MQ_PUT;
+ 
+ %PAGE;
+ /*******************************************************************/
+ /*******************************************************************/
+ MQ_COMMIT: PROC();
+ 
+   EXEC CICS SYNCPOINT
+                  RESP(RESPONSE)
+                  RESP2(RESPONSE2);
+   
+   /*
+   CALL MQCMIT(MQHC_DEF_HCONN,
+               COMP_CODE,
+               REASON); 
+
+
+   SELECT(COMP_CODE);
+     WHEN(MQCC_OK)
+       DO;
+         IF TEST_SW    
+           THEN DO;
+             DIAG_TEXT = MODULE||': SUCCESSFUL COMMIT ON '||
+                  		MQ_MQOD.OBJECTNAME;
+             CALL WRITE_TO_CEEMSG();
+           END;
+       END;
+     OTHERWISE
+       DO;
+         PIC5 = COMP_CODE;
+
+         DIAG_TEXT = MODULE||': COMMIT FAILURE ON '||
+                  		MQ_MQOD.OBJECTNAME||
+                  	      ' COMP CODE '||PIC5;
+         CALL WRITE_TO_CEEMSG();
+         PIC5 = REASON;
+         DIAG_TEXT = MODULE||': MQ COMMIT FAILURE REASON CODE '||PIC5;
+         CALL WRITE_TO_CEEMSG();  
+       END;
+     END;
+  */
+ 
+ 
+ END MQ_COMMIT;
+
+
+ /*******************************************************************/
+ /* WRITE TO CEEMSG CICS dataset                                    */
+ /*******************************************************************/
+ WRITE_TO_CEEMSG: PROC();
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_CEEMSG;
+ 
+ /*******************************************************************/
+ 
+ END QBLARIN ;

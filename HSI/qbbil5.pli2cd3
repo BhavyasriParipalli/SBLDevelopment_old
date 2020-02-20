@@ -1,0 +1,567 @@
+ QBBIL5  /*                                       07/07/89-09:11:20 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBBIL5      VERSION NR:  01        DATE:  07/07/89    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  (QSAR) BILLING INVOICE NUMBER CREATION                  */
+ /*                                                                  */
+ /*  FUNCTION:  CREATE INVOICE NUMBERS FOR (NON-CONTRACT)            */
+ /*             BILLABLE ACTIVITY.                                   */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS:   COMMAREA - AEQCOMM/QBCOMM                             */
+ /*                                                                  */
+ /*                                                                  */
+ /*  OUTPUTS:  COMMAREA - AEQCOMM/QBCOMM (UPDATED)                   */
+ /*                                                                  */
+ /*            CONTROL DB (IMS) - REPL/ISRT SEGMENT 'QSARQBINV'      */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ------- ------------------------------- ----- */
+ /*  09/27/89 SR9892   0NSA    INITIAL VERSION                   JWJ */
+ /*  11/24/96 I000000  6NSR    ADD 'W' AS DEFAULT SUFFIX         LBS */
+ /*  05/24/97 S9600755 7NSI    SUPPORT NSS MRO PARALLEL SYSPLEX  LBS */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*  11/13/98 B0286354 8NSM    ADD DIAGNOSTIC                    LBS */
+ /*  04/15/02 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*  06/16/03 HSIPROD  3NSK  change suffix on hub invoices       LBS */
+ /*02/16/2007 HSIPROD  7NSM  remove PLI preprocessor declare of  LBS */
+ /*                          normal for Enterprise Compiler          */
+ /*                                                                  */
+ /* 12/07/11  RCQ1882  2HSC  Remove CWA Area and Region usage    NAK */                                                                */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 12/07/2011');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBBIL5');
+
+ %page;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    BILL   = 'B'                                                  */
+ /*    NOBILL = 'N'                                                  */
+ /*    REVIEW = 'R'                                                  */
+ /*    NOT_ELIGIBLE = 'X'                                            */
+ /*    HVLC     = 'H'                                                */
+ /*    NON_HVLC = 'N'                                                */
+ /*    NORMAL   = ' '                                                */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE = '''X''';
+ %DCL HVLC     CHAR;
+ %HVLC = '''H''';
+ %DCL NON_HVLC CHAR;
+ %NON_HVLC = '''N''';
+ /* %DCL NORMAL   CHAR   */
+ /* %NORMAL = ''' '''    */
+ 
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  HIGH         BUILTIN;         /* HEX 'FF...'                   */
+ DCL  LENGTH       BUILTIN;
+ DCL  LOW          BUILTIN;         /* HEX '00...'                   */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  ONSOURCE     BUILTIN;
+ DCL  PLIRETC      BUILTIN;
+ DCL  REPEAT       BUILTIN;
+ DCL  STG          BUILTIN;         /* STORAGE                       */
+ DCL  STRING       BUILTIN;
+ DCL  SUBSTR       BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ /*DCL PLIXOPT CHAR(30) VAR STATIC EXTERNAL
+             INIT('STAE,NOREPORT,ISA(6K)')  */
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(6K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* POINTER TO COMMAREA --        */
+                                    /* (PASSED FROM CALLING PROGRAM) */
+ DCL @CWA          PTR;             /* POINTER TO CWA                */
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM; ,
+    %INCLUDE QBCOMM; ;
+
+ %PAGE;
+ DCL 1 INVN_SEG   UNALIGNED,        /* INVOICE NO. IN CONTROL DB     */
+    %INCLUDE QBINVN; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL ABSTIME      FIXED DEC(15);
+ DCL ABSHHMMSS          CHAR(6);
+ DCL ABSYYMMDD          CHAR(6);
+ DCL DIAG_TEXT          CHAR(80) INIT('');
+ DCL DLI_KEY            CHAR(31);        /* FOR 'STRING' OF SEG_KEY */
+ DCL ERR1               CHAR( 9) INIT('QSR9000: ');
+ DCL ERR2               CHAR( 9) INIT('QSR9002: ');
+ DCL PIC_DATE           PIC'(8)9';
+ DCL PIC_SEQNO          PIC'(6)9';
+ DCL PIC_TIME           PIC'(6)9';
+ DCL 1 PIC_TIME_OVER    BASED(ADDR(PIC_TIME)),
+       3 PIC_HR         PIC'99',
+       3 PIC_MIN        PIC'99',
+       3 PIC_SEC        PIC'99';
+ DCL SEQNO              CHAR(6);
+ DCL 1 SEG_KEY,
+       3 KEYNAME        CHAR(9)  INIT('QSARQBINV'),
+       3 AREA           CHAR(2)  INIT(''),
+       3 PAD            CHAR(20) INIT((20)' ');
+ DCL SUFFIX             CHAR(1);
+
+ DCL TEST_SW            BIT(1)   INIT('0'B);
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE     FIXED BIN(31) INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ /*****************************************************************/
+ /*   ON CONVERSION                                               */
+ /*****************************************************************/
+
+   ON CONVERSION
+      BEGIN;
+        ET_DUMPCODE = 'Y';
+        ET_TEXT1 = 'QSR9000: QBBIL5 HAD CONVERSION ERROR '||
+                                                COMMAREA.S0IDOCMN;
+        ET_TEXT2 = 'QSR9000: QBBIL5 ONSOURCE '||ONSOURCE||
+                   'LOC '||ONLOC;
+        SIGNAL ERROR;
+      END;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                /* PREVENT RECURSION ERROR */
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBBIL5: IN ON ERROR'||COMMAREA.S0IDOCMN||
+                     ' '||ONLOC;
+         CALL WRITE_TO_OPERATOR;
+       END;
+
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+     ET_PROGRAM_ID = 'QBBIL5 ';
+     ET_EIB        = EIB_STRING;
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'N';
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC||' DOC # '||
+                       COMMAREA.S0IDOCMN;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('BIL5')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = YES |
+    CWA_QSAR_TRACE = 'V'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = 'QBBIL5: ENTERED';
+     CALL WRITE_TO_OPERATOR;
+   END;
+ /*------------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                     */
+ /*------------------------------------------------------------------*/
+
+ IF EIBCALEN = 0                    /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                         /* TRANSFER CONTROL TO ERROR PGM */
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* GENERATE UNIQUE INVOICE NUMBER BY AREA/HUB.                      */
+ /*                                                                  */
+ /* NOTE THAT NO INVOICE NUMBER NEED BE CREATED WHEN PROCESSING A    */
+ /* PARTS TRAILER, SINCE WE'LL BE USING THE ORIGINAL INVOICE NUMBER. */
+ /*------------------------------------------------------------------*/
+
+ IF (BILL_DECISION = BILL |              /* IF BILLABLE OR           */
+     BILL_DECISION = REVIEW)             /*   "POTENTIALLY" BILLABLE */
+   & COMMAREA.S0IPARTR = ' ' &           /* AND NOT A PARTS TRAILER  */
+        REPRICE ^= 'Y'                   /* AND NOT REPRICING OF QSAR */
+   THEN DO;
+     ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO SCHEDULE QBBIL5 PSB';
+
+     EXEC DLI SCHEDULE PSB('QBBIL5');      /* SCHEDULE THE PSB       */
+     IF DIBSTAT ^= '  '
+       THEN SIGNAL ERROR;
+
+     CALL GET_TIMESTAMP;
+     CALL NEXT_INVOICE_SEQ;        /* 'SEQNO'  <- NEXT SEQUENCE NO. */
+     CALL ASSIGN_SUFFIX;           /* 'SUFFIX' <- AREA/HUB SUFFIX   */
+
+     COMMAREA.IINVOICE = SEQNO || SUFFIX;
+
+     ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO TERMINATE QBBIL5 PSB';
+     EXEC DLI TERMINATE;                   /* TERMINATE THE PSB      */
+     IF DIBSTAT ^= '  '
+       THEN SIGNAL ERROR;
+   END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL5: INVOICE NUMBER= ' || COMMAREA.IINVOICE||
+                   ' SEND TO CE '||COMMAREA.SEND_TO_CE;
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   EXEC CICS XCTL PROGRAM('QBMSG1')
+                  COMMAREA(COMMAREA)
+                  RESP(RESPONSE);
+
+   IF RESPONSE ^= DFHRESP(NORMAL)    /* IF ABNORMAL RESPONSE THEN  */
+     THEN DO;                        /* PASS CONTROL TO ERROR PGM  */
+       ET_TEXT1 = ERR2 || MODULE ||' FAILURE TO XCTL TO QBMSG1';
+       SIGNAL ERROR;
+     END;
+
+ /********************************************************************/
+ /*     END OF PROGRAM                                               */
+ /********************************************************************/
+
+
+ %PAGE;
+ GET_TIMESTAMP:  PROC;
+ /********************************************************************/
+ /* GET TIMESTAMP FROM CICS.                                         */
+ /* SETS  ABSYYMMDD <- 'YYMMDD'   (DATE)                             */
+ /*       ABSHHMMSS <- 'HHMMSS'   (TIME)                             */
+ /********************************************************************/
+   ABSTIME, ABSYYMMDD, ABSHHMMSS = '';
+   ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO ASKTIME/FORMAT TIME';
+
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME)
+                        YYMMDD(ABSYYMMDD)
+                        TIME(ABSHHMMSS);
+   ET_TEXT1 = '';
+
+ END GET_TIMESTAMP;
+
+ %PAGE;
+ NEXT_INVOICE_SEQ:  PROC REORDER;
+ /********************************************************************/
+ /* GENERATE NEXT SEQUENTIAL INVOICE NUMBER.                         */
+ /* READ INVOICE NUMBER CONTROL DB RECORD-IF NOT FOUND, CREATE ONE.  */
+ /* SEQUENCE NUMBERS ROLL OVER FROM 999999 -> 000000.                */
+ /********************************************************************/
+
+   IF TEST_SW
+     THEN DO;
+     /*DIAG_TEXT = 'QBBIL5: IN NEXT_INVOICE_SEQ '||CWAARNUM; RCQ1882 */
+       DIAG_TEXT = 'QBBIL5: IN NEXT_INVOICE_SEQ ';         /*RCQ1882 */
+       CALL WRITE_TO_OPERATOR;
+     END;
+     
+   /* SEG_KEY.AREA = CWAARNUM;                        RCQ1882    */
+   /* Only Area 01 will exist, so assigning 01        RCQ1882    */
+      SEG_KEY.AREA = '01';                        /*  RCQ1882    */
+   DLI_KEY = STRING(SEG_KEY);
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU OF CAASCRSC SEGMENT. ';
+   ET_TEXT2 = ERR2 || MODULE || 'KEY = ' || DLI_KEY;
+
+   EXEC DLI GU USING PCB(1)
+               KEYS(DLI_KEY)
+               SEGMENT(CAASCRSC)
+               INTO(INVN_SEG);
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = 'QBBIL5: AFTER CALL TO DB DIBSTAT = ('||
+                    DIBSTAT||')';
+       CALL WRITE_TO_OPERATOR;
+       DIAG_TEXT = 'QBBIL5: DLI_KEY = ('||DLI_KEY||')';
+       CALL WRITE_TO_OPERATOR;
+     END;
+
+   SELECT(DIBSTAT);
+     WHEN('  ')
+       DO;
+         IF TEST_SW
+           THEN DO;
+             PIC_SEQNO = INVN_SEG.IINVSEQ;
+             DIAG_TEXT = 'QBBIL5: DIBSTAT NORMAL, IINVSEQ  = '||
+                         PIC_SEQNO;
+             CALL WRITE_TO_OPERATOR;
+             DIAG_TEXT = 'QBBIL5: DLI_KEY = ('||DLI_KEY||')';
+             CALL WRITE_TO_OPERATOR;
+           END;
+
+         PIC_SEQNO = INVN_SEG.IINVSEQ;/*GET NEXT INVOICE SEQUENCE NO.*/
+         IF INVN_SEG.IINVSEQ = 999999 /*WAS THIS LAST AVAILABLE...?  */
+           THEN INVN_SEG.IINVSEQ = 0; /*IF SO, NEXT AVAIL IS 000000  */
+           ELSE INVN_SEG.IINVSEQ = INVN_SEG.IINVSEQ + 1;/*NORMAL BUMP*/
+         CALL REPL_SEG;
+       END;
+     WHEN('GE')       /* NO INVOICE CONTROL RECORD - MUST CREATE ONE */
+       DO;
+         PIC_SEQNO = 0;              /* START SEQUENCE NOS. AT 000000*/
+         CALL ISRT_SEG;
+       END;
+     OTHERWISE
+       DO;
+         ET_TEXT2 = SUBSTR(ET_TEXT2,1,34)||'STATUS = '||DIBSTAT;
+         SIGNAL ERROR;
+       END;
+   END ;
+
+   SEQNO = PIC_SEQNO;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+ END NEXT_INVOICE_SEQ;
+
+ %PAGE;
+ REPL_SEG:  PROC;
+ /********************************************************************/
+ /* REPLACE INVOICE NUMBER CONTROL DB RECORD.                        */
+ /********************************************************************/
+
+   INVN_SEG.DUPDT = ABSYYMMDD;                   /* SET DATE AND ... */
+   INVN_SEG.HUPDT = ABSHHMMSS;                   /* TIMESTAMP        */
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON REPL OF CAASCRSC SEGMENT. ';
+   ET_TEXT2 = ERR2 || MODULE || 'KEY = ' || DLI_KEY;
+
+   EXEC DLI REPL USING PCB(1)
+                 SEGMENT(CAASCRSC)
+                 FROM(INVN_SEG);
+
+   IF DIBSTAT ^= '  '
+     THEN DO;
+       ET_TEXT2 = SUBSTR(ET_TEXT2,1,34)||'STATUS = '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+ END REPL_SEG;
+
+ %PAGE;
+ ISRT_SEG:  PROC;
+ /********************************************************************/
+ /* INSERT  INVOICE NUMBER CONTROL DB RECORD.                        */
+ /* NOTE THAT WE ASSIGN THE FIRST BILLING RECORD 000000, SO THE      */
+ /* NEXT AVAILABLE SEQUENCE NO. BECOMES 000001.                      */
+ /********************************************************************/
+   INVN_SEG          = '';
+   INVN_SEG.IKEYINVN = 'QSARQBINV';
+  /* INVN_SEG.CAREA    = CWAARNUM;  RCQ1882 */
+   INVN_SEG.CAREA    = '01';      /*RCQ1882 */
+   INVN_SEG.IINVSEQ  = 1;
+   INVN_SEG.DUPDT    = ABSYYMMDD;                /* SET DATE AND ... */
+   INVN_SEG.HUPDT    = ABSHHMMSS;                /* TIMESTAMP        */
+
+
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON ISRT OF CAASCRSC SEGMENT. ';
+   ET_TEXT2 = ERR2 || MODULE || 'KEY = ' || DLI_KEY;
+
+   EXEC DLI ISRT USING PCB(1)
+                 SEGMENT(CAASCRSC)
+                 FROM(INVN_SEG);
+
+   IF DIBSTAT ^= '  '
+     THEN DO;
+       ET_TEXT2 = SUBSTR(ET_TEXT2,1,34)||'STATUS = '||DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+ END ISRT_SEG;
+
+ %PAGE;
+ ASSIGN_SUFFIX:  PROC;
+ /********************************************************************/
+ /* ASSIGN AREA/HUB SUFFIX TO INVOICE NUMBER                         */
+ /********************************************************************/
+ /* SELECT(CWAREGON);             RCQ1882    GET AREA FROM QSAR CWA  */
+
+   SELECT (CWAPRIHB);           /*RCQ1882 */
+     WHEN('P')   SUFFIX = 'A';   /*RCQ1882 */
+     WHEN('H')   SUFFIX = 'W';   /*RCQ1882 */
+     OTHERWISE   SUFFIX = 'U';   /* default, should not get here  */
+   END;
+
+  /*Commented out below code as HSI will not have these many regions */
+  /* WHEN('01')  SUFFIX = 'A';
+     WHEN('02')  SUFFIX = 'B';
+     WHEN('03')  SUFFIX = 'C';
+     WHEN('04')  SUFFIX = 'E';
+     WHEN('05')  SUFFIX = 'F';
+     WHEN('06')  SUFFIX = 'G';
+     WHEN('07')  SUFFIX = 'H';
+     WHEN('08')  SUFFIX = 'J';
+     WHEN('09')  SUFFIX = 'K';
+     WHEN('10')  SUFFIX = 'L';
+     WHEN('11')  SUFFIX = 'M';
+     WHEN('12')  SUFFIX = 'P';
+     WHEN('H1')  SUFFIX = 'W';
+     WHEN('H2')  SUFFIX = 'X';       don't use Y, that is QBIL
+     WHEN('H3')  SUFFIX = 'Z';
+     WHEN('HH')  SUFFIX = 'Z'; */
+
+
+ END ASSIGN_SUFFIX;
+
+ %PAGE;
+ WRITE_TO_OPERATOR: PROC;
+ /********************************************************************/
+ /* WRITE TO OPERATOR                                                */
+ /********************************************************************/
+
+  /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+  EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPERATOR;
+
+ END QBBIL5 ;

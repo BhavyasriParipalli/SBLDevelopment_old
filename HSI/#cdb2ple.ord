@@ -1,0 +1,29 @@
+$¬  5/01/1999 LE/OS390 profile order for PLI w/ CICS & DB2 parts   
+$¬  1/30/2003 changed version to 3NSG              lbs
+$¬  1/23/2003 changed version to 4NSC              lbs
+$¬  3/08/2004 change CL to PLIENT & SOTYPE to DB2CICPE for testing Enterprise PLI  PEck
+$¬  7/21/2004 remove CPROCESS=PLI=G                                                PEck
+$¬  7/20/2004 changed version to 4NSG and changed compiler options for 
+$¬            Enterprise compiler                                                  lbs
+$¬  7/20/2004 changed version to 4NSG and changed compiler options for             lbs
+$¬  2/04/2005 changed version to 5NSM 
+$¬  2/10/2006 Changed sotype and cl for CICS upgrade                               PEck
+$¬  2/04/2005 changed version to 6NSE
+$¬  2/04/2005 changed version to 6NSH
+$¬  2/04/2005 changed version to 7NSB
+$¬
+&  SET  U,SOTYPE=DB2CICPC=G,
+&       CL=PLIENTC=G,
+&       LIBSET=MSETA01=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='M,A(S),AG,STG,NIS,OF,OPT(2),S,STMT,RENT'=G,
+&       CPM2='OP,LC(60),X(S),SYSTEM(CICS),NEST,MAR(2,72,1)'=G,
+&       P1PARM='CICS,SP'=G,
+&       D2PARM='HOST(PLI),SOURCE,XREF,VERSION(7NSB)'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G,
+&       LEC1='RENT,XREF,LIST,AMODE(31),RMODE(ANY)'=G

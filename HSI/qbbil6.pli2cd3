@@ -1,0 +1,2171 @@
+ QBBIL6  /*                                       12/01/89-14:47:16 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBBIL6      VERSION NR:  01        DATE:  12/01/1989  */
+ /*                                                                  */
+ /*  TITLE:  (QSAR) SET UP FOR QSAR REPRICING                        */
+ /*                                                                  */
+ /*  FUNCTION:  MATCH THE BILLABLE/REVIEW QSAR PARTS TRAILER WITH    */
+ /*             THE ORIGINAL QSAR DOCUMENT AND BUILD A COMPLETE      */
+ /*             AEQCOMM/QBCOMM COMM AREA ADDING THE PARTS TRAILER    */
+ /*             PARTS TO THE ORIGINAL QSAR AND TRANSFER CONTROL      */
+ /*             TO QBBIL4 TO REDO PRICING AND TAXING TO GET NEW      */
+ /*             INVOICE TOTALS                                       */
+ /*                                                                  */
+ /*             THIS REPRICING IS CALLED THE 6 - 2 PROCESS.  THE     */
+ /*             MAIN LINE PROCESS IS PERFORMED THEN IF THE QSAR      */
+ /*             DOCUMENT IS A BILLABLE/REVIEW PARTS TRAILER THEN     */
+ /*             THE PROCESS TRANSFERS TO QBBIL6 WHICH RETRIEVES      */
+ /*             THE ORIGINAL QSAR INFORMATION AND TRANSFERS INTO     */
+ /*             THE MAIN PROCESSING AT QBBIL4 FOR A SECOND PRICING.  */
+ /*             IF THIS IS DIAGRAMMED, IT LOOKS LIKE A 6 AND SINCE   */
+ /*             IT IS THE SECOND TIME FOR PRICING IT IS CALLED THE   */
+ /*             6 2 PROCESSING.                                      */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*  INTERFACES:  XCTL QBBIL4                                        */
+ /*                                                                  */
+ /*  INPUTS:   COMMAREA - AEQCOMM/QBCOMM FROM AEQDBU3 MODULE         */
+ /*                                                                  */
+ /*  OUTPUTS:  BILLCOMM - AEQCOMM/QBCOMM (CREATED)                   */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:            PROGRAMMER:   */
+ /*  -------- ------- -----  --------------------------------  ----- */
+ /*  12/01/89 SR9892/  0NSA  INITIAL VERSION                    LBS  */
+ /*           I87752                                                 */
+ /*  12/19/89 I89308   0NSA  FIX FOR PART TRLR ENTERED VIA PT   LBS  */
+ /*  01/04/90 I89308   0NSA  DON'T SEND MSG TO CE IF PART TLR   LBS  */
+ /*                          PENDS AND IS RESUBMITED/RECYCLED/ADDED  */
+ /*  01/25/90 I87811   0NSA  ADD DELAY PROCESSING AND COND      LBS  */
+ /*                          CHECK WHEN RETRIEVING ORIG DOC          */
+ /*  03/01/90 I93125   0NSA  CHANGE LENGTH OF IO BUFFER FROM    LBS  */
+ /*                          200 TO 500. QBSBILL COPY MEMBER         */
+ /*                          FROM 170 TO 240.                        */
+ /*  03/16/90 I90269   0NSA  PENDED PARTS TRAILER PROCESSING    LBS  */
+ /*  03/26/90 I95217   0NSA  CHANGE INTERMEDIATE FIELD TO FIXED LBS  */
+ /*                          DEC 11,2 TO HANDLE LARGEST PART PRICE   */
+ /*  05/08/90 I96518   0NSA  ADD CONDITION CHECK FOR QUOTE ON   LBS  */
+ /*                          PART PRICE ASSIGNMENT                   */
+ /*  05/09/90 SR0252   0NSG  INCREASE THE GENL OVERLAY FROM 400 BLS  */
+ /*                          TO 430.                                 */
+ /*  08/21/90 SR0384   0NSK  ADD ADP FAILURE/ACTION CODE AND    DVC  */
+ /*                          ADP PRODUCT CODE                        */
+ /*  02/07/91 SR0702   1NSC  ADD CPROBNUM2 ASSIGNMENT           LBS  */
+ /*  05/14/91 DCR0777A 1NSG  ADD ASSIGNMENT FOR                      */
+ /*                             CE ENTERED INSTALL DATE         ABM  */
+ /*  10/15/91 SR0776   1NSM  ADD ASSIGNMENT FOR NEW FIELDS      LBS  */
+ /*                             FPRTORD                              */
+ /*  12/17/91 TU0934C  2NSA  ADD ASSIGNMENT FOR NEW FIELDS      LBS  */
+ /*                             IAIC                                 */
+ /*  04/29/92 SR0972   2NSD  ADD ASSIGNMENT FOR PRODUCT ID      ABM  */
+ /*  04/29/92 SR1061   2NSD  ADD ASSIGNMENT FOR SERVICE PERF.   ABM  */
+ /*  08/20/92 H0016664 2NSF  ADD ASSIGNMENT FOR PEND_HDA FLAG   ABM  */
+ /*  10/12/92 SR0535   2NSJ  LENGTH CHANGED FOR FOLLOWING       LBS  */
+ /*                            AEQSGENL 430 TO 460                   */
+ /*                            QBSBILL  240 TO 250                   */
+ /*                            QBSPART   50 TO  55                   */
+ /*  10/17/92 SR1084   2NSJ  ADD ASSIGNMENT FOR NEW FIELDS      LBS  */
+ /*                            CCECUSTY                              */
+ /*                          FIX PROBLEM WITH RESUBMITTED PART       */
+ /*                          TRAILERS PROCESSING IN ERROR CHECK      */
+ /*                          AUDIT DATES ON ORIGINAL AND TRAILER     */
+ /*  11/04/92 I162467  2NSJ  CHANGE CONDITION FOR BILL_S ON     LBS  */
+ /*                          PART TRAILER MATCH FROM Y TO N          */
+ /*  04/08/93 SR93110  3NSJ  ADD ASSIGNMENT FOR FPTCORR         LBS  */
+ /*  05/06/93 S9300154 3NSJ  ADD ASSIGNMENT FOR FOEMTYPE        LBS  */
+ /*  08/03/93 S9300162 3NSL  ADD ADP WORK ORDER NUMBER          DLK  */
+ /*  09/08/93 S9300144 3NSL  ADD ASSIGNMENT FOR FSRCKDK         LBS  */
+ /*  01/17/94 S9300220 3NSP  ADD ASSIGNMENT FOR FAUDUNAV        LBS  */
+ /*                          AND CSAVSRC                             */
+ /*  03/02/94 S9300253 4NSA  ADD ASSIGNMENT FOR FAUDBUNA        LBS  */
+ /*  03/03/94 I234980  4NSA  ADD ASSIGNMENT FOR FMPIDBUN        DLK  */
+ /*  10/19/94 S9300229 4NSM  ZERO OUT NEW PAD01 FIELD CREATED WITH   */
+ /*                          EXPENSE DATABASE CHANGE.           DLK  */
+ /*  01/26/95 S9400170 4NSM  ADD ASSIGNMENTS TO SAVE NEW CONTRACT    */
+ /*                          SEARCH FIELDS.                     DLK  */
+ /*  03/27/95 S9500015 5NSC  ADD CE CUSTOMER NUMBER             DLK  */
+ /*  10/12/95 S9500187 5NSM  ADD ASSIGNMENT FOR FSRCDART        LBS  */
+ /*  11/17/95 I0410524 5NSM  ADD ASSIGNMENT FOR FTSSMACH        LBS  */
+ /*  11/28/95 S9500167 5NSM  ADD ASSIGNMENT FOR FCMPS_S         YDS  */
+ /*           S9500161 5NSM  ADD ASSIGNMENT FOR ISRVGCE         LBS  */
+ /*                                             ISRVGRSO             */
+ /*  06/15/96 S9600243 6NSG    REMOVE ROLM CODE FROM QSAR            */
+ /*                            PROCESSING                        DLP */
+ /*           S9570033 6NSG    ADD PRF PROMPT AND MICRO, MES, ECA    */
+ /*                            AND REA FLAGS.                    DLP */
+ /*  08/19/96 S9600490 6NSJ    REMOVE PCBID FEED FROM QSAR       MKP */
+ /*  10/19/96 S9600620 6NSP    ADD SEVERITY PROMPT TO TRUER      MKP */
+ /*  11/15/96 H0125172 6NSR    ADD FPREPEND BIT FLAG             DLP */
+ /*  03/22/97 S97056   7NSG    ADD FTSSPART BIT FLAG             LBS */
+ /*                                FSRCNSS                           */
+ /*  03/22/97 S970133  7NSP    ADD FACTWORK, CACTFAIL, CRTSSTAT  DLP */
+ /*                                CACTFAIL                          */
+ /*  01/26/98 S970219  8NSC    ADD FCLM_S, CIACTIND, CGROUP      MKP */
+ /*                            CCNTRSRC                              */
+ /*  10/03/99 S99093   9NSA    ADD MISC SEGMENT                  MKP */
+ /*                            CHANGE FSRCKDK TO FOEMCNTR            */
+ /*  10/15/01 S01052   2NSA   Remove all references to ADV       DLP */
+ /*04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*07/15/2002 S020032   2NSK  EFFECTIVE STATUS SET BASED ON DSI DLP  */
+ /*                           AND CEDB (RENAME CEBSTAT TO FSTATRST)  */
+ /*04/04/2003 SR030023 3NSI  add assignments for new aeqsgenl     LBS*/
+ /*                          data elements, increase IOBUFFER from   */
+ /*                          630 to 1000                             */
+ /*02/02/2004 RQ031502359 4NSC SUPPORT INSIDE/OUTSIDE HOURS      DLP */
+ /*                            add assignments for new aeqsgenl      */
+ /*                            data elements                         */
+ /*07/21/2004 SR030023 4NSG SUPPORT OEE                          DLP */
+ /*                         add assignments for new aeqsgenl         */
+ /*                         data elements                            */
+ /*07/21/2004 SR040066 4NSG add IPONUM assignment                LBS */
+ /*02/10/2005 SR040017 5NSM ADD FIELDS FOR NA MERGE              LBS */
+ /*                         REMOVE FSRCDART AND SPAD07               */
+ /*05/03/2005 SR040017 5NSM REMOVE FSRCDART AND ADD FOEEUNA      DLP */
+ /*03/14/2005 SR050023 5NSC add assigments for Lenovo            LBS */
+ /*                         CWARLIAB, CWUPLIAB, CMALIAB, FPERCALL    */
+ /*                         CSPECAPR, CFUTRUSE, ILIABSRC, CWARRUP    */
+ /*                         NWARPHSE, NWUPHSE, IPLATFRM              */
+ /*                         remove reference to FSRCDART             */
+ /*05/03/2005 SR040017 5NSM retrofit LENOVO 5NSC into 5NSM       ERA */
+ /*10/05/2005 SR050053 5NSO add assignment for FACTADMN          LBS */
+ /*10/13/2006 RQ046246 7NSA Remove hard disk marked part from Archana*/
+ /*                         QSAR activity record                     */
+ /*12/22/2006 prodsupt 7NSB remove assignments for CGADPFAC,      LBS*/
+ /*                         CGADPPRC, IADPWON                        */
+ /*02/16/2007 HSIPROD  7NSM  remove PLI preprocessor declare of  LBS */
+ /*                          normal for Enterprise Compiler          */
+ /*02/22/2007 SR060049 7NSM add assignments for IMACOWNR,IMACMFGR LBS*/
+ /*                         CCOSTCAT,FMTMCSU,CWUMP                   */
+ /*06/21/2007 SR060054 7NSR recompile for changes to AEQSINVT     LBS*/
+ /*                         CISOCTRY, CSNPRFIX                       */
+ /*12/14/2007 SR070017 8NSA add assignment for COWNCALC           LBS*/
+ /*03/17/2008 Mn34727613 8NSA fix daily hours assignment          CN */
+ /*05/28/2011 IN818204 0NSE change PSB to GOAUDT and retrieve     LBS*/
+ /*                         QSNARR segment for AEQDBU3 insertion     */
+ /*06/03/2011 IN818204 0NSE change PSB to QBBIL6.  PSB has been   LBS*/
+ /*                         fixed, added access to QSNARR seg.       */
+ /*                                                                  */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA      NAK */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('0NSE - 01/27/2012');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBBIL6');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    BTEST  = 'IF TEST_SW THEN DO;                                 */
+ /*    ETEST  = 'END;'                                               */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    BILL   = 'B'                                                  */
+ /*    NOBILL = 'N'                                                  */
+ /*    REVIEW = 'R'                                                  */
+ /*    NOT_ELIGIBLE = 'X'                                            */
+ /*    HVLC     = 'H'                                                */
+ /*    NON_HVLC = 'N'                                                */
+ /*    PEND   = '3'                                                  */
+ /*    NORMAL = ' '                                                  */
+ /*    HSI    = 'I'                                                  */
+  /*   HSD    = 'D'                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL BTEST CHAR;
+ %BTEST = 'IF TEST_SW THEN DO;';
+ %DCL ETEST CHAR;
+ %ETEST = 'END;';
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE = '''X''';
+ %DCL HVLC     CHAR;
+ %HVLC = '''H''';
+ %DCL NON_HVLC CHAR;
+ %NON_HVLC = '''N''';
+ %DCL PEND     CHAR;
+ %PEND   = '''3''';
+ %DCL XON      CHAR;
+ %XON    = '''1''B';
+ %DCL XOFF     CHAR;
+ %XOFF   = '''0''B';
+ /*%DCL NORMAL   CHAR  */
+ /*%NORMAL = ''' '''   */
+ %DCL HSI      CHAR;
+ %HSI    = '''I''' ;
+ %DCL HSD      CHAR;
+ %HSD    = '''D''' ;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES                                                 */
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  HIGH         BUILTIN;
+ DCL  LOW          BUILTIN;
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  PLIDUMP      BUILTIN;         /*                               */
+ DCL  STG          BUILTIN;         /* STORAGE                       */
+ DCL  SUBSTR       BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ DCL PLITDLI EXTERNAL ENTRY;            /* IMS CALL INTERFACE        */
+ 
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(14K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE), 
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+                                   
+ %INCLUDE CEEIBMAW;        
+ %INCLUDE CEEIBMCT;   
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* POINTER TO OUTPUT  COMMAREA   */
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL @BILLCOMM     PTR INIT(NULL);  /* POINTER TO COMM AREA WHICH    */
+                                        /* IS GOING TO QBBIL4        */
+ %PAGE;
+ DCL 1 BILLCOMM   UNALIGNED BASED(@BILLCOMM),
+    %INCLUDE AEQCOMM ; ,
+    %INCLUDE QBCOMM2 ; ;
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM ; ,
+    %INCLUDE QBCOMM ; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL GENL_OVERLY     CHAR(725) BASED(ADDR(TEMP_GENL));
+ DCL 1 TEMP_GENL   UNALIGNED,
+  %INCLUDE AEQSGENL; ;
+
+ DCL 1 TEMP2_GENL   UNALIGNED,
+  %INCLUDE AEQSGENL; ;
+
+ DCL INVT_OVERLY     CHAR(275) BASED(ADDR(TEMP_INVT));
+ DCL 1 TEMP_INVT UNALIGNED,
+      %INCLUDE AEQSINVT; ;
+
+ %PAGE;
+ DCL NARR_OVERLY     CHAR(170) BASED(ADDR(TEMP_NARR));
+ DCL 1 TEMP_NARR UNALIGNED,
+      %INCLUDE AEQSNARR; ;
+
+
+ %PAGE;
+ DCL MISC_OVERLY     CHAR(200) BASED(ADDR(TEMP_MISC));
+ DCL 1 TEMP_MISC UNALIGNED,
+      %INCLUDE AEQSMISC; ;
+
+ %PAGE;
+ DCL BILL_OVERLY     CHAR(325) BASED(ADDR(TEMP_QBBILL));
+ DCL 1 TEMP_QBBILL  LIKE COMMAREA.QBBILL;
+
+ %PAGE;
+ DCL @PART           POINTER;
+ DCL PART_OVERLY     CHAR(200) BASED(@PART);
+ DCL 1 TEMP_PARTS(4) UNALIGNED,
+       %INCLUDE AEQSPART; ;
+
+ %PAGE;
+ DCL 1 TRLR_TEMP_PART UNALIGNED,
+       %INCLUDE AEQSPART; ;
+
+ %PAGE;
+ DCL 1 EMPL_SEG UNALIGNED,
+       %INCLUDE AE3SNDX; ;
+
+ %PAGE;
+ DCL QBPARTS_OVERLY   CHAR (55) BASED(@CURRENT_PART);
+ DCL @BILPRTS         POINTER  INIT(NULL);
+ DCL @FIRST_PART      POINTER  INIT(NULL);
+ DCL @CURRENT_PART    POINTER  INIT(NULL);
+ DCL @TEMP_PTR        POINTER  INIT(NULL);
+
+ DCL 1 BILL_PARTS   UNALIGNED BASED(@BILPRTS),
+      %INCLUDE QBSPART; ,
+       3 @NEXT_PART   POINTER;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+   %INCLUDE DLIUIB; ;
+
+ DCL 1 PCB_POINTERS BASED(UIBPCBAL),
+       3 QSAR_PTR  POINTER,
+       3 DUMMYPTR  POINTER;
+
+ DCL 1 QSAR_PCB BASED(QSAR_PTR),
+       3 Q_DBDNAME        CHAR(8),
+       3 Q_SEG_LEVEL      CHAR(2),
+       3 Q_STAT           CHAR(2),
+       3 Q_PROC_OPT       CHAR(4),
+       3 Q_DLI_RESERVED   FIXED BIN(31),
+       3 Q_SEGNAME        CHAR(8),
+       3 Q_FB_LENGTH      FIXED BIN(31),
+       3 Q_NBR_SENS_SEGS  FIXED BIN(31),
+       3 Q_KEY_FEEDBACK   CHAR(50);
+
+ DCL 1 QSGENL_QUAL_SSA UNALIGNED,
+       3 QSGENL_NAME      CHAR(8) INIT('QSGENL '),
+       3 QSGENL_QUAL      CHAR(1) INIT('('),
+       3 QSGENL_KEYNAME   CHAR(8) INIT('IDOCUMNT'),
+       3 QSGENL_OPR       CHAR(2) INIT(' ='),
+       3 QSGENL_KEYVAL    CHAR(9) INIT(''),
+       3 QSGENL_ENDCHAR   CHAR(1) INIT(')');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL COMMLENGTH  FIXED BIN (31)   INIT(0);
+ DCL CTR         FIXED BIN (15)   INIT(0);
+ DCL ERR1              CHAR( 9)   INIT('QSR9000: ');
+ DCL ERR2              CHAR( 9)   INIT('QSR9002: ');
+ DCL FUNC              CHAR( 4)   INIT('');
+ DCL FIXDEC2     FIXED DEC ( 2)   INIT(0) UNALIGNED;
+ DCL FIXDEC112   FIXED DEC (11,2) INIT(0) UNALIGNED;
+ DCL DIAG_TEXT         CHAR(80)   INIT('');
+ DCL DUPE_PART   FIXED BIN (15)   INIT(0);
+ DCL DEC7        FIXED DEC (7,0)  INIT(0);
+ DCL (I,J,K)     FIXED BIN (15)   INIT(0);
+ DCL LIL_DATE    FIXED BIN (31)   INIT(1);
+ DCL IMS_PSB           CHAR( 8)   INIT('QBBIL6');
+ DCL IO_BUFFER         CHAR(1000) INIT(''); /* I93125               */
+ DCL NUM_QBPARTS FIXED BIN (15)   INIT(0);
+ DCL NUM_PARTS   FIXED BIN (15)   INIT(0);
+ DCL PARM_CT1    FIXED BIN (31)   INIT(1);
+ DCL PARM_CT3    FIXED BIN (31)   INIT(3);
+ DCL PARM_CT4    FIXED BIN (31)   INIT(4);
+ DCL PIC_DATE          PIC '(8)9' INIT(0);
+ DCL PIC_TIME          PIC '(6)9' INIT(0);
+ DCL PIC2              PIC '99'   INIT(0);
+ DCL 1 PIC_TIME_OVER   BASED (ADDR(PIC_TIME)),
+       3 PIC_HR        PIC '99',
+       3 PIC_MIN       PIC '99',
+       3 PIC_SEC       PIC '99';
+ DCL PIC_RESP          PIC '99'   INIT(0);
+ DCL RETCODE1          CHAR( 8)   INIT('');
+ DCL RETCODE2          CHAR( 8)   INIT('');
+ DCL TEMP_DOC(30)      CHAR( 9)   INIT((30)(''));
+ DCL TRLRPIC2          PIC'99'    BASED(ADDR(TRLR_TEMP_PART.S0QDISUS));
+ DCL XLENGTH     FIXED BIN(15)    INIT(0);
+ 
+ DCL @DIAG_TEXT        PTR        INIT(ADDR(DIAG_TEXT));
+
+ DCL BILLABLE          BIT (1)    INIT('0'B);
+ DCL FOUND             BIT (1)    INIT('0'B);
+ DCL FOUND_ORIG_DOC    BIT (1)    INIT('0'B);
+ DCL IR_FOUND          BIT (1)    INIT('0'B);
+ DCL MATCHED           BIT (1)    INIT('0'B);
+ DCL PENDED            BIT (1)    INIT('0'B);
+ DCL PSB_SCHEDULED     BIT (1)    INIT('0'B);
+ DCL QUIT              BIT (1)    INIT('0'B);
+ DCL TEST_SW           BIT (1)    INIT('0'B);
+ DCL STAT_ZERO         BIT (8)    INIT((8)'0'B);
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE     FIXED BIN(31)   INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SNAP SYSTEM;                /* PREVENT RECURSION ERROR */
+     /* CALL PLIDUMP ('T');     */
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+
+     ET_PROGRAM_ID = 'QBBIL6 ';
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC||' TRLR DOC # '||
+                 COMMAREA.S0IDOCMN;         
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('BIL6')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                     */
+ /*------------------------------------------------------------------*/
+
+ IF EIBCALEN = 0                    /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                         /* TRANSFER CONTROL TO ERROR PGM */
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     PIC_RESP = RESPONSE;
+     ET_TEXT1 = ERR2 || MODULE || ' FAILURE TO GET ADDRESS OF CWA '||
+                   PIC_RESP;
+     SIGNAL ERROR;
+   END;
+
+ IF CWA_QSAR_TRACE = YES | 
+    CWA_QSAR_TRACE = 'Z'
+   THEN DO;
+     TEST_SW = '1';
+     DIAG_TEXT = MODULE||': ENTERED '||COMMAREA.S0IDOCMN;
+     CALL WRITE_TO_OPER();
+   END;
+ 
+ CALL FIND_SAME_DAY_SIMILAR_QSARS();
+
+ IF MATCHED
+   THEN DO;
+     COMMAREA.BILL_S = NO;
+     CALL FIND_ORIGINAL_IR_RECORD();
+     BTEST
+         DIAG_TEXT = MODULE||': MATCHED TRAILER TO '
+                           || COMMAREA.ORIG_TLR_DOC;
+         CALL WRITE_TO_OPER();
+     ETEST
+   END;
+   ELSE DO;
+     BTEST
+         DIAG_TEXT = MODULE||': NOT MATCHED TO ORIGINAL QSAR';
+         CALL WRITE_TO_OPER();
+     ETEST
+     EXEC CICS RETURN;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* CREATE  BILL COMMAREA TO TRANSFER TO QBBIL4                      */
+ /*------------------------------------------------------------------*/
+ CALL CREATE_COMMAREA();
+                                         /* ------------------------- */
+                                         /* IF YOU DID NOT FIND THE   */
+                                         /* ORIGINAL DOCUMENT,BILLABLE*/
+                                         /* WILL BE NO, IF THE ORIG   */
+                                         /* DOC DID NOT HAVE A BILLING*/
+                                         /* SEGMENT - BILLABLE = NO   */
+                                         /* IF ORIG DOC IS PENDED     */
+                                         /* BILLABLE = NO, ALSO       */
+                                         /* ------------------------- */
+ IF BILLABLE & ^PENDED
+   THEN ;
+   ELSE EXEC CICS RETURN;                /* STOP PROCESSING           */
+                                         /* ------------------------- */
+                                         /* IF SYSTEM INVOICE REQUIRED*/
+                                         /* THEN CAN REPRICE/RETAX    */
+                                         /* SINCE INVOICE WAS NOT     */
+                                         /* GIVEN TO CUSTOMER         */
+                                         /* ------------------------- */
+ IF BILLABLE & BILLCOMM.CSYSINV = YES
+   THEN;
+   ELSE EXEC CICS RETURN;                /* STOP PROCESSING           */
+
+ BILLCOMM.BILL_DECISION = 'B';
+                                         /* ------------------------- */
+                                         /* ONLY SEND MESSAGES TO PT  */
+                                         /* IF THE ORIGINAL QSAR HAD  */
+                                         /* BILLING MESSAGES SENT TO  */
+                                         /* THE PT                    */
+                                         /* QB = BILLABLE, MSG SENT   */
+                                         /* ------------------------- */
+ BTEST
+    DIAG_TEXT = MODULE||': ORIG DOC HVLC/SYSINV '||
+                        TEMP_QBBILL.CHVLC ||' '||
+                        TEMP_QBBILL.CSYSINV;
+
+    CALL WRITE_TO_OPER();
+    DIAG_TEXT = MODULE||': ORIG DOC CCONTROL '||TEMP_QBBILL.CCONTROL ;
+    CALL WRITE_TO_OPER();
+ ETEST
+
+ SELECT (TEMP_QBBILL.CCONTROL) ;
+   WHEN ('QB')
+     DO;                                 /* I89308                    */
+                                         /* DON'T SEND MESSAGE IF DOC */
+                                         /* IS A RESUBMIT, RECYCLE OR */
+                                         /* SOURCED FROM QAR (ONLINE) */
+       IF COMMAREA.S0IRESUB | COMMAREA.S0IRECYC | COMMAREA.S0ISRCNS
+         THEN DO;
+           BILLCOMM.SEND_TO_CE = NO;
+           BILLCOMM.CSYSINV    = YES;
+           BILLCOMM.BILL_S     = NO ; /* MAY HAVE TO OFFLOAD AGAIN */
+         END;
+         ELSE BILLCOMM.SEND_TO_CE    = HSI;
+
+       BILLCOMM.BILL_DECISION = 'B';
+     END;
+   WHEN ('QP')
+     DO;
+       BILLCOMM.SEND_TO_CE    = HSD;
+       BILLCOMM.BILL_DECISION = 'R';
+       BILLCOMM.BILL_S        = NO;    /*  MAY HAVE TO OFFLOAD AGAIN */
+     END;
+   OTHERWISE
+     DO;
+       DIAG_TEXT = MODULE||': QBBIL6 CONTROL NOT QB|QP '
+                         ||TEMP_QBBILL.CCONTROL
+                         ||' DOC NUM '||COMMAREA.ORIG_TLR_DOC;
+       CALL WRITE_TO_OPER();
+       EXEC CICS RETURN;
+     END;
+
+ END;                                   /* END OF SELECT             */
+ 
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||':  SEND TO CE ? '||BILLCOMM.SEND_TO_CE;
+     CALL WRITE_TO_OPER();
+   END;
+   
+ BILLCOMM.PERFORM_PRICING = YES;
+ BILLCOMM.HVLC_INDICATOR  = COMMAREA.HVLC_INDICATOR;
+ BILLCOMM.CAD_MATCH       = COMMAREA.CAD_MATCH;
+                                        /* ------------------------- */
+ BILLCOMM.REPRICE = YES;                /* INDICATES THIS IS MATCH   */
+                                        /* TO ORIGINAL QSAR REPRICING*/
+                                        /* ------------------------- */
+
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||':  '||BILLCOMM.S0IDOCMN||' '||CSTG(BILLCOMM);
+     CALL WRITE_TO_OPER();
+   END;
+
+ EXEC CICS XCTL PROGRAM('QBBIL4 ')
+                COMMAREA(BILLCOMM)
+                RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE ON XCTL TO QBBIL4';
+     SIGNAL ERROR;
+   END;
+
+ /* =============== END OF MAIN PROGRAM  =========================== */
+ /* =============== SUBROUTINES TO FOLLOW ========================== */
+
+
+ %PAGE;
+ /********************************************************************/
+ /* READ SECONDARY INDEX IN QSAR DB TO FIND SIMILAR QSARS            */
+ /*                                                                  */
+ /* 'EMPL' KEY IS 35 BYTES.  WE WANT QSAR DOCUMENT RETURNED BY       */
+ /* MATCH TO:                                                        */
+ /*   - EMPLOYEE SERIAL                                              */
+ /*   - ACTIVITY DATE                                                */
+ /*   - MACHINE TYPE                                                 */
+ /*   - MACHINE SERIAL                                               */
+ /*   - STOP TIME                                                    */
+ /*   - SERVICE CODE                                                 */
+ /*                                                                  */
+ /********************************************************************/
+ FIND_SAME_DAY_SIMILAR_QSARS: PROC();
+
+   DCL SSA       CHAR(41);          /* WITHOUT DOCUMENT NUMBER FIELD */
+   DCL SSA_LOW   CHAR(50);          /* WITH LOW (X'00') DOCUMENT NO. */
+   DCL SSA_HIGH  CHAR(50);          /* WITH HIGH(X'FF') DOCUMENT NO. */
+   DCL CHAR_DATE CHAR(4)     BASED(ADDR(COMMAREA.EMPL_DATE));
+ 
+   SSA = COMMAREA.S0IEMPSE  ||
+         CHAR_DATE          ||
+         COMMAREA.S0IMACTC  ||
+         COMMAREA.S0IMACSE  ||
+         COMMAREA.S0QSTOTI  ||
+         COMMAREA.S0CSVC;
+   
+   SSA_LOW  = SSA || LOW(9);
+   SSA_HIGH = SSA || HIGH(9);
+   
+   TEMP_DOC(*) = '';
+   MATCHED = XOFF;
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': GET ORIG QSAR '||SSA;
+       CALL WRITE_TO_OPER();
+     END;
+   
+   ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO SCHEDULE QBBIL3 PSB';
+   EXEC DLI SCHEDULE                   /* SCHEDULE THE PSB           */
+            PSB('QBBIL3');
+   
+   IF DIBSTAT ^= '  '
+     THEN SIGNAL ERROR;
+   
+   ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GU OF AE3EMPL SEGMENT. ';
+   ET_TEXT2 = ERR2 || MODULE || 'KEY = ' || SSA;
+   
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': MAKE CALL TO DATA BASE';
+       CALL WRITE_TO_OPER();
+     END;
+   
+   EXEC DLI GU USING PCB(1)
+               SEGMENT(QSA3SNDX)
+               INTO(EMPL_SEG)
+               WHERE(EMPL>SSA_LOW AND
+                     EMPL<SSA_HIGH);
+   
+   SELECT(DIBSTAT);
+     WHEN('')
+       DO;
+         CTR = 1;                        /* THEN WE CAN USE THIS DOC */
+         TEMP_DOC(CTR)          = EMPL_SEG.S3_S0IDOCMN;
+         /*COMMAREA.ORIG_TLR_DOC  = EMPL_SEG.S3_S0IDOCMN  */
+         MATCHED = XON;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': MATCHED TO '||TEMP_DOC(CTR);
+             CALL WRITE_TO_OPER();
+           END;
+       END;
+     WHEN('GE') ;
+       /* DIDN'T FIND ORIGINAL QSAR TO MATCH PART TRAILER */
+   
+     OTHERWISE
+       SIGNAL ERROR;
+     END;                              /* END OF SELECT              */
+   
+   IF CTR > 0
+     THEN
+       DO UNTIL (DIBSTAT ^= '  ');
+         EXEC DLI GN USING PCB(1)
+                     SEGMENT(QSA3SNDX)
+                     INTO(EMPL_SEG)
+                     WHERE(EMPL>SSA_LOW AND
+                           EMPL<SSA_HIGH);
+   
+         SELECT(DIBSTAT);
+           WHEN('')
+             DO;
+               CTR = CTR + 1;
+               TEMP_DOC(CTR) = EMPL_SEG.S3_S0IDOCMN;
+               IF TEST_SW
+                 THEN DO;
+                   DIAG_TEXT = MODULE||': '||TEMP_DOC(CTR);
+                   CALL WRITE_TO_OPER();
+                 END;
+             END;
+           WHEN('GE') ;
+           /* DIDN'T FIND ADDITIONAL QSARS WITH SAME SSA INFORMATION */
+   
+           OTHERWISE
+             SIGNAL ERROR;
+         END;                           /* END OF SELECT             */
+       END;                             /* END OF DO UNTIL           */
+   
+   ET_TEXT1 = ERR2 || MODULE || 'UNABLE TO TERMINATE QBBIL3 PSB';
+   
+   CALL TERMINATE_PSB('QBBIL3');
+   
+
+ END FIND_SAME_DAY_SIMILAR_QSARS;
+
+ 
+  %PAGE;
+ /********************************************************************/
+ /********************************************************************/
+ FIND_ORIGINAL_IR_RECORD: PROC();
+ 
+   BTEST
+     DIAG_TEXT = MODULE||': FIND_ORIGINAL_IR_RECORD, PART TRLR DOC '||
+                            COMMAREA.S0IDOCMN;
+     CALL WRITE_TO_OPER();
+   ETEST
+ 
+   CALL SCHEDULE_PSB(IMS_PSB);
+   /* -------------------------------------------------------------- */
+   /* USE THE TEMP_DOC ARRAY TO SEARCH THE QSAR DB FOR THE ORIGINAL  */
+   /* QSAR AND ASSOCIATED QBBILL MAIN SEGMENT.                       */
+   /* -------------------------------------------------------------- */
+   DO I = 1 TO CTR WHILE(^IR_FOUND);
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': GET DOC '||TEMP_DOC(I);
+         CALL WRITE_TO_OPER();
+       END;
+     
+     IF TEMP_DOC(I) ^= COMMAREA.S0IDOCMN
+       THEN DO;
+         QSGENL_KEYVAL = TEMP_DOC(I);
+         
+         FUNC = 'GU';
+         ET_TEXT1 = ERR2||MODULE||' UNABLE TO GU QSGENL - DOC # '||
+                                  QSGENL_KEYVAL;
+         
+         
+           CALL PLITDLI (PARM_CT4,
+                         FUNC,
+                         QSAR_PCB,
+                         TEMP_GENL,
+                         QSGENL_QUAL_SSA);
+         
+         SELECT ( Q_STAT );
+           WHEN ('')
+             DO;
+             /* If not a part trailer and it has been invoiced   */
+               IF TEMP_GENL.S0IPARTR = '' & TEMP_GENL.S0IHSDNR ^= ''
+                 THEN DO;
+                   COMMAREA.ORIG_TLR_DOC = TEMP_GENL.S0IDOCMN;
+                   IR_FOUND = '1'B;
+                 END;
+             END;
+           WHEN ('GE','GB')
+             DO;
+             END;
+           OTHERWISE 
+             DO;
+               DIAG_TEXT = MODULE||': BAD IMS STAT CODE '
+                                 ||Q_STAT||' DOCUMENT '
+                                 ||COMMAREA.S0IDOCMN;
+               CALL WRITE_TO_OPER();
+               EXEC CICS RETURN;
+             END;
+         END;
+         
+         BTEST
+           DIAG_TEXT = MODULE||': doc '||TEMP_GENL.S0IDOCMN||
+                               ' PT TRLR? '|| TEMP_GENL.S0IPARTR||
+                               ' invoice# '|| TEMP_GENL.S0IHSDNR;
+           CALL WRITE_TO_OPER();
+         ETEST
+       END;
+       
+   END;
+   
+   
+   CALL TERMINATE_PSB(IMS_PSB);
+   
+   IF ^IR_FOUND
+     THEN DO;
+       DIAG_TEXT = MODULE||': ORIGINAL DOC FOR PT '||COMMAREA.S0IDOCMN
+                         ||' NOT FOUND ';
+       CALL WRITE_TO_OPER();
+       EXEC CICS RETURN;
+     END;
+   
+ END FIND_ORIGINAL_IR_RECORD;
+
+
+ %PAGE;
+ CREATE_COMMAREA: PROC();
+ /********************************************************************/
+ /* - GET THE ORIGINAL QSAR DOCUMENT SEGMENTS, PLACE IN TEMP AREA,   */
+ /*     COUNTING THE PARTS SEGMENTS                                  */
+ /* - ALLOCATE QSAR/BILLING COMMAREA                                 */
+ /* - ASSIGN ORIGINAL QSAR DOCUMENT DATA TO OUTPUT COMMAREA          */
+ /* - COPY QSAR (INPUT) COMMAREA TO OUTPUT COMMAREA                  */
+ /*   (WITH CARE, TO ENSURE NO PROBLEM WITH 'REFER' IN BILLING PARTS)*/
+ /********************************************************************/
+   IF ^PSB_SCHEDULED
+     THEN CALL SCHEDULE_PSB(IMS_PSB);
+   
+   CALL GET_ORIGINAL_SEGS;
+
+   CALL TERMINATE_PSB(IMS_PSB);
+
+   IF FOUND_ORIG_DOC
+     THEN DO;
+                                        /* FROM ORIG QSAR            */
+       DO I = 1 TO 4;                   /* FROM PART TRAILER         */
+        IF COMMAREA.PARTS(I).S0IPART ^= ' '
+         THEN DO;
+          IF COMMAREA.PARTS(I).FPARTYPE ^= 'H' | COMMAREA.S0CSVC = '36'
+            THEN DO;                    /*  RQ046246   7NSA         */
+             IF COMMAREA.PARTS(I).S0CFUNC = '02' |
+                  COMMAREA.PARTS(I).S0CFUNC = '21'
+               THEN DO;
+                 FOUND = '0'B;
+                 FIXDEC2 = COMMAREA.PARTS(I).S0QDISUS;
+                 CALL MERGE_LIKE_PARTS (COMMAREA.PARTS(I).S0IPART,
+                                                    FIXDEC2);
+
+                 IF ^FOUND
+                   THEN DO;                     /* RQ042106426 7NSA */
+                         TRLR_TEMP_PART.S0IPART =
+                                        COMMAREA.PARTS(I).S0IPART;
+                         TRLR_TEMP_PART.S0QDISUS =
+                                        COMMAREA.PARTS(I).S0QDISUS;
+                         TRLR_TEMP_PART.DESCR =
+                                        COMMAREA.PARTS(I).DESCR;
+                         TRLR_TEMP_PART.S0CQUOTE =
+                                        COMMAREA.PARTS(I).S0CQUOTE;
+                         TRLR_TEMP_PART.CGPARTPR =
+                                        COMMAREA.PARTS(I).CGPARTPR;
+                         TRLR_TEMP_PART.CGPARTCS =
+                                        COMMAREA.PARTS(I).CGPARTCS;
+                         CALL ADD_TO_ALLOCATED_PARTS;
+                   END;
+               END;
+             END;
+
+           END;
+       END;
+
+       /* Q# = NUM_QBPARTS  */
+       Q# = 20;    /* USE FIXED NUMBER TO MATCH QBBIL1 CODE     */
+       COMMLENGTH = CSTG(BILLCOMM);
+       EXEC CICS GETMAIN SET(@BILLCOMM)  FLENGTH(COMMLENGTH);
+       /* ALLOCATE BILLCOMM SET(@BILLCOMM);  */
+       
+      BTEST
+       DIAG_TEXT = MODULE||': BILL COMM LENGTH '||COMMLENGTH;
+       CALL WRITE_TO_OPER();
+      ETEST
+             
+       CALL ASSIGN_TO_BILLCOMM;
+
+      BTEST
+        DCL CHAROVERLY CHAR(3900) BASED(@BILLCOMM);
+        DCL TEXT CHAR(40) INIT('');
+        DIAG_TEXT = MODULE||': '||SUBSTR(CHAROVERLY,1,9)||' '
+                                ||SUBSTR(CHAROVERLY,2501,7);
+        CALL WRITE_TO_OPER();
+      ETEST
+   END;
+
+ END CREATE_COMMAREA;
+
+ %PAGE;
+ /********************************************************************/
+ /* RETRIEVE THE ORIGINAL QSAR SEGMENTS AND PLACE IN A TEMPORARY     */
+ /* DATA AREA.  DETERMINE THE NUMBER OF QBPART SEGMENTS SO THE COMM  */
+ /* CAN BE ALLOCATED WITH THE PROPER NUMBER OF QBPART SEGMENTS       */
+ /********************************************************************/
+ GET_ORIGINAL_SEGS: PROC;
+ 
+   QSGENL_KEYVAL = COMMAREA.ORIG_TLR_DOC;
+
+   FUNC     = 'GU';
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO GU QSGENL - DOC # '||
+               COMMAREA.ORIG_TLR_DOC;
+
+   QUIT = '0'B;
+   DO I = 1 TO 19 BY 3 WHILE(^QUIT);
+     DEC7 = I;                          /* I87811                    */
+     EXEC CICS DELAY INTERVAL(DEC7);
+
+     CALL PLITDLI (PARM_CT4,
+                   FUNC,
+                   QSAR_PCB,
+                   TEMP_GENL,
+                   QSGENL_QUAL_SSA);
+
+      BTEST
+        DIAG_TEXT = MODULE||': ERR SEV & AUDIT COMP '
+                          ||TEMP_GENL.CGQHIGSE
+                          ||' '||TEMP_GENL.S0CAECMP;
+        CALL WRITE_TO_OPER();
+      ETEST
+
+     ET_TEXT1 = SUBSTR(ET_TEXT1,1,54)||' STAT = '||Q_STAT;
+     CALL ANALYZE_UIB;
+
+     IF Q_STAT ^= '  '
+       THEN SIGNAL ERROR;
+       ELSE IF TEMP_GENL.CGQHIGSE = '3' /* DON'T PROCESS PENDED      */
+              THEN DO;                  /* ORIGINAL DOCUMENTS        */
+                FOUND_ORIG_DOC = '0'B;
+                QUIT = '1'B;
+                PENDED = '1'B;
+              END;
+              ELSE IF TEMP_GENL.S0CAECMP = 'Y'
+                     THEN DO;
+                       FOUND_ORIG_DOC = '1'B;
+                       QUIT = '1'B;
+                     END;
+                     /* ELSE CONTINUE WITH THE DO LOOP  */
+  END;
+  
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': billable? '|| billable 
+                        ||' ORIGINAL_AFTER_TRAILER()? '
+                        ||ORIGINAL_AFTER_TRAILER();
+      CALL WRITE_TO_OPER();
+    END;
+    
+   IF FOUND_ORIG_DOC & ^PENDED          /* FOUND THE ORIGINAL QSAR   */
+     THEN DO;                            
+       CALL GET_CHILDREN;
+       IF BILLABLE                      /* FOUND A BILLING SEGMENT   */
+    /*   & ORIGINAL_AFTER_TRAILER()    NOT SURE THE VALUE OF THIS     */
+    /*     COMMAREA.AUDIT_DATE = TEMP_GENL.AUDIT_DATE   */
+    /*   &    TEMP_GENL.BILL_S = 'N' */ /* INDICATES QBBIL1 FOUND A  */
+                                        /* PENDED PART AT 1ST REVIEW */
+                                        /* REGARDLESS WHETHER A QB   */
+                                        /* OR QP                     */
+         THEN CALL MATCH_TO_OTHER_TRAILERS;
+         ELSE DO;
+
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = MODULE||': AUDIT DATES DO NOT MATCH '
+                                 ||'BILLABLE '||BILLABLE;
+               CALL WRITE_TO_OPER();
+             END;
+           BILLABLE = '0'B;
+
+           EXEC CICS RETURN;
+         END;
+     END;
+
+ END GET_ORIGINAL_SEGS;
+
+ %PAGE;
+ ORIGINAL_AFTER_TRAILER: PROC() RETURNS(BIT(1));
+ /********************************************************************/
+ /* IF THE DATE AND TIME RECEIVED INTO THE SYSTEM (BSR DATE TIME)    */
+ /* OF THE ORIGINAL QSAR IS AFTER OR THE SAME TIME RECEIVED THEN     */
+ /* RETURN TRUE ('1'B)                                               */
+ /* IF THE AUDIT DATE TIME FO THE ORIGINAL QSAR IS AFTER THE RECEIVE */
+ /* DATE OR THE PART TRAILER RETURN TRUE ('1'B)                      */
+ /********************************************************************/
+ DCL PART_TLR_REC_DATE  CHAR(8);
+ DCL PART_TLR_REC_TIME  CHAR(6);
+ DCL ORIGINAL_REC_DATE  CHAR(8);
+ DCL ORIGINAL_REC_TIME  CHAR(6);
+
+ PART_TLR_REC_DATE =
+    COMMAREA.CS1BSRYY|| COMMAREA.CS1BSRDT.CS1BSRMM|| COMMAREA.CS1BSRDD;
+ PART_TLR_REC_TIME =
+    COMMAREA.CS1BSRHH|| COMMAREA.CS1BSRTI.CS1BSRMM|| COMMAREA.CS1BSRSS;
+ ORIGINAL_REC_DATE =
+   TEMP_GENL.CS1BSRYY||TEMP_GENL.CS1BSRDT.CS1BSRMM||TEMP_GENL.CS1BSRDD;
+ ORIGINAL_REC_TIME =
+   TEMP_GENL.CS1BSRHH||TEMP_GENL.CS1BSRTI.CS1BSRMM||TEMP_GENL.CS1BSRSS;
+
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': ORIGINAL BSR RECEIVE DATE '||
+                   ORIGINAL_REC_DATE||ORIGINAL_REC_TIME;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': PART TLR BSR RECEIVE DATE '||
+                   PART_TLR_REC_DATE||PART_TLR_REC_TIME;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': ORIGINAL AUDIT DATE       '||
+                   TEMP_GENL.AUDIT_DATE||TEMP_GENL.AUDIT_TIME;
+      CALL WRITE_TO_OPER();
+    END;
+
+ SELECT;
+   WHEN(ORIGINAL_REC_DATE||ORIGINAL_REC_TIME >=
+        PART_TLR_REC_DATE||PART_TLR_REC_TIME )
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': ORIGINAL RECEIVED AFTER/= TRAILER '
+                             || TEMP_GENL.S0IDOCMN 
+                             ||' '||COMMAREA.S0IDOCMN;
+           CALL WRITE_TO_OPER();
+         END;
+       RETURN('1'B);
+     END;
+   WHEN(TEMP_GENL.AUDIT_DATE||TEMP_GENL.AUDIT_TIME  >=
+        PART_TLR_REC_DATE||PART_TLR_REC_TIME )
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE
+                        ||': ORIGINAL AUDIT AFTER TRAILER RECEIVED'
+                        || TEMP_GENL.S0IDOCMN ||' '||COMMAREA.S0IDOCMN;
+           CALL WRITE_TO_OPER();
+         END;
+       RETURN('1'B);
+     END;
+    OTHERWISE
+      DO;
+        IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = MODULE||': ORIGINAL RECEIVED BEFORE TRAILER';
+            CALL WRITE_TO_OPER();
+          END;
+        RETURN('1'B);
+      END;
+  END;                                   /* END OF SELECT            */
+
+ END ORIGINAL_AFTER_TRAILER;
+
+ %PAGE;
+ /********************************************************************/
+ /* RETRIEVE THE INVENTORY, PARTS, BILLING AND BILLING PARTS SEGMENTS*/
+ /* UNDER THE ORIGINAL QSAR ROOT (QSGENL) SEGMENT.  COUNT THE NUMBER */
+ /* QBPART SEGMENTS.  PLACE THIS DATA IN A TEMPORARY DATA AREA.      */
+ /********************************************************************/
+ GET_CHILDREN: PROC;
+
+   BTEST
+     DIAG_TEXT = MODULE||': GET CHILDREN '||TEMP_GENL.S0IDOCMN;
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   FUNC = 'GNP';
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO GNP UNDER QSGENL - 1 DOC # '||
+                   QSGENL_KEYVAL ;
+
+   CALL PLITDLI (PARM_CT3,
+                 FUNC,
+                 QSAR_PCB,
+                 IO_BUFFER);
+
+   ET_TEXT1 = SUBSTR(ET_TEXT1,1,63)||' STAT = '||Q_STAT;
+   CALL ANALYZE_UIB;
+
+   DO WHILE (Q_STAT ^= 'GE' );
+
+     IF Q_STAT ^= ' ' & Q_STAT ^= 'GA' & Q_STAT ^= 'GK'
+       THEN SIGNAL ERROR;
+       ELSE DO;
+         SELECT (Q_SEGNAME);
+           WHEN('QSINVT')
+               INVT_OVERLY = IO_BUFFER;
+           WHEN('QSNARR')
+             DO;
+               NARR_OVERLY = IO_BUFFER;
+               BTEST
+                 DIAG_TEXT = MODULE||': found NARR segment';
+                 CALL WRITE_TO_OPER();
+               ETEST
+             END;
+           WHEN('QSMISC')
+             DO;
+               MISC_OVERLY = IO_BUFFER;
+               BTEST
+                 DIAG_TEXT = MODULE||': found MISC segment';
+                 CALL WRITE_TO_OPER();
+               ETEST
+             END;
+           WHEN('QSPART')
+             DO;
+               NUM_PARTS = NUM_PARTS + 1;
+               @PART = ADDR(TEMP_PARTS(NUM_PARTS));
+               PART_OVERLY = IO_BUFFER;
+               BTEST
+                 DIAG_TEXT = MODULE||': found QSPAR segment';
+                 CALL WRITE_TO_OPER();
+               ETEST
+
+             END;
+           WHEN('QBBILL')
+             DO;
+               BILLABLE    = '1'B;
+               BILL_OVERLY = IO_BUFFER;
+               BTEST
+                   DIAG_TEXT = MODULE||': invoice-'||
+                   TEMP_QBBILL.IINVOICE||
+                   ' START/STOP '||
+                   TEMP_QBBILL.HDAY1STRT||'/'||
+                   TEMP_QBBILL.HDAY1STOP||' '||
+                   TEMP_QBBILL.HDAY2STRT||'/'||
+                   TEMP_QBBILL.HDAY2STOP||' '||
+                   TEMP_QBBILL.HDAY3STRT||'/'||
+                   TEMP_QBBILL.HDAY3STOP;
+                   CALL WRITE_TO_OPER();
+                   DIAG_TEXT = MODULE||': found billing segment';
+                   CALL WRITE_TO_OPER();
+               ETEST
+             END;
+           WHEN('QBPART')
+             DO;
+               BTEST
+                 DIAG_TEXT = MODULE||': found bill part segment';
+                 CALL WRITE_TO_OPER();
+               ETEST
+               @BILPRTS = ADDR(IO_BUFFER);
+               FOUND    = '0'B;         /* ------ I 89308 ---------- */
+                                        /* MERGE DATA FOR LIKE PARTS */
+                                        /* ------------------------- */
+               PIC2    = BILL_PARTS.QDISUS;
+               FIXDEC2 = PIC2;
+               CALL MERGE_LIKE_PARTS
+                             (BILL_PARTS.IPART,FIXDEC2);  
+
+               IF ^FOUND
+                 THEN DO;
+                   CALL ALLOCATE_PARTS;
+                 END;
+             END;
+           OTHERWISE;
+         END;                            /* END OF SELECT             */
+       END;                              /* END OF ELSE               */
+
+     ET_TEXT1 = ERR2||MODULE||' UNABLE TO GNP UNDER QSGENL - 2 DOC # '
+                            || QSGENL_KEYVAL ;
+     ET_TEXT2 = '';
+     ET_TEXT3 = '';
+
+     CALL PLITDLI (PARM_CT3,
+                   FUNC,
+                   QSAR_PCB,
+                   IO_BUFFER);
+
+
+     ET_TEXT2 = SUBSTR(ET_TEXT1,1,63)||' STAT = '||Q_STAT;
+     CALL ANALYZE_UIB;
+
+   END;
+
+ END GET_CHILDREN;
+
+ %PAGE;
+ /********************************************************************/
+ /* THIS PROC WILL                                                   */
+ /* - ALLOCATE DATA AREA FOR THE QBPARTS DATA                        */
+ /* - PLACE THE ALLOCATED DATA SPACE IN A LINKED LIST                */
+ /* - ASSIGN THE DATA FROM THE DATA BASE CALL TO THE ALLOCATED SPACE */
+ /*   - @FIRST_PART ALWAYS POINTS TO HEAD OF LINKED LIST             */
+ /*   - @CURRENT_PART POINTS TO THE CURRENTLY ACCESSED PART IN LIST  */
+ /*   - @BILPRTS POINTS TO THE NEWLY ALLOCATED PART                  */
+ /*                                                                  */
+ /*    @FP--> +-----+     +-----+                                    */
+ /*           | DATA|     |DATA |                                    */
+ /*           | PTR |---->| PTR |-----///                            */
+ /*           +-----+     +-----+                                    */
+ /********************************************************************/
+ ALLOCATE_PARTS: PROC;
+ 
+   NUM_QBPARTS = NUM_QBPARTS + 1;
+   
+   BTEST
+     DIAG_TEXT = MODULE||': ALLOCATE PARTS, NUM PARTS: '||NUM_QBPARTS;
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   ALLOCATE BILL_PARTS SET(@BILPRTS);
+   @BILPRTS -> BILL_PARTS.IPART    = '';
+   @BILPRTS -> BILL_PARTS.QDISUS   = 0;
+   @BILPRTS -> BILL_PARTS.NPARTDSC = '';
+   @BILPRTS -> BILL_PARTS.APARTPR  = 0;
+   @BILPRTS -> BILL_PARTS.APARTAMT = 0;
+   
+   IF NUM_QBPARTS = 1
+     THEN DO;
+       @FIRST_PART = @BILPRTS;
+       @CURRENT_PART = @BILPRTS;
+       @BILPRTS->@NEXT_PART = NULL;
+    END;
+    ELSE DO;
+      @CURRENT_PART->@NEXT_PART = @BILPRTS;
+      @CURRENT_PART = @BILPRTS;
+      @BILPRTS->@NEXT_PART = NULL;
+    END;
+
+    QBPARTS_OVERLY = IO_BUFFER;
+    
+   BTEST
+     DIAG_TEXT = MODULE||': qbpart '||SUBSTR(QBPARTS_OVERLY,1,8);
+     CALL WRITE_TO_OPER();
+   ETEST
+   
+ END ALLOCATE_PARTS;
+
+ %PAGE;
+ /********************************************************************/
+ /* WE ARE PROCESSING A PARTS TRAILER WHICH HAS BEEN RESUBMITTED VIA */
+ /* NSDC.  WE HAVE MATCHED THE PART TRAILER TO THE ORIGINAL DOCUMENT.*/
+ /* NOW, WE HAVE TO MATCH THE PART TRAILER TO ANY OTHER PART TRAILERS*/
+ /* ASSOCIATED WITH THE SERVICE CALL.                                */
+ /*                                                                  */
+ /********************************************************************/
+ MATCH_TO_OTHER_TRAILERS: PROC;
+   BTEST
+     DIAG_TEXT = MODULE||': MATCH TO OTHER TRAILERS';
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   IF CTR > 1
+                                         /* ------------------------- */
+    THEN DO;                             /* TAKE THE DOCUMENT NUMBERS */
+                                         /* AND DETERMINE IF ANY ARE  */
+                                         /* ARE PART TRAILERS         */
+                                         /* ------------------------- */
+      DO K = 2 TO J ;
+
+        ET_TEXT1 = ERR2 || MODULE || 'ERROR ATTEMPTING TO GU QSGENL '||
+                         '& QSPART SEG ';
+        ET_TEXT2 = ERR2 || MODULE || 'KEY = ' || TEMP_DOC(K);
+        EXEC DLI GU USING PCB(1)
+                    SEGMENT (QSGENL)
+                    INTO(TEMP2_GENL)
+                    WHERE (IDOCUMNT = TEMP_DOC(K))
+                    SEGMENT (QSPART)
+                    INTO(TRLR_TEMP_PART);
+
+        SELECT (DIBSTAT);               /* ------------------------- */
+          WHEN ('')                     /* MAKE SURE THIS IS A       */
+                                        /* PART TRAILER AND IS NOT   */
+                                        /* THE SAME DOCUMENT THAT    */
+                                        /* WAS RESUBMITTED           */
+                                        /* ------------------------- */
+            IF TEMP2_GENL.S0IPARTR ^= ' '
+                & TEMP2_GENL.S0IDOCMN  ^= COMMAREA.S0IDOCMN
+              THEN IF TEMP2_GENL.CGQHIGSE >= '3'
+                    THEN                /* WANT TO STOP PROCESSSING  */
+                      EXEC CICS RETURN; /* IF ANY TRAILERS ARE PENDED*/
+                    ELSE
+                    DO WHILE (DIBSTAT = '  ') ;
+                     IF TRLR_TEMP_PART.FPARTYPE ^= 'H' |
+                        TEMP2_GENL.S0CSVC = '36'
+                      THEN DO;          /*    RQ046246 7NSA          */
+                       IF TRLR_TEMP_PART.S0CFUNC = '02' |
+                           TRLR_TEMP_PART.S0CFUNC = '21'
+                        THEN DO;
+                          FOUND = '0'B;
+                          FIXDEC2 = TRLRPIC2;
+                          CALL MERGE_LIKE_PARTS
+                                   (TRLR_TEMP_PART.S0IPART,FIXDEC2);
+                          IF ^FOUND           
+                           THEN CALL ADD_TO_ALLOCATED_PARTS;
+                        END;
+                     END;
+
+                      ET_TEXT1 = ERR2 || MODULE || 'ERROR ON GN ON '||
+                                'PART SEG ON MATCH TO TRAILER ';
+                      EXEC DLI GNP USING PCB(1)
+                                  SEGMENT (QSPART)
+                                  INTO(TRLR_TEMP_PART);
+                      SELECT (DIBSTAT);
+                        WHEN ('  ','GE','GB','GA') ;
+                        OTHERWISE
+                          DO;
+                            ET_TEXT3 = ERR2 || MODULE ||
+                                     'DIBSTAT =  '|| DIBSTAT;
+                           SIGNAL ERROR;
+                          END;
+                      END;              /* END OF SELECT             */
+                    END;                /* END OF DO WHILE           */
+                                        /* NO PARTS SEGMENTS         */
+          WHEN ('GE');          /*  WHAT ABOUT PURGED RECORDS ????   */
+          OTHERWISE
+            DO;
+              ET_TEXT3 = ERR2 || MODULE || 'DIBSTAT =  '|| DIBSTAT;
+              SIGNAL ERROR;
+            END;
+        END;                            /* END OF SELECT             */
+      END;                              /* END OF DO K = 1 TO J      */
+    END;                                /* END OF ELSE               */
+
+  END MATCH_TO_OTHER_TRAILERS;
+
+ %PAGE;
+ /********************************************************************/
+ /* ALL PARTS ON RETRIEVED DOCUMENTS MUST BE CHECK AGAINST THE PARTS */
+ /* IN THE CURRENT PART TRAILER AND THE PARTS IN THE LINKED LIST     */
+ /* IF THE PART IS FOUND, ADD THE USAGE COUNT TO THE EXISTING PART   */
+ /* USAGE COUNT.                                                     */
+ /********************************************************************/
+ MERGE_LIKE_PARTS: PROC(PARTNUM,USAGE);
+ DCL PARTNUM         CHAR(8);
+ DCL USAGE     FIXED DEC (2) UNALIGNED;
+
+   BTEST
+     PIC2 = USAGE;
+     DIAG_TEXT = MODULE||': MERGE LIKE PARTS '||PARTNUM||
+                         ' qty used '||usage;
+     CALL WRITE_TO_OPER();
+   ETEST
+
+
+
+ /*DO I = 1 TO COMMAREA.X#PARTS WHILE (^FOUND)              */
+ /*  IF COMMAREA.IPART(I) = PARTNUM                         */
+ /*    THEN DO                                              */
+ /*       FOUND = '1'B                                      */
+ /*       COMMAREA.QDISUS(I) = COMMAREA.QDISUS(I) + USAGE   */
+ /*    END                                                  */
+
+    IF @FIRST_PART ^= NULL  & ^FOUND    /* SEARCH THE LINK LIST      */
+      THEN DO ;                         /* OF QBPARTS IF THE LIST    */
+        @TEMP_PTR = @FIRST_PART;        /* EXISTS                    */
+
+        DO WHILE (@TEMP_PTR ^= NULL  & ^FOUND);
+          IF @TEMP_PTR-> BILL_PARTS.IPART = PARTNUM
+            THEN DO;
+              BTEST
+                DIAG_TEXT = MODULE||': PART FOUND '||PARTNUM;
+                CALL WRITE_TO_OPER();
+                DIAG_TEXT = MODULE||': ORIG QTY '||
+                          @TEMP_PTR -> BILL_PARTS.QDISUS;
+                CALL WRITE_TO_OPER();
+              ETEST           
+              FOUND = '1'B;
+              @TEMP_PTR -> BILL_PARTS.QDISUS =
+                              @TEMP_PTR -> BILL_PARTS.QDISUS + USAGE;
+              BTEST
+                DIAG_TEXT = MODULE||': AFTER QTY '||PARTNUM||'  '||
+                          @TEMP_PTR -> BILL_PARTS.QDISUS;
+                CALL WRITE_TO_OPER();
+              ETEST           
+
+            END;
+            ELSE DO;
+              BTEST
+                DIAG_TEXT = MODULE||': NOT FOUND '||PARTNUM;
+                CALL WRITE_TO_OPER();
+              ETEST
+              @TEMP_PTR = @TEMP_PTR -> @NEXT_PART;
+            END;
+        END;
+      END;
+
+  /*  END */
+
+ END MERGE_LIKE_PARTS;
+
+ %PAGE;
+ /********************************************************************/
+ /* IF THERE ARE ADDITIONAL PARTS TRAILERS OTHER THAN THE CURRENT    */
+ /* PART TRAILER, ACCUMULATE THE PARTS INFORMATION IN THE LINK LIST  */
+ /********************************************************************/
+ ADD_TO_ALLOCATED_PARTS: PROC; 
+ 
+   BTEST
+     DIAG_TEXT = MODULE||': ADD TO ALLOCATED PARTS';
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   NUM_QBPARTS = NUM_QBPARTS + 1;
+
+   ALLOCATE BILL_PARTS SET(@BILPRTS);   /* INITIALIZE QBPARTS        */
+   @BILPRTS -> BILL_PARTS.IPART    = TRLR_TEMP_PART.S0IPART;
+   @BILPRTS -> BILL_PARTS.QDISUS   = TRLR_TEMP_PART.S0QDISUS;
+   @BILPRTS -> BILL_PARTS.NPARTDSC = TRLR_TEMP_PART.DESCR;
+   @BILPRTS -> BILL_PARTS.APARTCS  = TRLR_TEMP_PART.CGPARTCS;
+   
+   BTEST
+     DIAG_TEXT = MODULE||': Parts counter' || NUM_QBPARTS ;
+     CALL WRITE_TO_OPER();
+     DIAG_TEXT = MODULE||': Part description ' 
+                       || TRLR_TEMP_PART.S0IPART;
+     CALL WRITE_TO_OPER();
+   ETEST
+                                        /* I96518                    */
+   SELECT (TRLR_TEMP_PART.S0CQUOTE);
+     WHEN ('0','1','3','5','6')
+       DO;
+         FIXDEC112 = TRLR_TEMP_PART.CGPARTPR; /* I95217              */
+         @BILPRTS -> BILL_PARTS.APARTPR  = FIXDEC112/100.0;
+       END;
+     OTHERWISE @BILPRTS -> BILL_PARTS.APARTPR  = 0;
+   END;                                 /* END OF SELECT             */
+
+   @BILPRTS -> BILL_PARTS.APARTAMT = 0;
+   @BILPRTS -> BILL_PARTS.APSTATTX = 0;
+   @BILPRTS -> BILL_PARTS.APCNTYTX = 0;
+   @BILPRTS -> BILL_PARTS.APCITYTX = 0;
+                                        /* PLACE PART IN THE LINK    */
+                                        /* LIST OF PARTS             */
+   IF NUM_QBPARTS = 1
+     THEN DO;
+       @FIRST_PART = @BILPRTS;
+       @CURRENT_PART = @BILPRTS;
+       @BILPRTS->@NEXT_PART = NULL;
+    END;
+    ELSE DO;
+      @CURRENT_PART->@NEXT_PART = @BILPRTS;
+      @CURRENT_PART = @BILPRTS;
+      @BILPRTS->@NEXT_PART = NULL;
+    END;
+
+ END ADD_TO_ALLOCATED_PARTS;
+
+ %PAGE;
+ /********************************************************************/
+ /* ASSIGN DATA FROM THE ORIGINAL QSAR SEGMENTS TO THE COMM AREA     */
+ /* BEING TRANSFERRED TO QBBIL4.  THEN ASSIGN THE PARTS TRAILER DATA */
+ /* TO THE QBPARTS SECTION.                                          */
+ /********************************************************************/
+ ASSIGN_TO_BILLCOMM: PROC;
+                                                  /* QSGENL          */
+   BTEST
+     DIAG_TEXT = MODULE||': ASSIGN TO BILLCOMM';
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   BILLCOMM.S0IDOCMN     = TEMP_GENL.S0IDOCMN;
+   BILLCOMM.PEND_KEY     = TEMP_GENL.PEND_KEY,      BY NAME;
+   BILLCOMM.RETRY_KEY    = TEMP_GENL.RETRY_KEY;
+   BILLCOMM.EMPL_KEY     = TEMP_GENL.EMPL_KEY,      BY NAME;
+   BILLCOMM.TIMESTAMP_KEY= TEMP_GENL.TIMESTAMP_KEY, BY NAME;
+   BILLCOMM.MIRROR_KEY   = NO;
+   BILLCOMM.DCS_HEADER   = TEMP_GENL.DCS_HEADER,    BY NAME;
+   BILLCOMM.CTL_FIELDS   = TEMP_GENL.CTL_FIELDS,    BY NAME;
+   BILLCOMM.S0UIPARE     = TEMP_GENL.S0UIPARE,      BY NAME;
+   BILLCOMM.CHICEWK      = TEMP_GENL.CHICEWK;
+   BILLCOMM.CHDSCAPR     = TEMP_GENL.CHDSCAPR;
+   BILLCOMM.CHDORIRR     = TEMP_GENL.CHDORIRR;
+   BILLCOMM.CHIREPPY     = TEMP_GENL.CHIREPPY;
+   BILLCOMM.CHIREPPW     = TEMP_GENL.CHIREPPW;
+   BILLCOMM.CGUERSEA     = TEMP_GENL.CGUERSEA,      BY NAME;
+
+   BILLCOMM.CGIOTHPB     = TEMP_GENL.CGIOTHPB;
+   BILLCOMM.CGIASGPB     = TEMP_GENL.CGIASGPB;
+   BILLCOMM.CGCCLAFG     = TEMP_GENL.CGCCLAFG;
+   BILLCOMM.CGCCLAPI     = TEMP_GENL.CGCCLAPI;
+   BILLCOMM.CGCSTAPI     = TEMP_GENL.CGCSTAPI;
+   BILLCOMM.CGCEFFST     = TEMP_GENL.CGCEFFST;
+   BILLCOMM.CGIEFFIT     = TEMP_GENL.CGIEFFIT;
+   /*BILLCOMM.CGCBILEX     = TEMP_GENL.CGCBILEX;  */
+   BILLCOMM.UMISFLG1     = TEMP_GENL.UMISFLG1,      BY NAME;
+   BILLCOMM.UMISFLG2     = TEMP_GENL.UMISFLG2,      BY NAME;
+
+   BILLCOMM.CGITYPMD     = TEMP_GENL.CGITYPMD,      BY NAME;
+   BILLCOMM.CGIOTHDV     = TEMP_GENL.CGIOTHDV;
+   BILLCOMM.CGIOTHOP     = TEMP_GENL.CGIOTHOP;
+   BILLCOMM.CGIOTHRG     = TEMP_GENL.CGIOTHRG;
+   BILLCOMM.CGIOTHAR     = TEMP_GENL.CGIOTHAR;
+   BILLCOMM.CGIOTIND     = TEMP_GENL.CGIOTIND,      BY NAME;
+
+   BILLCOMM.CIICEAB      = TEMP_GENL.CIICEAB;
+   BILLCOMM.CICGROUP     = TEMP_GENL.CICGROUP;
+   BILLCOMM.CIURECRE     = TEMP_GENL.CIURECRE,      BY NAME;
+   BILLCOMM.CGSRCBO      = TEMP_GENL.CGSRCBO;
+
+   BILLCOMM.R_VER        = TEMP_GENL.R_VER;
+   BILLCOMM.NSDC_DEL     = TEMP_GENL.NSDC_DEL;
+   BILLCOMM.NSDC_MULTRESUB= TEMP_GENL.NSDC_MULTRESUB;
+   BILLCOMM.S0CVEND      = TEMP_GENL.S0CVEND;
+  
+   BILLCOMM.S0CZIPCDE    = TEMP_GENL.S0CZIPCDE;
+   BILLCOMM.BILL_S       = TEMP_GENL.BILL_S;
+   BILLCOMM.CTAXCD       = TEMP_GENL.CTAXCD;
+   BILLCOMM.TMACHDSC     = TEMP_GENL.TMACHDSC; 
+   BILLCOMM.ICNVMSER     = TEMP_GENL.ICNVMSER;
+   BILLCOMM.CBASEWAR     = TEMP_GENL.CBASEWAR;
+   BILLCOMM.CCOURSE      = TEMP_GENL.CCOURSE;
+   BILLCOMM.IREQEMPL     = TEMP_GENL.IREQEMPL;
+            
+   BILLCOMM.CGUNTIME     = TEMP_GENL.CGUNTIME;  /*  FIELDS.  - ABM   */
+   BILLCOMM.IREQDIV      = TEMP_GENL.IREQDIV;
+   BILLCOMM.CEAMT        = TEMP_GENL.CEAMT;
+   BILLCOMM.FMTMCSU      = TEMP_GENL.FMTMCSU;
+   BILLCOMM.SPAD07       = TEMP_GENL.SPAD07;
+            
+   BILLCOMM.NSD_HRTG     = TEMP_GENL.NSD_HRTG;  /* HERITAGE       577*/
+
+   BILLCOMM.SPAD02       = TEMP_GENL.SPAD02;
+   BILLCOMM.SPAD03       = TEMP_GENL.SPAD03;
+   BILLCOMM.SPAD04       = TEMP_GENL.SPAD04;
+
+   BILLCOMM.SPAD05       = TEMP_GENL.SPAD05;
+   BILLCOMM.S0CCSCPC     = TEMP_GENL.S0CCSCPC;/*CE PROB NUMBER       */
+
+   BILLCOMM.SPAD06       = TEMP_GENL.SPAD06;
+   BILLCOMM.CPROBNUM2    = TEMP_GENL.CPROBNUM2;/*CAD PROB NUMBER     */
+
+   BILLCOMM.FHOLDFILE    = TEMP_GENL.FHOLDFILE;    /*                */
+   BILLCOMM.FMPIBUSY     = TEMP_GENL.FMPIBUSY;     /*                */
+   BILLCOMM.FCTRBUSY     = TEMP_GENL.FCTRBUSY;     /*                */
+   BILLCOMM.FSAVBUSY     = TEMP_GENL.FSAVBUSY;     /*                */
+   BILLCOMM.FSPWN08      = TEMP_GENL.FSPWN08;      /* SR1204         */
+
+   BILLCOMM.FPTCORR      = TEMP_GENL.FPTCORR;      /* SR 93110       */
+   BILLCOMM.FSYSSPWN     = TEMP_GENL.FSYSSPWN;     /*                */
+   BILLCOMM.FOEMTYPE     = TEMP_GENL.FOEMTYPE;     /* S9300154       */
+   BILLCOMM.FOEMCNTR     = TEMP_GENL.FOEMCNTR;     /* S99093         */
+
+   BILLCOMM.FAUDUNAV     = TEMP_GENL.FAUDUNAV;     /* S9300220       */
+   BILLCOMM.FAUDBUNA     = TEMP_GENL.FAUDBUNA;     /* S9300253       */
+   BILLCOMM.FMPIDBUN     = TEMP_GENL.FMPIDBUN;     /* I234980        */
+   BILLCOMM.FCTRDBUN     = TEMP_GENL.FCTRDBUN;     /*                */
+  
+   BILLCOMM.FISSCNTR     = TEMP_GENL.FISSCNTR;     /*                */
+
+   BILLCOMM.FIBM         = TEMP_GENL.FIBM;         /*                */
+   BILLCOMM.FONMA        = TEMP_GENL.FONMA;        /*                */
+   BILLCOMM.FWARRNTY     = TEMP_GENL.FWARRNTY;     /*                */
+
+   BILLCOMM.FOEEUNA      = TEMP_GENL.FOEEUNA;      /* SR050023       */
+   BILLCOMM.FTSSMACH     = TEMP_GENL.FTSSMACH;     /* S9500187       */
+
+   BILLCOMM.FPRTORD      = TEMP_GENL.FPRTORD;      /* SR0776         */
+   BILLCOMM.IAIC         = TEMP_GENL.IAIC ;        /* TU934C         */
+   BILLCOMM.CGSASCH      = TEMP_GENL.CGSASCH;      /* SR0967         */
+   
+   BILLCOMM.S0IPRDID     = TEMP_GENL.S0IPRDID;  /* PRODUCT ID        */
+   BILLCOMM.PEND_HDA     = TEMP_GENL.PEND_HDA;  /* PEND_HDA FLAG     */
+   BILLCOMM.COWNCALC     = TEMP_GENL.COWNCALC;
+   BILLCOMM.SPAD08       = TEMP_GENL.SPAD08;
+   
+   BILLCOMM.CCECUSTY     = TEMP_GENL.CCECUSTY;  /* CUSTOMER TYPE BA 7*/
+   BILLCOMM.CSAVSRC      = TEMP_GENL.CSAVSRC;      /* SR 9400170     */
+
+   BILLCOMM.S0ICSS2      = TEMP_GENL.S0ICSS2;      /* SR 9400170     */
+   BILLCOMM.FSTATRST     = TEMP_GENL.FSTATRST;     /* SR 9400170     */
+   BILLCOMM.CVALLOC      = TEMP_GENL.CVALLOC;      /* SR 9400170     */
+   BILLCOMM.CEBBILL      = TEMP_GENL.CEBBILL;      /* SR 9400170     */
+   BILLCOMM.CNTRDIAG     = TEMP_GENL.CNTRDIAG;     /* SR 9400170     */
+   BILLCOMM.CSRCHCNT     = TEMP_GENL.CSRCHCNT;     /* SR 9400170     */
+   BILLCOMM.CINVCNTR     = TEMP_GENL.CINVCNTR;
+
+   BILLCOMM.S0ICUST      = TEMP_GENL.S0ICUST;      /* SR 9500015     */
+   BILLCOMM.IAVALCTR     = TEMP_GENL.IAVALCTR;     /* SR 9400206     */
+   BILLCOMM.IAVALRSO     = TEMP_GENL.IAVALRSO;     /* SR 9400206     */
+
+   BILLCOMM.IMFGMOD      = TEMP_GENL.IMFGMOD;      /* DART DATA      */
+   BILLCOMM.CFAILCD      = TEMP_GENL.CFAILCD;      /* DART DATA      */
+
+   BILLCOMM.FECICALL     = TEMP_GENL.FECICALL;     /* S9500187       */
+   BILLCOMM.FEBCONT      = TEMP_GENL.FEBCONT;      /* S9500147       */
+   BILLCOMM.FRSTCNTR     = TEMP_GENL.FRSTCNTR;     /*                */
+   BILLCOMM.FCADMTCH     = TEMP_GENL.FCADMTCH;     /* S9500187       */
+   BILLCOMM.FSRCNSS      = TEMP_GENL.FSRCNSS;      /*                */
+   BILLCOMM.FTSSMACH     = TEMP_GENL.FTSSMACH;     /*                */
+   BILLCOMM.FSYSBILL     = TEMP_GENL.FSYSBILL;     /*                */
+   BILLCOMM.FMICRO       = TEMP_GENL.FMICRO;       /*                */
+   BILLCOMM.FMES         = TEMP_GENL.FMES;         /*                */
+   BILLCOMM.FECA         = TEMP_GENL.FECA;         /*                */
+   BILLCOMM.FREA         = TEMP_GENL.FREA;         /*                */
+   BILLCOMM.FSPCCNTR     = TEMP_GENL.FSPCCNTR;
+   BILLCOMM.FPREPEND     = TEMP_GENL.FPREPEND;
+
+   BILLCOMM.ICADID       = TEMP_GENL.ICADID;       /* S9500187       */
+   BILLCOMM.ICUSTPH      = TEMP_GENL.ICUSTPH;      /* S9500187       */
+   BILLCOMM.FCMPS_S      = TEMP_GENL.FCMPS_S;      /* SR 9500167     */
+
+   BILLCOMM.ISRVGCE      = TEMP_GENL.ISRVGCE;      /* SR 9500161     */
+   BILLCOMM.ISRVGRSO     = TEMP_GENL.ISRVGRSO;     /* SR 9500161     */
+   BILLCOMM.IPETLVL      = TEMP_GENL.IPETLVL ; /* PET/2 VER/LEVEL    */
+   BILLCOMM.IPARTCNT     = TEMP_GENL.IPARTCNT; /* TOT NUMBER OF PARTS*/
+                                               /* ENTERED PET/2 TRUER*/
+   BILLCOMM.HOFFSHFT     = TEMP_GENL.HOFFSHFT;
+   BILLCOMM.CHERITAG     = TEMP_GENL.CHERITAG;
+   BILLCOMM.CSEVRITY     = TEMP_GENL.CSEVRITY;
+   BILLCOMM.FACTWORK     = TEMP_GENL.FACTWORK;      /* S970133       */
+   BILLCOMM.FACTPLAN     = TEMP_GENL.FACTPLAN;      /* S970133       */
+   BILLCOMM.CACTFAIL     = TEMP_GENL.CACTFAIL;      /* S970133       */
+   BILLCOMM.CRTSSTAT     = TEMP_GENL.CRTSSTAT;      /* S970133       */
+   BILLCOMM.FCLM_S       = TEMP_GENL.FCLM_S  ;      /* S970219       */
+   BILLCOMM.CCNTRSRC     = TEMP_GENL.CCNTRSRC;      /* S970219       */
+   BILLCOMM.CIACTIND     = TEMP_GENL.CIACTIND;      /* S970219       */
+   BILLCOMM.IGROUP       = TEMP_GENL.IGROUP  ;      /* S970219       */
+   BILLCOMM.CPRODDIV     = TEMP_GENL.CPRODDIV;
+   BILLCOMM.ISOURCE      = TEMP_GENL.ISOURCE ;
+   BILLCOMM.FSTDER_S     = TEMP_GENL.FSTDER_S;
+   BILLCOMM.FSFTPEND     = TEMP_GENL.FSFTPEND;
+   BILLCOMM.IQARMOD      = TEMP_GENL.IQARMOD;
+   BILLCOMM.IWKNUMAC     = TEMP_GENL.IWKNUMAC;
+   BILLCOMM.FWNUCHG      = TEMP_GENL.FWNUCHG;
+   BILLCOMM.FCEDBTS      = TEMP_GENL.FCEDBTS;
+   
+   BILLCOMM.FBILACTH     = TEMP_GENL.FBILACTH;  /* 4nsc              */
+   BILLCOMM.FBILTRVH     = TEMP_GENL.FBILTRVH;  /* 4nsc              */
+   BILLCOMM.FBILPART     = TEMP_GENL.FBILPART;  /* 4nsc              */
+   BILLCOMM.FBILDIST     = TEMP_GENL.FBILDIST;  /* 4nsc              */   
+   BILLCOMM.FBILEXP      = TEMP_GENL.FBILEXP;   /* 4nsc              */
+   
+   COMMAREA.FOVRTIME     = TEMP_GENL.FOVRTIME;  /* SR040017          */
+   COMMAREA.FSEROVRD     = TEMP_GENL.FSEROVRD;  /* SR040017          */
+   COMMAREA.CBRANCH      = TEMP_GENL.CBRANCH;   /* SR040017          */
+   
+   BILLCOMM.CWARLIAB     = TEMP_GENL.CWARLIAB;  /* 5NSC              */
+   BILLCOMM.CWUPLIAB     = TEMP_GENL.CWUPLIAB;  /* 5NSC              */
+   BILLCOMM.CMALIAB      = TEMP_GENL.CMALIAB;   /* 5NSC              */
+   BILLCOMM.FPERCALL     = TEMP_GENL.FPERCALL;  /* 5NSC              */
+   BILLCOMM.CSPECAPR     = TEMP_GENL.CSPECAPR;  /* 5NSC              */
+   BILLCOMM.CFUTRUSE     = TEMP_GENL.CFUTRUSE;  /* 5NSC              */
+   BILLCOMM.ILIABSRC     = TEMP_GENL.ILIABSRC;  /* 5NSC              */
+   BILLCOMM.CWARRUP      = TEMP_GENL.CWARRUP;   /* 5NSC              */
+   BILLCOMM.NWARPHSE     = TEMP_GENL.NWARPHSE;  /* 5NSC              */
+   BILLCOMM.NWUPHSE      = TEMP_GENL.NWUPHSE;   /* 5NSC              */
+   BILLCOMM.IPLATFRM     = TEMP_GENL.IPLATFRM;  /* 5NSC              */
+   
+   BILLCOMM.CCSTACTH     = TEMP_GENL.CCSTACTH;
+   BILLCOMM.CCSTTRVH     = TEMP_GENL.CCSTTRVH;
+   BILLCOMM.CCSTPART     = TEMP_GENL.CCSTPART;
+   BILLCOMM.ICOSTSET     = TEMP_GENL.ICOSTSET;
+   BILLCOMM.IHRSSRC      = TEMP_GENL.IHRSSRC;
+  
+   BILLCOMM.QJBILMTR     = TEMP_GENL.QJBILMTR;
+   BILLCOMM.IENTSRC      = TEMP_GENL.IENTSRC;
+   BILLCOMM.FOEMMTCH     = TEMP_GENL.FOEMMTCH;
+ 
+   /*BILLCOMM.FMPI24X7     = TEMP_GENL.FMPI24X7;             /* 4NSC */
+   /*BILLCOMM.FCNT24X7     = TEMP_GENL.FCNT24X7;             /* 4NSC */
+   /*BILLCOMM.FWAR24X7     = TEMP_GENL.FWAR24X7;             /* 4NSC */
+   /*BILLCOMM.FSOMACH      = TEMP_GENL.FSOMACH;              /* 4NSC */
+   /*BILLCOMM.FOEE         = TEMP_GENL.FOEE;                 /* 4NSG */
+   /*BILLCOMM.FACTADMN     = TEMP_GENL.FACTADMN;             /* 5NSO */
+   BILLCOMM.UFLAGS       = TEMP_GENL.UFLAGS, BY NAME;
+
+
+   BILLCOMM.IMACOWNR     = TEMP_GENL.IMACOWNR;   /* 7NSM             */
+   BILLCOMM.IMACMFGR     = TEMP_GENL.IMACMFGR;   /* 7NSM             */
+   BILLCOMM.CWUMP        = TEMP_GENL.CWUMP;      /* 7NSM             */
+   BILLCOMM.CCOSTCAT     = TEMP_GENL.CCOSTCAT;   /* 7NSM             */
+   BILLCOMM.CGWSCNTRY    = TEMP_GENL.CGWSCNTRY;  /* 7NSM             */
+   BILLCOMM.CWARSERV     = TEMP_GENL.CWARSERV;   /* 7NSM             */
+   BILLCOMM.CBWCPHSE     = TEMP_GENL.CBWCPHSE;   /* 7NSM             */
+   BILLCOMM.ICCOSTSQ     = TEMP_GENL.ICCOSTSQ;   /* 7NSM             */
+   
+   BILLCOMM.SPAD99       = TEMP_GENL.SPAD99;     
+   BILLCOMM.IAPPLID      = TEMP_GENL.IAPPLID;
+   BILLCOMM.ITRANSID     = TEMP_GENL.ITRANSID;
+
+   IF INVT_OVERLY ^= ' '
+     THEN DO;
+       BILLCOMM.M_MPI = 'Y';
+       BILLCOMM.INVENTORY = TEMP_INVT.INVENTORY, BY NAME;
+     END;
+     ELSE BILLCOMM.M_MPI = 'N';
+
+   IF NARR_OVERLY ^= ' '
+     THEN DO;
+       BILLCOMM.NARRATIVE  = TEMP_NARR.NARRATIVE , BY NAME;
+       BTEST
+         DIAG_TEXT = MODULE||': REF '||BILLCOMM.S8CUSTRF||
+                             ' COMM '||SUBSTR(BILLCOMM.S8TFREFN,1,40);
+         CALL WRITE_TO_OPER();
+       ETEST
+
+     END;
+
+   IF MISC_OVERLY ^= ' '
+     THEN DO;
+       BILLCOMM.UMISCELL  = TEMP_MISC.UMISCELL , BY NAME;
+     END;
+
+   DO I = 1 TO NUM_PARTS;                /* ASSIGN QSAR PARTS DATA   */
+     BILLCOMM.PARTS(I) = TEMP_PARTS(I), BY NAME;
+   END;
+
+   BILLCOMM.QBBILL = TEMP_QBBILL, BY NAME;
+   
+   CALL ASSIGN_HOURS();             
+   CALL ASSIGN_QBPARTS;
+
+ END ASSIGN_TO_BILLCOMM;
+
+ %PAGE;
+ /********************************************************************/
+ /* START AT THE HEAD OF THE LINKED LIST AND ASSIGN THE QBPARTS DATA */
+ /* TO THE BILL COMMAREA QBPARTS SECTION.                            */
+ /********************************************************************/
+ ASSIGN_QBPARTS: PROC;
+
+   BTEST
+      DIAG_TEXT = MODULE||': ASSIGN PARTS '||NUM_QBPARTS;
+      CALL WRITE_TO_OPER();
+   ETEST
+ 
+   @CURRENT_PART = @FIRST_PART;
+   DO I = 1 TO NUM_QBPARTS ;
+   BTEST
+     DIAG_TEXT = MODULE||':1 I '|| I ;
+     CALL WRITE_TO_OPER();
+   ETEST
+      BILLCOMM.QBPARTS(I) = @CURRENT_PART -> BILL_PARTS, BY NAME;
+      @CURRENT_PART = @CURRENT_PART -> @NEXT_PART;
+
+   BTEST
+     DIAG_TEXT = MODULE||':2 I '||I||' '||BILLCOMM.QBPARTS(I).IPART;
+     CALL WRITE_TO_OPER();
+   ETEST
+
+   END;
+   BILLCOMM.X#QBPARTS = NUM_QBPARTS ;
+   
+   BTEST
+     DIAG_TEXT = MODULE||':2 I '||I||' '||BILLCOMM.X#QBPARTS;
+     CALL WRITE_TO_OPER();
+   ETEST
+
+ /*  DO J = 1 TO COMMAREA.X#PARTS;
+     BILLCOMM.QBPARTS(I).IPART = COMMAREA.PARTS(J).S0IPART;
+     PIC2 = COMMAREA.PARTS(J).S0QDISUS;
+     BILLCOMM.QBPARTS(I).QDISUS = PIC2;
+     BILLCOMM.QBPARTS(I).NPARTDSC = COMMAREA.PARTS(J).DESCR;
+     SELECT( COMMAREA.PARTS(J).S0CQUOTE);
+       WHEN ('0','1','3','5','6')
+         DO;
+           FIXDEC112 = COMMAREA.PARTS(J).CGPARTPR;
+           BILLCOMM.QBPARTS(I).APARTPR = FIXDEC112/100.0;
+         END;
+       OTHERWISE BILLCOMM.QBPARTS(I).APARTPR = 0;
+     END;
+  
+     BTEST
+       DIAG_TEXT=  MODULE||': PARTS DATA: '||BILLCOMM.IPART(I)
+          ||' '|| BILLCOMM.QDISUS(I)||' '||BILLCOMM.APARTPR(I);  
+       CALL WRITE_TO_OPER();
+     ETEST
+     I = I + 1;
+   END;  */
+
+ END ASSIGN_QBPARTS;
+
+
+  %PAGE;
+ /********************************************************************/
+ /* THE PURPOSE OF THIS ROUTINE IS TO ASSIGN VALID START AND STOP    */
+ /* TIMES FOR A SPECIFIC DAY WHICH IS TO BE PASSED TO QBBIL4 FOR ALL */
+ /* PART TRAILERS WHICH ARE BEING REPRICED THROUGH QBBIL6            */
+ /********************************************************************/
+ ASSIGN_HOURS: PROC();
+ 
+ DCL DAY_OF_WEEK     FIXED DEC(1)   INIT(1);
+ DCL TEMP_DATE             CHAR(8)  INIT('');
+ DCL TEMP_LILDATE    FIXED BIN(31)  INIT(0);
+ 
+ /* INITIALIZE START STOP HOURS WITH DEFAULTS                        */
+  BILLCOMM.HSTRTSAT = '0000';
+  BILLCOMM.HENDSAT  = '0000';
+  BILLCOMM.HSTRTSUN = '0000';
+  BILLCOMM.HENDSUN  = '0000';
+  BILLCOMM.HSTRTMON = '0800';
+  BILLCOMM.HENDMON  = '1700';
+  BILLCOMM.HSTRTTUE = '0800';
+  BILLCOMM.HENDTUE  = '1700';
+  BILLCOMM.HSTRTWED = '0800';
+  BILLCOMM.HENDWED  = '1700';
+  BILLCOMM.HSTRTTHU = '0800';
+  BILLCOMM.HENDTHU  = '1700';
+  BILLCOMM.HSTRTFRI = '0800';
+  BILLCOMM.HENDFRI  = '1700';
+   
+  TEMP_DATE = BILLCOMM.S0DCALCY ||   /* FROM ACTIVITY DATE     */
+              BILLCOMM.S0DCALCM ||
+              BILLCOMM.S0DCALCD;
+            
+  LIL_DATE = GREGORIAN_TO_LILIAN(TEMP_DATE,'1');/*CONVERT TO LILDATE*/
+  TEMP_LILDATE = LIL_DATE;
+  DAY_OF_WEEK = GET_DAYNUM(TEMP_LILDATE,'1');/*GET THE DAY OF  WEEK */
+  
+  SELECT(DAY_OF_WEEK);                /* SELECT THE DAY OF THE WEEK */
+    WHEN(1)                          /* ACTIVITY DAY 1 IS SUNDAY   */
+      DO;
+        BILLCOMM.HSTRTFRI = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDFRI  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTSAT = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDSAT  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTSUN = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDSUN  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(2)                          /* ACTIVITY DAY 2 IS MONDAY   */
+      DO;
+        BILLCOMM.HSTRTSAT = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDSAT  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTSUN = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDSUN  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTMON = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDMON  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(3)                          /* ACTIVITY DAY 3 IS TUESDAY  */
+      DO;
+        BILLCOMM.HSTRTSUN = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDSUN  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTMON = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDMON  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTTUE = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDTUE  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(4)                          /* ACTIVITY DAY 4 IS WEDNESDAY*/
+      DO;
+        BILLCOMM.HSTRTMON = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDMON  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTTUE = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDTUE  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTWED = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDWED  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(5)                          /* ACTIVITY DAY 5 IS THURSDAY */
+      DO;
+        BILLCOMM.HSTRTTUE = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDTUE  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTWED = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDWED  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTTHU = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDTHU  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(6)                          /* ACTIVITY DAY 6 IS FRIDAY   */
+      DO;
+        BILLCOMM.HSTRTWED = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDWED  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTTHU = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDTHU  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTFRI = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDFRI  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    WHEN(7)                          /* ACTIVITY DAY 7 IS SATURDAY */
+      DO;
+        BILLCOMM.HSTRTTHU = TEMP_QBBILL.HDAY1STRT;
+        BILLCOMM.HENDTHU  = TEMP_QBBILL.HDAY1STOP;
+        BILLCOMM.HSTRTFRI = TEMP_QBBILL.HDAY2STRT;
+        BILLCOMM.HENDFRI  = TEMP_QBBILL.HDAY2STOP;
+        BILLCOMM.HSTRTSAT = TEMP_QBBILL.HDAY3STRT;
+        BILLCOMM.HENDSAT  = TEMP_QBBILL.HDAY3STOP;
+      END;
+    OTHERWISE;
+  END; 
+  
+  IF TEST_SW 
+    THEN DO;  
+      DIAG_TEXT = MODULE||': DAY 1 '||TEMP_QBBILL.HDAY1STRT
+                        ||'/'       ||TEMP_QBBILL.HDAY1STOP;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': DAY 2 '||TEMP_QBBILL.HDAY2STRT
+                        ||'/'       ||TEMP_QBBILL.HDAY2STOP;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': DAY 3 '||TEMP_QBBILL.HDAY3STRT
+                        ||'/'       ||TEMP_QBBILL.HDAY3STOP;
+      CALL WRITE_TO_OPER();       
+      DIAG_TEXT = MODULE||': SUN - '||BILLCOMM.HSTRTSUN
+                        ||'/'       ||BILLCOMM.HENDSUN ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': MON - '||BILLCOMM.HSTRTMON
+                        ||'/'       ||BILLCOMM.HENDMON ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': TUE - '||BILLCOMM.HSTRTTUE
+                        ||'/'       ||BILLCOMM.HENDTUE ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': WED - '||BILLCOMM.HSTRTWED
+                        ||'/'       ||BILLCOMM.HENDWED ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': THU - '||BILLCOMM.HSTRTTHU
+                        ||'/'       ||BILLCOMM.HENDTHU ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': FRI - '||BILLCOMM.HSTRTFRI
+                        ||'/'       ||BILLCOMM.HENDFRI ;
+      CALL WRITE_TO_OPER();
+      DIAG_TEXT = MODULE||': SAT - '||BILLCOMM.HSTRTSAT
+                        ||'/'       ||BILLCOMM.HENDSAT ;
+      CALL WRITE_TO_OPER();
+    END;
+ 
+ END ASSIGN_HOURS;
+ 
+  %PAGE;                                  
+ /*******************************************************************/
+ /*******************************************************************/
+ SCHEDULE_PSB: PROC(PSBNAME);
+ DCL PSBNAME   CHAR(8);
+ 
+   FUNC = 'PCB';
+                                        /* SCHEDULE QBBIL6 PSB       */
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO SCHEDULE PSB '||PSBNAME;
+
+   CALL PLITDLI (PARM_CT3,
+                 FUNC,
+                 PSBNAME,
+                 UIBPTR);
+
+   CALL ANALYZE_UIB;
+   PSB_SCHEDULED = '1'B;
+   
+ END SCHEDULE_PSB;
+ 
+   %PAGE;                                  
+ /*******************************************************************/
+ /*******************************************************************/
+ TERMINATE_PSB: PROC(PSBNAME);
+ DCL PSBNAME  CHAR(8);
+
+   FUNC = 'TERM';
+                                        /* TERMINATE QBBIL6 PSB      */
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO TERMINATE PSB '||PSBNAME;
+
+  /*  CALL PLITDLI (PARM_CT1,FUNC)   */
+  /* CALL ANALYZE_UIB                */
+  
+   EXEC DLI TERMINATE;
+   
+   IF DIBSTAT = ''
+     THEN PSB_SCHEDULED = '0'B;
+     ELSE DO;
+       ET_TEXT3 = ERR2 || MODULE || 'DIBSTAT=' || DIBSTAT;
+       SIGNAL ERROR;
+     END;
+
+     
+ END TERMINATE_PSB;
+
+  %PAGE;                                  
+ /*******************************************************************/
+ /* GREGORIAN TO LILIAN                                             */
+ /*******************************************************************/
+ GREGORIAN_TO_LILIAN: PROC(INGREG_DATE,LOC) RETURNS(FIXED BIN(31));
+   DCL INGREG_DATE          CHAR(8);
+   DCL LOC                  CHAR(1);
+   DCL GREG_DATE            CHAR(255) VARYING;
+   DCL OUTLIL_DATE    FIXED BIN(31);
+ 
+   DCL 01 FC,                     /* Feedback token */
+          03 MsgSev    REAL FIXED BINARY(15,0),
+          03 MsgNo     REAL FIXED BINARY(15,0),
+          03 Flags,
+             05 Case      BIT(2),
+             05 Severity  BIT(3),
+             05 Control   BIT(3),
+          03 FacID     CHAR(3),      /* Facility ID */
+          03 ISI   /* Instance-Specific Information */
+                       REAL FIXED BINARY(31,0);
+ 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': DATE CONVERSION  GREG TO LIL '||
+                               INGREG_DATE||' FROM LOC '||LOC||
+                               ' DOC '||BILLCOMM.S0IDOCMN;
+       CALL WRITE_TO_OPER;
+     END;
+ 
+   GREG_DATE   = INGREG_DATE;
+                     /*  GREGORIAN DATE TO LILIAN DATE              */
+   CALL CEEDAYS (GREG_DATE,'YYYYMMDD',OUTLIL_DATE,FC);
+ 
+   IF FBCHECK (FC, CEE000)
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': VALID DATE-GREGDATE '||
+                               SUBSTR(GREG_DATE,1,8)||
+                               ' LIL_DATE '||OUTLIL_DATE;
+           CALL WRITE_TO_OPER;
+         END;
+     END;
+     ELSE DO;
+       DIAG_TEXT = MODULE||': CEEDAYS failed with msg '||
+                            FC.MsgNo||' FROM LOC '||LOC||
+                            ' DOC '||BILLCOMM.S0IDOCMN;
+ 
+       CALL WRITE_TO_OPER;
+       OUTLIL_DATE = 1;
+     END;
+ 
+   RETURN(OUTLIL_DATE);
+ 
+ END GREGORIAN_TO_LILIAN;
+
+
+ %PAGE;
+ /********************************************************************/
+ /* GET THE DAY OF THE WEEK.                                         */
+ /*                                                                  */
+ /********************************************************************/
+ GET_DAYNUM: PROC(LILDATE,LOC) RETURNS(FIXED BIN(31));
+ 
+   DCL LILDATE       FIXED BIN(31);
+   DCL DAYNAME             CHAR(9)         INIT('');
+   DCL DAYNUM   REAL FIXED BIN(31,0) INIT(0);
+   DCL LOC                 CHAR(1);
+   DCL PIC9                PIC'(9)9'   INIT(0);
+   DCL PIC_DAYNUM          PIC '(1)9'  INIT(0);
+   DCL 01 FC3,                     /* Feedback token */
+          03 MsgSev    REAL FIXED BINARY(15,0),
+          03 MsgNo     REAL FIXED BINARY(15,0),
+          03 Flags,
+             05 Case      BIT(2),
+             05 Severity  BIT(3),
+             05 Control   BIT(3),
+          03 FacID     CHAR(3),      /* Facility ID */
+          03 ISI   /* Instance-Specific Information */
+                       REAL FIXED BINARY(31,0);
+
+   IF TEST_SW 
+     THEN DO;
+       PIC9 = LILDATE;
+       DIAG_TEXT = MODULE||': FUNCTION GET DAYNUM - lildate'||
+                             PIC9;
+       CALL WRITE_TO_OPER();
+     END;
+
+   CALL CEEDYWK(LILDATE,DAYNUM,FC3);
+
+   IF TEST_SW 
+     THEN DO;
+       DIAG_TEXT = MODULE||': AFTER CALL CEEDYWK ';
+       CALL WRITE_TO_OPER();
+     END;
+
+   IF FBCHECK (FC3, CEE000)
+     THEN DO;
+       PIC_DAYNUM = DAYNUM;
+
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DAY OF WEEK: ' ||PIC_DAYNUM;
+           CALL WRITE_TO_OPER();
+         END;
+     END;
+     ELSE DO;
+       PIC9  = LILDATE;
+       DIAG_TEXT = MODULE||': doc '||BILLCOMM.S0IDOCMN|| 
+                           ' CEEDATE FAILED WITH MSG '||FC3.MSGNO||
+                           ' in date '||PIC9||
+                           ' LOC '||LOC;
+       CALL WRITE_TO_OPER();
+
+       SIGNAL ERROR;
+     END;
+     
+   IF TEST_SW
+     THEN DO;
+       SELECT (DAYNUM); 
+         WHEN(1) DAYNAME = 'SUNDAY';
+         WHEN(2) DAYNAME = 'MONDAY';
+         WHEN(3) DAYNAME = 'TUESDAY';
+         WHEN(4) DAYNAME = 'WEDNESDAY';
+         WHEN(5) DAYNAME = 'THURSDAY';
+         WHEN(6) DAYNAME = 'FRIDAY';
+         WHEN(7) DAYNAME = 'SATURDAY';
+         OTHERWISE;
+       END;                    /* END SELECT                         */
+                               /* ---------------------------------- */
+       DIAG_TEXT = MODULE||': AFTER CALL CEEDYWK - day of week '||
+                             PIC2||' '||DAYNAME;
+       CALL WRITE_TO_OPER();
+     END;
+    
+   RETURN (DAYNUM);
+
+ END GET_DAYNUM;                   
+
+ %PAGE;
+ /********************************************************************/
+ /* THE PURPOSE OF THIS ROUTINE IS TO CHECK FOR A VALID RETURN CODE  */
+ /* FROM THE DL/I USER INTERFACE BLOCK.  IT MUST BE CHECK BEFORE     */
+ /* CHECKING THE PCB STATUS CODE.                                    */
+ /********************************************************************/
+ ANALYZE_UIB:  PROC;
+ 
+ IF UIBFCTR ^= STAT_ZERO
+   THEN DO;
+     RETCODE1 = UIBFCTR;                /* CONVERT BIT TO CHAR STRING*/
+     RETCODE2 = UIBDLTR;
+     ET_TEXT3 = ERR2||MODULE||' UIBFCTR= '||RETCODE1||' UIBDLTR='||
+                RETCODE2||' PSB '|| IMS_PSB||' FUNC '||FUNC;
+     SIGNAL ERROR;
+   END;
+
+ END ANALYZE_UIB;
+ 
+ %PAGE;
+ /********************************************************************/
+ /* WRITE TO OPERATOR   - ** FOR TEST ONLY **                        */
+ /********************************************************************/
+ WRITE_TO_OPER: PROC();
+  /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)     */
+
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+   
+ END WRITE_TO_OPER;
+
+ END QBBIL6  ;

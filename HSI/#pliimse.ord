@@ -1,0 +1,20 @@
+$¬  7/21/2004 remove CPROCESS=PLI=G                                                PEck
+$¬  7/20/2004 changed compiler options for Enterprise PL/1 compiler                LBS
+$¬  &       CPM1='M,AG,STG,NIS,OF,OPT(2),S,STMT,RENT,LC(60)'=G,
+$¬  &       CPM2='ND,XREF,A(F),LIST,MAP,ESD,OP,NEST,OBJ,NOBLKOFF'=G,
+$¬  10/10/2010 change LEC1 to AMODE(31),RMODE(ANY)                                 LBS
+$¬  
+$¬  
+&  SET  U,SOTYPE=PLIENT=G,
+&       CL=PLIENT=G,
+&       LIBSET=MSETA01=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='M,A(S),AG,STG,NIS,OF,OPT(2),S,STMT,RENT'=G,
+&       CPM2='OP,LC(60),X(S),SYSTEM(IMS),NEST,MAR(2,72,1)'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G,
+&       LEC1='XREF,LIST,AMODE(31),RMODE(ANY)'=G

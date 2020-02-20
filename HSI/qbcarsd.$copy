@@ -1,0 +1,71 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBCARSD     VERSION NR:  01           DATE:  01/31/90    */
+ /*                                               TIME:  09:35:00    */
+ /*                                                                  */
+ /* TITLE: QBCARSD                                                   */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: CARSD                                          */
+ /*                                                                  */
+ /* TYPE: SEGMENT                                                    */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* LENGTH:   200                                                    */
+ /*                                                                  */
+ /* DESCRIPTION: MAPPING OF CAD CALL EXTENSION DATA.                 */
+ /*              !!! NOTE !!!                                        */
+ /*              THIS IS A PL/I VERSION USED BY QSAR BILLING         */
+ /*              PROCESSOR (QB*) OF THE PLS VERSION "CARSD COPY"     */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  01/31/90 DCR9892J 0NSA INITIAL CREATION                    JWJ  */
+ /*  01/25/95 S9400170 4NSM SHOW IMODLOCK AS 11 LENGTH          DLK  */
+ /*                                                                  */
+ /********************************************************************/
+       3 CCOTYPE     CHAR(3),   /* CONTRACT TYPE                     */
+       3 HCMFSTR     CHAR(4),   /* CONTRACT START TIME (M-F)         */
+       3 HCMFSTP     CHAR(4),   /* CONTRACT STOP TIME  (M-F)         */
+       3 HCSASTR     CHAR(4),   /* CONTRACT START TIME (SAT)         */
+       3 HCSASTP     CHAR(4),   /* CONTRACT STOP TIME  (SAT)         */
+       3 HCSUSTR     CHAR(4),   /* CONTRACT START TIME (SAT)         */
+       3 HCSUSTP     CHAR(4),   /* CONTRACT STOP TIME  (SAT)         */
+       3 HAMFSTR     CHAR(4),   /* ACCESS START TIME MONDAY          */
+       3 HAMFSTP     CHAR(4),   /* ACCESS STOP TIME MONDAY           */
+       3 HASASTR     CHAR(4),   /* ACCESS START TIME SATURDAY        */
+       3 HASASTP     CHAR(4),   /* ACCESS STOP TIME SATURDAY         */
+       3 HASUSTR     CHAR(4),   /* ACCESS START TIME SUNDAY          */
+       3 HASUSTP     CHAR(4),   /* ACCESS STOP TIME SUNDAY           */
+       3 TPRDLOC     CHAR(20),  /* PRODUCT LOCATION                  */
+       3 IMODEM      CHAR(17),  /* MODEM ACCESS/TELEPHONE NUMBER     */
+       3 IMODLOCK    CHAR(11),  /*        SL                         */
+       3 CCLASSC     CHAR(1),   /* CLASS CODE                        */
+       3 CSOURCE     CHAR(1),   /* SOURCE CODE                       */
+       3 FCARSDF1,
+         5 FRAPIDR   BIT(1),    /* RAPID RESPONSE INDICATOR          */
+         5 FOUTS     BIT(1),    /* OUTSIDE HOURS FLAG                */
+         5 FHZARD    BIT(1),    /* HAZARDOUS ENVIRONMENT             */
+         5 FVIPOPT   BIT(1),    /* VIP OPTION                        */
+         5 FREMPL    BIT(1),    /* PER VISIT OPTION = REMOTE POLL    */
+         5 FMAINTS   BIT(1),    /* PER VISIT OPTION = PM             */
+         5 SCARPD1   BIT(2),    /* UNUSED                            */
+       3 FCUSOPT,               /* CUSTOMER PARTICIPATION OPTIONS    */
+         5 CANALOGO  CHAR(1),   /* ANALOG OPTION    (O/M/C)          */
+         5 CRPHONEO  CHAR(1),   /* ROLMPHONE OPTION (O/M/C)          */
+         5 CDSKTOPO  CHAR(1),   /* DESKTOP OPTION   (O/M/C)          */
+         5 FCARSDF2,            /* PER VISIT OPTION (CONTRACT=PV)    */
+           7 FNWORKO BIT(1),    /* NETWORK OPTION                    */
+           7 FSYSMGO BIT(1),    /* SYSTEM MANAGEMENT OPTION          */
+           7 FRSOFTO BIT(1),    /* ROLM SOFTWARE OPTION              */
+           7 SCARPD2 BIT(5),    /* UNUSED                            */
+       3 ICONTRAC    CHAR(11),  /* CONTRACT NUMBER                   */
+       3 HCRITICA    CHAR(4),   /* CRITICAL HOURS                    */
+       3 HTARGIT     CHAR(4),   /* TARGET HOURS                      */
+       3 CARSDPAD    CHAR(75)   /* UNUSED                            */
+ /*------------------------------------------------------------------*/
+ /*                                  END  QBCARSD                    */
+ /*------------------------------------------------------------------*/
+

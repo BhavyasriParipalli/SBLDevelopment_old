@@ -1,0 +1,1129 @@
+ QBMQDR: PROC OPTIONS(MAIN,REENTRANT) REORDER;
+ /*******************************************************************/
+ /*                                                                 */
+ /*  PROGRAM:  QBMQDR      VERSION NR:  01        DATE:  06/22/10   */
+ /*                                               TIME:  09:11:20   */
+ /*                                                                 */
+ /*  TITLE:  HSI CROSS MQSERIES DRIVER MODULE                       */
+ /*                                                                 */
+ /*  FUNCTION:  THIS MODULE CREATES THE SIMULATED INPUT RECORDS     */
+ /*             FOR POPULATING THE HSI CROSS MQSERIES INPUT QUEUE   */
+ /*             GOING QUEUE TO CROSS LAR.                           */
+ /*                                                                 */
+ /*             FIND FOR "CHANGE THIS" OR "CHANGE" TO MODIFY THE    */
+ /*             REQUIRED FIELDS                                     */
+ /*                                                                 */
+ /*  LANGUAGE:  PL/I                                                */
+ /*                                                                 */
+ /*  MODULE TYPE:  REALTIME (CICS)                                  */
+ /*                                                                 */
+ /*  PARM:                                                          */
+ /*                                                                 */
+ /*  INTERFACES:                                                    */
+ /*                                                                 */
+ /*  INPUTS:                                                        */
+ /*                                                                 */
+ /*  OUTPUTS:  MQDATA (CREATED)                                     */
+ /*                                                                 */
+ /*  REPORTS:  NONE                                                 */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:    REASON:    DRIVER:  DESCRIPTION:         PROGRAMMER:  */
+ /*                                                                 */  
+ /*  06/22/10 HSICROSS   0NSE     INITIAL VERSION      NIRANJANAA   */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('0NSE - 06/22/2010');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBMQDR');
+ 
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ %PAGE;
+ /*-----------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING          */
+ /* PREPROCESSOR STATEMENTS:                                        */
+ /*                                                                 */
+ /*    %DCL CMPTIME CHAR                                            */
+ /*    %DCL COMPILETIME BUILTIN                                     */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                           */
+ /*                                                                 */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN    */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                          */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /*******************************************************************/
+ /*   BEGIN DECLARES                                                */
+ /*******************************************************************/
+
+ /*-----------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                     */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:               */
+ /*          DATE, TIME                                             */
+ /*-----------------------------------------------------------------*/
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE              */
+ DCL  HIGH         BUILTIN;         /* HEX 'FF...'                  */
+ DCL  INDEX        BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  LOW          BUILTIN;         /* HEX '00...'                  */
+ DCL  MOD          BUILTIN;
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE           */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITHERROR*/
+ DCL  ONSOURCE     BUILTIN;         /* NAME OF ENTRY-POINT WITHERROR*/
+ DCL  PLIRETV      BUILTIN;
+ DCL  PLIDUMP      BUILTIN;
+ DCL  STG          BUILTIN;         /* STORAGE                      */
+ DCL  SUBSTR       BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+ /*-----------------------------------------------------------------*/
+ /*  FILE DECLARES                                                  */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO        */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'  */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,   */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...              */
+ /*-----------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*-----------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                           */
+ /*-----------------------------------------------------------------*/
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(24K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ;;
+
+ %PAGE;
+
+ /*-----------------------------------------------------------------*/
+ /* MQ MODULE INTERFACE BLOCK                                       */
+ /*-----------------------------------------------------------------*/
+  
+ DCL 1 COMM_QBMQIN1,
+       %INCLUDE QBMQIN1;;
+ %PAGE;
+
+ DCL 1 COMM_QBMQIN5,
+       %INCLUDE QBMQIN5;;
+ %PAGE;
+
+ DCL 1 COMM_QBCROSS,
+       %INCLUDE QBCROSS;;
+ %PAGE;
+  
+ DCL @CWA           PTR INIT(NULL); /* POINTER TO CWA               */
+ DCL @COMM_QBMQIN1 PTR INIT(ADDR(COMM_QBMQIN1));
+ DCL @COMM_QBMQIN5 PTR INIT(ADDR(COMM_QBMQIN5));
+ DCL @COMM_QBCROSS PTR INIT(ADDR(COMM_QBCROSS));
+
+ /*-----------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED)*/
+ /*-----------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+ 
+ /*-----------------------------------------------------------------*/
+ /* MQ SERIES STRUCTURE FOR CROSS                                   */
+ /*-----------------------------------------------------------------*/   
+  %INCLUDE CMQP;;
+  %INCLUDE CMQEPP;;
+
+ /*******************************************************************/
+ /*         MQSERIES WORKING STORAGE DECLARATIONS                   */
+ /*******************************************************************/
+  DCL MQ_PUT_QUE  CHAR(48) INIT('');       /* QUEUE NAME            */
+  DCL PRIORITY    PIC'9' INIT(0);                                      
+  DCL COMP_CODE   FIXED BIN(31) INIT(0);   /* COMPLETION CODE       */
+  DCL MQ_REASON   FIXED BIN(31) INIT(0);   /* REASON CODE           */
+  DCL MQ_MQOD     LIKE MQOD;               /* OBJECT DESCRIPTOR     */
+  DCL MQ_MQMD     LIKE MQMD;               /* MESSAGE DESCRIPTOR    */
+  DCL MQ_MQPMO    LIKE MQPMO;              /* PUT MESSAGE OPTIONS   */
+
+  %PAGE;
+
+ /*-----------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                        */
+ /*-----------------------------------------------------------------*/
+
+ DCL CURDATE               CHAR( 8)  INIT('');
+ DCL DIAG_TEXT             CHAR(80)  INIT('');
+ DCL ERR1                  CHAR( 9)  INIT('QBDR001: ');
+ DCL ERR2                  CHAR( 9)  INIT('QBDR002: ');
+ DCL I                     FIXED BIN(15)  INIT(0);
+ DCL J                     FIXED BIN(15)  INIT(0);
+ DCL PIC_DATE              PIC'(8)9' INIT(0);
+ DCL PIC_TIME              PIC'(6)9' INIT(0);
+ DCL 1 PIC_TIME_OVER       BASED(ADDR(PIC_TIME)),
+       3 PIC_HR            PIC'99',
+       3 PIC_MIN           PIC'99',
+       3 PIC_SEC           PIC'99';
+ DCL PIC_RESP              PIC '(4)9'   INIT(0);
+ DCL PIC_RESP2             PIC '(3)9'   INIT(0);
+ DCL PIC3                  PIC '(3)9'   INIT(0);
+
+ DCL MESSAGE_TYPE          CHAR( 1) INIT('1'); /* TYPE 1 OR TYPE 5  */
+
+ DCL TEST_SW               BIT(1)   INIT('0'B);
+
+ %PAGE;
+
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING   CHAR(85)  BASED(DFHEIPTR);
+ DCL RESPONSE     FIXED BIN(31)   INIT(0);
+ DCL RESPONSE2    FIXED BIN (31)     INIT(0);
+
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ /******************************************************************/
+ /*   ON CONVERSION                                               **/
+ /******************************************************************/
+
+ ON CONVERSION
+   BEGIN;
+     ET_DUMPCODE = 'Y';
+     ET_TEXT1 = ERR1 || MODULE ||' HAD CONVERSION ERROR ';
+     ET_TEXT2 = ERR1 || MODULE ||' ONSOURCE '||ONSOURCE||
+                'LOC '||ONLOC;
+     SIGNAL ERROR;
+   END;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+
+     ET_PROGRAM_ID = 'QBMQDR ';
+     ET_EIB        = EIB_STRING;
+
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'Y';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = ERR1||MODULE||' DATE: '||PIC_DATE||
+                     ' TIME: '||PIC_HR||':'||PIC_MIN||
+                    ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBMQDR: MET WITH SOME ERROR';
+         CALL WRITE_TO_OPER;
+       END;
+
+     DIAG_TEXT = ET_TEXT3;
+     CALL WRITE_TO_OPER;
+
+     DIAG_TEXT = ET_TEXT4;
+     CALL WRITE_TO_OPER;
+
+     DIAG_TEXT = ET_TEXT1;
+     CALL WRITE_TO_OPER;
+
+     DIAG_TEXT = ET_TEXT2;
+     CALL WRITE_TO_OPER;
+     
+     EXEC CICS ABEND
+               ABCODE('QBDR')
+               CANCEL;
+                                      /* RETURN TO CICS ENVIRONMENT */
+     EXEC CICS RETURN;
+   END;
+
+ %PAGE;
+
+ /*******************************************************************/
+ /* MAIN PROCESSING                                                 */
+ /*******************************************************************/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)            */
+ /*-----------------------------------------------------------------*/
+
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA           */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF CWA.CWA_QSAR_TRACE = 'Y' |
+    CWA.CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = 'QBMQDR ENTERED';
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF RESPONSE ^= DFHRESP(NORMAL)     /* IF ABNORMAL RESPONSE THEN    */
+   THEN DO;                         /* PASS CONTROL TO ERROR PGM    */
+     ET_TEXT1 = ERR2 || MODULE || ' FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+ MESSAGE_TYPE = '1'; /* CHANGE THIS TO 5 IN CASE OF TYPE 5 MESSAGE  */
+ 
+ CALL ASSIGN_QUEUE;
+ CALL GET_STORAGE;
+
+ IF MESSAGE_TYPE = '1' THEN
+   CALL CREATE_TYPE1_MSG;
+ ELSE 
+   CALL CREATE_TYPE5_MSG;
+
+ CALL MQ_PUT1;
+ CALL FREE_STORAGE;
+
+ CALL IT_QUITS;
+
+ %PAGE; 
+ /* ---------------------------------------------------------------- */
+ /* END OF MAIN                                                      */
+ /* ---------------------------------------------------------------- */
+
+ /*------------------------------------------------------------------*/
+ /* ASSIGN QUEUE NAME                                                */
+ /*------------------------------------------------------------------*/
+
+   ASSIGN_QUEUE: PROC;
+          
+        MQ_PUT_QUE = COMM_QBCROSS.IPUTQUE;    /* Queue name          */
+        MQ_PUT_QUE = 'HSI.MQ.L.CROSS.IN.ACTIVITY';
+  IF CWA.CWA_QSAR_TRACE = 'Y' |
+     CWA.CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     DIAG_TEXT = MODULE||': PUT QUEUE-'||MQ_PUT_QUE;
+     CALL WRITE_TO_OPER;
+   END;
+ 
+ 
+   END ASSIGN_QUEUE;
+  
+  %PAGE;
+
+ /*------------------------------------------------------------------*/
+ /* GET STORAGE PROC                                                 */
+ /*------------------------------------------------------------------*/
+
+   GET_STORAGE: PROC;
+
+      IF MESSAGE_TYPE = '1' THEN
+ 	EXEC CICS GETMAIN SET(@COMM_QBMQIN1)
+                   	LENGTH(CSTG(COMM_QBMQIN1))
+                   	INITIMG(LOW(1));
+      ELSE 
+ 	EXEC CICS GETMAIN SET(@COMM_QBMQIN5)
+                   	LENGTH(CSTG(COMM_QBMQIN5))
+                   	INITIMG(LOW(1)); 
+
+   END GET_STORAGE;
+  
+  %PAGE;
+
+ /*******************************************************************/
+ /* CREATE THE MQ RECORD FOR TYPE1 MESSAGE                          */
+ /*******************************************************************/
+ CREATE_TYPE1_MSG: PROC;
+   
+   COMM_QBMQIN1.CMSGTYPE = '01'; /* MESSAGE TYPE        */
+
+   COMM_QBMQIN1.S0IDOCMN = '080510001';      /* CHANGE THIS - DOC#  */
+   COMM_QBMQIN1.CGQHIGSE = ' ';   /*CHANGE THIS IF NEEDED - '3'-PEND*/
+                                  /* SPACE - CLEAN, '2' - WARN      */
+   COMM_QBMQIN1.CMIBOCE = 'BKQ';  /* CE BRANCH OFFICE               */
+   COMM_QBMQIN1.CIICETER= 'Q26';  /* CE TERRITORY                   */
+
+   COMM_QBMQIN1.S0CAECMP= 'Y';    /* AUDIT EDIT COMPLETE            */
+                                  /* 'Y'-COMPLETE, SPACE-INCOMPLETE */
+   COMM_QBMQIN1.S0IEMPSE='000107';/* QSAR EMPLOYEE SERIAL           */
+
+   COMM_QBMQIN1.EMPL_DATE='20100718';  /* CHANGE THIS-ACTIVITY DATE */
+   COMM_QBMQIN1.AUDIT_DATE='20100723'; /* CHANGE THIS - AUDIT DATE  */
+				       /* PUT CURRENT DATE          */
+   COMM_QBMQIN1.AUDIT_TIME='111745'; /*CHANGE THIS-AUDIT TIME HHMMSS*/
+   COMM_QBMQIN1.MIRROR_IND ='N';             /*  MIRROR INDICATOR   */
+
+   COMM_QBMQIN1.CS1EMPSE='785048';  /* EMPLOYEE SERIAL              */
+                                    /* FROM PT                      */
+   COMM_QBMQIN1.CS1BOEMP = '';      /* BRANCH OFFICE                */
+   COMM_QBMQIN1.CS1ETERR = '';      /* TERRITORY                    */
+   COMM_QBMQIN1.CS1AREA = '01';     /* AREA                         */
+   COMM_QBMQIN1.CS1DIVSN = '';      /* DIVISION                     */
+   COMM_QBMQIN1.CS1APPLD = '';      /* APPLICATION ID               */
+   COMM_QBMQIN1.CS1FUNCT = '';      /* FUNCTION ID                  */
+
+   COMM_QBMQIN1.CS1BSRHH = '11';    /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* TIME HRS (HH)                */
+                                    /* SAME AS AUDIT TIME           */
+   COMM_QBMQIN1.CS1BSRMM = '17';    /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* TIME MINS (MM)               */
+                                    /* SAME AS AUDIT TIME           */
+   COMM_QBMQIN1.CS1BSRSS = '45';    /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* TIME SECS (SS)               */
+                                    /* SAME AS AUDIT TIME           */
+   COMM_QBMQIN1.CS1BSRYY = '2010';  /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* DATE YEAR (YYYY)             */
+                                    /* SAME AS AUDIT DATE           */
+   COMM_QBMQIN1.CS1BSRMO = '07';    /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* DATE MONTH (MM)              */
+                                    /* SAME AS AUDIT DATE           */
+   COMM_QBMQIN1.CS1BSRDD = '23';    /* CHANGE THIS-BASE SERVICES REC*/
+                                    /* DATE DAY (DD)                */
+                                    /* SAME AS AUDIT DATE           */
+
+   COMM_QBMQIN1.CS1MSCTL = '0';     /* APPLICATION VERSION          */
+   COMM_QBMQIN1.CS1DOCMN = '0';     /* DOCUMENT NUMBER              */
+                                    /* FROM PT (4 HEX DIGITS)       */ 
+   COMM_QBMQIN1.CS1CFUNC = '';      /* FUNC USED TO                 */
+                                    /* CREATE THIS QSAR             */
+   COMM_QBMQIN1.CS1COMLT = '0';     /* QSAR COMPL TIME (HHMM)       */
+
+   COMM_QBMQIN1.CS1TABID = '';      /* CHANGE THIS-PT TABLE ID      */
+                                    /* (4 HEX DIGITS)               */
+   COMM_QBMQIN1.S0IMACTC = '2644';  /* CHANGE THIS - MACHINE TYPE   */
+   COMM_QBMQIN1.S0IMACSE = '78BR663';/* CHANGE THIS-MACHINE SERIAL  */
+
+   COMM_QBMQIN1.S0ICSTLC = '  ';    /* LOCATION OR SYSTEM (BLANK)   */
+   COMM_QBMQIN1.S0ICUST  = '';      /* CE CUST NUMBER               */
+
+   COMM_QBMQIN1.S0DCALCM = '07';    /* CHANGE THIS-CALL COMPLETE MO */
+                                    /* SAME AS EMPL_DATE            */
+   COMM_QBMQIN1.S0DCALCD = '18';    /* CHANGE THIS-CALL COMPLETE DAY*/
+                                    /* SAME AS EMPL_DATE            */
+   COMM_QBMQIN1.S0DCALCY = '2010';  /*CHANGE THIS-CALL COMPLETE YEAR*/
+                                    /* SAME AS EMPL_DATE            */
+
+   COMM_QBMQIN1.S0CBIOSA = '1';     /* BILLABLE SPEC ACT CODE       */
+
+   COMM_QBMQIN1.S0QSTOTI = '180';   /* CHANGE THIS-STOP TIME (HHT)  */
+
+   COMM_QBMQIN1.SPAD01   = ' ';     /* PADDING                      */
+
+   COMM_QBMQIN1.S0QTRAMI = '';      /* CHANGE THIS-TRAVEL MILES     */
+   COMM_QBMQIN1.S0ATRAEX = '';      /* CHANGE THIS-TRAVEL EXPENSES  */
+   COMM_QBMQIN1.S0QTRAHR = '';      /* CHANGE THIS- TRAVEL HRS (HHT)*/
+
+   COMM_QBMQIN1.SPAD02   = ' ';     /* PADDING                      */
+
+   COMM_QBMQIN1.S0QOVTHR = '';      /*CHANGE THIS-OVERTIME HRS (HHT)*/
+
+   COMM_QBMQIN1.SPAD03   = ' ';     /* PADDING                      */
+
+   COMM_QBMQIN1.S0QSVCHR = '010';   /*CHANGE THIS- ACTUAL HRS (HHT) */
+
+   COMM_QBMQIN1.SPAD04   = ' ';     /* PADDING                      */
+
+   COMM_QBMQIN1.S0CCIA   = '1';     /*CHANGE THIS - COMPLETION TIME */
+   COMM_QBMQIN1.S0CSVC   = '36';    /*CHANGE THIS - SERVICE CODE    */
+   COMM_QBMQIN1.S0CHACT  = '20';    /*CHANGE THIS - ACTIVITY CODE   */
+
+   COMM_QBMQIN1.S0CIDM   = '';      /* INSTALL/DISC/MOVE CODE       */                                  
+   COMM_QBMQIN1.S0CMOD   = '';      /* MODIFICATION CODE            */
+   COMM_QBMQIN1.S0CMODNA = '';      /* MODIFICATION NOT APPLIED CODE*/
+   COMM_QBMQIN1.S0CMSCM  = '';      /* MES/ECA/REA/MICROFIX #       */                                    
+   COMM_QBMQIN1.S0IPMFSA = '';      /* CHANGE PM FREQ               */
+   COMM_QBMQIN1.S0IOTBCW = '';      /* OTHER SR BO WORKED           */
+   COMM_QBMQIN1.S0CSREQ  = ' ';     /*SERV REQUEST (BLANK)          */
+   COMM_QBMQIN1.S0CSTYPE = '';      /* SERVICE TYPE                 */
+   COMM_QBMQIN1.SPAD05   = '    ';  /* PROBLEM NUMBER EXPANSION     */
+
+   COMM_QBMQIN1.S0CCSCPC = 'FQTWW9S';/*CHANGE THIS-PROBLEM NUMBER   */
+
+   COMM_QBMQIN1.SPAD06   = '    ';  /* PROBLEM NUMBER EXPANSION     */
+   COMM_QBMQIN1.CPROBNUM2= ' ';     /*CAD PROBLEM NUMBER (DUPLICATE)*/                                    
+   COMM_QBMQIN1.S0ICSS = ' ';       /* CSS CONTRACT */
+   COMM_QBMQIN1.S0ICSS2= '';        /* ORIGINAL CE CONTRACT#    */                                                                     
+   COMM_QBMQIN1.S0IASSFT = '?';     /* ASSIGNED SHIFT               */
+   COMM_QBMQIN1.S0QMETRE = ' ';     /* METER READING QTY         */                                       
+   COMM_QBMQIN1.S0QUSAGE = ' ';     /* USAGE CREDIT   */
+
+   COMM_QBMQIN1.S0IPARTR = ' ';     /*CHANGE THIS - PART TRAILER IND*/
+                                    /* 'Y' OR 'N'                   */
+
+   COMM_QBMQIN1.S0ISENBO = ' ';     /* SENDING BRANCH OFFICE        */                                    
+   COMM_QBMQIN1.S0ISENOL = ' ';     /* SENDING OUT LOCATION         */                                   
+   COMM_QBMQIN1.S0IALTRB = ' ';     /* ALTERNATE SHIP BRANCH        */                                    
+   COMM_QBMQIN1.S0CDELPT = ' ';     /* DELIVERY POINT CODE          */                                   
+   COMM_QBMQIN1.S0CSEQNO = '000';   /* SEQUENCE NUMBER*/
+   COMM_QBMQIN1.S0IERSFG = 'N';     /* CHANGE THIS -                */
+                                    /* PT ERROR/MSG SENT FLAG       */
+   COMM_QBMQIN1.S0ISRCPT = 'N';     /* SOURCED FROM PT              */
+   COMM_QBMQIN1.S0ISRCNS = 'Y';     /* SOURCED FROM NSD             */
+
+   COMM_QBMQIN1.S0IRESUB = 'N';     /* CHANGE THIS - RESUBMIT DOC   */
+   COMM_QBMQIN1.S0IRECYC = 'N';     /* CHANGE THIS - RECYCLED DOC   */
+   COMM_QBMQIN1.S0IHSDNR = ' ';     /*HOURLY SERVICE DOC (BLANK) */
+   COMM_QBMQIN1.S0QPNDCT = '0';     /* COUNTS OF TIME PENDED        */                                   
+   COMM_QBMQIN1.CHCDATIT = 'B';     /* CHANGE THIS -                */
+                                    /* TYPE OF DATA ON QSAR         */
+                                    /* I - INCIDENT                 */
+                                    /* P - POTENTIALLY BILLABLE     */
+                                    /* B - BILLABLE                 */
+   COMM_QBMQIN1.CHICEWK  = '1653';  /* CHANGE THIS - CE WEEK NUMBER */
+   COMM_QBMQIN1.CHDSCAPR = '20100723';/* CHANGE THIS - YYYYMMDD DATE*/
+                                    /* SAME AS AUDIT DATE           */
+   COMM_QBMQIN1.CHDORIRR = '20100723';/* CHANGE THIS - YYYYMMDD     */
+                                    /* ORIGINAL PEND  DATE          */
+                                    /* SAME AS AUDIT DATE           */
+   COMM_QBMQIN1.CHIREPPY = '201007';/* CHANGE THIS - YYYYMM         */
+                                    /* SAME AS AUDIT DATE           */
+   COMM_QBMQIN1.CHIREPPW = '4';     /* CHANGE THIS - REPORT WEEK    */
+                                    /* FOR CECAL (1/2/3/4)          */
+   COMM_QBMQIN1.CGIOTHPB = '';      /* OTHER B/O-PARENT */
+   COMM_QBMQIN1.CGIASGPB = 'BKQ';   /* CHANGE THIS -                */
+                                    /* SR ASGND B/O-PARENT          */
+   COMM_QBMQIN1.CGCCLAFG = '01';    /* CHANGE THIS -                */
+                                    /* CLASS FROM MPI CD            */
+   COMM_QBMQIN1.CGCCLAPI = 'B';     /* CHANGE THIS -                */
+                                    /* CLASS FOR PIMS I/F           */
+   COMM_QBMQIN1.CGCEFFST = '3';     /* CHANGE THIS -                */
+                                    /* EFFECTIVE STATUS CODE        */
+   COMM_QBMQIN1.CGIEFFIT = ' ';     /* CHANGE THIS -                */
+                                    /* EFFECTIVE INVENT TYPE        */
+   COMM_QBMQIN1.CGCBILCL = '1';     /* CHANGE THIS - BILLING CLASS  */
+   COMM_QBMQIN1.CGIOTHDV = '';      /* CHANGE THIS -                */
+                                    /* OTHER OFFICE DIVISION        */
+   COMM_QBMQIN1.CGIOTHOP = '';      /* CHANGE THIS - OTHER OP AREA  */
+   COMM_QBMQIN1.CGIOTHRG = '';      /* CHANGE THIS - OTHER AREA     */
+   COMM_QBMQIN1.CGIOTHAR = '';      /* CHANGE THIS - OTHER REGION   */
+   COMM_QBMQIN1.CIICEAB  = 'BKQ';   /*CHANGE THIS-CE ASSIGNED BRANCH*/
+   COMM_QBMQIN1.CICGROUP =  'Q';    /*CHANGE THIS-FIELD MANAGER CODE*/
+   COMM_QBMQIN1.CINEMP1I =  'L';    /*  EMP FIRST INIT              */
+   COMM_QBMQIN1.CINEMP2I =  'N';    /*  EMP SECOND INIT             */
+   COMM_QBMQIN1.CINEMPLA =  'NEWBERRY';/* EMP LAST NAME             */
+
+   COMM_QBMQIN1.CIIASSDV =  '23';   /* CHANGE THIS - EMP DIVISION   */
+   COMM_QBMQIN1.CIIOPRAR =  '3';    /* CHANGE THIS - OP AREA        */
+
+   COMM_QBMQIN1.CIIREG   =  '07';   /* AREA                         */
+   COMM_QBMQIN1.CIIRAREA =  '0';    /* REGION                       */
+
+   COMM_QBMQIN1.CICPOSTY =  '4';    /*CHANGE THIS-POSITION TYPE CODE*/
+				    /* 1=FSC MANAGER                */
+                                    /* 2=SR MANAGER                 */
+                                    /* 3=FIELD MANAGER              */
+                                    /* 4=SR                         */
+   COMM_QBMQIN1.CIDEFFST =  '19970513';/* CHANGE THIS -             */
+                                    /* EFFECTIVE STATUS DATE        */
+   COMM_QBMQIN1.CICIRWG  =  '1';    /* IR WRITING CODE              */
+   COMM_QBMQIN1.CICCEACP =  '5';    /* CAREER PATH CODE             */
+   COMM_QBMQIN1.CICPSTN  =  '50';   /* EXTENDED POS TYPE            */
+   COMM_QBMQIN1.CGSRCBO  =  'N';    /* CHANGE-SRC B/O Y = YES N = NO*/ 
+   COMM_QBMQIN1.R_VER    =  '0NSE'; /* AUDIT RULE          */
+   COMM_QBMQIN1.NSDC_DEL =  'N';    /* CHANGE - QSAR DELETE FLAG    */
+
+   COMM_QBMQIN1.NSDC_MULTRESUB=' '; /* QSAR MULTI RESUBMIT          */
+   COMM_QBMQIN1.S0CVEND  = ' ';     /* VENDOR COORDINATION          */
+   COMM_QBMQIN1.S0CZIPCDE= '333090000';/* SERVER ZIP CODE           */
+
+   COMM_QBMQIN1.CTAXCD   = '07';    /* CHANGE - MTM TAX CODE        */
+   COMM_QBMQIN1.TMACHDSC = '570';   /* MTM MACHINE DESCRIPTION   */
+   COMM_QBMQIN1.ICNVMSER = '';      /* CHANGE -                    */
+                                    /* PSD/OEM CONVERTED SERIAL     */
+   COMM_QBMQIN1.CBASEWAR = 'J2JY';  /* CHANGE - MTM BASE WAR CODE   */
+
+   COMM_QBMQIN1.CCOURSE  = '     '; /* CANADA COURSE CODE           */
+   COMM_QBMQIN1.IREQEMPL = ' ';     /* REQUESTING EMPLOYEE          */
+   COMM_QBMQIN1.CBRANCH  = '     '; /* BRANCH USE CODES             */
+   COMM_QBMQIN1.CGUNTIME = '';      /* UNAVAILABLE TIME             */
+
+   COMM_QBMQIN1.IREQDIV  = '';      /* CHANGE - REQUESTING EMP DIV  */
+
+   COMM_QBMQIN1.CEAMT    = '';      /* EAMT RECORD FOUND            */
+   COMM_QBMQIN1.FMTMCSU  = 'Y';     /* CUSTOMER SETUP Y/N           */
+
+   COMM_QBMQIN1.NSD_HRTG = 'S';     /* CHANGE - HERITAGE FLAG       */
+
+   COMM_QBMQIN1.FHOLDFILE = 'N';     /* RECORD WAS IN HOLD FILE      */
+
+
+   COMM_QBMQIN1.FMPIBUSY = 'N';    
+   COMM_QBMQIN1.FSAVBUSY = 'N';     
+   COMM_QBMQIN1.FSPWN08  = 'N';     /* WAS SC 08 REC SPAWNED        */
+   COMM_QBMQIN1.FPTCORR  = 'N';     /* QSAR CORRECTED VIA PT        */
+   COMM_QBMQIN1.FSYSSPWN = 'N';     /* SYSTEM SPAWNED PART TRLR     */
+   COMM_QBMQIN1.FOEMTYPE = 'N';     /* IS MACH TYPE OEM             */
+   COMM_QBMQIN1.FOEMCNTR = 'N';     /* OEM CONTRACT                 */
+   COMM_QBMQIN1.FAUDUNAV = 'N';     /* AUDIT TRAIL DB UNAVAIL       */
+   COMM_QBMQIN1.FAUDBUNA = 'N';     /* AUDIT TRAIL DB WAS UNAVAIL   */
+   COMM_QBMQIN1.FMPIDBUN = 'N';     /* MPI DB RECOVERY INDICATOR    */
+   COMM_QBMQIN1.FISSCNTR = 'N';     /* CONTRACT FLD HAS ISSC        */
+   COMM_QBMQIN1.FIBM     = 'N';     /* SERVICE ACTIVITY IS FOR IBM  */
+   COMM_QBMQIN1.FONMA    = 'N';     /* MACHINE ON MA                */
+   COMM_QBMQIN1.FWARRNTY = 'N';     /* MACHINE UNDER WARRANTY       */
+   COMM_QBMQIN1.FOEEUNA  = 'N';     /* OEE DATA BASE IS             */
+   COMM_QBMQIN1.FPRTORD  = 'N';     /* WAS PART(S) ORDERED Y|N      */
+
+   COMM_QBMQIN1.IAIC     = '07';    /* CHANGE - AIC FROM BOREF      */
+
+   COMM_QBMQIN1.CGSASCH  = 'A';     /* GSA SCHED FROM MTM A|C       */
+   COMM_QBMQIN1.S0IPRDID = '    ';  /* PRODUCT ID                   */
+   COMM_QBMQIN1.PEND_HDA = 'N';     /* PEND FOR HDA? Y|N            */
+   COMM_QBMQIN1.CCECUSTY = '';      /* CE CUSTOMER TYPE G|C|BLANK   */
+
+   COMM_QBMQIN1.CCOTYPE  = '   ';   /* CHANGE - CONTRACT TYPE       */
+
+   COMM_QBMQIN1.COWNCALC = ' '; /*WHICH CLAUSE CALCULATED MACH OWN*/
+   COMM_QBMQIN1.SPAD08   = '   ';   /* PADDING                      */
+   COMM_QBMQIN1.CSAVSRC  = ' ';     /* SAVED SOURCE OF PEND         */
+   COMM_QBMQIN1.FSTATRST = 'N';     /* WAS MA STATUS RESET?         */
+   COMM_QBMQIN1.CVALLOC  = ' ';     /* CONTRACT# SOURCE             */
+   COMM_QBMQIN1.CEBBILL  = ' ';     /* ORIGINAL CE BA CODE          */
+   COMM_QBMQIN1.CNTRDIAG = ' ';     /* CONTRACT TRACE VARIABLE      */
+   COMM_QBMQIN1.CINVCNTR = ' ';     /* INVALID CONTRACT FLAG        */
+   COMM_QBMQIN1.CSRCHCNT = '0';     /* COUNTER FOR CONTRACT         */
+   COMM_QBMQIN1.IAVALCTR = 'AHZ';   /*AVAILABILITY CENTER B/O FOR CE*/
+   COMM_QBMQIN1.IAVALRSO = '   ';   /* AVAIL CENTER B/O FOR MACH RSO*/
+   COMM_QBMQIN1.IMFGMOD  = ' ';     /* MANUFACTURER/MODEL           */
+   COMM_QBMQIN1.CFAILCD  = ' ';     /* DART FAILURE CODE            */
+   COMM_QBMQIN1.FECICALL = 'N';     
+   COMM_QBMQIN1.FEBCONT  = 'N';     /* IS THIS AN EB CONTRACT       */
+   COMM_QBMQIN1.FRSTCNTR = 'N';     /* RESET CINVCNTR INDICATOR     */
+   COMM_QBMQIN1.FCADMTCH = 'N';     /* MATCHED TO CAD RECORD        */
+   COMM_QBMQIN1.FSRCNSS  = 'N';     /* SOURCED NSS SCHEDULER        */
+   COMM_QBMQIN1.FTSSMACH = 'N';     
+   COMM_QBMQIN1.FPETMSG  = 'N';     /* MSG SENT TO PET/2 TRUER      */
+   COMM_QBMQIN1.FSYSBILL = 'N';     /* SYSTEM BILL?                 */
+   COMM_QBMQIN1.FMICRO   = 'N';     /* THIS IS A MICROCODE QSAR     */
+   COMM_QBMQIN1.FMES     = 'N';     /* THIS IS A MES QSAR           */
+   COMM_QBMQIN1.FECA     = 'N';     /* THIS IS A ECA QSAR           */
+   COMM_QBMQIN1.FREA     = 'N';     /* THIS IS A REA QSAR           */
+   COMM_QBMQIN1.FCTRBUSY = 'N';     /* CONTRACT DATA BASE BUSY      */
+   COMM_QBMQIN1.FCTRDBUN = 'N';     /* CONTRACT DB UNAVAILABLE      */
+   COMM_QBMQIN1.FSPCCNTR = 'N';     /* CONTRACT IS A SPECIAL        */
+   COMM_QBMQIN1.FPREPEND = 'N';     /* WAS THE REC PENDED ONCE      */
+   COMM_QBMQIN1.ICUSTPH  = ' ';     /* CUSTOMER PHONE               */
+
+   COMM_QBMQIN1.ISRVGCE  = 'NAS';  /* CHANGE - SERVICE GROUP - CE  */
+   COMM_QBMQIN1.ISRVGRSO = '1234';  /* CHANGE - SERVICE GROUP - RSO */
+
+   COMM_QBMQIN1.IPETLVL  = '0';   /* PET/2 LEVEL (>=115)          */
+
+   COMM_QBMQIN1.IPARTCNT = '1';     /*CHANGE-NUMBER OF PARTS ON QSAR*/  
+
+   COMM_QBMQIN1.HOFFSHFT = '';      /* OFFSHIFT HOURS               */
+   COMM_QBMQIN1.CHERITAG = '';      /* RECORD HERITAGE              */
+   COMM_QBMQIN1.CSEVRITY = ' ';     /* PROBLEM SEVERITY             */
+   COMM_QBMQIN1.FACTPLAN = 'N';     /* WAS THERE AN ACTION PLAN-Y/N */
+   COMM_QBMQIN1.FACTWORK = 'N';     /* DID ACTION PLAN WORK(Y/N)    */
+   COMM_QBMQIN1.CACTFAIL = ' ';     /*REASON FOR ACTION PLAN FAILURE*/
+   COMM_QBMQIN1.CRTSSTAT = ' ';     /* RTS RECORD STATUS            */
+   COMM_QBMQIN1.FCLM_S   = 'Y';     /* QSAR SENT EXTRACTED FOR  BMS */
+   COMM_QBMQIN1.CIACTIND = ' ';     /* LAST DAILY ACTIVITY          */
+   COMM_QBMQIN1.IGROUP   = ' ';     /* CLAIM IDENTIFIER OF THE  GEO */
+   COMM_QBMQIN1.CCNTRSRC = ' ';     /* CONTRACT PROCESS             */
+
+   COMM_QBMQIN1.CPRODDIV = '44';    /* CHANGE - PRODUCT DIVISION    */
+   COMM_QBMQIN1.ISOURCE  = '';      /*CHANGE-SOURCE INDICATOR OF STD*/
+
+   COMM_QBMQIN1.FSTDER_S = '';      /* STD ERROR REC BEEN OFF       */
+   COMM_QBMQIN1.FSFTPEND = '';      /* SOFT PEND FOR CUSTOMER#      */
+   COMM_QBMQIN1.IQARMOD  = 'Q1';     /* QAR ENTRY MODULE             */
+
+   COMM_QBMQIN1.IWKNUMAC = ' ';     /*CHANGE-WORK NUMBER ACTIVITY ID*/
+
+   COMM_QBMQIN1.FWNUCHG  = 'N';     /* WORK NO ACTIVITY              */
+                                    /* CHANGED/GENERATED BY SYSTEM   */
+   COMM_QBMQIN1.FCEDBTS  = 'N';     /* TYPE SERIAL FOUND ON CEDB     */
+
+   COMM_QBMQIN1.FBILACTH = 'N';     /* CHANGE - BILL ACTUAL HRS      */
+   COMM_QBMQIN1.FBILTRVH = 'N';     /* CHANGE - BILL TRAVEL HRS      */
+   COMM_QBMQIN1.FBILPART = 'N';     /* CHANGE - BILL PARTS USED      */
+   COMM_QBMQIN1.FBILDIST = 'N';     /* CHANGE - BILL DISTANCE        */
+   COMM_QBMQIN1.FBILEXP  = 'N';     /* CHANGE - BILL EXPENSE         */
+   COMM_QBMQIN1.CCSTACTH = ' ';     /*CHANGE-COST CODE FOR ACTUAL HRS*/
+   COMM_QBMQIN1.CCSTTRVH = ' ';     /*CHANGE-COST CODE FOR TRAVEL HRS*/
+   COMM_QBMQIN1.CCSTPART = ' ';     /*CHANGE - COST CODE FOR PARTS   */
+
+   COMM_QBMQIN1.ICOSTSET = ' ';     /*HOW COST FLAGS ARE SET(TBL/BWC)*/
+   COMM_QBMQIN1.IHRSSRC  = 'DEF';   /* SOURCE OF DAILY HOURS         */
+                                    /* DEF/MPI/BWC/SDT               */
+   COMM_QBMQIN1.QJBILMTR = ' ';     /* CHANGE - J-BILLING/COPY COUNT */
+
+   COMM_QBMQIN1.FOEMMTCH = ' ';     /* PSD converted serial used     */
+   COMM_QBMQIN1.FMPI24X7 = 'N';     /* MPI 24x7 DAYS A WEEK          */
+   COMM_QBMQIN1.FCNT24X7 = 'N';     /* CONTRACT 24x7 DAYS/WEEK       */
+   COMM_QBMQIN1.FWAR24X7 = 'N';     /* WARRANTY 24x7 DAYS/WEEK       */
+   COMM_QBMQIN1.FSOMACH  = 'N';     /* SPECIAL OFFERING MACHINE      */
+   COMM_QBMQIN1.FOEE     = 'N';     /* OEE - OEM Entitlement Engine  */
+   COMM_QBMQIN1.FLNVEMPL = 'N';     /* Lenovo employee               */
+   COMM_QBMQIN1.IENTSRC  = 'HSI';   /* QSAR ENTITLEMENT SOURCE       */
+   COMM_QBMQIN1.FOVRTIME = ' ';     /* Canada overtime indicator     */
+   COMM_QBMQIN1.FSEROVRD = ' ';     /* Machine serial                */
+   COMM_QBMQIN1.CWARLIAB = '0';     /* WHO IS LIABLE FOR BASE        */
+   COMM_QBMQIN1.CWUPLIAB = '0';     /* WHO IS LIABLE FOR WARRANTY UPG*/
+   COMM_QBMQIN1.CMALIAB  = '0';     /* WHO IS LIABLE FOR MAINT AGMT  */
+   COMM_QBMQIN1.FPERCALL = 'N';     /* PER CALL BILLABLE Y/N         */
+   COMM_QBMQIN1.CSPECAPR = '0';     /* SPECIAL APPROVAL TO BILL      */
+   COMM_QBMQIN1.ILIABSRC = 'QS?';   /* source of liability set       */
+
+   COMM_QBMQIN1.CWARRUP  = '';      /* CHANGE-Warranty upgrade/maint */
+   COMM_QBMQIN1.NWARPHSE = ' ';     /* base warranty phase           */
+   COMM_QBMQIN1.NWUPHSE  = ' ';     /* Warranty upgrade/maint phase  */
+   COMM_QBMQIN1.IPLATFRM = 'TP';    /* platform identifier from MTM  */
+   COMM_QBMQIN1.IMACOWNR = '  ';    /* machine owner code            */
+   DO I= 1 TO 5;
+      COMM_QBMQIN1.CCOSTCAT(I)='  ';/* COST category code            */
+   END;
+   COMM_QBMQIN1.IMACMFGR = '  ';    /* Manufacturer of the machine   */
+
+   COMM_QBMQIN1.CWUMP    = ' ';     /* CHANGE - MACHINE STATUS       */
+   COMM_QBMQIN1.CGWSCNTRY= '897';   /* CHANGE - COUNTRY CODE FROM MTM*/
+                                    /*  ‘897’=US (‘649’=CA)          */
+
+   COMM_QBMQIN1.CWARSERV = 'Y';     /*MACHINE AVAILABLE FOR SPEC WARR*/ 
+   COMM_QBMQIN1.ICCOSTSQ = '77952576';/*sequence number of the cost*/
+   COMM_QBMQIN1.SPAD09   = ' ';     /* UNUSED PAD                    */
+   COMM_QBMQIN1.IAPPLID  = '   ';   /* CICS SYSTEM owing the Tran    */
+   COMM_QBMQIN1.ITRANSID = '    ';  /* Last CICS transaction         */
+   COMM_QBMQIN1.S8REFFSY = ' ';     /* REFERENCE/FAULT/SYMPTOM       */
+   COMM_QBMQIN1.S8FEATLO = ' ';     /* FEATURE/LOCATION              */
+   COMM_QBMQIN1.S8CUSTNM = 'SETRIX SYSTEMS';/* CUSTOMER NAME         */
+   COMM_QBMQIN1.S8CUSTRF = 'SETRIX SYSTEMS';/* CUSTOMER REFERENCE    */
+   COMM_QBMQIN1.S8TFREFN = 'TEST';  /* FREE FORM NARRATIVE TEXT      */
+   COMM_QBMQIN1.QSNARR_PAD=' ';     /* PADDING                       */
+
+   COMM_QBMQIN1.GJIMMOD  = '';      /* CHANGE - MACHINE MODEL        */
+
+   COMM_QBMQIN1.GJDEFFRE = ' ';     /* CHANGE EFFECTIVE DATE         */
+   COMM_QBMQIN1.GJFCMFEA = 'N';     /* COMM. FEATURE PRESENT         */
+   COMM_QBMQIN1.GJFDCMFE = 'N';     /* COMM. FEATURE DELETED         */
+   COMM_QBMQIN1.GJFSYST  = 'N';     /* PART OF A SYSTEM              */
+
+   COMM_QBMQIN1.GJISYSTY = '';      /* CHANGE - SYSTEM TYPE          */
+   COMM_QBMQIN1.GJISYSNO = '';      /* CHANGE - SYSTEM NUMBER       */
+   COMM_QBMQIN1.ICOUNTRY = '';      /* CHANGE - COUNTRY CODE         */
+
+   COMM_QBMQIN1.CRESTRCT = ' ';     /* RESTRICTED CUST CODE          */
+   COMM_QBMQIN1.GJDPMLAS = '';      /* LAST PM DATE YYYYMMDD       */
+   COMM_QBMQIN1.GJIPMSCH = '0';     /* PM FREQUENCY                  */
+   COMM_QBMQIN1.GJF30PCT = 'N';     /* 30% SERVICE                   */
+   COMM_QBMQIN1.GJF40PCT = 'N';     /* 40% SERVICE                   */
+   COMM_QBMQIN1.GJFDEMO  = 'N';     /* DEMONSTRATOR                  */
+   COMM_QBMQIN1.GJFCELOA = 'N';     /* SR LOANER                     */
+   COMM_QBMQIN1.GJFMLCAU = 'N';     /* MLC AUTOMATIC                 */
+   COMM_QBMQIN1.GJFAUTOR = 'N';     /* AUTOMATIC SA                  */
+   COMM_QBMQIN1.GJFDCFTS = 'N';     /* DCF TYPE/SERIAL               */
+   COMM_QBMQIN1.GJFSOLIC = 'N';     /* CUSTOMER SOLICATION           */
+   COMM_QBMQIN1.GJCTYPEQ = ' ';     /* TYPE EQUIPMENT                */
+   COMM_QBMQIN1.GJDTYPEQ = ' ';     /* TYPE EQUIP EFFECT DTE         */
+   COMM_QBMQIN1.GJDMFGDT = ' ';     /* DATE OF MANUFACTURE           */
+   COMM_QBMQIN1.GJDOINST = '';      /* ORIGINAL INSTALL DATE       */
+   COMM_QBMQIN1.GJDRECON = ' ';     /* DATE OF RECON                 */
+   COMM_QBMQIN1.GJDSTEFF = ' ';     /* STATUS EFFECTIVE DATE         */
+   COMM_QBMQIN1.GJCSTAT  = '';      /* STATUS CODE                   */
+   COMM_QBMQIN1.GJDCINST = '';      /* CURRENT INSTALL DATE        */
+   COMM_QBMQIN1.GJDWAREX = '20020419';/* WARRANTY EXPIRATION        */
+   COMM_QBMQIN1.GJDDISC  = ' ';     /* DATE DISC FOR CUSTOMER        */
+   COMM_QBMQIN1.GJCLOCAT = ' ';     /* LOCATION CODE                 */
+   COMM_QBMQIN1.GJCSVCPL = '';      /* SERVICE PLAN CODE             */
+   COMM_QBMQIN1.GJCPROLE = ' ';     /* PROCESS LEVEL CODE            */
+   COMM_QBMQIN1.GJCCUSTP = ' ';     /* TYPE CUSTOMER                 */
+   COMM_QBMQIN1.GJICUST  = '0';     /* CUSTOMER NUMBER              */
+   COMM_QBMQIN1.GJFARBI  = 'N';     /* SOURCED FROM ARBI             */
+   COMM_QBMQIN1.GJFPAD04 = ' ';     /* UNUSED                        */
+   COMM_QBMQIN1.GJFIMI   = 'N';     /* SOURCED FROM IMI              */
+   COMM_QBMQIN1.GJFROPS  = 'N';     /* SOURCED FROM ROPS             */
+   COMM_QBMQIN1.GJFDSI   = 'N';     /* SOURCED FROM DSI              */
+   COMM_QBMQIN1.GJFPMD   = 'N';     /* SOURCED FROM PM               */
+   COMM_QBMQIN1.GJFBTH   = 'N';     /* SOURCED FROM BETHESDA         */
+   COMM_QBMQIN1.GJFBRV   = 'N';     /* SOURCED FROM RV               */
+   COMM_QBMQIN1.GJFBSF   = 'N';     /* SOURCED FROM SF               */
+   COMM_QBMQIN1.GJFBSO   = 'N';     /* SOURCED FROM SO               */
+   COMM_QBMQIN1.GJFPAD06 = ' ';     /* UNUSED                        */
+   COMM_QBMQIN1.GJFRT    = 'N';     /* UPDATED BY R/T                */
+   COMM_QBMQIN1.GJFNUS   = ' ';     /* UNUSED                        */
+   COMM_QBMQIN1.GJDACTV  = ' ';     /* LAST ACTIVITY DATE          */
+   COMM_QBMQIN1.GJCACTIV = ' ';     /* ACTIVITY CODE                 */
+   COMM_QBMQIN1.GJIMFGPL = ' ';     /* PLANT OF MANUFACTURE          */
+   COMM_QBMQIN1.GMICNM   = ' ';     /* CUSTOMER NAME                 */
+   COMM_QBMQIN1.GJIOP    = ' ';     /* OP                            */
+   COMM_QBMQIN1.GJIAREA  = '';      /* AREA                          */
+   COMM_QBMQIN1.GJIREG   = '';      /* REGION                        */
+   COMM_QBMQIN1.GMIRSO   = ' ';     /* RSO - FROM RSO                */
+   COMM_QBMQIN1.CGCPRBRO = ' ';     /* PARENT BRANCH OFFICE          */
+   COMM_QBMQIN1.CMIBOMKT = ' ';     /* MARKETING B/O                 */
+   COMM_QBMQIN1.GJITERR  = ' ';     /* MACHINE TERRITORY             */
+   COMM_QBMQIN1.CMIZONE  = ' ';     /* ZONE                          */    
+   COMM_QBMQIN1.CGCESTAB = '0';     /* CMR CMIESTAB ESTABLISHMENT    */
+   COMM_QBMQIN1.CGCIENNO = '0';     /* CMR CMIENNO  ENTERPRISE      */
+   COMM_QBMQIN1.CGCMCNAC = ' ';     /* CMR CMCNAC NAT'L ACCOUNT      */
+   COMM_QBMQIN1.CGCTCUS1 = ' ';     /* CMR CMCTCUS1  TYPE CUSTOMER   */
+   COMM_QBMQIN1.CGCTAX1  = ' ';     /* CMR CMCTAX1  TAXING CLASS  1  */
+   COMM_QBMQIN1.CGCTCUS2 = ' ';     /* CMR CMCTCUS2 TYPE CUSTOMER 2  */
+   COMM_QBMQIN1.CGCTAX2  = ' ';     /* CMR CMCTAX2 TAXING CLASS  2   */
+   COMM_QBMQIN1.CGCTCUS3 = ' ';     /* CMR CMCTCUS3 TYPE CUSTOMER 3  */
+   COMM_QBMQIN1.CGCTAX3  = ' ';     /* CMR CMCTAX3 TAXING CLASS  3   */
+   COMM_QBMQIN1.CGCCD    = '0';     /* CMR CMCTCD                    */
+   COMM_QBMQIN1.CGFOCL   = 'N';     /* OUTSIDE CITY LIMITS           */
+   COMM_QBMQIN1.CGFCOD   = 'N';     /* COD BIT                       */
+   COMM_QBMQIN1.CGFIIC   = 'N';     /* INTERNAL IBM CUSTOMER         */
+   COMM_QBMQIN1.FINVTCHG = ' ';     /* INVENT DATA WAS CHANGED       */
+   COMM_QBMQIN1.GJCSDT   = ' ';     /* PEW SERVICE DELIVERY          */
+   COMM_QBMQIN1.IORGCUST = '0';     /* ORIGINAL CUSTOMER            */
+   COMM_QBMQIN1.ICUSTBIL = '0';     /* MA/BILL TO CUSTOMER #        */
+   COMM_QBMQIN1.ICUSTOWN = '0';     /* OWNING CUSTOMER NUM          */
+   COMM_QBMQIN1.IRCUST   = ' ';     /* IR CUST FLAG                  */
+   COMM_QBMQIN1.CUPSRCE  = ' ';     /* UPSTREAM SOURCE               */
+   COMM_QBMQIN1.IMKTAFFN = ' ';     /* MARKETING AFFILIATED #        */
+   COMM_QBMQIN1.FRESTIND = 'N';     /* RESTRICTED INDICATOR  Y|N     */
+   COMM_QBMQIN1.NRESABRV = ' ';     /* RESTRICTED ABBREV             */
+   COMM_QBMQIN1.FOEMIND  = ' ';     /* OEM INDICATOR                 */
+   COMM_QBMQIN1.IBPACCT  = ' ';     /* BUSINESS ACCOUNT TYPE         */
+   COMM_QBMQIN1.IENTRBIL = '0';     /* BILL TO ENTERPRISE #          */
+   COMM_QBMQIN1.IENTROWN = '0';     /* OWNING ENTERPRISE #           */
+   COMM_QBMQIN1.CISOCTRY = ' ';     /* ISO COUNTRY CODE              */
+   COMM_QBMQIN1.CSNPRFIX = ' ';     /* PLANT OF MANUFACTURER         */
+   COMM_QBMQIN1.QSINVT_PAD=' ';     /* PADDING                       */
+        
+   DO I = 1 TO 4;
+      COMM_QBMQIN1.S0CFUNC(I) = ' '; /* FUNCTION CODE                */
+      COMM_QBMQIN1.S0QDISUS(I)= ' '; /* DISB.-USAGE-UPR SUB QTY      */
+      COMM_QBMQIN1.S0IPART(I) = ' '; /* PART NUMBER                  */
+      COMM_QBMQIN1.S0IRECBO(I)= ' '; /* RECEIVING BRANCH OFFICE      */
+      COMM_QBMQIN1.S0IRECOL(I)= ' '; /* RECEIVING OUT LOCATION       */
+      COMM_QBMQIN1.S0QREPOR(I)= ' '; /* REPLENISH - ORD - RTN QTY    */
+      COMM_QBMQIN1.CAPC(I)    = ' '; /* ASSET PROTECTION CLASS       */
+      COMM_QBMQIN1.S0IMATL2(I)= ' '; /* MACHINE TYPE                 */
+      COMM_QBMQIN1.FPARTYPE(I)= ' '; /* TYPE OF PART                 */
+      COMM_QBMQIN1.SPAD10(I)  = ' '; /* PADDING                      */
+      COMM_QBMQIN1.CGPARTPR(I)= ' '; /* PART UNIT PRICE IN CENTS     */
+      COMM_QBMQIN1.CGPART1T(I)= ' '; /* RED TAG INDICATOR            */
+      COMM_QBMQIN1.DESCR(I)   = ' '; /* RECEIVING BRANCH OFFICE      */
+      COMM_QBMQIN1.FOEMFLAG(I)= 'N'; /* OEM FLAG                     */
+      COMM_QBMQIN1.S0CQUOTE(I)= ' '; /* QUOTE/NO QUOTE               */
+      COMM_QBMQIN1.IOEMPART(I)= ' '; /* OEM PART NUMBER              */
+      COMM_QBMQIN1.ITINNBR(I) = ' '; /* TIN NUMBER                   */
+      COMM_QBMQIN1.CGPARTCS(I)= ' '; /* PART UNIT COST IN MILLS      */
+      COMM_QBMQIN1.IPETPOS(I) = ' '; /* POSITION IN INBD PET REC     */
+      COMM_QBMQIN1.IPRFNUM(I) = ' '; /* PARTS RETURN FORM (PRF)      */
+      COMM_QBMQIN1.ICONSGND(I)= ' '; /* CONSIGNED PART               */
+      COMM_QBMQIN1.CRETREAS(I)= ' '; /* REASON FOR RETURN OF PART    */
+      COMM_QBMQIN1.IRTSORD#(I)= ' '; /* RTS ORDER NUMBER             */
+      COMM_QBMQIN1.IRETRNBO(I)= ' '; /* RETURN BRANCH OFFICE         */
+      COMM_QBMQIN1.FRETRNLB(I)= ' '; /* RETURN LABEL (Y/N)           */
+      COMM_QBMQIN1.CPRTORGN(I)= ' '; /* PART ORIGIN                  */
+      COMM_QBMQIN1.TRETCMNT(I)= ' '; /* FC 99 reason for return      */
+      COMM_QBMQIN1.ISHPTRKG(I)= ' '; /* SHIPPING TRACKING            */
+      COMM_QBMQIN1.QSPART_PAD(I)=' ';/* PADDING                      */
+   END;
+
+      COMM_QBMQIN1.S0CFUNC(1) = '02';/* FUNCTION CODE                */
+      COMM_QBMQIN1.S0QDISUS(1)= '01';/* DISB.-USAGE-UPR SUB QTY      */
+      COMM_QBMQIN1.S0IPART(1) = '000T2222'; /* PART NUMBER           */
+      COMM_QBMQIN1.S0IRECBO(1)= 'BKQ'; /* RECEIVING BRANCH OFFICE    */
+      COMM_QBMQIN1.S0IRECOL(1)= '501'; /* RECEIVING OUT LOCATION     */
+      COMM_QBMQIN1.CGPARTPR(1)= '10000'; /* PART UNIT PRICE IN CENTS */
+      COMM_QBMQIN1.CGPART1T(1)= 'R'; /* RED TAG INDICATOR            */
+      COMM_QBMQIN1.DESCR(1)  = 'PLAST/KYBD';/*RECEIVING BRANCH OFFICE*/
+      COMM_QBMQIN1.S0CQUOTE(1)= '1'; /* QUOTE/NO QUOTE               */
+      COMM_QBMQIN1.IOEMPART(1)= '000T2222'; /* OEM PART NUMBER       */
+      COMM_QBMQIN1.CGPARTCS(1)= '0'; /* PART UNIT COST IN MILLS      */
+      COMM_QBMQIN1.IPRFNUM(1) = '0000000'; /* PARTS RETURN FORM (PRF)*/
+
+   COMM_QBMQIN1.TACTCOMT = ' ';      /* ACTION PLAN COMMENTS         */
+   COMM_QBMQIN1.IUNIQUE  = ' ';      /* STD IN UNIQUENESS NUMBER     */
+   COMM_QBMQIN1.IECCONUM = ' ';      /* ECCO NUMBER                  */
+   COMM_QBMQIN1.NNSSCUST = ' ';      /* CAD CUSTOMER NAME            */
+   COMM_QBMQIN1.ICUSTNUM = ' ';      /* CAD CUSTOMER NUMBER          */  
+   COMM_QBMQIN1.IWAYBILL = ' ';      /* PART WAYBILL NUMBER          */
+   COMM_QBMQIN1.IPONUM   = ' ';      /* PURCHASE ORDER NUMBER        */
+   COMM_QBMQIN1.TCUSTADR = ' ';      /* CUSTOMER ADDRESS             */
+   COMM_QBMQIN1.NCONTACT = ' ';      /* CUST CONTACT NAME (CAD)      */
+        
+   DO I = 1 TO 5;
+      COMM_QBMQIN1.CCHIS(I)= ' ';    /* CHIS contract codes          */
+   END;
+
+   COMM_QBMQIN1.M_FEDF   = 'Y';      /* FEDF MATCH                   */
+   COMM_QBMQIN1.M_FROMBO = 'N';      /* FROM BO MATCH                */
+   COMM_QBMQIN1.M_FROMOL = 'N';      /* FROM OL MATCH                */
+   COMM_QBMQIN1.M_MPI    = 'N';      /* MPI/RSO MATCH                */
+   COMM_QBMQIN1.M_MTM_REG= 'N';      /* MTM MODEL MATCH              */
+   COMM_QBMQIN1.M_MTM_SUPERLOW='Y';  /* MTM GENERIC MATCH            */
+   COMM_QBMQIN1.M_SRC    = ' ';      /* SERVICE REPAIR B/O           */
+   COMM_QBMQIN1.M_MPIREQ = 'Y';      /* MPI MATCH REQUIRED           */
+   COMM_QBMQIN1.M_OTHOFF_S='N';      /* BOREF - SERVICE OFF          */
+   COMM_QBMQIN1.M_OTHOFF_M='N';      /* BOREF - MKTNG. OFF           */
+   COMM_QBMQIN1.M_PART1  = 'Y';      /* PART REF FILE-PART1          */
+   COMM_QBMQIN1.M_PART2  = 'N';      /* PART REF FILE-PART2          */
+   COMM_QBMQIN1.M_PART3  = 'N';      /* PART REF FILE-PART3          */
+   COMM_QBMQIN1.M_PART4  = 'N';      /* PART REF FILE-PART4          */
+   COMM_QBMQIN1.M_PTBO_BOREF='N';    /* BOREF - PT ASS. B/O          */
+   COMM_QBMQIN1.M_PMSCHED= 'N';      /* PM SCHED MACHINE (MTM)       */
+   COMM_QBMQIN1.M_RCVBO_1= 'Y';      /* MATCH RCV B/O - PART1        */
+   COMM_QBMQIN1.M_RCVBO_2= 'N';      /* MATCH RCV B/O - PART2        */
+   COMM_QBMQIN1.M_RCVBO_3= 'N';      /* MATCH RCV B/O - PART3        */
+   COMM_QBMQIN1.M_RCVBO_4= 'N';      /* MATCH RCV B/O - PART4        */
+   COMM_QBMQIN1.M_RCVOL_1= 'Y';      /* MATCH RCV O/L - PART1        */
+   COMM_QBMQIN1.M_RCVOL_2= 'N';      /* MATCH RCV O/L - PART2        */
+   COMM_QBMQIN1.M_RCVOL_3= 'N';      /* MATCH RCV O/L - PART3        */
+   COMM_QBMQIN1.M_RCVOL_4= 'N';      /* MATCH RCV O/L - PART4        */
+   COMM_QBMQIN1.BRFUNC   = '1';      /* BOREF FUNCTION CODE          */
+        
+   DO I = 1 TO 4;
+     COMM_QBMQIN1.HAZ_PART(I)=' ';   /* HAZARDOUS FLAG for PART 1-4  */
+   END;
+
+  COMM_QBMQIN1.PTUID     = ' ';      /* PT USER ID                   */
+  COMM_QBMQIN1.M_COS     = 'N';      /* MATCH TO COS CONTRACT #      */
+  COMM_QBMQIN1.FMPIABND  = ' ';      /* FLAG TO INDICATE MPI ABEND   */
+  COMM_QBMQIN1.PEND_PM   = ' ';      /* ACTHRS < PMHRS PEND FLAG     */
+  COMM_QBMQIN1.M_PRODID  = 'N';      /* MATCH TO PRODUCT ID          */
+  COMM_QBMQIN1.M_ISSC    = ' ';      /* MATCH TO ISSC ENTERPRISE     */
+  COMM_QBMQIN1.MT_IS_PRODID='N';     /* IS M/T A PRODUCT ID?         */
+  COMM_QBMQIN1.COS_VALID = ' ';      /* COS CONTRACT IS VALID        */
+  COMM_QBMQIN1.SCORE_VALID=' ';      /* SCORE CONTRACT IS VALID      */
+  COMM_QBMQIN1.M_CMR     = ' ';      /* CE ENTERED CMR VALID?        */
+
+  DO I = 1 TO 4;
+    COMM_QBMQIN1.TIN_REQ(I)='N';     /* SENSITIVE PART TIN REQUIRED? */
+  END;
+
+  DO I = 1 TO 4;
+    COMM_QBMQIN1.PRF_REQ(I)='N';     /* IS UPR PART NUMBER REQUIRED  */
+  END;
+
+    COMM_QBMQIN1.PRF_REQ(1)='Y';
+
+  COMM_QBMQIN1.CMTMOVRD  = ' ';      /* HOW TO HANDLE MTM            */
+  COMM_QBMQIN1.CTARGET   = ' ';      /* HOW TO HANDLE QSAR           */
+  COMM_QBMQIN1.CPERCALL  = ' ';      /* PER CALL DISPOSITION         */
+  COMM_QBMQIN1.FPARTUSE  = ' ';      /* PARTS USAGE ALLOWED          */
+  COMM_QBMQIN1.FTYPECHK  = ' ';      /* TYPE CHECK REQUIRED          */
+  COMM_QBMQIN1.CBILLABOR = ' ';      /* PEW/SDT BILL LABOR?          */
+  COMM_QBMQIN1.CBILLEXP  = ' ';      /* PEW/SDT BILL EXPENSES?       */
+  COMM_QBMQIN1.CBILLPART = ' ';      /* PEW/SDT BILL PARTS?          */
+  COMM_QBMQIN1.HSTRTSAT  = '0000';   /* SAT START TIME               */
+  COMM_QBMQIN1.HENDSAT   = '0000';   /* SAT END   TIME               */
+  COMM_QBMQIN1.HSTRTSUN  = '0000';   /* SUN START TIME               */
+  COMM_QBMQIN1.HENDSUN   = '0000';   /* SUN END   TIME               */
+  COMM_QBMQIN1.HSTRTMON  = '0800';   /* MON START TIME               */
+  COMM_QBMQIN1.HENDMON   = '1700';   /* MON END   TIME               */
+  COMM_QBMQIN1.HSTRTTUE  = '0800';   /* TUE START TIME               */
+  COMM_QBMQIN1.HENDTUE   = '1700';   /* TUE END   TIME               */
+  COMM_QBMQIN1.HSTRTWED  = '0800';   /* WED START TIME               */
+  COMM_QBMQIN1.HENDWED   = '1700';   /* WED END   TIME               */
+  COMM_QBMQIN1.HSTRTTHU  = '0800';   /* THU START TIME               */
+  COMM_QBMQIN1.HENDTHU   = '1700';   /* THU END   TIME               */
+  COMM_QBMQIN1.HSTRTFRI  = '0800';   /* FRI START TIME               */
+  COMM_QBMQIN1.HENDFRI   = '1700';   /* FRI END   TIME               */
+  COMM_QBMQIN1.FCTRABND  = 'N';      /* FLAG TO INDICATE CPCNTR      */
+  COMM_QBMQIN1.LINKFAIL_CNTR='N';    /* REMOTE SUPPORT FILE LINK OK? */
+
+  DO I = 1 TO 4;   
+     COMM_QBMQIN1.FOLINVLD (I)='N';  /* OWNER CD/FROMOL ERROR        */
+  END;
+
+  COMM_QBMQIN1.QMSERMIN  = '';     /* M/SERIAL MIN LENGTH (NN)     */
+  COMM_QBMQIN1.QMSERMAX  = '';     /* M/SERIAL MAX LENGTH (NN)     */
+  COMM_QBMQIN1.FMTYPCHK  = ' ';      /* MACHINE TYPE FOUND ON THE TMF*/
+  COMM_QBMQIN1.M_MACH_REG= '';      /* MATCH TO CANADA MACHINE      */
+  COMM_QBMQIN1.CSDTOPTN  = ' ';      /* SDF OPTIONS                  */
+  COMM_QBMQIN1.CCADISO   = ' ';      /* CAD ISO COUNTRY CODE         */
+  COMM_QBMQIN1.IEMERGBO  = ' ';      /* EMERGENCY PARTS SERVICE      */
+  COMM_QBMQIN1.ICVGTYPE  = '';    /* WAR, W/U, CNT, MA            */
+  COMM_QBMQIN1.FPASTDEACT= 'N';      /* QSAR DATE > FEDF DEACT       */
+  COMM_QBMQIN1.FPREACT   = 'N';      /* QSAR DATE FEDF ACT DAT       */
+  COMM_QBMQIN1.FHRSINV   = 'N';      /* HOURS INVALID                */
+  COMM_QBMQIN1.VALID_ZIP_CODE='Y';   /* IS THERE A VALID ZIP CODE    */
+  COMM_QBMQIN1.VALID_BILL_CODE='Y';  /* IS THERE A VALID BILL CODE   */
+  COMM_QBMQIN1.ISERVPLN  = ' ';      /* SERVICE PLAN                 */
+  COMM_QBMQIN1.IBILLSTAT = ' ';      /* BILLABLE STATUS CODE         */
+  COMM_QBMQIN1.FLNVSPCL  = 'N';      /* Y = LENOVO SPECIAL MACHINE   */
+  COMM_QBMQIN1.SDT_WARR_LEN='0';     /* SDT WARRANTY LENGTH MONTH    */
+  COMM_QBMQIN1.SPAD11    = ' ';      
+  COMM_QBMQIN1.ICONPHON  = ' ';      /* CONTACT PHONE                */
+  COMM_QBMQIN1.ICCAUTH   = ' ';      /* CREDIT CARD AUTH #           */
+  COMM_QBMQIN1.IHELDCNTR = ' ';      /* FOUND CONTRACT               */
+  COMM_QBMQIN1.ICADENT   = ' ';      /* CAD ENTITLEMENT SOURCE       */
+  COMM_QBMQIN1.FINCDPRT  = 'N';      /* INCIDENT FEE CODE            */
+  COMM_QBMQIN1.CWARRPHS  = ' ';      /* SDT WARRANTY PHASE           */
+  COMM_QBMQIN1.FONSITE   = ' ';      /* ONSITE SERVICE AVAILABLE     */
+  COMM_QBMQIN1.ISERVTYP  = ' ';      /* SERVICE TYPE DESCRIPTION     */
+  COMM_QBMQIN1.ISTPMNT   = ' ';      /* CEDB - MAINTENANCE TYPE      */
+  COMM_QBMQIN1.CSDTBILL  = ' ';      /* BILLING CODE FROM SDT        */
+  COMM_QBMQIN1.FHVCNTR   = ' ';      /* CEDB HV CONTRACT             */
+  COMM_QBMQIN1.FCORABND  = 'N';      /* ABEND IN COR PROCESSING      */
+  COMM_QBMQIN1.FLIABRECALC='N';      /* CONTRACT MATCH TO QSAR       */
+  COMM_QBMQIN1.CMTMBASEW = 'I';      /*MTM base warranty liability IN*/
+  COMM_QBMQIN1.COFRLIAB  = 'Y';      /* MTM Lenovo offering for mach */
+  COMM_QBMQIN1.CCDBSRCIND= ' ';      /* CEDB source indicator        */
+  COMM_QBMQIN1.CMPISPLN  = ' ';      /* MPI SERVICE PLAN             */
+  COMM_QBMQIN1.ISVCTYPE  = ' ';      /* CAD CALL SERVICE TYPE        */
+  COMM_QBMQIN1.ISVCCLAS  = ' ';      /* CAD CALL SERVICE CLASS       */
+  COMM_QBMQIN1.TCALLRSP  = ' ';      /* CALL RESPONSE TIME           */
+  COMM_QBMQIN1.TDALYHRS  = ' ';      /* CAD DAILY START/STOP TIME    */
+  COMM_QBMQIN1.DRECCALL  = '99991231';/* CALL RECEIVE DATE           */
+  COMM_QBMQIN1.FWARUPGD  = ' ';      /* Contract Repository WarrUp   */
+  COMM_QBMQIN1.CCONTYPE  = ' ';      /* CAD contract type edited     */
+  COMM_QBMQIN1.CCDBSERV  = ' ';      /* CEDB service type            */
+  COMM_QBMQIN1.FSERVUPG  = 'N';      /* WARRANTY UPGRADED SERVICE    */
+  COMM_QBMQIN1.SPAD12    = ' ';      /* PADDING                      */
+
+ END CREATE_TYPE1_MSG;
+
+ /*******************************************************************/
+ /* CREATE THE MQ RECORD FOR TYPE5 MESSAGE                          */
+ /*******************************************************************/
+ CREATE_TYPE5_MSG: PROC;
+
+   COMM_QBMQIN5.CMSGTYPE  ='05';/* CROSS MESSAGE TYPE     */
+   COMM_QBMQIN5.CAREA     = 'CR';     /* CROSS = 'CR'               */
+   COMM_QBMQIN5.PTD1      = '982799'; /* PT USER ID                 */
+   COMM_QBMQIN5.QSARBO    = 'T04';    /* QSAR BRANCH OFFICE         */
+   COMM_QBMQIN5.QSARTERR  = 'T04';    /* QSAR TERRITORY             */
+   COMM_QBMQIN5.IINVOICE  ='1234567'; /* INVOICE NUBMER             */
+   COMM_QBMQIN5.CCODE     = '12';     /* CODE                       */
+   COMM_QBMQIN5.NARRATIVE =' ';       /* NARRATIVE                  */
+ 
+ END CREATE_TYPE5_MSG;
+
+ /*******************************************************************/
+ /* PUT THE RECORD INTO MQSERIES QUEUE                              */
+ /*******************************************************************/
+ MQ_PUT1:PROC;
+
+      MQ_MQOD.OBJECTNAME     = MQ_PUT_QUE;  
+      /*MQ_MQOD.OBJECTNAME     = 'HSI.MQ.L.CROSS.IN.ACTIVITY';*/
+
+      MQ_MQPMO.OPTIONS = MQPMO_SYNCPOINT            
+                       + MQPMO_FAIL_IF_QUIESCING  
+                       + MQPMO_DEFAULT_CONTEXT;
+
+      IF (MESSAGE_TYPE='1') THEN 
+         DO;
+         MQ_MQMD.FORMAT = 'BILLREC ';
+
+         CALL MQPUT1(MQHC_DEF_HCONN,
+                  MQ_MQOD,  
+                  MQ_MQMD,
+                  MQ_MQPMO,
+                  CSTG(COMM_QBMQIN1),
+                  COMM_QBMQIN1,
+                  COMP_CODE,
+                  MQ_REASON); 
+      END;
+
+      ELSE DO;
+         MQ_MQMD.FORMAT = 'BILLOVR ';
+
+         CALL MQPUT1(MQHC_DEF_HCONN,
+                  MQ_MQOD,  
+                  MQ_MQMD,
+                  MQ_MQPMO,
+                  CSTG(COMM_QBMQIN5),
+                  COMM_QBMQIN5,
+                  COMP_CODE,
+                  MQ_REASON); 
+      
+      END;
+
+      SELECT(COMP_CODE);
+        
+	WHEN(MQCC_OK);
+
+        OTHERWISE 
+          DO;
+	     ET_TEXT1 = ERR2||MODULE||
+             'FAILURE IN OPENING QUEUE :HSI.MQ.L.CROSS.IN.ACTIVITY';
+           ET_TEXT2 = 'COMPLETION CODE: '||COMP_CODE||
+                        ' REASON CODE: '||MQ_REASON;
+             SIGNAL ERROR;
+  	  END;
+      END;
+
+ END MQ_PUT1;
+
+ %PAGE;
+
+ /*------------------------------------------------------------------*/
+ /* FREE_STORAGE PROC                                                */
+ /*------------------------------------------------------------------*/
+
+ FREE_STORAGE: PROC;
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBMQDR: IN FREE_STORAGE PROC';
+       CALL WRITE_TO_OPER;
+   END;
+
+   IF @COMM_QBMQIN1 ^= NULL
+     THEN CALL CICS_FREEMAIN(@COMM_QBMQIN1);
+   IF @COMM_QBMQIN5 ^= NULL
+     THEN CALL CICS_FREEMAIN(@COMM_QBMQIN5);
+
+ END FREE_STORAGE;
+
+ %PAGE;                                                 
+
+ CICS_FREEMAIN: PROC(@PTR);
+
+   IF TEST_SW                     /* ********** TEST ONLY ********** */
+     THEN DO;
+       DIAG_TEXT = 'QBMQDR: IN FREEMAIN PROC';
+       CALL WRITE_TO_OPER;
+   END;
+
+   DCL @PTR POINTER;
+   DCL AREA CHAR(1) BASED(@PTR);
+
+   IF @PTR ^= NULL THEN
+     EXEC CICS FREEMAIN DATA(AREA);
+
+   @PTR = NULL;
+
+ END CICS_FREEMAIN;
+
+ %PAGE;
+
+ IT_QUITS: PROC;
+ /********************************************************************/
+ /* RETURN TO CICS                                                   */
+ /********************************************************************/
+
+   EXEC CICS RETURN;
+
+ END IT_QUITS;
+
+ %PAGE;
+
+ /*******************************************************************/
+ /* WRITE TO OPERATOR                 - ** FOR TEST ONLY **         */
+ /*******************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+
+ END QBMQDR ;

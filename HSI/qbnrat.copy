@@ -1,0 +1,67 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBNRAT      VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  STANDARD RATE TABLE                                      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE STANDARD RATE TABLE.                */
+ /*               THE VSAM VERSION USED BY THE BILLING PROCESSOR     */
+ /*               EXTRACTED FROM THE FOLLOWING DB2 VIEW:             */
+ /*                  QBVWLN01   STANDARD (NORMAL) RATE TABLE         */
+ /*                                                                  */
+ /*               PLEASE NOTE:  THIS MAPPING MUST MATCH THE SELECT   */
+ /*               FROM THE DXT EXTRACT!                              */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                      JWJ */
+ /*  11/19/02 GP021333 3NSE CHANGE THE KEY TO A 3 DIGIT KEY      DLP */
+ /*  03/06/06 RQ054527 6NSH Add 5 billing flags and type of code VJK */
+ /*                                                                  */
+ /********************************************************************/
+    3 SDXT1        CHAR( 1),        /* PAD (DXT)            001- 001 */
+    3 XPKEY,                        /* PRIMARY KEY ------------------*/
+      5 CRATTYP    CHAR( 3),        /* BILLING TYPE         002- 004 */
+                                    /*   G = GSA CUSTOMER            */
+                                    /*   C = COMMERCIAL CUST         */
+                                    /*   M = MILEAGE RATE            */
+      5 SDXT2      CHAR( 1),        /* PAD (DXT)            005- 005 */
+      5 CCPFIN     CHAR( 1),        /* BILLING CLASS, OR    006- 006 */
+                                    /*   FINANCIAL CAREER PATH       */
+                                    /*   (G, C ONLY)                 */
+      5 SDXT3      CHAR( 1),        /* PAD (DXT)            007- 007 */
+      5 DEFFDTE    CHAR(10),        /* EFFECTIVE DATE       008- 017 */
+                                    /*   ('YYYY-MM-DD')              */
+                                    /*-------------------------------*/
+    3 SDXT4        CHAR( 1),        /* PAD (DXT)            018- 018 */
+    3 AINRATE      FIXED DEC(5,2),  /* INSIDE  LABOR RATE   019- 021 */
+    3 SDXT5        CHAR( 1),        /* PAD (DXT)            022- 022 */
+    3 AOUTRATE     FIXED DEC(5,2),  /* OUTSIDE LABOR RATE   023- 025 */
+    3 SDXT6        CHAR( 1),        /* PAD (DXT)            026- 026 */
+    3 FBILACTH     CHAR( 1),        /* BILL ACTUAL FLAG     027- 027 */
+    3 SDXT7        CHAR( 1),        /* PAD (DXT)            028- 028 */
+    3 FBILTRVH     CHAR( 1),        /* BILL TRAVEL FLAG     029- 029 */
+    3 SDXT8        CHAR( 1),        /* PAD (DXT)            030- 030 */
+    3 FBILEXP      CHAR( 1),        /* BILL EXPENSES FLAG   031- 031 */
+    3 SDXT9        CHAR( 1),        /* PAD (DXT)            032- 032 */
+    3 FBILDIST     CHAR( 1),        /* BILL EXPENSES FLAG   033- 033 */
+    3 SDXT10       CHAR( 1),        /* PAD (DXT)            034- 034 */
+    3 FBILPART     CHAR( 1),        /* BILL PART FLAG       035- 035 */
+    3 SDXT11       CHAR( 1),        /* PAD (DXT)            036- 036 */
+    3 CTYPE        CHAR( 1),        /* Category of Incident 037- 037 */
+				    /* fee code 	             */
+    3 SDXT12       CHAR(43)         /* PAD (DXT)            038- 080 */
+
+ /*------------------------------------------------------------------*/
+ /*                          END  QBNRAT                             */
+ /*------------------------------------------------------------------*/
+

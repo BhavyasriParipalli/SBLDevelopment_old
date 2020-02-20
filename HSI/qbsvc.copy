@@ -1,0 +1,40 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSVC       VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  SERVICE CODE DESCRIPTION TABLE                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF THE SERVICE CODE DESCRIPTION TABLE      */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                  JWJ     */
+ /*  10/08/92 SR 1057  1NSJ ADD ACTIVITY CODE TO KEY         LBS     */
+ /*                             LENGTH OF DESCRIPTION                */
+ /*  08/03/96 S9600308 6NSJ ADD WARRANTY INDICATOR           YDS     */
+ /********************************************************************/
+    3 SDXT1            CHAR( 1),    /* PAD (DXT)            001- 001 */
+    3 XPKEY,                        /* PRIMARY KEY ------------------*/
+      5 CSC            CHAR( 2),    /* SERVICE CODE         002- 003 */
+      5 SDXT2          CHAR( 1),    /* PAD (DXT)            004- 004 */
+      5 CACTCDE        CHAR( 2),    /* ACTIVITY CODE        005- 006 */
+      5 SDXT3          CHAR( 1),    /* PAD (DXT)            007- 007 */
+      5 CWARIND        CHAR( 1),    /* WARRANTY INDICATOR   008- 008 */
+                                    /* ------------------------------*/
+    3 SDXT4            CHAR( 1),    /* PAD (DXT)            009- 009 */
+    3 QDESCLEN   FIXED BIN (15),    /* LENGTH OF DESCRIPT   010- 011 */
+    3 TSCDESCR         CHAR(71)     /* SC DESCRIPTION       012- 082 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSVC                              */
+ /*------------------------------------------------------------------*/
+

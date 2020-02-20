@@ -1,0 +1,23 @@
+$¬  5/01/1999 LE/OS390 profile order for PLI w/ CICS & DLI parts 
+$¬  3/08/2004 changed CL to PLIENT & SOTYPE to CICPL1E for testing Enterprise PLI  PEck
+$¬  7/21/2004 remove CPROCESS=PLI=G                                                PEck
+$¬  7/20/2004 changed compiler options for Enterprise PL/1 compiler                LBS
+$¬  2/10/2006 Changed sotype and cl for CICS upgrade                               PEck
+$¬  2/14/2007 Changed sotype & cl for DB2 support & added PP(CICS,SQL) to options  PEck
+$¬
+$¬  &       P1PARM='CICS,SP'=G,
+$¬
+&  SET  U,SOTYPE=CICPL1ED=G,
+&       CL=PLIENTCD=G,
+&       LIBSET=MSETA01=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='M,A(S),OF,OPT(2),STG,S,STMT,RENT'=G,
+&       CPM2='AG,OP,X(S),PP(CICS(SP),SQL)'=G,
+&       CPM3='SYSTEM(CICS),MAR(2,72,1)'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G,
+&       LEC1='RENT,XREF,LIST'=G

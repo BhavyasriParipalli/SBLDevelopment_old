@@ -1,0 +1,16 @@
+$¬ LE/OS390 profile order for CICPLX  parts with edit step 03/29/99
+$¬ added support for plx 390 via new version of CICPLX2 (CICPLXEN)
+$¬  2/10/2006 Changed sotype for CICS upgrade              Peter Eck
+$¬
+&  SET  U,SOTYPE=CICPLXEU=G,
+&       LIBSET=MSETA02=G,
+&       APM1='SYSPARM(0)'=G,
+&       CPM1='NOOBJ,NOMON,ENV(MVS/ESA),COMPILE(W),NOSTMT'=G,
+&       CPM2='MACRO(I),LC(60),STATS,REORDER,IMP,DOBARS("|:")',
+&       P1PARM='CICS,SP,NOSPIE'=G,
+&       DOOBJ=ON=G,DOVPL=ON=G,DOSYM=ON=G,
+&       PTP1=MOD=G,
+&       DSC1=OBJ=G,
+&       DLB1=AMORMODS=G,
+&       SLB1=*NONE*=G,
+&       DPN1=LKED=G

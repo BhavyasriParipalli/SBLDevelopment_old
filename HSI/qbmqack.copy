@@ -1,0 +1,44 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBMQACK     VERSION NR:  01           DATE:  06/15/10    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  HSI TO CROSS/LAR ACKNOWLEDGEMENT                         */
+ /*                                                                  */
+ /* DESCRIPTION: DATA LAYOUT FOR HSI TO LAR ACKNOWLEDGEMENT          */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  RECORD                                                    */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:     REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*---------- -------- ---- ---------------------------------- ----- */
+ /*06/15/2010 0317104211 0NSE INITIAL VERSION                   DH   */
+ /*                                                                  */
+ /********************************************************************/
+                                /*                                   */
+  3 CMSGTYPE       CHAR (2),    /* Cross message type        001- 002*/
+  3 IDOCNUM        CHAR( 9),    /* LAR Document Number       003- 011*/
+  3 CHIGHSEV       CHAR( 1),    /* Pend Key                  012- 012*/
+  3 ICEBRANCH      CHAR( 3),    /* CE Branch Office          013- 015*/
+  3 ICETERR        CHAR( 3),    /* CE Territory              016- 018*/
+  3 IEMPSER        CHAR( 6),    /* Employee Serial           019- 024*/
+  3 DACTVTY        CHAR( 8),    /* Actvity date  yyyymmdd    025- 032*/
+  3 DAUDIT	   CHAR( 8),    /* Audit Date    yyyymmdd    033- 040*/
+  3 TAUDIT         CHAR( 6),    /* Audit Time     hhmm       041- 046*/
+  3 CTYPE          CHAR( 1),    /* HSI Record Type E/D/P     047- 047*/
+                                /* E = ERROR DURING PROCESS          */
+                                /* D = DISCARD (DO NOT BILL)         */
+                                /* P = PROCESSED (HSI/HSD)           */
+  3 CRECERR        CHAR( 5),    /* HSI Error Code            048- 052*/
+  3 TERRDESC       CHAR(30),    /* Error Description         053- 082*/
+  3 IINVOICE       CHAR( 7),    /* HSI Invoice Number        083- 089*/
+  3 CINVOICE       CHAR( 3)   	/* HSI Invoice Type          090- 092*/
+                                /* HSI = data sent to SSR            */
+                                /* HSD = invoicing error             */
+ /* -----------------------------------------------------------------*/
+ /*                      END  QBMQACK                                */
+ /*------------------------------------------------------------------*/

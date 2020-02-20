@@ -1,0 +1,35 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBCOMM2     VERSION NR:  01           DATE:  12/04/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  NSS QSAR-BILLING COMMAREA                                */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  12/04/89 I87752   0NSA MATCH BILLABLE PARTS TRLRS           LBS */
+ /*                    TO ORIGINAL QSAR DOCUMENT                     */
+ /*03/17/2008 Mn34727613 8NSA fix daily hours assignment         LBS */
+ /*                                                                  */
+ /********************************************************************/
+ %INCLUDE QBSBILL; ,
+ %INCLUDE QBFLAGS; ,
+  3 X#QBPARTS FIXED BIN(15),
+  /* 3 QBPARTS(Q# REFER (X#QBPARTS)), REMOVE 8NSA CHANGE TO FIXED */
+  3 QBPARTS(20),
+ %INCLUDE QBSPART; ;
+ DCL Q#     FIXED BIN(31);
+ /*------------------------------------------------------------------*/
+ /*                      END  QBCOMM2                                */
+ /*------------------------------------------------------------------*/

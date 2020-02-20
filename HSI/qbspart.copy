@@ -1,0 +1,51 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSPART     VERSION NR:  01           DATE:  04/10/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  (QSAR) BILLING PARTS SEGMENT                             */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QBPART                                        */
+ /*                                                                  */
+ /* TYPE:  SEGMENT                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF BILLING PARTS SEGMENT                   */
+ /*                                                                  */
+ /*  NOTE: FOR TEMP STORAGE DECLARE AN ARRAY USING PL/I "REFER"      */
+ /*        OPTION (AS IN QBCOMM COPY).                               */
+ /*        FOR THE DATABASE, DECLARE A SINGLE 3-LEVEL BEFORE         */
+ /*        INCLUDING.  (EACH PART LINE IS AN INDIVIDUAL SEGMENT IN   */
+ /*        THE DATABASE.)                                            */
+ /*                                                                  */
+ /* LENGTH:   55 BYTES                                               */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/10/89 SR0038   0NSK INITIAL VERSION                 JWJ      */
+ /*  10/11/89 SR9892   0NSA INITIAL VERSION (NO CHANGE)     JWJ      */
+ /*  01/19/90 DCR9892E 0NSA (DONE UNDER THIS DCR...)        JWJ      */
+ /*                         INCREASE APARTPR TO DEC(9,2)             */
+ /*  09/10/90 I102184  0NSK INCR PART USAGES FROM DEC(2) TO          */
+ /*                         DEC(3)                              LBS  */
+ /*  02/07/91 SR0702   1NSE ADD STATE, COUNTY, CITY TAX FIELDS  LBS  */
+ /*                         INCREASE LENGTH FROM 50 TO 55            */
+ /*  02/06/96 S9500167 6NSC ADD APARTCS                         LBS  */
+ /*                                                                  */
+ /********************************************************************/
+      5 IPART      CHAR(8),         /* PART NUMBER          001- 008 */
+      5 QDISUS     FIXED DEC(3),    /* PART QTY (USAGE)     009- 010 */
+      5 NPARTDSC   CHAR(10),        /* PART DESCRIPTION     011- 020 */
+      5 APARTPR    FIXED DEC(9,2),  /* PART UNIT PRICE      021- 025 */
+      5 APARTAMT   FIXED DEC(9,2),  /* PART AMT (QTY*UNIT)  026- 030 */
+      5 APSTATTX   FIXED DEC(9,2),  /* STATE TAX  - TAXCALC 031- 035 */
+      5 APCNTYTX   FIXED DEC(9,2),  /* COUNTY TAX - TAXCALC 036- 040 */
+      5 APCITYTX   FIXED DEC(9,2),  /* CITY TAX   - TAXCALC 041- 045 */
+      5 APARTCS    FIXED DEC(9,2),  /* PART UNIT COST       046- 050 */
+      5 SPAD01     CHAR(5)          /* (PAD)                051- 055 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSPART                            */
+ /*------------------------------------------------------------------*/
+

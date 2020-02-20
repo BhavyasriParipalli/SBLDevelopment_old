@@ -1,0 +1,34 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBZIPCD     VERSION NR:  01           DATE:  04/12/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  (QSAR) BILLING ZIP CODE TABLE                            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF ZIP CODE TABLE VSAM FILE                */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+
+ 3 CZIP          CHAR(9),           /* 001-009 ZIP CODE        - KEY */
+ 3 CSTATCD       CHAR(2),           /* 010-011 STATE  CODE           */
+ 3 CCNTYCD       CHAR(3),           /* 012-014 COUNTY CODE           */
+ 3 CCITYCD       CHAR(4),           /* 015-018 CITY   CODE           */
+ 3 SPAD01        CHAR(14)           /* 019-032 (PAD)                 */
+
+ /*------------------------------------------------------------------*/
+ /*                      END  QBZIPCD                                */
+ /*------------------------------------------------------------------*/
+

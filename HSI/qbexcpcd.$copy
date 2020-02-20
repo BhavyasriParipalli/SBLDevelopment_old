@@ -1,0 +1,35 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBEXCPCD    VERSION NR:  01           DATE:  04/02/91    */
+ /*                                               TIME:  15:51:16    */
+ /*                                                                  */
+ /* TITLE: MAPPING OF 'QBEXCPCD' (BILLING ERROR MESSAGES)            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE: 'QBEXCPCD' KEYED VSAM FILE                                 */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: MAPPING OF KEYED VSAM ERROR MESSAGE FILE 'QBEXCPCD' */
+ /*                                                                  */
+ /*                                                                  */
+ /* LENGTH: 80                                                       */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  04/02/91 SR0554   1NSG BILLING ERROR MESSAGE/ FILES   JLH       */
+ /*                                                                  */
+ /********************************************************************/
+    3 SPAD01           CHAR(1),       /* PAD                         */
+    3 CRESERR          CHAR(3),       /* REVENUE ERROR CODE          */
+    3 SPAD02           CHAR(1),       /* PAD                         */
+    3 DEFFDT           CHAR(10),      /* EFFECTIVE DATE              */
+    3 SPAD03           CHAR(1),       /* PAD                         */
+    3 TDESCR27         CHAR(27),      /* PT MESSAGE TEXT             */
+    3 SPAD04           CHAR(37)       /* PAD                         */
+ /*------------------------------------------------------------------*/
+ /*                                  END  QBEXCPCD                   */
+ /*------------------------------------------------------------------*/
+

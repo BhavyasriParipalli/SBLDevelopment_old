@@ -1,0 +1,1069 @@
+ QBMQRD  : PROC OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBMQRD      VERSION NR:  01        DATE:  06/11/2010  */
+ /*                                                                  */
+ /*  TITLE:  READ MQ DATA RECEIVED FROM CROSS                        */
+ /*                                                                  */
+ /*  FUNCTION:  READ DATA FROM MQSERIES AND ALLOCATE                 */
+ /*             REQUIRED STORAGE                                     */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I                                                 */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  NONE                                                     */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*  INPUTS:   MQ DATA FROM CROSS                                    */
+ /*                                                                  */
+ /*  OUTPUTS:  QBMQIN1, QBMQIN5 AND QBCROSS                          */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                     PGMR:*/
+ /* --------- -------- ------ --------------------------------- -----*/
+ /*06/09/2010 IT4211   0NSE    INITIAL VERSION                   AM  */
+ /*11/25/2010 IT4211   0NSE    CHANGES FOR ASCA                  NM  */
+ /*03/24/2011 PRODSUPT 0NSE   CHANGE TP_DATE, TP_TIME ASSIGNMENT LBS */
+ /*06/02/2011 IT4211   0NSE   CHANGE DIAG_TEXT ALIGNMENT IN      SK  */
+ /*                           MQ_GET                                 */
+ /*12/07/2011 RCQ1882  2HSC   REMOVE LOAD BALANCING(NSSCPSM)     NAK */
+ /*02/16/2012 RCQ1882  2HSC   REMOVE NQUEUE,CWADCSTB             NAK */
+ /*                           ASSIGN 31 FOR HUB                      */ 
+ /*12/23/15 RCQ00374314 2HSZ  ADD WAIT INTERVAL IN MQGET PROC    ABR */
+ /********************************************************************/
+ DCL VERSION    CHAR(17) STATIC INIT('2HSC - 02/16/2012');
+ DCL MODULE     CHAR( 7) STATIC INIT('QBMQRD');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  STG          BUILTIN;
+ DCL  SUBSTR       BUILTIN;
+ DCL  TRANSLATE    BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(12K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),,BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR INIT(NULL);  /* POINTER TO COMMAREA --        */
+                                    /* (PASSED FROM CALLING PROGRAM) */
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL BILL_PTR      PTR INIT(NULL);
+ DCL OVR1_PTR      PTR INIT(NULL);
+ 
+ %PAGE;
+ DCL 1 MQ_BILL  UNALIGNED BASED(BILL_PTR),
+    %INCLUDE QBMQIN1;;  
+    
+ %PAGE;
+ DCL BILL_PTR_VAL FIXED BIN(31) BASED(ADDR(BILL_PTR)) INIT(0B);
+ 
+ %PAGE;
+ DCL 1 MQ_OVR1  UNALIGNED BASED(OVR1_PTR),
+    %INCLUDE QBMQIN5;;
+    
+ %PAGE;
+ DCL OVR1_PTR_VAL FIXED BIN(31) BASED(ADDR(OVR1_PTR)) INIT(0B);
+
+ DCL 1 MQ_IN  UNALIGNED BASED(@COMM),
+	2 TYPE_1,
+		%INCLUDE QBMQIN1;,
+	2 TYPE_5,
+		%INCLUDE QBMQIN5;,
+	2 COMMON_VARIABLES,
+		%INCLUDE QBCROSS;,
+	2 OUT_AEQCOMM,
+		%INCLUDE AEQCOMM;,
+	2 OUT_QBOVIN,
+		%INCLUDE QBOVIN;;  
+
+ %PAGE;
+ DCL 1 ERROR_DATA  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ DCL 1 LAR_IN UNALIGNED,
+	2 TYPE_1,
+         %INCLUDE QBMQIN1;;
+         
+ %PAGE;
+ DCL 1 STATS           UNALIGNED,
+    %INCLUDE AEQQSRC ; ;
+ %PAGE;
+ /* ----------------------------------------------------------------*/
+ /*  JOURNAL RECORD PREFIX                                          */
+ /* ----------------------------------------------------------------*/
+ DCL 1 TP_PREFIX,
+      3  TP_APPLID  CHAR(8),       /* CICS APPLID                   */
+      3  TP_QSARID  CHAR(10),      /*                               */
+      3  TP_CEBO    CHAR(3),       /*                               */
+      3  TP_CETERR  CHAR(3),       /*                               */
+      3  TP_DATE    CHAR(8),       /* CURRENT DATE (YYMMDD)         */
+      3  TP_TIME    CHAR(6),       /* CURRENT TIME (HHMMSS)         */
+      3  TP_RC    FIXED BIN(15),   /* GI HEADER RETURN CODE         */
+      3  TP_ABSTIME CHAR(8),       /* ABS TIME FROM INTERFACE REC   */
+      3  TP_FTYPE FIXED BIN(15);   /* ERROR FIELD DATA TYPE         */
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* MQSERIES INCLUDES                                                */
+ /*------------------------------------------------------------------*/
+ %INCLUDE CMQP;;
+ %INCLUDE CMQEPP;; 
+ 
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+      %INCLUDE CWA ;;
+		
+ /*DCL 1 DCSTBL_AREA UNALIGNED BASED(CWADCSTB),             RCQ1882
+      %INCLUDE DCSTBLPL;; */
+      
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* MQSERIES STRUCTURES                                              */
+ /*------------------------------------------------------------------*/
+ DCL  MQ_MQOD       LIKE MQOD;  /* OBJECT DESCRIPTOR                 */
+ DCL  MQ_MQPMO      LIKE MQPMO; /* PUT MESSAGE OPTIONS               */
+ DCL  MQ_MQGMO      LIKE MQGMO; /* GET MESSAGE OPTIONS               */
+ DCL  MQ_MQMD_GET   LIKE MQMD;  /* MESSAGE DESCRIPTOR GET            */
+ DCL  MQ_MQMD_PUT   LIKE MQMD;  /* MESSAGE DESCRIPTOR PUT            */
+
+ /*------------------------------------------------------------------*/
+ /* MQSERIES VARIABLES                                               */
+ /*------------------------------------------------------------------*/
+ DCL COMPCODE          FIXED BIN(31)     INIT(0);
+ DCL DATALENGTH        FIXED BIN(31)     INIT(0); 
+ DCL CHARATTRLENGTH    FIXED BIN(31)     INIT(0);  
+ DCL CHARATTRS               CHAR(100)   INIT('');
+ DCL HOBJ_GET          FIXED BIN(31)     INIT(0);   
+ DCL HOBJ_PUT          FIXED BIN(31)     INIT(0);   
+ DCL INTATTRCOUNT      FIXED BIN(31)     INIT(0);
+ DCL INTATTRS(1)       FIXED BIN(31)     INIT(0);   
+ DCL MQ_DATA_LEN       FIXED BIN(31)     INIT(0);
+ DCL MQ_DATA_PTR              POINTER    INIT(NULL);    
+ DCL MQ_DATA_STR              CHAR(3000) BASED(MQ_DATA_PTR);
+ DCL MQ_DATA_PTR_VALUE FIXED BIN(31)     BASED(ADDR(MQ_DATA_PTR));
+ DCL MQ_OPTIONS        FIXED BIN(31)     INIT(0);
+ DCL ORIG_CROSS_ADDR   FIXED BIN(31)     INIT(0);
+ DCL QUEUE_SUFFIX            CHAR(6)     INIT('');
+ DCL REASON            FIXED BIN(31)     INIT(0);   
+ DCL SELECTORCOUNT     FIXED BIN(31)     INIT(0); 
+ DCL SELECTORS(1)      FIXED BIN(31)     INIT(0); 
+ DCL WAIT_INTERVAL     FIXED BIN(31)     INIT(10000); /*RCQ00374314*/ 
+  
+ /* ----------------------------------------------------------------*/
+ /* IMS DECLARES                                                    */
+ /* ----------------------------------------------------------------*/
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8)  INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1)  INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2)  INIT(' ='),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1)  INIT(')');
+
+ %PAGE;
+ 
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+ DCL BACKOUT_CNT  FIXED BIN(31)    INIT(0);
+ DCL COMMLENGTH   FIXED BIN(31)    INIT(0);
+  /*DCL CPSM_SYSID       CHAR(4)    INIT('');   RCQ1882               */
+ DCL DIAG_TEXT          CHAR(80)   INIT('');
+ DCL ERR1               CHAR( 9)   INIT('QSR9000: ');
+ DCL ERR2               CHAR( 9)   INIT('QSR9002: ');
+ DCL JRNLREC_LEN  FIXED BIN(31)    INIT(0);
+ DCL MQREC_LEN    FIXED BIN(15)    INIT(0);
+ /*DCL NSSCPSMP_LEN FIXED BIN(15)    INIT(0);  RCQ1882              */
+ DCL OPTION_ONE         CHAR(1)    INIT('1');
+ DCL OPTION_TWO         CHAR(1)    INIT('2');
+
+ DCL PIC_RESP           PIC'9999'  INIT(0);
+ DCL PIC_RESP2          PIC'9999'  INIT(0);
+ DCL PIC_DATE           PIC'(8)9'  INIT(0);
+ DCL PIC_TIME           PIC'(6)9'  INIT(0);
+ DCL 1 PIC_TIME_OVER   BASED(ADDR(PIC_TIME)),
+       3 PIC_HR         PIC'99',
+       3 PIC_MIN        PIC'99',
+       3 PIC_SEC        PIC'99';
+ DCL PFXLENGTH    FIXED BIN(15)    INIT(0);
+ 
+ DCL ABSHHMMSS         CHAR(6)    INIT('');
+ DCL ABSMMDD           CHAR(4)    INIT('');
+ DCL ABSOLTIME   FIXED DEC(15)    INIT(0);
+ DCL ABSTIME     FIXED DEC(15)    INIT(0);
+ DCL ABSYEAR     FIXED BIN(31)    INIT(0);
+ DCL ABSYEAR_PIC       PIC'9999'  INIT(0);
+ DCL ABSYYMMDD         CHAR(6)    INIT('');
+ DCL AREA_CHAR         CHAR(2)    INIT('');
+ DCL AREA_PIC          PIC '99'   BASED(ADDR(AREA_CHAR));
+ DCL DATE_YYYYMMDD     CHAR(10)   INIT('');
+ DCL AREA_CROSS        PIC'99'    INIT('01');
+ /*------------------------------------------------------------------*/
+ /*   BIT DECLARES                                                   */
+ /*------------------------------------------------------------------*/
+ DCL F_END_OF_QUEUE     BIT(1)     INIT('0'B);
+ DCL F_BACKOUT          BIT(1)     INIT('0'B);
+ DCL TEST_SW            BIT(1)     INIT('0'B);
+ DCL FOUND              BIT(1)     INIT('0'B);
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE           FIXED BIN(31) INIT(0);
+ DCL RESPONSE2          FIXED BIN(31) INIT(0);
+ 
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SNAP SYSTEM;                /* PREVENT RECURSION ERROR */
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     ET_PROGRAM_ID = ' QBMQRD';
+     ET_EIB = EIB_STRING;
+     ET_DUMPCODE = 'Y';
+	 
+     DIAG_TEXT = 'DATE :'   || PIC_DATE ||
+                 'TIME :'   || PIC_TIME ||
+                 'MODULE :' || MODULE   ||' '||
+                 ONLOC;
+     CALL WRITE_TO_OPER();
+	 
+	 CERROR = '300';
+     TERROR = 'INTERNAL ERROR : CONTACT HSI DEVLOPMENT';  
+
+     DIAG_TEXT = MODULE||': ERROR - '||CERROR||'-'||TERROR;
+     CALL WRITE_TO_OPER();
+	 
+     ET_TEXT5 = ERR2||MODULE||' ABEND IN PROC: '||ONLOC;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_DATA)
+                    RESP(RESPONSE);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;
+         /* IF ALL ELSE FAILS, DUMP AND RETURN TO CICS */
+         EXEC CICS ABEND
+              ABCODE('MQRD')
+              CANCEL;
+       END;
+
+     EXEC CICS RETURN;
+
+    END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS CWA(@CWA)  RESP(RESPONSE);  /* GET ADDR OF CWA    */
+       
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     DIAG_TEXT = MODULE||': ENTERED- FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+ 
+ 
+ IF CWA_QSAR_TRACE = 'Y' | 
+    CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = MODULE||': ENTERED';
+     CALL WRITE_TO_OPER();
+   END;
+ 
+ COMMLENGTH = CSTG(MQ_IN);
+ EXEC CICS GETMAIN SET(@COMM) FLENGTH(COMMLENGTH);
+   
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = MODULE||': COMM LENGTH '||COMMLENGTH;
+     CALL WRITE_TO_OPER();
+   END;
+     
+ CALL INITIALIZE_COMMON_FIELDS();
+ 
+ CALL MQ_OPEN();
+ CALL GET_INIT_STOR_FOR_MQ_DATA();
+ CALL MQ_GET();
+
+ IF ^F_END_OF_QUEUE 
+   THEN CALL FORMAT_DATA_IN_TEMP();
+ 
+ /* INCREMENT THE COUNT OF INPUT TYPE1 OR TYPE5 RECORDS */
+ IF ^F_END_OF_QUEUE 
+   THEN CALL UPDATE_CTLDB();
+   
+ IF F_END_OF_QUEUE 
+   THEN DO;
+     FENDOFMQ = '1';
+     CALL MQ_CLOSE();
+   END; 
+ 
+ IF ^FENDOFMQ
+   THEN DO;
+     CALL WRITE_JOURNAL_RECORD();
+     CALL START_TRANS_QBMN();
+   END;
+   ELSE IF TEST_SW
+   THEN DO; 
+     DIAG_TEXT = MODULE ||':WAIT INTERVAL'||MQ_MQGMO.WAITINTERVAL;
+     CALL WRITE_TO_OPER();
+     DIAG_TEXT = MODULE ||': NO RECORDS IN THE INPUT QUEUE';
+     CALL WRITE_TO_OPER();
+   END;
+
+ EXEC CICS RETURN;
+ 
+ %PAGE;
+ /********************************************************************/
+ /* INITIALIZE SOME OF THE CONTROL VARIABLES IN QBCROSS_COMM         */
+ /********************************************************************/
+ INITIALIZE_COMMON_FIELDS: PROC();
+  
+   IF TEST_SW  
+     THEN DO;
+       DIAG_TEXT = MODULE||': INITIALIZE_COMMON_FIELDS';
+       CALL WRITE_TO_OPER();
+     END;
+	
+   MQ_IN.FIRSTRD  = '1';
+   MQ_IN.FENDOFMQ = '0';
+   MQ_IN.FVALID   = 'Y';
+   MQ_IN.CERROR   = '';
+   MQ_IN.TERROR   = '';
+   MQ_IN.SPAD98   = '';
+   MQ_IN.CMSGIND  = '01';
+   
+   /* RCQ1882 Introduced CWA.MQ_READQ for MQ assignments*/
+   SELECT(CWA.MQREGION);
+     WHEN('L')  /* Local */
+       MQ_IN.IGETQUE='HSI.MQ.L.CROSS.IN.ACTIVITY';
+     WHEN('D')  /* Dev */
+       MQ_IN.IGETQUE='HSI.CROSS.INBOUND.QUEUE.D1';
+     WHEN('U')  /* UAT */
+       MQ_IN.IGETQUE='HSI.CROSS.INBOUND.QUEUE.I2';
+     WHEN('P')  /* Prd*/
+       MQ_IN.IGETQUE='HSI.CROSS.INBOUND.QUEUE';
+     OTHERWISE
+       MQ_IN.IGETQUE='HSI.CROSS.INBOUND.QUEUE.'||MQREGION;
+    END;  
+
+  IF TEST_SW   
+  THEN DO;
+  DIAG_TEXT = MODULE||': QUEUE '||MQ_IN.IGETQUE;
+   CALL WRITE_TO_OPER();       
+  END;  
+   
+   /* LOCAL TEST QUEUE */
+   /* MQ_IN.IGETQUE = 'HSI.MQ.L.CROSS.IN.ACTIVITY';  */
+   
+   /*QUEUE_SUFFIX  = TRANSLATE(NQUEUE,' ',LOW(1));  RCQ1882*/
+   
+   /* PRODUCTION QUEUE */
+   /* Comment out below code for RCQ1882 
+      as production MQ queue name is changed*/
+   /* MQ_IN.IGETQUE = 'HSI.CROSS.INBOUND.QUEUE.'||QUEUE_SUFFIX; 
+   
+   IF TEST_SW   
+     THEN DO;
+       DIAG_TEXT = MODULE||': NQUEUE - '||NQUEUE;
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QUEUE_SUFFIX - '||QUEUE_SUFFIX;
+       CALL WRITE_TO_OPER();
+     END;     */
+   
+ END INITIALIZE_COMMON_FIELDS;
+
+ %PAGE;
+ /********************************************************************/
+ /* MQ_OPEN: THIS PROCEDURE OPENS ACTIVITY PROCESSOR QUEUE           */
+ /********************************************************************/
+ MQ_OPEN: PROC(); 
+ 
+   MQ_MQOD.OBJECTNAME = MQ_IN.IGETQUE;  
+   MQ_OPTIONS         = MQOO_INPUT_SHARED + 
+                        MQOO_BIND_NOT_FIXED +
+                        MQOO_FAIL_IF_QUIESCING; 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': OPEN GET QUEUE ' || 
+                        MQ_MQOD.OBJECTNAME ;
+       CALL WRITE_TO_OPER();
+     END;
+
+   CALL MQOPEN(MQHC_DEF_HCONN,
+               MQ_MQOD,
+               MQ_OPTIONS,
+               HOBJ_GET,
+               COMPCODE,
+               REASON); 
+
+   IF COMPCODE ^= MQCC_OK
+     THEN DO;
+       DIAG_TEXT = MODULE||': FAILURE OPENING INPUT QUEUE';
+       CALL WRITE_TO_OPER();
+       SIGNAL ERROR;
+     END;
+     ELSE DO;
+       IHOBJGET = HOBJ_GET; 
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': OPEN GET QUEUE SUCCESSFUL';
+           CALL WRITE_TO_OPER();
+         END;
+     END;
+       
+ END MQ_OPEN; 
+ 
+  %PAGE;
+ /********************************************************************/
+ /* GET_INIT_STOR_FOR_MQ_DATA                                        */
+ /*     THIS PROCEDURE GETS INITIAL STORAGE FOR MQ DATA.             */
+ /********************************************************************/
+ GET_INIT_STOR_FOR_MQ_DATA: PROC();
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN GET_INIT_STOR_FOR_MQ_DATA';
+       CALL WRITE_TO_OPER();
+     END;
+
+   MQREC_LEN = CSTG(MQ_DATA_STR);  
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': ALLOCATION OF MEMORY FOR ' ||
+                   MQREC_LEN || ' BYTES' ;
+       CALL WRITE_TO_OPER();
+     END;
+          
+   CALL CICS_GETMAIN(MQ_DATA_PTR, MQREC_LEN); 
+
+   /*  SAVE PTR TO ORIGINAL AREA  */              
+   ORIG_CROSS_ADDR = MQ_DATA_PTR_VALUE; 
+   
+ END GET_INIT_STOR_FOR_MQ_DATA;
+  
+ %PAGE;
+
+ /********************************************************************/
+ /* MQ_GET : THIS PROCEDURE GETS A RECORD FROM MQSERIES QUEUE.       */
+ /********************************************************************/
+  MQ_GET: PROC(); 
+
+      /*  RESET MQ_DATA_PTR TO ORIGINAL AREA  */     
+    MQ_DATA_PTR_VALUE = ORIG_CROSS_ADDR;   
+    MQ_DATA_STR       = '';
+
+    MQ_MQMD_GET.MSGID          = MQMI_NONE;                
+    MQ_MQMD_GET.CORRELID       = MQCI_NONE; 
+    MQ_MQGMO.WAITINTERVAL      = WAIT_INTERVAL;  /*RCQ00374314*/               
+    MQ_MQMD_GET.CODEDCHARSETID = 500;            
+    /* Default codedCharSetId is 500 for z/OS */
+          
+    MQ_MQGMO.OPTIONS           = MQGMO_SYNCPOINT + MQGMO_WAIT +        
+                                 MQGMO_FAIL_IF_QUIESCING ; 
+
+    HOBJ_GET = IHOBJGET; 
+
+    IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = MODULE||': GET DATA FROM MQ Series QUEUE';
+        CALL WRITE_TO_OPER();
+      END;
+
+    CALL MQGET (MQHC_DEF_HCONN,           
+                HOBJ_GET,        
+                MQ_MQMD_GET,     
+                MQ_MQGMO,        
+                CSTG(MQ_DATA_STR),     
+                MQ_DATA_STR,     
+                DATALENGTH,      
+                COMPCODE,
+                REASON);         
+    
+    MQ_MQGMO.WAITINTERVAL      = WAIT_INTERVAL;  /*RCQ00374314*/           
+    MQ_MQMD_GET.CODEDCHARSETID = 500;                 
+    MQ_MQGMO.OPTIONS           = MQGMO_SYNCPOINT  + MQGMO_WAIT +        
+                               + MQGMO_FAIL_IF_QUIESCING;     
+
+    SELECT(COMPCODE);
+      WHEN(MQCC_OK)
+        DO;
+          BACKOUT_CNT = MQ_MQMD_GET.BACKOUTCOUNT;
+          IF TEST_SW
+            THEN DO;
+              DIAG_TEXT = MODULE||': MSG DESCRIPTOR FORMAT '||
+                               MQ_MQMD_GET.FORMAT ;
+              CALL WRITE_TO_OPER();
+             END;
+
+          SELECT (SUBSTR(MQ_DATA_STR,1,2));
+            WHEN('01')
+              DO;
+                CMSGIND = '01';
+                IF TEST_SW
+                  THEN CALL WRITE_LAR_01();
+              END;
+            WHEN('05')
+                CMSGIND = '05';
+            OTHERWISE 
+              DO;   /*SK*/
+		DIAG_TEXT = MODULE||': MESSAGE TYPE INVALID - '||
+                SUBSTR(MQ_DATA_STR,1,2);
+		CALL WRITE_TO_OPER();
+		SIGNAL ERROR;
+              END;                   /* SK */
+          END;   /* END OF SELECT   */
+        END;
+      WHEN(MQCC_WARNING)
+        DO;
+          SELECT;                                 
+            WHEN (REASON = MQRC_NO_MSG_AVAILABLE)
+              DO;                                 
+                 F_END_OF_QUEUE  = '1'B;           
+              END;  
+            OTHERWISE SIGNAL ERROR; 
+          END; 
+        END;
+      WHEN(MQCC_FAILED)
+        DO;
+          SELECT;                                 
+            WHEN (REASON = MQRC_NO_MSG_AVAILABLE) 
+              DO;                                 
+                F_END_OF_QUEUE  = '1'B;           
+              END;
+            OTHERWISE SIGNAL ERROR;
+          END;
+        END;                          
+      OTHERWISE SIGNAL ERROR;
+    END;     
+  
+  END MQ_GET;
+  
+  %PAGE;
+
+ /********************************************************************/
+ /* THIS PROCEDURE FORMATS THE MQSERIES DATA FOR THE ACTIVITY        */
+ /* PROCESSOR                                                        */
+ /********************************************************************/
+ FORMAT_DATA_IN_TEMP : PROC();
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': POPULATE RECORD LAYOUT '||CMSGIND ;
+       CALL WRITE_TO_OPER();
+     END;
+
+   SELECT(CMSGIND);
+     WHEN('01')
+       DO;
+         BILL_PTR_VAL = MQ_DATA_PTR_VALUE;
+         MQ_IN.TYPE_1 = MQ_BILL,BY NAME;
+         
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': MSG TYPE ' || 
+                   MQ_IN.TYPE_1.CMSGTYPE||' BILL RECORD' ;
+             CALL WRITE_TO_OPER();
+             DIAG_TEXT = MODULE||': DOCUMENT NUMBER '||
+                              MQ_IN.TYPE_1.S0IDOCMN;
+             CALL WRITE_TO_OPER();
+           END;
+       
+       END;
+     WHEN('05')
+       DO;
+         OVR1_PTR_VAL = MQ_DATA_PTR_VALUE;
+         MQ_IN.TYPE_5 = MQ_OVR1,BY NAME;
+
+         IF TEST_SW
+          THEN DO;
+            DIAG_TEXT = MODULE||': MSG TYPE ' || 
+                      MQ_IN.TYPE_5.CMSGTYPE||' OVERRIDE RECORD';
+            CALL WRITE_TO_OPER();
+            DIAG_TEXT = MODULE||': OVERRIDE MSG FOR '||
+                               MQ_IN.TYPE_5.IINVOICE;
+            CALL WRITE_TO_OPER();
+          END;
+       END;
+     OTHERWISE
+       DO;
+	 DIAG_TEXT = MODULE||': MESSAGE TYPE INVALID - '||CMSGIND;
+         CALL WRITE_TO_OPER();
+	 SIGNAL ERROR;
+       END;            
+   END;
+   
+ END FORMAT_DATA_IN_TEMP;
+  
+  %PAGE;
+
+ /********************************************************************/
+ /* THIS PROCEDURE INCREMENTS THE QSRCQBIN COUNTER IN IMS DB FOR THE */
+ /* CORRESPONDING RECORD TYPE - QSARLARC FOR TYPE1 AND QSAROVRC FOR  */
+ /* TYPE5 TO DENOTE THE COUNT OF INPUT RECORDS                       */
+ /********************************************************************/
+ UPDATE_CTLDB : PROC();
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': UPDATE_CTLDB';
+       CALL WRITE_TO_OPER();
+     END;
+   
+   /* RCQ1882 :   Assign AREA_CROSS */
+   
+   IF CWAPRIHB = 'H' THEN AREA_CROSS='31';
+   
+   EXEC CICS ASKTIME ABSTIME(ABSTIME);
+   EXEC CICS FORMATTIME ABSTIME(ABSTIME) YYMMDD(ABSYYMMDD)
+                                         YEAR(ABSYEAR)
+                                         TIME(ABSHHMMSS)
+                                         YYYYMMDD(DATE_YYYYMMDD)
+                                         RESP(RESPONSE);
+   
+   IF (CMSGIND = '01') 
+     THEN DO;
+	   CAASCRSC_KEYVAL = 'QSARLARC' || AREA_CROSS ||
+                     SUBSTR(DATE_YYYYMMDD,1,8);
+	 END;
+   ELSE DO;
+	   CAASCRSC_KEYVAL = 'QSAROVRC' || AREA_CROSS ||
+                     SUBSTR(DATE_YYYYMMDD,1,8);
+   END;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER();
+     END;
+	 
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT = MODULE||': SCHEDULE PSB AEQDU3';
+      CALL WRITE_TO_OPER();
+    END;
+   
+   ET_TEXT1 = ERR2||MODULE||' ABOUT TO SCHEDULE PSB AEQDBU3';
+   
+   EXEC DLI SCHD PSB(AEQDU3);
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': EXEC DLI SCHD PSB(AEQDU3) DIBSTAT ('||
+                   DIBSTAT||')';
+       CALL WRITE_TO_OPER();
+     END;
+
+   IF DIBSTAT = ''
+     THEN ;
+     ELSE DO;
+       DIAG_TEXT = ERR2||MODULE||
+                ' UNABLE TO SCHEDULE PSB AEQDU3, STAT = ('
+                 ||DIBSTAT||')';
+       EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT);
+       SIGNAL ERROR;
+     END;
+   
+   EXEC DLI GU USING PCB(2)
+               SEGMENT('CAASCRSC')
+               INTO(STATS)
+               WHERE (IINTAREA=CAASCRSC_KEYVAL);
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': AFTER DLI CALL ';
+       CALL WRITE_TO_OPER();
+     END;
+	 
+   IF DIBSTAT = ''              /* RECORD FOUND */
+     THEN DO;
+       STATS.QSRCDATE = ABSYYMMDD;
+       STATS.QSRCTIME = ABSHHMMSS;
+	   STATS.QSRCQBIN = STATS.QSRCQBIN + 1;   
+   
+       ET_TEXT1 = ERR1||MODULE||' UNABLE TO REPL CONTROL DATA BASE ';
+
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': REPL CONTROL DB '||CAASCRSC_KEYVAL;
+           CALL WRITE_TO_OPER();  
+         END;
+                       
+   
+       EXEC DLI REPL USING PCB(2) 
+                     SEGMENT('CAASCRSC')
+                     FROM(STATS);  
+                     
+       ET_TEXT1 = SUBSTR(ET_TEXT1,1,50)||' STAT = ('||DIBSTAT||')';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': DIBSTAT = '||DIBSTAT;
+           CALL WRITE_TO_OPER();
+         END;
+       IF DIBSTAT ^= ''
+         THEN SIGNAL ERROR;
+     END;
+     ELSE
+       IF DIBSTAT = 'GE'                     /* NO RECORD FOUND */
+       THEN DO;
+         STATS = '';
+         STATS.QSRCDATE = ABSYYMMDD;
+         STATS.QSRCTIME = ABSHHMMSS;
+		 STATS.QSRCACTD = SUBSTR(DATE_YYYYMMDD,1,8);
+		 
+		 IF (CMSGIND = '01')
+			THEN DO;
+				STATS.QSRCKEY1 = 'QSARLARC';
+			END;
+		 ELSE DO;
+				STATS.QSRCKEY1 = 'QSAROVRC';
+			END;
+    
+         STATS.QSRCAREA = AREA_CROSS;
+         
+		 STATS.QSRCQBIN = STATS.QSRCQBIN + 1;
+    
+         ET_TEXT1 = ERR1||MODULE||' UNABLE TO ISRT CONTROL DATA BASE';
+    
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': INSERT CONTROL DB '||
+                                            QSRCAREA||QSRCACTD;
+             CALL WRITE_TO_OPER();
+             DCL CHAR80 CHAR(80) BASED(ADDR(STATS));
+             DIAG_TEXT = MODULE||' ISRT CONTROL REC '||
+                                 SUBSTR(CHAR80,1,40);
+             CALL WRITE_TO_OPER();
+           END;
+           
+         EXEC DLI INSERT USING PCB(2)
+                         SEGMENT('CAASCRSC')
+                         FROM(STATS);
+    
+         ET_TEXT1 = SUBSTR(ET_TEXT1,1,50) || ' STAT= ' || DIBSTAT;
+         ET_TEXT2 = ERR2||MODULE||' 3 CNTL KEY = ' ||
+                     QSRCKEY1||QSRCAREA||QSRCACTD;
+    
+         IF DIBSTAT ^= '  '
+           THEN SIGNAL ERROR;
+       END;
+     
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': CONTROL DB DIBSTAT: ('||DIBSTAT||')';
+         CALL WRITE_TO_OPER();
+         DIAG_TEXT = MODULE||': OUT OF UPDATE CONTROL ' ;
+         CALL WRITE_TO_OPER();
+       END;
+        
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': CONTROL KEY '||CAASCRSC_KEYVAL;
+       CALL WRITE_TO_OPER();
+       DIAG_TEXT = MODULE||': QSRCQBIN= '||QSRCQBIN;
+       CALL WRITE_TO_OPER();
+     END;
+	 
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': TERMINATE PSB';
+       CALL WRITE_TO_OPER();
+     END;
+	 
+   EXEC DLI TERMINATE;
+	
+ END UPDATE_CTLDB;
+ 
+ %PAGE;
+ /********************************************************************/
+ /* MQ_CLOSE : THIS PROCEDURE CLOSES THE QUEUE.                      */
+ /********************************************************************/
+  MQ_CLOSE : PROC();
+                              
+    MQ_OPTIONS = MQCO_NONE;         
+    HOBJ_GET   = IHOBJGET;
+    
+    IF TEST_SW
+      THEN DO;
+        DIAG_TEXT = MODULE||': CLOSE MQSERIES GET QUEUE';
+        CALL WRITE_TO_OPER();
+      END;
+                          
+    CALL MQCLOSE(MQHC_DEF_HCONN,           
+                 HOBJ_GET,        
+                 MQ_OPTIONS,         
+                 COMPCODE,        
+                 REASON);    
+
+    IF COMPCODE  ^= MQCC_OK 
+      THEN DO;
+        DIAG_TEXT = MODULE||': ERROR WHEN CLOSING THE QUEUE';
+        CALL WRITE_TO_OPER();
+        SIGNAL ERROR;
+      END;
+      ELSE DO;
+        IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||': CLOSE MQ GET QUEUE OK';
+           CALL WRITE_TO_OPER();
+         END;
+      END;
+
+  END MQ_CLOSE;
+
+  %PAGE;
+ /********************************************************************/
+ /* PASS CONTROL TO THE MAIN CONTROLLER MODULE - QBMAIN              */
+ /********************************************************************/
+ START_TRANS_QBMN: PROC();
+ 
+    IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = MODULE||': START TRANS QBMN IN AOR';
+         CALL WRITE_TO_OPER();
+       END;
+       
+ /*------------------------------------------------------------------*/
+ /*COMMENTED THE BELOW CODE AS LOAD BALANCING IS NOT REQUIRED RCQ1882*/
+ /* -----------------------------------------------------------------*/
+ /*     NSSCPSMP_LEN = CSTG(CPSM_SYSID);        RCQ1882
+     EXEC CICS LINK PROGRAM  ('NSSCPSM')        RCQ1882
+                    COMMAREA (CPSM_SYSID)       RCQ1882
+                    LENGTH   (NSSCPSMP_LEN)     RCQ1882
+                    NOHANDLE ;                  RCQ1882             */
+
+ /********************************************************************/
+ /* PASS CONTROL TO THE MAIN CONTROLLER MODULE - QBMAIN : RCQ1882    */
+ /********************************************************************/
+     EXEC CICS START TRANSID('QBMN')
+                     FROM(MQ_IN)
+             /*      SYSID(CPSM_SYSID)          RCQ1882             */
+                     RESP (RESPONSE)
+                     RESP2(RESPONSE2) ;
+
+
+   IF RESPONSE ^= DFHRESP(NORMAL)       /* IF ABNORMAL RESPONSE THEN*/
+     THEN DO;                           /* PASS CONTROL TO ERROR PGM*/
+       PIC_RESP  = RESPONSE;
+       PIC_RESP2 = RESPONSE2;
+       ET_TEXT1  = ERR2||MODULE||' FAILED TO START TRANS QBMN '||
+                        PIC_RESP|| ' RESP2 '||PIC_RESP2;
+       SIGNAL ERROR;
+     END;
+
+ END START_TRANS_QBMN;
+ 
+ %PAGE;
+ /********************************************************************/
+ /* GETMAIN : THIS PROC ISSUES CICS GETMAIN FOR A STORAGE ALLOC      */
+ /********************************************************************/
+  CICS_GETMAIN:  PROC(PTR, LEN);          
+                                        
+   DCL  PTR             POINTER;        
+   DCL  LEN             FIXED BIN(15);  
+                                        
+   EXEC CICS GETMAIN SET     (PTR)      
+                     LENGTH  (LEN)      
+                     INITIMG (LOW(1));  
+                                        
+  END CICS_GETMAIN;
+
+ %PAGE;
+ /********************************************************************/
+ /*                                                                  */
+ /********************************************************************/
+ WRITE_LAR_01: PROC();
+ 
+   DCL CHAR_OVRLAY          CHAR(2000) BASED(MQ_DATA_PTR);
+   DIAG_TEXT = SUBSTR(CHAR_OVRLAY,1,80);
+   CALL WRITE_TO_OPER();
+   DIAG_TEXT = SUBSTR(CHAR_OVRLAY,81,80);
+   CALL WRITE_TO_OPER();
+   DIAG_TEXT = SUBSTR(CHAR_OVRLAY,161,80);
+   CALL WRITE_TO_OPER();
+   DIAG_TEXT = SUBSTR(CHAR_OVRLAY,241,80);
+   CALL WRITE_TO_OPER();
+
+   
+ END WRITE_LAR_01;
+
+
+ %PAGE;
+ /********************************************************************/
+ /*  PLACE THE ROOT SEGMENT IN JOURNAL 7                             */
+ /*                                                                  */
+ /********************************************************************/
+ WRITE_JOURNAL_RECORD: PROC();
+   IF TEST_SW 
+     THEN DO;
+       DIAG_TEXT = MODULE||': IN WRITE_JOURNAL_RECORD PROCEDURE';
+       CALL WRITE_TO_OPER();
+     END;
+
+   LAR_IN     = MQ_IN, BY NAME;
+   TP_QSARID  = MQ_IN.TYPE_1.S0IEMPSE;
+   TP_CEBO    = MQ_IN.TYPE_1.CMIBOCE;
+   TP_CETERR  = MQ_IN.TYPE_1.CIICETER;
+   TP_DATE    = SUBSTR(DATE_YYYYMMDD,1,8);
+   TP_TIME    = ABSHHMMSS;
+   TP_ABSTIME = '';
+
+   EXEC CICS ASSIGN APPLID(TP_APPLID) NOHANDLE;
+
+   JRNLREC_LEN = CSTG(LAR_IN);
+   PFXLENGTH   = CSTG(TP_PREFIX);
+
+   EXEC CICS WRITE JOURNALNAME('DFHJ07')
+                   JTYPEID('LR')
+                   FROM(LAR_IN)
+                   FLENGTH(JRNLREC_LEN)
+                   PREFIX(TP_PREFIX)
+                   PFXLENG(PFXLENGTH)
+                   RESP(RESPONSE)
+                   RESP2(RESPONSE2);
+
+   SELECT (RESPONSE);
+     WHEN (DFHRESP (NORMAL))
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||': SUCCESSFUL WRITE TO JOURNAL 7';
+             CALL WRITE_TO_OPER();
+           END;
+       END;
+     OTHERWISE
+       DO;
+         PIC_RESP  = RESPONSE;
+         PIC_RESP2 = RESPONSE2;
+         ET_TEXT1 = ERR2||MODULE||' FAILURE ON WRITE JOURNAL 7 RECORD';
+         ET_TEXT2 = ERR2||MODULE||' RESPONSE '||PIC_RESP||
+                                  ' RESP2 '||PIC_RESP2||
+                                  ' DOC '|| MQ_IN.TYPE_1.S0IDOCMN;
+
+         SIGNAL ERROR;
+       END;
+   END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||': END WRITE JOURNAL RECORD';
+       CALL WRITE_TO_OPER();
+     END;
+
+ END WRITE_JOURNAL_RECORD;
+                       
+ /*******************************************************************/
+ /*  WRITE DIAGNOSTIC MESSAGE TO OPERATOR CONSOLE                   */
+ /*******************************************************************/
+ WRITE_TO_OPER: PROC();
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ END QBMQRD ;

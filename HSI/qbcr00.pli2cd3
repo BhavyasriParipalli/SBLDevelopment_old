@@ -1,0 +1,252 @@
+ QBCR00  /*                                       06/20/10-09:11:20 */:
+    PROC      OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBCR00      VERSION NR:  01        DATE:  06/20/10    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  INITIAL LAR BILLING MODULE                              */
+ /*                                                                  */
+ /*  FUNCTION:  THIS MODULE WILL START A CICS QBCR WHICH CONTAINS    */
+ /*             ACTIVITY PROCESSOR QUEUE PROCESSING LOGIC.           */
+ /*             THE SOLE PURPOSE OF THIS MODULE TO INVOKE ACTIVITY   */
+ /*             PROCESSOR MODULE.                                    */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I                                                 */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO COMMAREA                              */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS:   NONE                                                  */
+ /*                                                                  */
+ /*  OUTPUTS:  NONE                                                  */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:            PROGRAMMER:   */
+ /*06/20/2010 HSICROSS 0NSE    INITIAL VERSION         NIRANJANAA    */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA      NAK */
+ /*02/16/2012 RCQ1882  2HSC   ADD ADDR, CSTG BUILTIN DECLARES    LBS */
+ /*                                                                  */
+ /********************************************************************/
+ DCL VERSION      CHAR(17) STATIC INIT('2HSC - 02/6/2012');
+ DCL MODULE       CHAR( 6) STATIC INIT('QBCR00');
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;
+ DCL  LENGTH       BUILTIN;
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  STRING       BUILTIN;
+ DCL  SUBSTR       BUILTIN;
+ DCL  TRANSLATE    BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+
+ /*%INCLUDE CEEIBMAW
+ %INCLUDE CEEIBMCT   */
+
+ %PAGE;
+
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL @COMM_QBCROSS PTR;             /* POINTER TO "COMM" DATA AREA   */
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ %PAGE;
+
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+                                          /* SYSTEM DATE 'YYYYMMDD'  */
+ DCL CURDATE               CHAR( 8)  INIT('');
+ DCL DIAG_TEXT             CHAR(80)  INIT('');
+ DCL ERR1                  CHAR( 9)  INIT('QBCR001: ');
+ DCL ERR2                  CHAR( 9)  INIT('QBCR002: ');
+ DCL PIC4                  PIC'9999' INIT(0);
+ DCL PICRESP               PIC'9999' INIT(0);
+ DCL PIC_DATE              PIC'(8)9' INIT(0);
+ DCL PIC_TIME              PIC'(6)9' INIT(0);
+ DCL 1 PIC_TIME_OVER       BASED(ADDR(PIC_TIME)),
+       3 PIC_HR            PIC'99',
+       3 PIC_MIN           PIC'99',
+       3 PIC_SEC           PIC'99';
+
+ DCL RESPONSE        FIXED BIN(31)   INIT(0);
+ DCL RESPONSE2       FIXED BIN(31)   INIT(0);
+
+ DCL TEST_SW               BIT(1)    INIT('0'B);
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING            CHAR(85)  BASED(DFHEIPTR);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     ET_PROGRAM_ID = 'QBCR00 ';
+     PIC_DATE      = EIBDATE;
+     PIC_TIME      = EIBTIME;
+     ET_EIB        = EIB_STRING;
+     WTO_FLAG      = 'Y';
+     ET_DUMPCODE   = 'Y';
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE)
+                    RESP2(RESPONSE2);
+                    
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('QBCR')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+           CWA(@CWA)  
+           RESP(RESPONSE)
+           RESP2(RESPONSE2);
+
+ IF CWA.CWA_QSAR_TRACE = 'Y' |
+    CWA.CWA_QSAR_TRACE = 'T'
+   THEN DO;
+     TEST_SW   = '1'B;
+     DIAG_TEXT = MODULE||': ENTERED';
+     CALL WRITE_TO_CEEMSG();
+   END;
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     PICRESP = RESPONSE;
+     PIC4    = RESPONSE2;
+     ET_TEXT1 = ERR2 || MODULE ||'FAILURE TO GET ADDRESS OF CWA ';
+     ET_TEXT2 = ERR2 || MODULE ||'RESP '||PICRESP||' RESP2 '||PIC4;
+     SIGNAL ERROR;
+   END;
+
+
+ IF TEST_SW                       /* ********** TEST ONLY ********** */
+   THEN DO;
+     DIAG_TEXT = MODULE||': ABOUT TO START THE TRANSACTION QBCR';
+     CALL WRITE_TO_CEEMSG();
+   END;
+
+ EXEC CICS START TRANSID('QBCR')
+                 RESP(RESPONSE)
+                 RESP2(RESPONSE2);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)      /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                          /* PASS CONTROL TO ERROR PGM  */
+     PICRESP = RESPONSE;
+     PIC4    = RESPONSE2;
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO START TRAN QBCR ';
+     ET_TEXT2 = ERR2 || MODULE ||'RESP '||PICRESP||' RESP2 '||PIC4;
+     SIGNAL ERROR;
+   END;
+
+
+ EXEC CICS RETURN;
+
+
+ %PAGE;
+ WRITE_TO_CEEMSG: PROC();
+ /********************************************************************/
+ /* WRITE TO OPERATOR                   ** FOR TEST ONLY **          */
+ /********************************************************************/
+
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_CEEMSG;
+
+
+ END QBCR00 ;
+

@@ -1,0 +1,1058 @@
+ QBTAX1: PROC (COMM_PTR) OPTIONS(MAIN) REORDER;
+
+ /*******************************************************************/
+ /***                                                               */
+ /***   PROGRAM             : QBTAX1                                */
+ /***                                                               */
+ /***   PROGRAM LANGUAGE:   : PL/I                                  */
+ /***   AUTHOR              : LINDA BARKER (USM&S)                  */
+ /***   TIE LINE            : 8-445-5718                            */
+ /***   DATE WRITTEN        : MARCH 30, 1989                        */
+ /***                                                               */
+ /***   FILES ACCESSED      : TAX REFERENCE DATA SET AND KEY TABLE  */
+ /***                         (VSAM FILES)                          */
+ /***                                                               */
+ /***   INCLUDED SOURCE     : AEQERRT, QBTAX, QBTPARM               */
+ /***                                                               */
+ /***   EXTERNAL PROCEDURES : DTGC10A (ONLINE TAXCALC MODULE),      */
+ /***                         DTGC10B (VIA LINK FROM DTGC10A)       */
+ /***                                                               */
+ /***   FUNCTIONAL          : PERFORMS ONLINE TAXING FOR DIRECT     */
+ /***      CUSTOMER INVOICES.  BUILDS A LINKED PARAMETER LIST FOR   */
+ /***      TAXCALC MODULE, LINKS TO TAXCALC, AND ASSIGNS THE        */
+ /***      ACCUMULATED RESULTS FOR THE CUSTOMER'S INVOICE.          */
+ /***                                                               */
+ /***      --> !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!! NOTE !!!     */
+ /***      --> THIS IS THE "NSS" VERSION OF THE SAME MODULE WHICH   */
+ /***      --> RUNS IN BSS (DRIVER SYSTEM CONS). ANY CHANGES MADE   */
+ /***      --> HERE SHOULD BE REFLECTED IN THE BSS VERSION.         */
+ /***      --> THE TWO VERSIONS DIFFER IN THE 'ON ERROR' BLOCK -    */
+ /***      --> HERE WE USE QSAR ERROR ROUTINE AEQERRP TO DO WTOS.   */
+ /***      --> BSS VERSION IS RUNNING UNDER JES3 AND SO WRITES      */
+ /***      --> MESSAGES OUT TO A TD QUEUE.                          */
+ /***                                                               */
+ /***   UPDATE LOG:                                                 */
+ /***   DATE:     REASON:  DRIVER:  DESCRIPTION          PROGRAMMER */
+ /***   09/27/89  SR9892    0NSA    INITIAL VERSION           LMB   */
+ /***   02/11/91  SR0535    1NSE    LINE ITEM TAXING, SAVE    LBS   */
+ /***                               INDIVIDUAL TAX ELEMENTS         */
+ /***   03/22/95  S9500053  5NSC    ADD SOFTWARE TAX CODE 37  LBS   */
+ /***   10/01/98  S98126    8NSM  UPDATE DIAGNOSTICS          LBS   */
+ /*** 04/18/2002  HSIPROD   2NSG  LE 2.10 changes, PLIXOPT    LBS   */
+ /*** 03/14/2004 HSI_4NSC_015 4NSC RECOMPILE THE PROGRAM      DLP   */
+ /*** 10/17/2006 RQ046246   7NSA  Remove hard disk parts  Archana   */
+ /***                             from QS                           */
+ /*** 10/08/2007 IT062425   8NSA  Sunset of expense tax   Chaitra   */
+ /***                             code '56'                         */
+ /*** 06/02/200711 IT4211   0NSE  Changed to pick the     Susmitha  */
+ /***                             version 1.6.1.3 QBTAX1            */
+ /*** 02/21/2012  RCQ1882   2HSC  Recompiled for NSS sunset    NAK  */
+ /*******************************************************************/
+ DCL MODULE    CHAR(6)  STATIC INIT('QBTAX1');
+ DCL VERSION   CHAR(17) STATIC INIT('0NSE - 06/02/2011');
+ /*******************************************************************/
+ /*-----------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING          */
+ /* PREPROCESSOR STATEMENTS:                                        */
+ /*                                                                 */
+ /*    %DCL CMPTIME CHAR                                            */
+ /*    %DCL COMPILETIME BUILTIN                                     */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                           */
+ /*                                                                 */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT  */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN    */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                          */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /*                       FILE DECLARES                             */
+ /* --------------------------------------------------------------- */
+ DCL SYSPRINT FILE PRINT;
+
+ /* --------------------------------------------------------------- */
+ /*                       BUILT-INS                                 */
+ /* --------------------------------------------------------------- */
+
+ DCL (ADDR,
+      CSTG,
+      NULL,
+      ONLOC,
+      SUBSTR) BUILTIN;
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(8K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ /********************************************************************/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /********************************************************************/
+
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+
+ DCL RESPONSE           FIXED BIN(31) INIT(0);
+
+ /*******************************************************************/
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /*           DECLARES FOR VARIABLES USED IN TEST_VALUES            */
+ /* --------------------------------------------------------------- */
+ /*                                                                 */
+ /*  THE FOLLOWING TAX TOTALS FOR PARTS, LABOR, AND EXPENSE ARE NOT */
+ /*  RETURNED TO THE CALLING PROGRAM.  THEY ARE USED IN TESTING WHEN*/
+ /*  TEST_VALUES IS CALLED.                                         */
+ /*                                                                 */
+ /* --------------------------------------------------------------- */
+
+ DCL STATE  FIXED BIN(15,0)  INIT(1);
+ DCL COUNTY FIXED BIN(15,0)  INIT(2);
+ DCL CITY   FIXED BIN(15,0)  INIT(3);
+
+ /* --------------------------------------------------------------- */
+ /* 'STATE', 'COUNTY', AND 'CITY' ARE USED AS INDEXES INTO THE      */
+ /* FOLLOWING TAX_TOTAL ARRAYS.  STATE=1, COUNTY=2, CITY=3.         */
+ /* --------------------------------------------------------------- */
+
+ DCL PARTS_TAX_TOTAL(3)   FIXED DEC(9,2);
+ DCL LABOR_TAX_TOTAL(3)   FIXED DEC(9,2);
+ DCL EXP_TAX_TOTAL(3)     FIXED DEC(9,2);
+
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /*                     FIXED BIN DECLARES                          */
+ /* --------------------------------------------------------------- */
+
+ DCL I     FIXED BIN(15,0)  INIT(0);        /* USED AS A COUNTER    */
+ DCL J     FIXED BIN(15,0)  INIT(0);        /* USED AS A COUNTER    */
+ DCL K     FIXED BIN(15,0)  INIT(0);        /* NUMBER OF TAXID'S    */
+ DCL L     FIXED BIN(15,0)  INIT(0);        /* USED AS AN INDEX     */
+ DCL SI    FIXED BIN(15,0)  INIT(0);        /* USED IN ERROR ROUTINE*/
+ DCL Q#    FIXED BIN(31);                   /* 'REFER' VARIABLE     */
+
+ DCL TEMP_TAXID     CHAR(2);         /* TEMP TAX INDICATOR - IT2425 */
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*         $SWA INCLUDED CODE                                      */
+ /*         COMMUNICATION WITH ONLINE TAX MODULE                    */
+ /*                                                                 */
+ /*******************************************************************/
+
+ DCL 1  $SWA_PTRS,
+        2  $SWACOMM_PTR  POINTER,  /* POINTER TO SWA COMMON SECTION */
+        2  $SWAWORK_PTR  POINTER;  /* POINTER TO SWA WORK SECTION   */
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*         SWA COMMON SECTION                                      */
+ /*                                                                 */
+ /*******************************************************************/
+
+ DCL 1  $SWA,                              /* COMMUNICATION AREA */
+         2  $ID CHAR(8)  INIT ('QBTAX1 '),
+         2  $COMM_LEN FIXED BIN(31),
+         2  $NEXT_PGM CHAR(8),
+         2  $PASS_PTR POINTER,             /* ADDRESS OF TAXPARM  */
+         2  $PASS_LEN FIXED BIN(31);       /* 310 * K             */
+
+ /*******************************************************************/
+ /*                                                                 */
+ /*         SWA APPLICATION WORK AREA                               */
+ /*                                                                 */
+ /*******************************************************************/
+
+ DCL 1 $SWAWORK,            /* WORK AREA  */
+     2 $ID CHAR (8),              /* IDENTIFIER 'SWA WORK'          */
+     2 $WORK_LEN FIXED BIN (31),  /* LENGTH OF APPLICATION WORK AREA*/
+                                  /*** INSERT $SWAWORK CONTINUATION */
+                                  /* DEFINE THE CONTINUATION OF THE */
+                                  /* APPLICATION WORK AREA.  THE    */
+                                  /* MAXIMUM LENGTH OF THE          */
+                                  /* CONTINUATION IS 300 BYTES.     */
+                                  /* IF NOT NEEDED, INSERT A DUMMY  */
+                                  /* LEVEL 2 DATA ELEMENT AND END   */
+     2 DUMMY CHAR (0);            /* THE STRUCTURE WITH A SEMICOLON */
+
+ $SWACOMM_PTR = ADDR($SWA);
+
+ $SWAWORK_PTR = ADDR($SWAWORK);
+
+ %PAGE;
+ DCL COMM_PTR POINTER;          /* COMMON AREA FROM INVOKING PROGRAM*/
+ DCL 1 TAX_COMM       BASED(COMM_PTR) UNALIGNED,
+       3 TAX_PTR       PTR,
+       3 QSAR_PTR      PTR;
+
+ DCL 1 TAXIN   BASED(TAX_PTR) UNALIGNED,
+    %INCLUDE QBTAX ; ;
+
+ DCL 1 QSARDATA  BASED(QSAR_PTR) UNALIGNED,
+    %INCLUDE  AEQCOMM;,
+    %INCLUDE  QBCOMM; ;
+
+ %PAGE;
+ DCL
+   1 TAXPARM(20),                   /* TAX RECORD PARAMETER LIST    */
+   %INCLUDE QBTPARM ; ;
+
+ %PAGE;
+ DCL 1 ERROR_DATA       UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+ %PAGE;
+ /*******************************************************************/
+ /***   THESE ARE THE RETURN CODES FROM TAXCALC AND THEIR         ***/
+ /***   ASSOCIATED MEANING                                        ***/
+ /*******************************************************************/
+ /*                                                                 */
+ /*     00 - NORMAL RETURN (TAXED OR EXEMPT)                        */
+ /*     01 - NO KEYTABLE FILE                                       */
+ /*     02 - NO TRDS FILE                                           */
+ /*     03 - TRDS RECORD MISSING - VALID CODES                      */
+ /*     04 - TRDS RECORD MISSING - FF BYPASSES                      */
+ /*     05 - TRDS RECORD MISSING - NOTAXRECST                       */
+ /*     06 - TRDS RECORD MISSING - NOTAXRECCN                       */
+ /*     07 - TRDS RECORD MISSING - NOTAXRECCY                       */
+ /*     08 - TRDS RECORD MISSING - FILE DATE                        */
+ /*     09 - DASD ERROR                                             */
+ /*     10 - PGRM DATE INFORMATION NOT AVAILABLE                    */
+ /*     11 - KEYTABLE RECORD MISSING - KEY DATE                     */
+ /*     12 - 20  FOR FUTURE USE                                     */
+ /*     21 - NO F&F(MATERIAL VALUE) REC ON TRDS                     */
+ /*     22 - TAXID NOT NUMERIC                                      */
+ /*     23 - TAXID VALUE NOT ALLOWED                                */
+ /*     24 - STATE CODE INVALID                                     */
+ /*     25 - COUNTY CODE INVALID                                    */
+ /*     26 - CITY CODE INVALID                                      */
+ /*     27 - INVALID TAX CLASS                                      */
+ /*     28 - AMOUNT (ANY) INVALID                                   */
+ /*     29 - AGREEMENT DATE INVALID                                 */
+ /*     30 - INSTALL DATE INVALID                                   */
+ /*     31 - INVOICE DATE INVALID                                   */
+ /*     32 - SHIP DATE INVALID                                      */
+ /*     33 - MFG DATE INVALID                                       */
+ /*     34 - INVALID PRODUCT CATEGORY CODE                          */
+ /*     35 - SHIP DATE OLDER THAN MFG DATE                          */
+ /*     36 - F&F TYPE W/PURCHASE CODE                               */
+ /*     37 - INVALID LOA AMOUNT                                     */
+ /*                                                                 */
+ /*******************************************************************/
+ %PAGE;
+ /*******************************************************************/
+ /*       ERROR MESSAGES CORRESPONDING TO TAXCALC RETURN CODE       */
+ /*******************************************************************/
+  DCL ERRORS(29) CHAR(50) STATIC INIT
+ ('RETURN CODE = 00, NORMAL RETURN (TAXED OR EXEMPT)',
+  'ERROR CODE = 01, CALL TAX DEPT',
+  'ERROR CODE = 02, CALL TAX DEPT',
+  'ERROR CODE = 03, CALL TAX DEPT',
+  'ERROR CODE = 04, CALL TAX DEPT',
+  'ERROR CODE = 05, CALL TAX DEPT',
+  'ERROR CODE = 06, CALL TAX DEPT',
+  'ERROR CODE = 07, CALL TAX DEPT',
+  'ERROR CODE = 08, CALL TAX DEPT',
+  'ERROR CODE = 09, CALL TAX DEPT',
+  'ERROR CODE = 10, CALL TAX DEPT',
+  'ERROR CODE = 11, CALL TAX DEPT',
+  'F&F RATE RECORD NOT ON TRDS   ',
+  'TAXID CODE NOT NUMERIC        ',
+  'TAXID VALUE NOT ALLOWED       ',
+  'STATE CODE INVALID            ',
+  'COUNTY CODE INVALID           ',
+  'CITY CODE INVALID             ',
+  'INVALID TAXCLASS              ',
+  'AMOUNT(ANY) INVALID           ',
+  'AGREEMENT DATE INVALID        ',
+  'INSTALL DATE INVALID          ',
+  'INVOICE DATE INVALID          ',
+  'SHIP DATE INVALID             ',
+  'MANUFACTURING DATE INVALID    ',
+  'INVALID PRODUCT CATEGORY CODE ',
+  'SHIP DATE OLDER THAN MFG  DATE',
+  'F&F TYPE W/PURCHASE CODE      ',
+  'INVALID LOA AMOUNT            ');
+
+  DCL RET_CODES(29) CHAR(2) INIT('00','01','02','03','04','05','06',
+   '07','08','09','10','11','21','22','23','24','25','26','27','28',
+   '29','30','31','32','33','34','35','36','37');
+
+  DCL DIAG_TEXT      CHAR(80)  INIT('');
+  DCL PIC_RESP       PIC'9999' INIT(0);
+
+ /*******************************************************************/
+ /*                 BIT INDICATOR DECLARES                          */
+ /*******************************************************************/
+
+ DCL  PARTS_SW    BIT(1)    INIT('0'B);  /* INDICATES IF PARTS USED */
+ DCL  ERR_SW      BIT(1)    INIT('0'B);  /* ERROR SWITCH            */
+ DCL  ERRMSG_SW   BIT(1)    INIT('0'B);  /* ERROR MESSAGE FOUND     */
+
+ %PAGE;
+ /*******************************************************************/
+ /* ERROR PROCESSING                                                */
+ /* ----------------                                                */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE  */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                   */
+ /*******************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+     ET_PROGRAM_ID = 'QBTAX1';
+     ET_EIB = EIB_STRING;
+     ET_DUMPCODE = 'Y';
+ /*    DIAG_TEXT = MODULE || ' ON ENTRY TO '|| ONLOC    */
+ /*    EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)     */
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+          COMMAREA(ERROR_DATA)
+          RESP(RESPONSE);
+
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;
+         /* IF ALL ELSE FAILS, DUMP AND RETURN TO CICS */
+         EXEC CICS DUMP
+              DUMPCODE('TAX1')
+              TASK;
+         EXEC CICS RETURN;
+       END;
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /*************                                          ************/
+ /*************   M A I N   P R O G R A M   L O G I C    ************/
+ /*************                                          ************/
+ /*******************************************************************/
+
+ /*   I N I T I A L I Z E   F I E L D S   */
+
+ TAXPARM(*).STATE       = TAXIN.CSTATCD;
+ TAXPARM(*).COUNTY      = TAXIN.CCNTYCD;
+ TAXPARM(*).CITY        = TAXIN.CCITYCD;
+ TAXPARM(*).OCL         = TAXIN.COCL;
+ TAXPARM(*).CMR_ORI     = '0';
+ TAXPARM(*).CUST_NUM    = '0' || TAXIN.ICUSTNO;
+ TAXPARM(*).TYP_CUST    = TAXIN.CCUSTYPE;
+ TAXPARM(*).STTAXCL     = SUBSTR(TAXIN.CTAXCL,1,1);
+ TAXPARM(*).CNTAXCL     = SUBSTR(TAXIN.CTAXCL,2,1);
+ TAXPARM(*).CYTAXCL     = SUBSTR(TAXIN.CTAXCL,3,1);
+ TAXPARM(*).SHIP_FRM    = '   ';
+ TAXPARM(*).INV_DATE    = TAXIN.DINVDTE;
+ TAXPARM(*).AGREE_DATE  = TAXIN.DINVDTE;
+ TAXPARM(*).SHIP_DATE   = TAXIN.DINVDTE;
+ TAXPARM(*).INST_DATE   = TAXIN.DINVDTE;
+ TAXPARM(*).MFG_DATE    = '000000';
+ TAXPARM(*).TAXAGR      = 'H ';
+ TAXPARM(*).TYPEQ       = 'A';
+ TAXPARM(*).PROD_CAT    = TAXIN.CTAXCD;
+ TAXPARM(*).MKT_BO      = TAXIN.CBOMKT;
+ TAXPARM(*).ACC_BO      = TAXIN.CBOMKT;
+ TAXPARM(*).SVC_BO      = TAXIN.CBOSVC;
+ TAXPARM(*).QTY         = 0;
+ TAXPARM(*).REVENUE        = 0;
+ TAXPARM(*).LOCAPP      = '1';
+ TAXPARM(*).CLRCOST     = 0;
+ TAXPARM(*).TZ_CHRG     = 0;
+ TAXPARM(*).TP_DIFF     = 0;
+ TAXPARM(*).OPT_CR      = 0;
+ TAXPARM(*).DISCNT      = 0;
+ TAXPARM(*).LOA         = 0;
+ TAXPARM(*).TAXID       = '';
+ TAXPARM(*).ORIGIN      = 'I';
+ TAXPARM(*).FUTURE_USE  = '';
+ TAXPARM(*).STATE_TAX   = 0;
+ TAXPARM(*).CNTY_TAX    = 0;
+ TAXPARM(*).CITY_TAX    = 0;
+ TAXPARM(*).STDESCR     = '';
+ TAXPARM(*).CNDESCR     = '';
+ TAXPARM(*).CYDESCR     = '';
+ TAXPARM(*).TAXBASE     = 0;
+ TAXPARM(*).STRATE      = 0;
+ TAXPARM(*).CNRATE      = 0;
+ TAXPARM(*).CYRATE      = 0;
+ TAXPARM(*).ST_LIM      = 0;
+ TAXPARM(*).CN_LIM      = 0;
+ TAXPARM(*).CY_LIM      = 0;
+ TAXPARM(*).ST_INFO_CDE = '';
+ TAXPARM(*).CN_INFO_CDE = '';
+ TAXPARM(*).CY_INFO_CDE = '';
+ TAXPARM(*).ST_LIM_INFO = '';
+ TAXPARM(*).CN_LIM_INFO = '';
+ TAXPARM(*).CY_LIM_INFO = '';
+ TAXPARM(*).RTNCD       = '';
+ TAXIN.ASTATTAX         = 0;
+ TAXIN.ACNTYTAX         = 0;
+ TAXIN.ACITYTAX         = 0;
+ TAXIN.ATOTTAX          = 0;
+ TAXIN.RET_CODE         = '';
+ TAXIN.MESSAGE          = '';
+ PARTS_TAX_TOTAL(*)     = 0;
+ LABOR_TAX_TOTAL(*)     = 0;
+ EXP_TAX_TOTAL(*)       = 0;
+
+ IF EIBCALEN = 0
+   THEN DO;
+     ET_TEXT1 = 'QSR9000: QBTAX1 NO COMM AREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /*                     M A I N   R O U T I N E                     */
+ /*******************************************************************/
+ /**                                                               **/
+ /**  BUILD A PARAMETER LIST TO BE PASSED TO TAXCALC MODULE.       **/
+ /**  INCLUDE ONE ELEMENT FOR EACH DIFFERENT PART NUMBER USED, ONE **/
+ /**  ELEMENT FOR LABOR, AND ONE ELEMENT FOR EXPENSE.  WILL HANDLE **/
+ /**  A VARIABLE NUMBER OF PARTS BY USE OF PL/I 'REFER'.           **/
+ /**                                                               **/
+ /*******************************************************************/
+
+ MAIN_ROUTINE:
+ K = 0;                 /* DETERMINE NUMBER OF ELEMENTS FOR TAXPARM */
+
+ /*-----------------------------------------------------------------*/
+ /* CHECK FOR PARTS - Q#PARTS IS NUMBER OF PARTS LINES PRESENT      */
+ /* (EXCEPT THAT CSP MUST ALWAYS CREATE A MAXIMUM ALLOCATION, SO    */
+ /*  WE MUST ALSO CHECK FOR END OF PARTS LINES BEFORE Q#PARTS.)     */
+ /*-----------------------------------------------------------------*/
+ PARTS_LOOP:
+
+ DO I = 1 TO TAXIN.Q#PARTS;                                  /* JWJ */
+   IF TAXIN.TEST_SW = 'Y'
+     THEN DO;
+       DIAG_TEXT = 'QBTAX1: in parts loop K='||K;
+       CALL WRITE_TO_OPER;
+     END;
+   K = K + 1;                /* INCREASE TAXID COUNTER IF PARTS USED*/
+   TAXPARM(K).TAXID = '32';             /* SET TAXID                */
+   TAXPARM(K).REVENUE  =                /* MOVE REVENUE INTO TAXPARM*/
+          TAXIN.UPARTS(I).APARTAMT;
+   TAXPARM(K).QTY   =                   /* MOVE QTY INTO TAXPARM    */
+          TAXIN.UPARTS(I).QDISUS;
+   PARTS_SW = '1';                      /* TURN ON IF PARTS USED    */
+
+ END PARTS_LOOP;
+
+ /*-----------------------------------------------------------------*/
+ /* CHECK LABOR:                                                    */
+ /* IF TOTAL LABOR HOURS NOT ZERO THAN APPLY LABOR                  */
+ /*-----------------------------------------------------------------*/
+ IF TAXIN.ATOTTIME ^= 0
+   THEN DO;
+     K = K + 1;            /* INCREASE TAXID COUNTER IF LABOR USED */
+     IF TAXIN.TEST_SW = 'Y'
+       THEN DO;
+         DIAG_TEXT = 'QBTAX1: in check labor k='||K;
+         CALL WRITE_TO_OPER;
+       END;
+
+
+     SELECT;                            /*  SET TAXID FOR LABOR    */
+       WHEN (TAXIN.CSVC = '20' & TAXIN.CIDM = '1')
+                                  TAXPARM(K).TAXID = '42';
+       WHEN (TAXIN.CSVC = '48')   TAXPARM(K).TAXID = '42';
+       WHEN (TAXIN.CSVC = '94')
+          DO;
+            TAXPARM(K).TAXID  = '37';
+            TAXPARM(K).TAXAGR = 'G';
+          END;
+       WHEN (PARTS_SW = '0')      TAXPARM(K).TAXID = '33';
+       OTHERWISE                  TAXPARM(K).TAXID = '34';
+     END;                             /* END SELECT                 */
+                                      /* MOVE LABOR CHARGES INTO    */
+     TAXPARM(K).REVENUE  = TAXIN.ATOTTIME; /*    TAXPARM            */
+     TAXPARM(K).QTY   = '1';          /* QTY IS ALWAYS '1' FOR LABOR*/
+     TEMP_TAXID       = TAXPARM(K).TAXID;
+    	/* MOVE TAXID OF LABOR TO TEMP VARIABLE - IT1106062425 */
+  END;
+
+ /*-----------------------------------------------------------------*/
+ /* CHECK EXPENSE:                                                  */
+ /* IF EXPENSE TOTAL NOT ZERO THEN EXPENSES WERE INCURRED           */
+ /*-----------------------------------------------------------------*/
+ IF TAXIN.ATOTEXP ^= 0
+   THEN DO;
+     K = K + 1;           /* INCREASE TAXID COUNTER IF EXPENSES USED*/
+     IF TAXIN.TEST_SW = 'Y'
+       THEN DO;
+         DIAG_TEXT = 'QBTAX1: in check expenses K='||K;
+         CALL WRITE_TO_OPER;
+       END;
+
+     TAXPARM(K).TAXID = TEMP_TAXID;  
+	  	       /* SET TAXID FOR EXPENSES - IT1106062425 */
+     TAXPARM(K).TAXAGR= 'HT';	
+                        /* SET TAXAGR FOR EXPENSES - IT1106062425 */
+    TAXPARM(K).REVENUE  = TAXIN.ATOTEXP;/*MOVE EXPENSES INTO TAXPARM*/
+    TAXPARM(K).QTY   = '1';          /* QTY ALWAYS '1' FOR EXPENSES*/
+   END;
+
+ %PAGE;
+ /*******************************************************************/
+ /******************   P L E A S E   N O T E    *********************/
+ /*******************************************************************/
+ /**                                                               **/
+ /** BRK_IND IS SET TO '1' TO INDICATE A BREAK IN REVENUE TYPE.  WE**/
+ /** ONLY HAVE ONE TYPE REVENUE OR TAX AGREEMENT WHICH IS 'H' FOR  **/
+ /** PER CALL BILLING.                                             **/
+ /**                                                                */
+ /** INV_IND IS SET TO '1' TO INDICATE THE END OF A PHYSICAL INVOICE*/
+ /** OR CHANGE IN TAX JURISDICTION.                                **/
+ /**                                                               **/
+ /** NEXT_PTR(K) IS SET TO NULL TO INDICATE THE END OF THE DATA FOR**/
+ /** THE INVOICE.                                                  **/
+ /**                                                               **/
+ /*******************************************************************/
+ /** NOTES FOR FUTURE CHANGES IN PROCESSING:                       **/
+ /** ---------------------------------------                       **/
+ /**    THIS APPLICATION HAS BEEN WRITTEN FOR ONLY ONE TYPE        **/
+ /**    REVENUE (I.E. TAX AGREEMENT) WHICH IS ALWAYS 'H' FOR       **/
+ /**    PER CALL, AND ALSO FOR ONLY ONE JURISDICTION OR PHYSICAL   **/
+ /**    INVOICE.  IF IN THE FUTURE THERE IS A NEED TO CHANGE       **/
+ /**    THIS PROCESSING, CHANGES WILL NEED TO BE MADE IN THE       **/
+ /**    CODE BEFORE PASSING THE DATA TO TAXCALC.  IT WILL BE       **/
+ /**    IMPERATIVE FOR THE CALLING MODULE TO CALL TAXCALC IN       **/
+ /**    THE SEQUENCE TYPE REVENUE WITHIN TAX JURISDICTION WITHIN   **/
+ /**    INVOICE.                                                   **/
+ /**                                                               **/
+ /**    PLEASE SEE THE TAXCALC USER'S MANUAL FOR MORE DETAIL.      **/
+ /**                                                               **/
+ /*******************************************************************/
+ IF TAXIN.TEST_SW = 'Y'
+   THEN DO;
+     DIAG_TEXT = 'QBTAX1: NUM TAX IDS '||K;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: STATE LOCATION CODE            = '||
+                                                   TAXIN.CSTATCD;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: COUNTY LOCATION CODE           = '||
+                                                   TAXIN.CCNTYCD;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: CITY LOCATION CODE             = '||
+                                                   TAXIN.CCITYCD;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: OUTSIDE CITY LIMIT             = '||
+                                                   TAXIN.COCL;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: CUSTOMER NUMBER                = '||
+                                                   TAXIN.ICUSTNO;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: TYPE CUSTOMER CODE             = '||
+                                                   TAXIN.CCUSTYPE;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: STATE/CNTY/CITY TAX CLS        = '||
+                                                   TAXIN.CTAXCL;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: CALL COMPLETE -- YYMMDD        = '||
+                                                   TAXIN.DINVDTE;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: PRODUCT CODE CATEGORY          = '||
+                                                   TAXIN.CTAXCD;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: MARKETING BRANCH OFFICE        = '||
+                                                   TAXIN.CBOMKT;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: SERVICE BRANCH OFFICE          = '||
+                                                   TAXIN.CBOSVC;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: SERVICE CODE                   = '||
+                                                   TAXIN.CSVC;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: IDM CODE                       = '||
+                                                   TAXIN.CIDM;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: TOTAL $TIME (LABOR)            = '||
+                                                   TAXIN.ATOTTIME;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: TOTAL $EXPENSE                 = '||
+                                                   TAXIN.ATOTEXP;
+     CALL WRITE_TO_OPER;
+     DIAG_TEXT ='QBTAX1: NUMBER OF PARTS IN PARTS ARRAY = '||
+                                                   TAXIN.Q#PARTS;
+     CALL WRITE_TO_OPER;
+     DO  I = 1 TO Q#PARTS;
+      DIAG_TEXT ='QBTAX1: PART QUANTITY                 = '||
+                                                   TAXIN.QDISUS(I);
+      CALL WRITE_TO_OPER;
+      DIAG_TEXT ='QBTAX1: PART AMOUNT (QTY*UNIT$)       = '||
+                                                   TAXIN.APARTAMT(I);
+      CALL WRITE_TO_OPER;
+     END;
+   END;
+                                         /* K IS NUMBER OF TAXIDS OR*/
+ DO  I = 1 TO K-1;                       /* ELEMENTS TO PROCESS     */
+   TAXPARM(I).NEXT_PTR    = ADDR(TAXPARM(I+1));
+   TAXPARM(I).BRK_IND     = '0';
+   TAXPARM(I).INV_IND     = '0';
+ END;
+
+ TAXPARM(K).BRK_IND   = '1';       /* AT THE END OF INVOICE, CHANGE */
+ TAXPARM(K).INV_IND   = '1';       /* BRKIND AND INVIND TO '1'      */
+ TAXPARM(K).NEXT_PTR = NULL;
+
+ %PAGE;
+ /*******************************************************************/
+ /**           PASS DATA TO TAXCALC FOR DETERMINING TAXES          **/
+ /*******************************************************************/
+ /*-----------------------------------------------------------------*/
+ /* TEST_SW SET TO 'Y' INDICATES TEST MODE...                       */
+ /* GENERATE LIST OF ALL VARIABLES.                                 */
+ /*-----------------------------------------------------------------*/
+ IF TAXIN.TEST_SW = 'Y' THEN
+  DO;
+   DIAG_TEXT = 'QBTAX1: before link to DTGC10A --------------------';
+   CALL WRITE_TO_OPER;
+   DIAG_TEXT = 'QBTAX1: ----- displayed once for each tax id -----';
+   CALL WRITE_TO_OPER;
+     DO I = 1 TO K;
+       CALL VALUES1;
+     END;
+   end;
+
+ $SWA.$PASS_PTR  =  ADDR(TAXPARM);
+
+ $SWA.$PASS_LEN  =  310 * K;
+
+ EXEC CICS LINK PROGRAM ('DTGC10A ')
+                COMMAREA ($SWA_PTRS)
+                RESP(RESPONSE)
+                LENGTH (8);
+
+ IF TAXIN.TEST_SW = 'Y'
+   THEN DO;
+     PIC_RESP = RESPONSE;
+     DIAG_TEXT = 'QBTAX1: RETURN FROM DTGC10A RESP '||PIC_RESP||' '||
+                           TAXPARM(1).RTNCD;
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF RESPONSE ^= DFHRESP(NORMAL)
+   THEN DO;
+     ET_TEXT1 = MODULE || ' FAILURE ON LINK TO DTGC10A';
+     SIGNAL ERROR;
+   END;
+
+
+ ERR_SW = '0'B;
+
+ DO I = 1 TO K WHILE (ERR_SW = '0'B);
+
+ IF TAXIN.TEST_SW = 'Y'
+   THEN DO;
+     DIAG_TEXT ='QBTAX1: DO ASSIGNMENTS  '||TAXPARM(I).RTNCD||' '||I||
+                                                       K;
+     CALL WRITE_TO_OPER;
+   END;
+   IF TAXPARM(I).RTNCD = '00'          /* RETURN CODE FROM TAXCALC  */
+                                       /* IS NORMAL, SO TOTAL TAXES */
+     THEN DO;
+
+       IF TAXIN.TEST_SW = 'Y'
+         THEN DO;
+           DIAG_TEXT = 'QBTAX1: ASSIGN TAX DATA '
+                                        ||TAXPARM(I).STATE_TAX||' '
+                                        ||TAXPARM(I).CNTY_TAX ||' '
+                                        ||TAXPARM(I).CITY_TAX ||' '
+                                        ||TAXPARM(I).TAXID;
+           CALL WRITE_TO_OPER;
+         END;
+
+       QSARDATA.ASTATTAX = QSARDATA.ASTATTAX + TAXPARM(I).STATE_TAX;
+       QSARDATA.ACNTYTAX = QSARDATA.ACNTYTAX + TAXPARM(I).CNTY_TAX;
+       QSARDATA.ACITYTAX = QSARDATA.ACITYTAX + TAXPARM(I).CITY_TAX;
+
+       TAXIN.RET_CODE = TAXPARM(I).RTNCD;
+       TAXIN.MESSAGE  = ERRORS(1);
+                                         /* SR 0535 LINE ITEM TAXING*/
+       SELECT;
+
+	   WHEN ((TAXPARM(I).TAXID = '33'  |      /* LABOR TAX IDS */ 
+                TAXPARM(I).TAXID = '34'  |                                
+                TAXPARM(I).TAXID = '37'  |
+                TAXPARM(I).TAXID = '42') & TAXPARM(I).TAXAGR ^= 'HT') 
+					       /* IT1106062425 */
+
+           DO;
+             IF TAXIN.TEST_SW = 'Y'
+               THEN DO;
+                 DIAG_TEXT = 'QBTAX1: SELECT '||TAXPARM(I).TAXID;
+                 CALL WRITE_TO_OPER;
+               END;
+
+             QSARDATA.ALSTATTAX = TAXPARM(I).STATE_TAX;
+             QSARDATA.ALCNTYTAX = TAXPARM(I).CNTY_TAX;
+             QSARDATA.ALCITYTAX = TAXPARM(I).CITY_TAX;
+           END;
+
+         WHEN ((TAXPARM(I).TAXID = '33'  |    /* EXPENSE TAX ID  */
+                TAXPARM(I).TAXID = '34'  |                                
+                TAXPARM(I).TAXID = '37'  |
+                TAXPARM(I).TAXID = '42') & TAXPARM(I).TAXAGR = 'HT') 
+					      /* IT1106062425 */
+           DO;
+            IF TAXIN.TEST_SW = 'Y'
+              THEN DO;
+                DIAG_TEXT = 'QBTAX1: SELECT '||TAXPARM(I).TAXID;
+                CALL WRITE_TO_OPER;
+               END;
+             QSARDATA.AESTATTAX = TAXPARM(I).STATE_TAX;
+             QSARDATA.AECNTYTAX = TAXPARM(I).CNTY_TAX;
+             QSARDATA.AECITYTAX = TAXPARM(I).CITY_TAX;
+
+           END;
+         WHEN (TAXPARM(I).TAXID = '32')   /* PART TAX ID         */
+           DO;                           /* FIND THE PROPER PART */
+             DO L = 1 TO TAXIN.Q#PARTS;
+
+               IF TAXIN.TEST_SW = 'Y'
+                 THEN DO;
+                DIAG_TEXT='QBTAX1: TAXPARM REV '||TAXPARM(I).REVENUE||
+                       ' QSAR DATA PART AMT '||QSARDATA(L).APARTAMT;
+                   CALL WRITE_TO_OPER;
+                   DIAG_TEXT ='QBTAX1: TAXPARM QTY '||TAXPARM(I).QTY||
+                           ' QSAR DATA PART QTY '||QSARDATA(L).QDISUS;
+                   CALL WRITE_TO_OPER;
+                 END;
+
+               IF TAXPARM(I).REVENUE = QSARDATA(L).APARTAMT &
+                      TAXPARM(I).QTY = QSARDATA(L).QDISUS
+                 THEN DO;
+
+                   IF TAXIN.TEST_SW = 'Y'
+                     THEN DO;
+                       DIAG_TEXT = 'QBTAX1: ASSIGN PART TAX '||
+                                    QSARDATA(L).IPART;   /* 7NSA  */
+                       CALL WRITE_TO_OPER;
+                     END;
+
+                   QSARDATA(L).APSTATTX = TAXPARM(I).STATE_TAX;
+                   QSARDATA(L).APCNTYTX = TAXPARM(I).CNTY_TAX;
+                   QSARDATA(L).APCITYTX = TAXPARM(I).CITY_TAX;
+                 END;
+  /* -------------------------------------------------------------  */
+  /*          ELSE DO                                               */
+  /*            DIAG_TEXT = 'ERROR IN PARTS TAX ASSIGNMENT '        */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT ='TAXID      '||TAXPARM(I).TAXID          */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT = 'REVENUE    '||TAXPARM(I).REVENUE       */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT = 'USAGE      '||TAXPARM(I).QTY           */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT = 'STATE TAX  '||TAXPARM(I).STATE_TAX     */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT = 'COUNTY TAX '||TAXPARM(I).CNTY_TAX      */
+  /*            CALL WRITE_TO_OPER                                  */
+  /*            DIAG_TEXT ='CITY TAX   '||TAXPARM(I).CITY_TAX       */
+  /*            CALL WRITE_TO_OPER                                  */
+  /* -------------------------------------------------------------- */
+  /*         PUT SKIP EDIT ('ERROR IN PARTS TAX ASSIGNMENT')(A)     */
+  /*         PUT SKIP EDIT ('TAXID      ',TAXPARM(I).TAXID)(A,A)    */
+  /*         PUT SKIP EDIT ('REVENUE    ',TAXPARM(I).REVENUW)(A,A)  */
+  /*         PUT SKIP EDIT ('USAGE      ',TAXPARM(I).QTY )(A,A)     */
+  /*         PUT SKIP EDIT ('STATE TAX  ',TAXPARM(I).STATE_TAX)(A,A)*/
+  /*         PUT SKIP EDIT ('COUNTY TAX ',TAXPARM(I).CNTY_TAX)(A,A) */
+  /*         PUT SKIP EDIT ('CITY TAX   ',TAXPARM(I).CITY_TAX)(A,A) */
+  /*           END                                                  */
+  /* -------------------------------------------------------------- */
+             END;     /*  END OF L = 1 TO TAXIN.Q#PARTS   */
+           END;
+         OTHERWISE;
+       END;                              /* END OF SELECT (TAXID)   */
+     END;                                /* END RETURN CODE = '00'  */
+
+   ELSE                                  /* RETURN CODE ^= '00' AND */
+     DO;                                 /* TAXES WOULD BE IN ERROR */
+       SI = I;
+       ERR_SW = '1'B;
+     END;
+
+ END;                                    /* END I = 1 TO K          */
+
+ IF ERR_SW = '1'B
+   THEN CALL ERRMSG;
+
+   ELSE                                  /* TOTAL TAX FOR BILLING   */
+    QSARDATA.ATOTTAX = QSARDATA.ASTATTAX +
+                         QSARDATA.ACNTYTAX +
+                           QSARDATA.ACITYTAX;
+
+ /*-----------------------------------------------------------------*/
+ /* TEST_SW SET TO 'Y' INDICATES TEST MODE...                       */
+ /* GENERATE LIST OF ALL VARIABLES.                                 */
+ /*-----------------------------------------------------------------*/
+ IF TAXIN.TEST_SW = 'Y'
+   THEN
+
+   DO I = 1 TO K;
+       CALL VALUES1;
+   END;
+
+ /*  DO I = 1 TO K
+       CALL TEST_VALUES
+     END
+     CALL VALUES2
+
+
+   END
+   ELSE              */
+
+ EXEC CICS RETURN;                      /* END OF PROGRAM EXECUTION */
+
+ %PAGE;
+ ERRMSG: PROC;
+ /*-----------------------------------------------------------------*/
+ /*                                                                 */
+ /*                                                                 */
+ /*-----------------------------------------------------------------*/
+
+   ERRMSG_SW = '0'B;
+
+ IF TAXIN.TEST_SW = 'Y'
+   THEN DO;
+     DIAG_TEXT = 'QBTAX1: ERRMSG PROCESSING '||SI||' '||
+                                     TAXPARM(SI).RTNCD;
+     CALL WRITE_TO_OPER;
+   END;
+
+   DO J = 1 TO 29 WHILE(ERRMSG_SW = '0'B);
+     IF TAXPARM(SI).RTNCD = RET_CODES(J)
+       THEN DO;
+         TAXIN.RET_CODE = TAXPARM(SI).RTNCD;
+         TAXIN.MESSAGE  = ERRORS(J);
+         ERRMSG_SW = '1'B;
+       END;
+     ELSE;
+   END;
+
+ END ERRMSG;
+
+ %PAGE;
+ TEST_VALUES: PROC;
+ /*-----------------------------------------------------------------*/
+ /* !!! TEST MODE ONLY !!!                                          */
+ /* DETERMINE TOTAL TAXES FOR LABOR, PARTS, EXPENSE                 */
+ /*-----------------------------------------------------------------*/
+
+   IF TAXPARM(I).TAXID = '32'
+     THEN DO;                            /* DETERMINE TOTAL TAXES   */
+                                         /* FOR PARTS               */
+       PARTS_TAX_TOTAL(STATE)  =
+           PARTS_TAX_TOTAL(STATE) + TAXPARM(I).STATE_TAX;
+
+       PARTS_TAX_TOTAL(COUNTY) =
+           PARTS_TAX_TOTAL(COUNTY) + TAXPARM(I).CNTY_TAX;
+
+       PARTS_TAX_TOTAL(CITY)   =
+           PARTS_TAX_TOTAL(CITY)   + TAXPARM(I).CITY_TAX;
+
+     END;
+
+    IF ((TAXPARM(I).TAXID = '42'|  
+         TAXPARM(I).TAXID = '33'|
+         TAXPARM(I).TAXID = '34'|        
+         TAXPARM(I).TAXID = '37') & TAXPARM(I).TAXAGR ^= 'HT')
+				            /* IT1106062425 */
+                                       /* DETERMINE TOTAL TAXES */
+     THEN DO;                          /* FOR LABOR             */
+
+       LABOR_TAX_TOTAL(STATE)  =
+           LABOR_TAX_TOTAL(STATE) + TAXPARM(I).STATE_TAX;
+
+       LABOR_TAX_TOTAL(COUNTY) =
+           LABOR_TAX_TOTAL(COUNTY) + TAXPARM(I).CNTY_TAX;
+
+       LABOR_TAX_TOTAL(CITY)   =
+           LABOR_TAX_TOTAL(CITY)   + TAXPARM(I).CITY_TAX;
+
+     END;
+
+    IF ((TAXPARM(I).TAXID = '42'|  
+         TAXPARM(I).TAXID = '33'|
+         TAXPARM(I).TAXID = '34'|        
+         TAXPARM(I).TAXID = '37') & TAXPARM(I).TAXAGR = 'HT') 
+				             /* IT1106062425 */
+                                   /* DETERMINE TOTAL TAXES */
+     THEN DO;                      /* FOR EXPENSES          */
+
+       EXP_TAX_TOTAL(STATE)  =
+           EXP_TAX_TOTAL(STATE) + TAXPARM(I).STATE_TAX;
+
+       EXP_TAX_TOTAL(COUNTY) =
+           EXP_TAX_TOTAL(COUNTY) + TAXPARM(I).CNTY_TAX;
+
+       EXP_TAX_TOTAL(CITY)   =
+           EXP_TAX_TOTAL(CITY)   + TAXPARM(I).CITY_TAX;
+
+     END;
+
+ END TEST_VALUES;
+
+ %PAGE;
+ VALUES1: PROC;
+ /*-----------------------------------------------------------------*/
+ /* !!! TEST MODE ONLY !!!                                          */
+ /* LIST INPUT VALUES                                               */
+ /*-----------------------------------------------------------------*/
+
+    DIAG_TEXT ='QBTAX1: VALUES1 --  MISCELLANEOUS INPUT:        ';
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: VALUE OF I IN LOOP:  '  ||I;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: VALUE OF K:          '||K;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: VALUE OF J:          '||J;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: VALUE OF SI:         '||SI;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: STATE/COUNTY/CITY/OCL:'||TAXPARM.STATE(I)
+      ||' '|| TAXPARM.COUNTY(I)||' '||TAXPARM.CITY(I)||' ' || OCL(I);
+
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: CUST_NUM:            '||TAXPARM.CUST_NUM(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: QTY AND AMOUNT:'|| QTY(I) ||' '|| REVENUE(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY TAXCLASS:'||STTAXCL(I)||
+                                       CNTAXCL(I)||CYTAXCL(I);
+    CALL WRITE_TO_OPER;
+
+  /* ------------------------------------------------------- */
+  /*  DIAG_TEXT ='QBTAX1: INVOICE DATE:        '||INV_DATE(I)*/
+  /*  DIAG_TEXT ='QBTAX1: TAXID:               '||TAXID(I)   */
+  /*  DIAG_TEXT ='QBTAX1: TAXAGREE:            '||TAXAGR(I)  */
+  /*  DIAG_TEXT ='QBTAX1: LOCAPP:              '||LOCAPP(I)  */
+  /*  DIAG_TEXT ='QBTAX1: CMR_ORI:             '||CMR_ORI(I) */
+  /*  DIAG_TEXT ='QBTAX1: TYP_CUST:            '||TYP_CUST(I)*/
+  /*  DIAG_TEXT ='QBTAX1: SHIP_FRM:            '||SHIP_FRM(I)*/
+  /*  DIAG_TEXT ='QBTAX1: TYPEQ:               '||TYPEQ(I)   */
+  /*  DIAG_TEXT ='QBTAX1: PROD_CAT:            '||PROD_CAT(I)*/
+  /*  DIAG_TEXT ='QBTAX1: ORIGIN:              '||ORIGIN(I)  */
+  /*  DIAG_TEXT ='QBTAX1: BRK_IND:             '|| BRK_IND(I)*/
+  /*  DIAG_TEXT ='QBTAX1: INV_IND:             '|| INV_IND(I)*/
+  /* ------------------------------------------------------- */
+
+    DIAG_TEXT ='QBTAX1:              ';
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1:        RESULTS FROM TAXCALC  ';
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY TAX:'||STATE_TAX(I) ||' '||
+                CNTY_TAX(I) || ' ' || CITY_TAX(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: STDESCR:             '||STDESCR(I) ;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: CNDESCR:             '||CNDESCR(I) ;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: CYDESCR:             '||CYDESCR(I) ;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: TAXBASE:             '||TAXBASE(I) ;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY RATE:'||STRATE(I) ||' '||
+                         CNRATE(I) || ' ' || CYRATE(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY LIMIT AMT:'||ST_LIM(I) ||' '||
+                              CN_LIM(I) || ' ' || CY_LIM(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY INFO/DEBUG:'||ST_INFO_CDE(I)
+               ||' '|| CN_INFO_CDE(I) || ' ' || CY_INFO_CDE(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ST/CNTY/CTY LIM INFO CDE:'||ST_LIM_INFO(I)
+               ||' '|| CN_LIM_INFO(I) || ' ' || CY_LIM_INFO(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: RTNCD:           '||RTNCD(I);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: RET_CODE:'||RET_CODE;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: MESSAGE:  '|| MESSAGE;
+    CALL WRITE_TO_OPER;
+
+ END VALUES1;
+
+ %PAGE;
+ VALUES2: PROC;
+ /*-----------------------------------------------------------------*/
+ /* !!! TEST MODE ONLY !!!                                          */
+ /* LIST OUTPUT VALUES                                              */
+ /*-----------------------------------------------------------------*/
+
+    DIAG_TEXT ='QBTAX1: VALUES2 -- FINAL OUTPUT:     ';
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ASTATTAX -- STATE_TAX_TOTAL: '||
+                QSARDATA.ASTATTAX;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ACNTYTAX -- COUNTY_TAX_TOTAL:'||
+                QSARDATA.ACNTYTAX;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ACITYTAX -- CITY_TAX_TOTAL:  '||
+                QSARDATA.ACITYTAX;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: ATOTTAX -- TOTAL TAX:        '||
+                QSARDATA.ATOTTAX;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: PARTS STATE TAX TOTAL:       '||
+                PARTS_TAX_TOTAL(1);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: PARTS COUNTY TAX TOTAL:      '||
+                PARTS_TAX_TOTAL(2);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: PARTS CITY TAX TOTAL:        '||
+                PARTS_TAX_TOTAL(3);
+    CALL WRITE_TO_OPER;
+
+    DIAG_TEXT ='QBTAX1: LABOR STATE TAX TOTAL:       '||
+                LABOR_TAX_TOTAL(1);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: LABOR COUNTY TAX TOTAL:      '||
+                LABOR_TAX_TOTAL(2);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: LABOR CITY TAX TOTAL:        '||
+                LABOR_TAX_TOTAL(3);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: EXP STATE TAX TOTAL:         '||
+                EXP_TAX_TOTAL(1);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: EXP COUNTY TAX TOTAL:        '||
+                EXP_TAX_TOTAL(2);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: EXP CITY TAX TOTAL:          '||
+                EXP_TAX_TOTAL(3);
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: RET_CODE:                    '||
+               RET_CODE;
+    CALL WRITE_TO_OPER;
+    DIAG_TEXT ='QBTAX1: MESSAGE:  '|| MESSAGE;
+    CALL WRITE_TO_OPER;
+
+ END VALUES2;
+
+  %PAGE;
+ /*******************************************************************/
+ /*  WRITE DIAGNOSTIC MESSAGE TO OPERATOR CONSOLE                   */
+ /*******************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+ END WRITE_TO_OPER;
+
+ /********************************************************************/
+ /*             E N D   O F    P R O G R A M                         */
+ /********************************************************************/
+
+ END QBTAX1;

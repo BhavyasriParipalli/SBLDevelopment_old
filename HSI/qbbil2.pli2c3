@@ -1,0 +1,442 @@
+ QBBIL2  /*                                       07/07/89-09:11:20 */:
+    PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBBIL2      VERSION NR:  01        DATE:  07/07/89    */
+ /*                                               TIME:  09:11:20    */
+ /*                                                                  */
+ /*  TITLE:  (QSAR) BILLING ZIP CODE TABLE ACCESS                    */
+ /*                                                                  */
+ /*  FUNCTION:  ACCESS ZIP CODE TABLE VSAM FILE TO RETRIEVE          */
+ /*             STATE/COUNTY/CITY CODES (NEEDED FOR TAXING).         */
+ /*                                                                  */
+ /*  LANGUAGE:  PL/I (2.1)                                           */
+ /*                                                                  */
+ /*  MODULE TYPE:  REALTIME (CICS)                                   */
+ /*                                                                  */
+ /*  PARM:  @COMM - POINTER TO THE COMMAREA                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INTERFACES:  NONE                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /*  INPUTS:   COMMAREA - AEQCOMM/QBCOMM                             */
+ /*            ZIP TABLE (VSAM) - 'QBZIPCD'                          */
+ /*                                                                  */
+ /*  OUTPUTS:  COMMAREA - AEQCOMM/QBCOMM (UPDATED)                   */
+ /*                                                                  */
+ /*                                                                  */
+ /*  REPORTS:  NONE                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                     PGMR:*/
+ /* --------- -------- ------ --------------------------------- -----*/
+ /*  09/27/89 SR9892   0NSA    INITIAL VERSION                   JWJ */
+ /*  11/21/89 I88420   0NSA    SEARCH ON 9 CHAR ZIP THEN         LBS */
+ /*                            IF NO MATCH, DO GENERIC READ          */
+ /*                            ON FIRST 5 CHARS                      */
+ /*  12/19/89 I89308   0NSA    CHANGE XCTL FROM QBBIL3  TO       LBS */
+ /*                            QBBIL4                                */
+ /*  06/03/93 S9300171 3NSJ    ADD CONDITION CHECK ON DSI FLAG   LBS */
+ /*  05/07/97 S9600755 7NSI    SUPPORT NSS MRO PARALLEL SYSPLEX  LBS */
+ /*                            PHASE I                               */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*04/15/2002 HSIPROD  2NSG   LE 2.10 changes, PLIXOPT           LBS */
+ /*02/03/2003 HSIPROD  3NSE   change READ DATASET to READ FILE   LBS */
+ /*04/12/2004 HSIPROD  4NSC  correct PLIXOPT to 250              LBS */
+ /*                                                                  */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA      NAK */
+ /********************************************************************/
+ DCL VERSION    CHAR(17) STATIC INIT('2HSC - 01/27/2012');
+ DCL MODULE     CHAR( 7) STATIC INIT('QBBIL2 ');
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    YES    = 'Y'                                                  */
+ /*    NO     = 'N'                                                  */
+ /*    BILL   = 'B'                                                  */
+ /*    NOBILL = 'N'                                                  */
+ /*    REVIEW = 'R'                                                  */
+ /*    NOT_ELIGIBLE = 'X'                                            */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL INTEGER  CHAR;
+ %INTEGER  = 'FIXED BIN(31,0)';
+ %DCL SHORTINT CHAR;
+ %SHORTINT = 'FIXED BIN(15,0)';
+ %DCL CLLDATE  CHAR;
+ %CLLDATE  = 'CHAR(3)';
+ %DCL YES      CHAR;
+ %YES = '''Y''';
+ %DCL NO       CHAR;
+ %NO  = '''N''';
+ %DCL BILL     CHAR;
+ %BILL   = '''B''';
+ %DCL NOBILL   CHAR;
+ %NOBILL = '''N''';
+ %DCL REVIEW   CHAR;
+ %REVIEW = '''R''';
+ %DCL NOT_ELIGIBLE CHAR;
+ %NOT_ELIGIBLE = '''X''';
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCSSOR CODE DOESN'T PRINT WITH DEFAULT    */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+ %PAGE;
+ /********************************************************************/
+ /*   BEGIN DECLARES
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /*   BUILTIN FUNCTION DECLARES                                      */
+ /*   NOTE:  THE FOLLOWING CANNOT BE USED UNDER CICS:                */
+ /*          DATE, TIME                                              */
+ /*------------------------------------------------------------------*/
+
+ DCL  ADDR         BUILTIN;
+ DCL  CSTG         BUILTIN;         /* CURRENT STORAGE               */
+ DCL  NULL         BUILTIN;         /* NULL POINTER VALUE            */
+ DCL  ONLOC        BUILTIN;         /* NAME OF ENTRY-POINT WITH ERROR*/
+ DCL  SUBSTR       BUILTIN;
+ DCL  VERIFY       BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /*  FILE DECLARES                                                   */
+ /*  NOTE:  SYSPRINT IS THE ONLY FILE THAT PL/I CAN WRITE TO         */
+ /*         UNDER CICS.  SYSPRINT OUTPUT IS ASSIGNED TO THE 'CPLI'   */
+ /*         TRANSIENT DATA QUEUE.  SYSPRINT NEED NOT BE DECLARED,    */
+ /*         BUT IF IT IS, IT SHOULD BE DECLARED AS ...               */
+ /*------------------------------------------------------------------*/
+
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ /*------------------------------------------------------------------*/
+ /*  SET RUN-TIME OPTIONS                                            */
+ /*------------------------------------------------------------------*/
+
+ /*  DCL PLIXOPT CHAR(25) VAR STATIC EXTERNAL         */
+ /*                  INIT('STAE,NR,ISA(12K)')    */
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(12K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),,BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*  POINTERS                                                        */
+ /*------------------------------------------------------------------*/
+ DCL @COMM         PTR;             /* POINTER TO COMMAREA --        */
+                                    /* (PASSED FROM CALLING PROGRAM) */
+ DCL @CWA          PTR INIT(NULL);  /* POINTER TO CWA                */
+ DCL @ZIPENTRY     PTR;             /* POINTER TO ZIP TABLE ENTRY    */
+
+ %PAGE;
+ DCL 1 COMMAREA   UNALIGNED BASED(@COMM),
+    %INCLUDE AEQCOMM; ,
+    %INCLUDE QBCOMM ; ;
+
+ %PAGE;
+ DCL 1 ZIPENTRY   UNALIGNED BASED(@ZIPENTRY),
+    %INCLUDE QBZIPCD; ;
+
+ %PAGE;
+ DCL 1 ERROR_TXT  UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   COMMON WORK AREA FOR THE QSAR CICS REGION (OPTIONAL-IF NEEDED) */
+ /*------------------------------------------------------------------*/
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /*   MISCELLANEOUS DECLARES                                         */
+ /*------------------------------------------------------------------*/
+
+ DCL DIAG_TEXT         CHAR(80)  INIT('');
+ DCL ERR1              CHAR( 9)  INIT('QSR9000: ');
+ DCL ERR2              CHAR( 9)  INIT('QSR9002: ');
+ DCL PIC_RESP          PIC'9999' INIT(0);
+ DCL PIC_DATE          PIC'(8)9' INIT(0);
+ DCL PIC_TIME          PIC'(6)9' INIT(0);
+ DCL 1 PIC_TIME_OVER   BASED(ADDR(PIC_TIME)),
+       3 PIC_HR        PIC'99',
+       3 PIC_MIN       PIC'99',
+       3 PIC_SEC       PIC'99';
+ DCL ZIP5              CHAR(5)   INIT('');
+
+ DCL TEST_SW           BIT(1)    INIT('0'B);
+ DCL FOUND             BIT(1)    INIT('0'B);
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* IN CICS 1.7, THE EIB IS 85 BYTES.  THIS STRING IS USED TO SAVE   */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED...                                                    */
+ /*------------------------------------------------------------------*/
+ DCL EIB_STRING         CHAR(85) BASED(DFHEIPTR);
+ DCL RESPONSE           FIXED BIN(31) INIT(0);
+
+ /********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SNAP SYSTEM;                /* PREVENT RECURSION ERROR */
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBBIL2 ON ERROR BLOCK ';
+         CALL WRITE_TO_OPER;
+       END;
+     PIC_DATE = EIBDATE;
+     PIC_TIME = EIBTIME;
+     ET_PROGRAM_ID = 'QBBIL2 ';
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'N';
+
+     ET_TEXT4 = ERR1||MODULE||' ENTRY POINT '||ONLOC||' DOC # '||
+               COMMAREA.S0IDOCMN;
+     ET_TEXT5 = 'DATE: '||PIC_DATE||' TIME: '||PIC_HR||':'||PIC_MIN||
+                       ' TRANSID '||EIBTRNID||' TASK NUM '||EIBTASKN;
+
+     EXEC CICS XCTL PROGRAM('AEQERRP')
+                    COMMAREA(ERROR_TXT)
+                    RESP(RESPONSE);
+     IF RESPONSE ^= DFHRESP(NORMAL)
+       THEN DO;                   /* IF ALL ELSE FAILS, ABEND */
+         EXEC CICS ABEND
+                   ABCODE('BIL2')
+                   CANCEL;
+       END;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* CHECK IF COMMAREA HAS DATA ... IF NOT, ERROR                     */
+ /*------------------------------------------------------------------*/
+
+ IF EIBCALEN = 0                    /* IF COMMAREA NOT RECEIVED THEN */
+   THEN DO;                         /* TRANSFER CONTROL TO ERROR PGM */
+     ET_TEXT1 = ERR1 || MODULE || 'NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+
+ /*------------------------------------------------------------------*/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ /*------------------------------------------------------------------*/
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                            /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+
+
+  IF CWA_QSAR_TRACE = 'Y' | CWA_QSAR_TRACE = 'M'
+    THEN DO;
+      TEST_SW = '1'B;
+      DIAG_TEXT = 'QBBIL2 ENTERED '||COMMAREA.S0IDOCMN||' '||
+                            BILL_DECISION||' COM LEN '||EIBCALEN;
+      CALL WRITE_TO_OPER;
+    END;
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* DETERMINE IF WE NEED TO READ ZIP TABLE:                          */
+ /* IF BILLABLE/POTENTIALLY BILLABLE                                 */
+ /* AND... WE HAVE A ZIP CODE (SINCE THIS IS THE KEY!)               */
+ /*------------------------------------------------------------------*/
+
+
+ IF (BILL_DECISION = BILL | BILL_DECISION = REVIEW)
+                 & COMMAREA.CZIP ^= ' '
+    THEN DO;
+       SELECT ;
+         WHEN (COMMAREA.M_MPI ^= YES)    /* NO INVENTORY MATCH        */
+                CALL READ_ZIP_TABLE;
+                                         /* MATCH TO DSI, NOT MPI     */
+         WHEN (COMMAREA.M_MPI = YES & COMMAREA.GJFDSI)
+                CALL READ_ZIP_TABLE;
+         WHEN                            /* NO TAX CODES SET SO FAR   */
+           (COMMAREA.CSTATCD = ' ' &
+              COMMAREA.CCNTYCD = ' ' &
+                COMMAREA.CCITYCD = ' ' )
+              CALL READ_ZIP_TABLE;
+         WHEN                            /* DEFAULT TAX CODE SETTINGS */
+           (COMMAREA.CSTATCD = '00' &
+              COMMAREA.CCNTYCD = '000' &
+                COMMAREA.CCITYCD = '0000' )
+              CALL READ_ZIP_TABLE;
+        OTHERWISE;
+      END;
+    END;
+
+ EXEC CICS XCTL PROGRAM('QBBIL4')
+                COMMAREA(COMMAREA)
+                RESP(RESPONSE);
+
+ IF TEST_SW
+   THEN DO;
+     PIC_RESP = RESPONSE;
+     DIAG_TEXT = 'QBBIL2 RESPONSE ON XCTL '||PIC_RESP;
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF RESPONSE ^= DFHRESP(NORMAL)    /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;                        /* PASS CONTROL TO ERROR PGM  */
+     ET_TEXT1 = ERR2 || MODULE || 'FAILURE TO XCTL TO QBBIL4';
+     SIGNAL ERROR;
+     END;
+
+ EXEC CICS RETURN;
+
+
+ %PAGE;
+ READ_ZIP_TABLE: PROC;
+ /********************************************************************/
+ /* READ THE ZIP CODE TABLE - KEY IS ZIP CODE.                       */
+ /* NOTE: FIRST SEARCH ON THE 9 DIGIT ZIPCODE VALUE.  IF THERE IS    */
+ /*       NOT A MATCH THEN DO A SEARCH ON THE FIRST 5 CHARACTERS OF  */
+ /*       ZIP CODE (GENERIC MATCH).                                  */
+ /********************************************************************/
+
+ IF TEST_SW
+   THEN DO;
+     DIAG_TEXT = 'QBBIL2 READ ZIP CODE TABLE '||COMMAREA.CZIP;
+     CALL WRITE_TO_OPER;
+   END;
+
+ EXEC CICS READ FILE('QBZIPCD')
+                RIDFLD(COMMAREA.CZIP)
+                KEYLENGTH(9)
+                SET(@ZIPENTRY)
+                RESP(RESPONSE);
+
+
+ CALL SELECT_RESPONSE;                   /* ------------------------- */
+                                         /* I88420                    */
+ IF ^FOUND                               /* ATTEMPT TO FIND THE 5     */
+   THEN DO;                              /* DIGIT ZIP CODE            */
+                                         /* ------------------------- */
+     IF TEST_SW
+       THEN DO;
+         DIAG_TEXT = 'QBBIL2 READING ZIP FOR GENERIC 5 DIGIT CODE';
+         CALL WRITE_TO_OPER;
+       END;
+
+     ZIP5 = SUBSTR(COMMAREA.CZIP,1,5);
+     EXEC CICS READ FILE('QBZIPCD')
+                    RIDFLD(ZIP5)
+                    SET(@ZIPENTRY)
+                    KEYLENGTH(5)
+                    GENERIC
+                    RESP(RESPONSE);
+
+     CALL SELECT_RESPONSE;
+
+   END;
+
+ END READ_ZIP_TABLE;
+
+ %PAGE;
+ /********************************************************************/
+ /*  IF THE ZIP CODE WAS FOUND ASSIGN THE STATE, COUNTY & CITY CODE  */
+ /********************************************************************/
+ SELECT_RESPONSE: PROC;
+
+   IF TEST_SW
+     THEN DO;
+       PIC_RESP = RESPONSE;
+       DIAG_TEXT = 'QBBIL2 SELECT RESPONSE  '||PIC_RESP;
+       CALL WRITE_TO_OPER;
+     END;
+
+   SELECT (RESPONSE) ;
+     WHEN (DFHRESP(NORMAL))
+       DO;
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = 'QBBIL2 FOUND GENERIC ZIP ENTRY '||ZIP5;
+             CALL WRITE_TO_OPER;
+             DIAG_TEXT = 'QBBIL2 STATCD/CNTYCD/CITYCD '||
+                                      ZIPENTRY.CSTATCD ||' '||
+                                      ZIPENTRY.CCNTYCD ||' '||
+                                      ZIPENTRY.CCITYCD;
+             CALL WRITE_TO_OPER;
+            END;
+         COMMAREA.CSTATCD = ZIPENTRY.CSTATCD;
+         COMMAREA.CCNTYCD = ZIPENTRY.CCNTYCD;
+         COMMAREA.CCITYCD = ZIPENTRY.CCITYCD;
+         FOUND = '1'B;
+       END;
+     WHEN (DFHRESP(NOTFND))
+       DO;
+         /* STILL DON'T HAVE STATE/CNTY/CITY CODES - CAN'T TAX */
+         FOUND = '0'B;
+       END;
+     OTHERWISE
+       DO;
+         PIC_RESP = RESPONSE;
+         ET_TEXT1 = ERR1 ||MODULE||'  UNABLE TO READ FILE '||
+                         'QBZIPCD, RESPONSE '||PIC_RESP;
+         ET_TEXT2 = ERR1 ||MODULE||'  RECORD KEY = '||COMMAREA.CZIP;
+         ET_TEXT3 = '';
+         ET_TEXT4 = '';
+         SIGNAL ERROR;
+       END;
+   END;                                  /* END OF SELECT(RESPONSE)   */
+
+ END SELECT_RESPONSE;
+
+
+  %PAGE;
+ /********************************************************************/
+ /*  WRITE DIAGNOSTIC MESSAGE TO OPERATOR CONSOLE                    */
+ /********************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ END QBBIL2 ;

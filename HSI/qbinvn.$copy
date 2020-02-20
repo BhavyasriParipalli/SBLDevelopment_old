@@ -1,0 +1,56 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBINVN      VERSION NR:  01           DATE:  04/11/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  INVOICE NUMBER CONTROL RECORD FORMAT                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF BILLING INVOICE CONTROL RECORD          */
+ /*                                                                  */
+ /*  THIS INCLUDE DESCRIBES THE DATA FIELDS USED TO CONTROL THE      */
+ /*  SETTING OF THE BILLING INVOICE NUMBER (IINVOICE).               */
+ /*  KEY STRUCTURE:                                                  */
+ /*                                                                  */
+ /*  PREFIX   AREA                                                   */
+ /*     |     |                                                      */
+ /*     V     V                                                      */
+ /*  <---->   <>                                                     */
+ /*  QSARQBINVXX                      (POSITIONS 12-31 BLANK)        */
+ /*  1...+....1....+....2....+....3.                                 */
+ /*           0         0         0                                  */
+ /*                                                                  */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES   */
+ /*  OF DATA.                                                        */
+ /*                                                                  */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.    */
+ /*  THIS RECORD IS UPDATED FROM THE QSAR CICS REGIONS.              */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/27/89 SR 9892  0NSA INITIAL VERSION                 JWJ      */
+ /*                                                                  */
+ /********************************************************************/
+
+    3 XINVKEY,                     /*         31 BYTE KEY STRUCTURE  */
+       5 IKEYINVN  CHAR(9),        /* 001-009 LITERAL 'QSARQBINV'    */
+       5 CAREA     CHAR(2),        /* 010-011 AREA (01-12) HUB=HH    */
+       5 SINVNP1   CHAR(20),       /* 012-031 KEY PADDING (BLANKS)   */
+    3  IINVSEQ     FIXED BIN(31),  /* 032-035 NEXT AVAIL INVOICE SEQ */
+    3  DUPDT       CHAR(6),        /* 036-041 DATE OF LAST UPDATE    */
+                                   /*         (YYMMDD)               */
+    3  HUPDT       CHAR(6),        /* 042-047 TIME OF LAST UPDATE    */
+                                   /*         (HHMMSS)               */
+    3  SINVNP2     CHAR(84)        /* 048-131 PADDING                */
+
+ /*------------------------------------------------------------------*/
+ /*                          END  QBINVN                             */
+ /*------------------------------------------------------------------*/
+

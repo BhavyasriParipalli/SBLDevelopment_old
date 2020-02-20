@@ -1,0 +1,1177 @@
+ QBPRIC1 :  PROC(@COMM) OPTIONS(MAIN,REENTRANT) REORDER;
+
+ %PAGE;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  QBPRIC1     VERSION NR:  01        DATE:  07/05/89    */
+ /*                                               TIME:  15:00       */
+ /*                                                                  */
+ /*  TITLE: GET DATA FROM VSAM FILES                                 */
+ /*                                                                  */
+ /*  FUNCTION: THE MAIN FUNCTION OF THIS PROGRAM IS TO OBTAIN DATA   */
+ /*            FROM EITHER THE SPECIAL CONTRACT OR STANDARD RATE FILE*/
+ /*            AND ALSO FROM THE HOLIDAY FILE.                       */
+ /*                                                                  */
+ /*  LANGUAGE: PLI (2.1)                                             */
+ /*                                                                  */
+ /*  MODULE TYPE: REALTIME (CICS)                                    */
+ /*                                                                  */
+ /*  PARMS: SEE COPY MEMBER - QBPRICE COPY                           */
+ /*                                                                  */
+ /*  INTERFACES: N/A                                                 */
+ /*                                                                  */
+ /*  INPUTS:  COMMAREA - QBPRICE COPY                                */
+ /*           VSAM FILES - QBSRAT1,QBSTDRAT,QBSRAT2,QBHDAY           */
+ /*                                                                  */
+ /*                                                                  */
+ /*  OUTPUTS:  UPDATE COMMAREA - QBPRICE COPY                        */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:            PROGRAMMER:   */
+ /*  09/27/89                  INITIAL CREATION        G. KYLE       */
+ /*  12/19/89 I89308   0NSA    ADD PLIXOPT                    LBS    */
+ /*  01/22/90 DCR9892E 0NSA    (UNDER THIS DCR)               JWJ    */
+ /*                            ADD WTO PROC FOR DIAGNOSTICS,         */
+ /*                            MODIFY SOME ERROR MESSAGES            */
+ /*  10/02/91 I138122  1NSK    ADD DUMPCODE = Y AND MACHINE    LBS   */
+ /*                            TYPE OUTPUT IN ON ERROR BLOCK         */
+ /*  03/23/92 SR0967   2NSB    IF CUSTOMER IS GSA AND MTM GSA  LBS   */
+ /*                            SCHEDULE IS A|C AND NOT SPECIAL       */
+ /*                            CONTRACT, READ SPECIAL CONTRACT       */
+ /*                            FOR 100 | 102 SEQUENCE RECORD AND     */
+ /*                            APPLY CHARGES.                        */
+ /*  04/24/92 I150487  2NSB    INCORRECT CONDITION CHECK IN    LBS   */
+ /*                            FIND GSA                              */
+ /*  06/15/92 I        2NSD    CORRECT MILEAGE LOOKUP FOR      LBS   */
+ /*                            MULTIPLE MILEAGE RECORDS              */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*04/15/2002 HSIPROD  2NSG  LE 2.10 changes, PLIXOPT            LBS */
+ /*11/20/2002 GP021333 3NSE Add logic to use the new 3 digit     DLP */
+ /*                         field in the standard rate table         */
+ /*02/25/2004 HSI_4NSC_001 4NSC RECOMPILE THE PROGRAMTO PICK UP  DLP */
+ /*                             QBPRICE.                             */
+ /*05/05/2005 sr040017 5NSM    ADD FABEND FPROCESSING            DLP */ 
+ /*08/12/2005 RQ057017     5NSM Non-standard rate for non standars   */                                                                  
+ /*                             codes                            VJK */                                    
+ /*07/20/2005 RQ057017 5NSM    SPECIAL RATES FOR ENTERPRISES  ARCHANA*/
+ /*03/01/2006 RQ054527 6NSH    Only Compile to pickup the changed    */
+ /*                            Copy book QBNRAT                  VJK */
+ /*                                                                  */
+ /*01/27/2012 RCQ1882  2HSC   RECOMPILED TO USE THE NEW CWA      NAK */
+ /*07/28/2016 RCQ0345 15HSC RECOMPILED TO PICK NEW CHANGES IN GAYATRI*/
+ /*                                   QBPRICE COPYBOOK               */ 
+ /********************************************************************/
+ DCL VERSION      CHAR(18) STATIC INIT('15HSC - 07/28/2016');
+ DCL MODULE       CHAR( 7) STATIC INIT('QBPRIC1');
+
+ /********************************************************************/
+ /*                     COMPILE TIMESTAMP                            */
+ /********************************************************************/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+  DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ /********************************************************************/
+ /* %DCL CMPTIME CHAR                                                */
+ /* %DCL COMPILETIME BUILTIN                                         */
+ /* %CMPTIME = ''''||COMPILETIME||''''                               */
+ /********************************************************************/
+
+ /*------------------------------------------------------------------*/
+ /* THE PREPROCESSOR IS USED TO DECLARE THE FOLLOWING CONSTANTS:     */
+ /*                                                                  */
+ /*    GSA          = 'G'                                            */
+ /*    COMMERCIAL   = 'C'                                            */
+ /*    IBM_EMPLOYEE = 'I'                                            */
+ /*------------------------------------------------------------------*/
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+ %DCL GSA      CHAR;
+ %GSA = '''G''';
+ %DCL COMMERCIAL CHAR;
+ %COMMERCIAL = '''C''';
+ %DCL IBM_EMPLOYEE CHAR;
+ %IBM_EMPLOYEE = '''I''';
+
+ /* DCL PLIXOPT CHAR(30) VARYING EXT INIT('STAE,ISA(8K),NR') */
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(8K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+  %PAGE;
+ /********************************************************************/
+ /*                     BUILTIN FUNCTIONS                            */
+ /********************************************************************/
+
+
+ DCL (ABS,
+      ADDR,
+      CEIL,
+      CSTG,
+      NULL,
+      ONLOC,
+      PLIDUMP,
+      PLIRETC,
+      STG,
+      STRING,
+      SUBSTR) BUILTIN;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                    DATE CONVERSION PROGRAMS                      */
+ /* ---------------------------------------------------------------- */
+ /* %INCLUDE QBDATE */
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                        FILE DECLARES                             */
+ /* ---------------------------------------------------------------- */
+ DCL SYSPRINT FILE STREAM PRINT OUTPUT;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                  CWA DATA LAYOUT                                 */
+ /* ---------------------------------------------------------------- */
+ DCL @CWA          PTR;             /* POINTER TO CWA                */
+ DCL 1 CWA  UNALIGNED BASED(@CWA),
+       %INCLUDE CWA ;
+
+ /* ---------------------------------------------------------------- */
+ /*                    LAYOUT OF PRICING DATA                        */
+ /* ---------------------------------------------------------------- */
+ DCL 1 PRICDATA UNALIGNED BASED(@COMM),
+ %INCLUDE QBPRICE;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*       LAYOUT OF SPECIAL RATE CUSTOMER/MACHINE TYPE FILE          */
+ /* ---------------------------------------------------------------- */
+ DCL 1 SPECIAL1,
+ %INCLUDE QBSRAT1;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                 LAYOUT OF SPECIAL RATE FILE                      */
+ /* ---------------------------------------------------------------- */
+ DCL 1 SPECIAL2,
+ %INCLUDE QBSRAT2;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                 LAYOUT OF STANDARD RATE FILE                     */
+ /* ---------------------------------------------------------------- */
+ DCL 1 STANDARD,
+ %INCLUDE QBNRAT;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                    LAYOUT OF HOLIDAY FILE                        */
+ /* ---------------------------------------------------------------- */
+ DCL 1 HOLIDAY_TABLE,
+ %INCLUDE QBHDAY;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /* IN CICS 3.1, THE EIB IS 85 BYTES. THIS STRING IS USED TO SAVE    */
+ /* AN EIB IMAGE AT THE TIME AN ERROR OCCURS BEFORE AN ERROR MODULE  */
+ /* IS INVOKED.                                                      */
+ /* ---------------------------------------------------------------- */
+ DCL EIB_STRING    CHAR(85) BASED(DFHEIPTR);
+
+
+ /* ---------------------------------------------------------------- */
+ /*                    LAYOUT OF ERROR STRUCTURE                     */
+ /* ---------------------------------------------------------------- */
+ DCL 1 ERRDATA,
+ %INCLUDE AEQERRT;;
+
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /*                    LAYOUT OF KEY FOR SPECIAL RATE RECORD         */
+ /* ---------------------------------------------------------------- */
+ DCL 1 SPL2KEY,
+       2 ISEQ    FIXED BIN(15)  INIT(0),       /* CONTRACT SEQ NUMBER */
+       2 PAD1          CHAR(1)  INIT(''),
+       2 BILLING_CLASS CHAR(1)  INIT(''),            /* BILLING CLASS */
+       2 PAD3          CHAR(1)  INIT(''),
+       2 DEFFDTE       CHAR(10) INIT('');          /* EFFECTIVE DATE */
+
+ DCL 1 SPL2BRKEY,
+       3 ISEQ       FIXED BIN (15) INIT(0),
+       3 PAD1             CHAR(1)  INIT(''),
+       3 BILLING_CL       CHAR(1)  INIT('');
+
+ /* ---------------------------------------------------------------- */
+ /*                  MISCELLANEOUS DECLARATIONS                      */
+ /* ---------------------------------------------------------------- */
+ DCL BLANK             CHAR(1)  INIT('');
+ DCL BILLING_CLASS     CHAR(1)  INIT('');
+ DCL @COMM             POINTER;     /* PTR TO COMMAREA          */
+ DCL CURRENT_STDKEY    CHAR(16) INIT('');  /* 3NSE */
+ DCL DIAG_TEXT         CHAR(80) INIT('');
+ DCL EFF_DATE          CHAR(8)  INIT('');
+ DCL EXP_DATE          CHAR(8)  INIT('');
+ DCL H#          FIXED BIN(31)  INIT(0);
+ DCL HOLIDAY_DATE      CHAR(8)  INIT('');
+ DCL HOLIKEY           CHAR(10) INIT('');
+ DCL I           FIXED BIN(31)  INIT(0);
+ DCL MILEAGE_IND       CHAR(1)  INIT('M');
+ DCL NO                CHAR(1)  INIT('N');
+ DCL NUMDAYS     FIXED DEC(2,0) INIT(0);
+ DCL P#          FIXED BIN(31)  INIT(0);
+ DCL PAD               CHAR(1)  INIT('');
+ DCL PAD2              CHAR(2)  INIT('');
+ DCL PIC_RESP          PIC'(4)9' INIT(0);
+ DCL PIC_RESP2         PIC'(4)9' INIT(0);
+ DCL PREV_STDKEY       CHAR(16) INIT('');  /* 3NSE */
+ DCL RECD_LENGTH  FIXED BIN(15)  INIT(0);
+ DCL RESPONSE     FIXED BIN(31)  INIT(0);
+ DCL RESPONSE2    FIXED BIN(31)  INIT(0);
+ DCL SPL1KEY           CHAR(23) INIT('');
+ DCL SPL1_SEARCH_KEY   CHAR(12) INIT('');
+ DCL STDKEY            CHAR(16) INIT('');  /* 3NSE */
+ DCL STD_SEARCH_KEY    CHAR(5)  INIT('');  /* 3NSE */
+ DCL YES               CHAR(1)  INIT('Y');
+
+ DCL CONTINUE          BIT(1)   INIT('1'B);
+ DCL FOUND             BIT(1)   INIT('0'B);
+ DCL TEST_SW           BIT(1)   INIT('0'B);
+
+ %PAGE;
+ /********************************************************************/
+ /*                        ERROR PROCESSING                          */
+ /********************************************************************/
+ EXEC CICS IGNORE CONDITION
+           ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                   /*  PREVENT RECURSION ERROR */
+     /*  CALL PLIDUMP ('T')  */
+     ET_PROGRAM_ID = 'QBPRIC1';
+     ET_EIB = EIB_STRING;
+     WTO_FLAG = 'Y';
+     ET_DUMPCODE = 'Y';
+
+     ET_TEXT4 = 'QSR9000: QBPRIC1  QSAR DOC NUM = ' ||
+                                 PRICDATA.IINVOICE;
+     ET_TEXT5 = 'QSR9000: QBPRIC1  ENTRY POINT = ' || ONLOC ||
+                ' MACH TYPE ' || PRICDATA.IMACT;
+
+     IF ET_TEXT1 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+
+     IF ET_TEXT2 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+
+     IF ET_TEXT3 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT3);
+
+     IF ET_TEXT4 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT4);
+
+     IF ET_TEXT5 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT5);
+
+  /* EXEC CICS XCTL PROGRAM('AEQERRP')                               */
+  /*      COMMAREA(ERRDATA)                                          */
+  /*      RESP(RESPONSE)                                             */
+  /*                                                                 */
+  /* IF RESPONSE ^= DFHRESP(NORMAL) THEN                             */
+  /*   DO                /* IF ALL ELSE FAILS, DUMP & RETURN TO CICS */
+  /*     EXEC CICS ABEND                                             */
+  /*          ABCODE('PRC1')                                         */
+  /*          CANCEL                                                 */
+  /*   END                                                           */
+      PRICDATA.FABEND = '1'B;
+      EXEC CICS RETURN;
+   END;
+
+ %PAGE;
+ /********************************************************************/
+ /*                        MAIN PROCEDURE                            */
+ /********************************************************************/
+ /* GET ADDRESSABILITY TO THE CWA (OPTIONAL - IF NEEDED)             */
+ EXEC CICS ADDRESS                     /* GET ADDR OF CWA            */
+      CWA(@CWA)  RESP(RESPONSE);
+
+ IF RESPONSE ^= DFHRESP(NORMAL)        /* IF ABNORMAL RESPONSE THEN  */
+   THEN DO;
+     ET_TEXT1 = 'QSR9002: QBPRIC1 FAILURE TO GET ADDRESS OF CWA';
+     SIGNAL ERROR;
+   END;
+ PRICDATA.FABEND = '0'B;
+ IF CWA_QSAR_TRACE = 'Y' | CWA_QSAR_TRACE = 'S'
+  THEN DO;
+    TEST_SW = '1'B;
+    DIAG_TEXT = 'QBPRIC1: ENTERED';
+    CALL WTO;
+  END;
+
+ IF EIBCALEN = 0 THEN                    /* IF NO COMMAREA RECEIVED  */
+   DO;                                   /* TRANSFER TO ERROR PGM    */
+     ET_TEXT1 = 'QSR9002: QBPRIC1 NO COMMAREA RECEIVED';
+     SIGNAL ERROR;
+   END;
+                                         /* INITIALIZE               */
+ STANDARD = '';
+ SPECIAL1 = '';
+ SPECIAL2 = '';
+ HOLIDAY_TABLE = '';
+
+ IF ABILRATE = 0
+   THEN DO;
+  /* RQ057017 CODE CHANGES STARTS HERE */
+       IF PRICDATA.CNONRATE = 'Y' 
+         THEN ;
+  /* RQ057017 CODE CHANGES ENDS HERE */
+       ELSE DO;
+          IF PRICDATA.CSERVCDE = '94'       /* PERFORM RATE LOOKUPS   */
+                 |  PRICDATA.CCPFIN  = '4'
+             THEN CALL READ_STD_FILE;
+             ELSE CALL READ_SPEC_FILE1;
+       END;
+ END;
+ ELSE DO;
+     PRICDATA.AINRATE  = ABILRATE;
+     PRICDATA.AOUTRATE = ABILRATE;
+ END;
+ 
+ CALL MILEAGE_RATE;
+ CALL GET_HOLIDAYS;
+                                         /* QBPRIC2 DOES PRICING     */
+ EXEC CICS XCTL PROGRAM('QBPRIC2')
+                COMMAREA(PRICDATA);
+
+ EXEC CICS RETURN;
+
+ %PAGE;
+ READ_SPEC_FILE1: PROC;
+ /********************************************************************/
+ /* DETERMINE IF CUSTOMER,MACHINE TYPE ARE ON THE FIRST SPECIAL RATE */
+ /* FILE. IF IT IS FOUND THEN CALL THE ROUTINE THAT WILL READ THE    */
+ /* CORRECT RECORD ELSE, CALL THE ROUTINE THAT WILL READ THE STANDARD*/
+ /* RATE FILE.                                                       */
+ /********************************************************************/
+
+ SPL1KEY = PRICDATA.ICUST || PAD || PRICDATA.IMACT;
+ SPL1_SEARCH_KEY = PRICDATA.ICUST || PAD || PRICDATA.IMACT;
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: READ SPEC RAT 1  BSRAT1 '||SPL1KEY;
+    CALL WTO;
+  END;
+  
+ EXEC CICS IGNORE CONDITION NOTOPEN;
+ EXEC CICS STARTBR FILE('QBSRAT1')
+                   RIDFLD(SPL1KEY)
+                   KEYLENGTH(12)
+                   RESP(RESPONSE)
+                   GENERIC EQUAL;
+
+ SELECT(RESPONSE);
+   WHEN (DFHRESP(NOTOPEN))
+     DO;
+       PIC_RESP = RESPONSE;
+        ET_TEXT1 = 'QSR9002: QBPRIC1 ERROR ON STARTBR OF SPECIAL ' ||
+                  'RATE FILE 1 (QBSRAT1) - NOT OPEN';
+       EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+       /* DIAG_TEXT = 'QSR9002: QBPRIC1 ERROR ON STARTBR OF SPECIAL ' ||
+                  'RATE FILE 1 (QBSRAT1) - NOT OPEN';
+       CALL WTO;  */
+       PRICDATA.FABEND = '1'B;
+       EXEC CICS RETURN;
+     END;
+   WHEN (DFHRESP(NORMAL))
+     CALL FIND_SPLRECD;
+   WHEN (DFHRESP(DSIDERR))               /* FILE NOT FOUND           */
+     DO;                                 /* PASS CONTROL TO ERR PGM  */
+       ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSRAT1)';
+       SIGNAL ERROR;
+     END;
+   WHEN (DFHRESP(NOTFND))                /* KEY NOT FOUND            */
+     DO;
+       IF PRICDATA.CRATTYP = GSA
+         THEN CALL FIND_GSA_RATES;
+         ELSE DO;
+           SPL1KEY = PRICDATA.ICUST || PAD || 'ALL ';
+           SPL1_SEARCH_KEY = PRICDATA.ICUST || PAD || 'ALL ';
+           EXEC CICS STARTBR FILE('QBSRAT1')
+                             RIDFLD(SPL1KEY)
+                             KEYLENGTH(12)
+                             RESP(RESPONSE)
+                             GENERIC EQUAL;
+
+           IF RESPONSE = DFHRESP(NOTFND)/* For Enterprise RQ7017 */
+           THEN DO;
+             SPL1KEY = PRICDATA.IENNO || PAD || PRICDATA.IMACT;
+             SPL1_SEARCH_KEY = PRICDATA.IENNO || PAD || PRICDATA.IMACT;
+             IF TEST_SW
+             THEN DO;
+              DIAG_TEXT = 'QBPRIC1: READ SPEC RAT 1  BSRAT1'||SPL1KEY;
+              CALL WTO;
+             END;
+             EXEC CICS STARTBR FILE('QBSRAT1')
+                               RIDFLD(SPL1KEY)
+                                 KEYLENGTH(12)
+                                RESP(RESPONSE)
+                                GENERIC EQUAL;
+             IF RESPONSE = DFHRESP(NOTFND)        /* KEY NOT FOUND */
+             THEN DO;   
+               SPL1KEY = PRICDATA.IENNO || PAD || 'ALL ';
+               SPL1_SEARCH_KEY = PRICDATA.IENNO || PAD || 'ALL ';
+               EXEC CICS STARTBR FILE('QBSRAT1')
+                                  RIDFLD(SPL1KEY)
+                                    KEYLENGTH(12)
+                                   RESP(RESPONSE)
+                                   GENERIC EQUAL;
+
+               IF RESPONSE = DFHRESP(NOTFND)
+               THEN CALL READ_STD_FILE;  
+               ELSE CALL FIND_SPLENT;
+             END;
+               ELSE CALL FIND_SPLENT; /*End for RQ7017 */
+           END;            
+                                  /* CUSTOMER FOUND ON SPEC RATE FILE */
+         ELSE CALL FIND_SPLRECD;  /* FIND CORRECT RECORD ON RATE FILE */
+
+       END;                              /*  END OF ELSE CLAUSE       */
+     END;
+   OTHERWISE                             /* ALL OTHER ERRORS         */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1 ERROR ON STARTBR OF SPECIAL ' ||
+                  'RATE FILE 1 (QBSRAT1)';
+       SIGNAL ERROR;
+     END;
+ END;   /* END SELECT */
+
+ EXEC CICS ENDBR FILE('QBSRAT1');
+
+ END READ_SPEC_FILE1;
+
+ %PAGE;
+ FIND_SPLENT: PROC;
+ /********************************************************************/
+ /* THERE CAN BE MULTIPLE RECORDS WITH THE SAME ENTERRISE, MACH TYPE */
+ /* ON THE FIRST SPECIAL RATE FILE. SINCE THERE CAN BE MULTIPLE      */
+ /* RECORDS, THEN YOU MUST CHECK THE SERVICE CALL DATE AND MAKE SURE */
+ /* IS FALLS BETWEEN THE EFFECTIVE DATE AND EXPIRATION DATE ON THE   */
+ /* RATE FILE TO FIND THE CORRECT RECORD ON THE RATE FILE. ONCE THE  */
+ /* CORRECT IS FOUND THEN CALL THE ROUTINE THAT READS THE SECOND     */
+ /* SPECIAL RATE FILE.                                               */ 
+ /* IF THE SERVICE CALL DATE DOESN'T FALL BETWEEN THE DATES ON ANY   */
+ /* IF THE RECORDS THEN A CALL TO THE ROUTINE READS THE STANDARD     */
+ /* RATE FILE IS MADE. -  Added for RQ7017 for Spl rates for Ent     */
+ /********************************************************************/
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: FIND SPLRECD '||SPL1KEY;
+    CALL WTO;
+  END;
+
+ CONTINUE = '1'B;
+ DO WHILE (CONTINUE);
+   RECD_LENGTH = 80;
+   EXEC CICS READNEXT FILE('QBSRAT1')
+                      RIDFLD(SPL1KEY)
+                      INTO (SPECIAL1)
+                      LENGTH(RECD_LENGTH)
+                      RESP(RESPONSE);
+
+   IF (SUBSTR(SPL1KEY,1,12) = SPL1_SEARCH_KEY &
+      RESPONSE ^= DFHRESP(ENDFILE))
+   THEN
+     DO;
+       IF (PRICDATA.DCALL >= SPECIAL1.DEFFDTE &
+           PRICDATA.DCALL <= SPECIAL1.DEXPIRE &
+           SPECIAL1.CENTCUST = 'E'  )  THEN
+         DO; /* CHECKING CENTCUST FOR ENT */
+           EXEC CICS ENDBR FILE('QBSRAT1');
+           CALL READ_SPEC_FILE2;          /* READ SPECIAL RATE FILE 2 */
+           CONTINUE = '0'B;
+         END;
+     END;
+   ELSE
+     DO;
+       EXEC CICS ENDBR FILE('QBSRAT1');
+       IF PRICDATA.CRATTYP = GSA
+          THEN CALL FIND_GSA_RATES;
+          ELSE CALL READ_STD_FILE;
+       CONTINUE = '0'B;
+     END;
+ END;  /* END DO WHILE */
+ END FIND_SPLENT;
+ 
+ %PAGE;
+ FIND_SPLRECD: PROC;
+ /********************************************************************/
+ /* THERE CAN BE MULTIPLE RECORDS WITH THE SAME CUSTOMER,MACHINE TYPE*/
+ /* ON THE FIRST SPECIAL RATE FILE. SINCE THERE CAN BE MULTIPLE      */
+ /* RECORDS, THEN YOU MUST CHECK THE SERVICE CALL DATE AND MAKE SURE */
+ /* IS FALLS BETWEEN THE EFFECTIVE DATE AND EXPIRATION DATE ON THE   */
+ /* RATE FILE TO FIND THE CORRECT RECORD ON THE RATE FILE. ONCE THE  */
+ /* CORRECT IS FOUND THEN CALL THE ROUTINE THAT READS THE SECOND     */
+ /* SPECIAL RATE FILE.
+ /* IF THE SERVICE CALL DATE DOESN'T FALL BETWEEN THE DATES ON ANY   */
+ /* IF THE RECORDS THEN A CALL TO THE ROUTINE READS THE STANDARD     */
+ /* RATE FILE IS MADE.                                               */
+ /********************************************************************/
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: FIND SPLRECD '||SPL1KEY;
+    CALL WTO;
+    END;
+
+ CONTINUE = '1'B;
+ DO WHILE (CONTINUE);
+   RECD_LENGTH = 80;
+   EXEC CICS READNEXT FILE('QBSRAT1')
+                      RIDFLD(SPL1KEY)
+                      INTO (SPECIAL1)
+                      LENGTH(RECD_LENGTH)
+                      RESP(RESPONSE);
+
+   IF (SUBSTR(SPL1KEY,1,12) = SPL1_SEARCH_KEY &
+      RESPONSE ^= DFHRESP(ENDFILE))
+   THEN
+     DO;
+       IF (PRICDATA.DCALL >= SPECIAL1.DEFFDTE &
+           PRICDATA.DCALL <= SPECIAL1.DEXPIRE)  THEN
+         DO;
+           EXEC CICS ENDBR FILE('QBSRAT1');
+           CALL READ_SPEC_FILE2;          /* READ SPECIAL RATE FILE 2 */
+           CONTINUE = '0'B;
+         END;
+     END;
+   ELSE
+     DO;
+       EXEC CICS ENDBR FILE('QBSRAT1');
+       IF PRICDATA.CRATTYP = GSA
+          THEN CALL FIND_GSA_RATES;
+          ELSE CALL READ_STD_FILE;
+       CONTINUE = '0'B;
+     END;
+ END;  /* END DO WHILE */
+ END FIND_SPLRECD;
+
+ %PAGE;
+ READ_STD_FILE: PROC;
+ /********************************************************************/
+ /* DETERMINE IF BILLING TYPE,BILLING CLASS ARE ON THE STANDARD RATE */
+ /* FILE. IF IT IS FOUND,THEN CALL THE ROUTINE THAT WILL READ THE    */
+ /* CORRECT RECORD, ELSE SIGNAL A ERROR HAS OCCURRED.                */
+ /********************************************************************/
+
+ STDKEY         = PRICDATA.CRATTYP || ' ' || PRICDATA.CCPFIN;
+ STD_SEARCH_KEY = PRICDATA.CRATTYP || ' ' || PRICDATA.CCPFIN;
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: READ STD     '||STDKEY;
+    CALL WTO;
+  END;
+
+ EXEC CICS STARTBR FILE('QBSTDRAT')
+                   RIDFLD(STDKEY)
+                   KEYLENGTH(5)
+                   RESP(RESPONSE)
+                   GENERIC EQUAL;
+ SELECT(RESPONSE);
+   WHEN (DFHRESP(NORMAL))
+     CALL FIND_STDRECD;
+   WHEN (DFHRESP(DSIDERR))               /* FILE NOT FOUND           */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSTDRAT)';
+       SIGNAL ERROR;
+     END;
+   WHEN (DFHRESP(NOTFND))                /* KEY NOT FOUND            */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  KEY' || STDKEY ||
+                  'NOT FOUND ON STD RATE FILE (QBSTDRAT)';
+       /* SIGNAL ERROR */
+     END;
+   OTHERWISE                             /* OTHER VSAM ERROR         */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  ERROR ON STARTBR OF ' ||
+                  'STANDARD RATE FILE (QBSTDRAT)';
+       ET_TEXT2 = 'QSR9002: QPBRIC1  KEY=' || STDKEY;
+       SIGNAL ERROR;
+     END;
+ END;   /* END SELECT */
+
+ EXEC CICS ENDBR FILE('QBSTDRAT');
+
+ END READ_STD_FILE;
+
+ %PAGE;
+ FIND_STDRECD: PROC;
+ /********************************************************************/
+ /* THERE CAN BE MULTIPLE RECORDS WITH THE SAME BILLING TYPE,BILLING */
+ /* CLASS ON THE STANDARD RATE FILE. SINCE THERE CAN BE MULTIPLE     */
+ /* RECORDS, THEN YOU MUST CHECK THE SERVICE CALL DATE AND MAKE SURE */
+ /* IT IS LESS THAN THE EFFECTIVE DATE ON THE CURRECT RECORD READ.   */
+ /* ONCE YOU HAVE DONE THIS, YOU GO BACK AND READ THE PREVIOUS RECORD*/
+ /* AND USE THE DATA FROM THAT RECORD.                               */
+ /********************************************************************/
+
+ CURRENT_STDKEY = '';                              /* 3NSE */
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: FIND STD REC '||STDKEY;
+    CALL WTO;
+  END;
+
+ CONTINUE = '1'B;
+ DO WHILE (CONTINUE);
+
+   RECD_LENGTH = 80;
+   PREV_STDKEY = CURRENT_STDKEY;  /* SAVE THE CURRENT KEY */
+   EXEC CICS READNEXT FILE('QBSTDRAT')
+                      RIDFLD(STDKEY)
+                      INTO (STANDARD)
+                      LENGTH(RECD_LENGTH)
+                      RESP(RESPONSE);
+
+   CURRENT_STDKEY = STDKEY;               /* SAVE THE RETREIVED KEY */
+   IF (SUBSTR(STDKEY,1,5) = STD_SEARCH_KEY &
+       RESPONSE ^= DFHRESP(ENDFILE))
+   THEN
+     DO;
+       IF (PRICDATA.DCALL <= STANDARD.DEFFDTE)
+         THEN DO;
+           CONTINUE = '0'B;
+
+           IF (PREV_STDKEY = '') THEN      /* 3NSE */
+             PREV_STDKEY = CURRENT_STDKEY; /* SAVE THE CURRENT KEY */
+
+          END;
+     END;
+   ELSE DO;
+     CONTINUE = '0'B;
+   END;
+
+     IF TEST_SW
+       THEN DO;
+         inpic  = standard.ainrate;
+         outpic = standard.aoutrate;
+         DIAG_TEXT = 'QBPRIC1: found STD rate '||inpic||
+                        ' out rate '||outpic||' ('||stdkey||')';
+         CALL WTO;
+       END;
+
+ END;  /* END DO WHILE */
+
+ /*    EXEC CICS READPREV FILE('QBSTDRAT')
+                       RIDFLD(STDKEY)
+                       INTO(STANDARD)
+                       LENGTH(RECD_LENGTH)
+                       RESP(RESPONSE)
+                       RESP2(RESPONSE2);   */
+
+     /*SELECT (RESPONSE);
+       WHEN (DFHRESP(NORMAL))
+         DO;
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = 'QBPRIC1: NORMAL READPREV';
+               CALL WTO;
+             END;
+         END;
+       OTHERWISE
+         DO;
+           IF TEST_SW
+             THEN DO;
+               PIC_RESP  = RESPONSE;
+               PIC_RESP2 = RESPONSE2;
+               DIAG_TEXT = 'QBPRIC1: BAD READPREV RESPONSE '||PIC_RESP||
+                               ' RESPONSE2 '||PIC_RESP2;
+               CALL WTO;
+             END;
+         END;
+     END;   */
+
+
+ EXEC CICS ENDBR FILE('QBSTDRAT')
+                 RESP(RESPONSE)
+                 RESP2(RESPONSE2);
+
+ SELECT (RESPONSE);
+   WHEN (DFHRESP(NORMAL))
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBPRIC1: NORMAL ENDBR';
+           CALL WTO;
+         END;
+     END;
+   OTHERWISE
+     DO;
+       IF TEST_SW
+         THEN DO;
+           PIC_RESP  = RESPONSE;
+           PIC_RESP2 = RESPONSE2;
+           DIAG_TEXT = 'QBPRIC1: BAD END BROWSE RESPONSE '||PIC_RESP||
+                           ' RESPONSE2 '||PIC_RESP2;
+         END;
+     END;
+ END;
+
+
+ IF TEST_SW
+  THEN DO;
+    dcl inpic   pic'9999v.99';
+    dcl outpic  pic'9999v.99';
+    inpic  = standard.ainrate;
+    outpic = standard.aoutrate;
+    DIAG_TEXT = 'QBPRIC1: in rate '||inpic||' out rate '||outpic;
+    CALL WTO;
+    DIAG_TEXT = 'QBPRIC1: PREV KEY ('||PREV_STDKEY||')';
+    CALL WTO;
+  END;
+
+ RECD_LENGTH = 80;
+ STANDARD    = '';
+ /* ADDED KEYLENGTH IN DRIVER 3NSG, WAS NOT RETRIEVING CORRECT RATE*/
+ /* EXEC CICS IGNORE CONDITION ENDFILE;  */
+ EXEC CICS READ FILE('QBSTDRAT')
+                RIDFLD(PREV_STDKEY)
+                KEYLENGTH(16)
+                INTO(STANDARD)
+                LENGTH(RECD_LENGTH)
+                EQUAL
+                RESP(RESPONSE)
+                RESP2(RESPONSE2);
+
+
+ SELECT (RESPONSE);
+   WHEN (DFHRESP(NORMAL))
+     DO;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = 'QBPRIC1: NORMAL READ '||PREV_STDKEY;
+           CALL WTO;
+         END;
+     END;
+   OTHERWISE
+     DO;
+       IF TEST_SW
+         THEN DO;
+           PIC_RESP  = RESPONSE;
+           PIC_RESP2 = RESPONSE2;
+           DIAG_TEXT = 'QBPRIC1: BAD READ RESPONSE '||PIC_RESP||
+                           ' RESPONSE2 '||PIC_RESP2;
+           CALL WTO;
+         END;
+     END;
+ END;
+
+
+ IF (SUBSTR(PREV_STDKEY,1,1) = MILEAGE_IND)
+   THEN PRICDATA.AMILRATE = STANDARD.AINRATE;     /* MILEAGE RATE */
+   ELSE DO;
+     PRICDATA.AINRATE  = STANDARD.AINRATE;    /* INSIDE LABOR RATE */
+     PRICDATA.AOUTRATE = STANDARD.AOUTRATE;   /* OUTSIDE LABOR RATE */
+     IF TEST_SW
+       THEN DO;
+         inpic  = standard.ainrate;
+         outpic = standard.aoutrate;
+         DIAG_TEXT = 'QBPRIC1: found in rate '||inpic||
+                            ' out rate '||outpic;
+         CALL WTO;
+       END;
+   END;
+
+ END FIND_STDRECD;
+
+ %PAGE;
+ READ_SPEC_FILE2: PROC;
+ /********************************************************************/
+ /* FIRST, YOU DETERMINE IF THE BILLING CLASS FROM THE FIRST SPECIAL */
+ /* RATE FILE OR FROM SERVICE DATA(PRICDATA) IS TO BE USED. ONCE THIS*/
+ /* IS DONE, YOU DETERMINE IF THE CONTRACT SEQUENCE NO.,BILLING CLASS*/
+ /* ARE ON THE SECOND SPECIAL RATE FILE. IF FOUND, THEN GET DATA FROM*/
+ /* FILE, ELSE SIGNAL A ERROR HAS OCCURRED.                          */
+ /********************************************************************/
+
+ IF ((SPECIAL1.CCPFIN ^= BLANK) & (SPECIAL1.CCPFIN < PRICDATA.CCPFIN))
+   THEN        /* USE BILLING CLASS FROM SPECIAL CONTRACT */
+     DO;
+       PRICDATA.CCPFIN = SPECIAL1.CCPFIN;
+       BILLING_CLASS = SPECIAL1.CCPFIN;
+     END;
+    ELSE       /* USE BILLING CLASS PASSED FROM CALLER */
+       BILLING_CLASS = PRICDATA.CCPFIN;
+
+ SPL2KEY.ISEQ = SPECIAL1.ISEQ;
+ SPL2KEY.BILLING_CLASS = BILLING_CLASS;
+ SPL2KEY.DEFFDTE = SPECIAL1.DEFFDTE;
+ RECD_LENGTH = 80;
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: READ QBSRAT2 '||SPL2KEY.ISEQ||
+              SPL2KEY.BILLING_CLASS||' '||SPL2KEY.DEFFDTE;
+    CALL WTO;
+  END;
+
+ EXEC CICS READ FILE('QBSRAT2')
+                RIDFLD(SPL2KEY)
+                KEYLENGTH(15)
+                INTO (SPECIAL2)
+                LENGTH(RECD_LENGTH)
+                RESP(RESPONSE);
+
+ SELECT(RESPONSE);
+   WHEN (DFHRESP(NORMAL))
+     DO;
+       PRICDATA.PDISCNT = SPECIAL2.PDISCNT;   /* DISCOUNT PERCENT */
+       PRICDATA.AINCDNT = SPECIAL2.AINCDNT;   /* INCIDENT CHARGE  */
+       PRICDATA.QMINCHG = SPECIAL2.QMINCHG;   /* MINIMUM CHRG HRS */
+       PRICDATA.AMAXCHG = SPECIAL2.AMAXCHG;   /* MAXIMUM CHRG AMT */
+       PRICDATA.AINRATE = SPECIAL2.AINRATE;   /* INSIDE LABOR RATE*/
+       PRICDATA.AOUTRATE = SPECIAL2.AOUTRATE; /* OUTSIDE RATE */
+     END;
+   WHEN (DFHRESP(DSIDERR))       /* FILE NOT FOUND */
+     DO;                       /* PASS CONTROL TO ERROR PGM */
+       ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSRAT2)';
+       SIGNAL ERROR;
+     END;
+   WHEN (DFHRESP(NOTFND))       /* KEY NOT FOUND */
+     DO;                       /* PASS CONTROL TO ERROR PGM */
+       ET_TEXT1 = 'QSR9002: QBPRIC1  KEY NOT FOUND ON QBSRAT2 ' ||
+                  'FOR CONTRACT SEQ=' || SPL2KEY.ISEQ;
+       ET_TEXT2 = 'QSR9002: QBPRIC1 ' ||
+                  'BILLING_CLASS=' || SPL2KEY.BILLING_CLASS ||
+                  ' DEFFDTE=' || SPL2KEY.DEFFDTE;
+       SIGNAL ERROR;
+     END;
+   OTHERWISE                   /* ALL OTHER ERRORS */
+     DO;                       /* PASS CONTROL TO ERROR PGM */
+       ET_TEXT1 = 'QSR9002: QBPRIC1,  ERROR ON READ OF ' ||
+                  'SPECIAL RATE FILE 2 (QBSRAT2) '|| RESPONSE;
+       SIGNAL ERROR;
+     END;
+ END;   /* END SELECT */
+ END READ_SPEC_FILE2;
+
+ %PAGE;
+ FIND_GSA_RATES: PROC REORDER;
+ /********************************************************************/
+ /* IF THE QSAR IS A GOVERNMENT CUSTOMER (CUSTOMER TYPE = B|E|U|V)   */
+ /* AND A SPECIAL CONTRACT RATE HAS NOT BEEN FOUND, THIS PROC WILL   */
+ /* BROWSE THE SPECIAL RATE 2 DATASET LOOKING FOR THE PROPER SEQUENCE*/
+ /* ID/BILLING CLASS& CONTRACT EFFECTIVE DATE.                       */
+ /********************************************************************/
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: FIND GSA     '||PRICDATA.CGSASCH;
+    CALL WTO;
+  END;
+
+ SELECT (PRICDATA.CGSASCH);
+   WHEN ('A') SPL2BRKEY.ISEQ = 100;
+   WHEN ('C') SPL2BRKEY.ISEQ = 102;
+   OTHERWISE  SPL2BRKEY.ISEQ = 100;
+ END;                                    /* END OF SELECT             */
+
+                                         /* ASSIGN BILLING CLASS FROM */
+                                         /* QSAR RECORD               */
+ SPL2KEY.BILLING_CLASS = PRICDATA.CCPFIN;
+ SPL2KEY.DEFFDTE = '';
+
+  /* SPL2BRKEY.ISEQ = SPL2KEY.ISEQ */
+ SPL2BRKEY.BILLING_CL = PRICDATA.CCPFIN;
+
+
+ EXEC CICS STARTBR FILE('QBSRAT2')
+                   RIDFLD(SPL2BRKEY)
+                   KEYLENGTH(4)
+                   RESP(RESPONSE)
+                   GENERIC GTEQ;
+
+ SELECT(RESPONSE);
+   WHEN (DFHRESP(NORMAL))  ;             /* START BROWSE OK           */
+
+   WHEN (DFHRESP(DSIDERR))               /* FILE NOT FOUND           */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSRAT2)';
+       SIGNAL ERROR;
+     END;
+   WHEN (DFHRESP(NOTFND))                /* KEY NOT FOUND            */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  KEY SEQ# ' || SPL2BRKEY.ISEQ ||
+                  'BILLING CLASS '||SPL2BRKEY.BILLING_CL;
+       ET_TEXT2 = 'QSAR9002: QBPRIC1 '||
+                  'NOT FOUND ON SPECIAL RATE 2 FILE (QBSRAT2)';
+       SIGNAL ERROR;
+     END;
+   OTHERWISE                             /* OTHER VSAM ERROR         */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  ERROR ON STARTBR OF ' ||
+                  'QBSRAT2 FILE RESP '|| RESPONSE;
+       ET_TEXT2 = 'QSR9002: QPBRIC1  KEY=' || SPL2BRKEY.ISEQ||
+                     SPL2BRKEY.BILLING_CL;
+       SIGNAL ERROR;
+     END;
+ END;   /* END SELECT */
+
+ RECD_LENGTH = 80;
+
+ EXEC CICS READNEXT FILE('QBSRAT2')
+                    RIDFLD(SPL2BRKEY)
+                    INTO (SPECIAL2)
+                    LENGTH(RECD_LENGTH)
+                    RESP(RESPONSE);
+
+ CONTINUE = '1'B;
+ FOUND    = '0'B;
+
+ DO  WHILE (CONTINUE);
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))
+       DO;
+         IF SPL2BRKEY.ISEQ = SPECIAL2.ISEQ &
+              PRICDATA.CCPFIN = SPECIAL2.CCPFIN &
+               PRICDATA.DCALL >= SPECIAL2.DEFFDTE &
+                 PRICDATA.DCALL <= SPECIAL2.DEXPIRE
+           THEN DO;
+             PRICDATA.PDISCNT  = SPECIAL2.PDISCNT;
+             PRICDATA.AINCDNT  = SPECIAL2.AINCDNT;
+             PRICDATA.QMINCHG  = SPECIAL2.QMINCHG;
+             PRICDATA.AMAXCHG  = SPECIAL2.AMAXCHG;
+             PRICDATA.AINRATE  = SPECIAL2.AINRATE;
+             PRICDATA.AOUTRATE = SPECIAL2.AOUTRATE;
+             CONTINUE = '0'B;
+             FOUND    = '1'B;
+           END;
+           ELSE CONTINUE = '1'B;
+       END;
+     WHEN (DFHRESP(ENDFILE))
+       DO;
+         ET_TEXT1 = 'QSR9002: QBPRIC1  END OF QBSRAT2 FILE BEFORE ' ||
+                    'RECORD FOUND,  SEQ = ' || SPL2BRKEY.ISEQ;
+         ET_TEXT2 = 'QSR9002: QBPRIC1 ' ||
+                    'BILLING_CLASS= ' || SPL2BRKEY.BILLING_CL ;
+         SIGNAL ERROR;
+       END;
+
+     WHEN (DFHRESP(DSIDERR))       /* FILE NOT FOUND */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSRAT2)';
+         SIGNAL ERROR;
+       END;
+
+     WHEN (DFHRESP(NOTFND))       /* KEY NOT FOUND */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1  KEY NOT FOUND ON QBSRAT2 ' ||
+                    'FOR GSA SCHEDULE SEQ= ' || SPL2BRKEY.ISEQ;
+         ET_TEXT2 = 'QSR9002: QBPRIC1 ' ||
+                    'BILLING_CLASS= ' || SPL2BRKEY.BILLING_CL ;
+         SIGNAL ERROR;
+       END;
+
+     OTHERWISE                   /* ALL OTHER ERRORS */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1,  ERROR ON READ OF ' ||
+                    'SPECIAL RATE FILE 2 (QBSRAT2) '||RESPONSE ;
+         ET_TEXT2 = 'QSR9002: QBPRIC1,  REC LEN  ' ||RECD_LENGTH;
+         SIGNAL ERROR;
+       END;
+   END;   /* END SELECT */
+
+
+   IF ^FOUND
+     THEN EXEC CICS READNEXT FILE('QBSRAT2')
+                             RIDFLD(SPL2BRKEY)
+                             INTO (SPECIAL2)
+                             LENGTH(RECD_LENGTH)
+                             RESP(RESPONSE);
+
+ END;                                    /* END OF DO WHILE           */
+
+ EXEC CICS ENDBR FILE('QBSRAT2');
+
+ END FIND_GSA_RATES;
+
+ %PAGE;
+ MILEAGE_RATE: PROC;
+ /********************************************************************/
+ /* FIND THE MILEAGE INDICATOR "M" ON THE STANDARD RATE FILE TO GET  */
+ /* THE MILEAGE RATE. IF THE MILEAGE INDICATOR IS NOT FOUND THEN     */
+ /* SIGNAL ERROR HAS OCCURRED.                                       */
+ /********************************************************************/
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: MILEAGE RATE ';
+    CALL WTO;
+  END;
+
+ /*   STDKEY = MILEAGE_IND || PAD2 */
+ STDKEY = 'M    ';
+ STD_SEARCH_KEY = SUBSTR(STDKEY,1,5);
+
+ EXEC CICS STARTBR FILE('QBSTDRAT')
+                   RIDFLD(STDKEY)
+                   KEYLENGTH(5)
+                   RESP(RESPONSE)
+                   GENERIC EQUAL;
+
+ 
+ SELECT(RESPONSE);
+   WHEN (DFHRESP(NORMAL)) ;
+
+   WHEN (DFHRESP(DSIDERR))               /* FILE NOT FOUND           */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSTDRAT)';
+       SIGNAL ERROR;
+     END;
+   WHEN (DFHRESP(NOTFND))                /* KEY NOT FOUND            */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  KEY' || STDKEY ||
+                  'NOT FOUND ON STD RATE FILE (QBSTDRAT)';
+       SIGNAL ERROR;
+     END;
+   OTHERWISE                             /* OTHER VSAM ERROR         */
+     DO;
+       ET_TEXT1 = 'QSR9002: QBPRIC1  ERROR ON STARTBR OF ' ||
+                  'STANDARD RATE FILE (QBSTDRAT)';
+       ET_TEXT2 = 'QSR9002: QPBRIC1  KEY=' || STDKEY;
+       SIGNAL ERROR;
+     END;
+ END;   /* END SELECT */
+
+ RECD_LENGTH = 80;
+
+
+ EXEC CICS READNEXT FILE('QBSTDRAT')
+                    RIDFLD(STDKEY)
+                    INTO (STANDARD)
+                    LENGTH(RECD_LENGTH)
+                    RESP(RESPONSE);
+
+ CONTINUE = '1'B;
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: Before do while';
+    CALL WTO;
+  END;
+
+ DO WHILE ((PRICDATA.DCALL >= STANDARD.DEFFDTE) &
+             RESPONSE ^= DFHRESP(ENDFILE)& STANDARD.CRATTYP = 'M  ' );
+   SELECT(RESPONSE);
+     WHEN (DFHRESP(NORMAL))
+        PRICDATA.AMILRATE = STANDARD.AINRATE;
+
+     WHEN (DFHRESP(DSIDERR))       /* FILE NOT FOUND */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1  FILE NOT FOUND (QBSTDRAT)';
+         SIGNAL ERROR;
+       END;
+     WHEN (DFHRESP(NOTFND))       /* KEY NOT FOUND */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1  MILEAGE RATE KEY NOT FOUND ' ||
+                    'ON QBSTDRAT';
+         ET_TEXT2 = 'QSR9002: QBPRIC1  KEY=' || STDKEY;
+         SIGNAL ERROR;
+       END;
+     OTHERWISE                   /* ALL OTHER ERRORS */
+       DO;                       /* PASS CONTROL TO ERROR PGM */
+         ET_TEXT1 = 'QSR9002: QBPRIC1,  ERROR ON READNEXT OF ' ||
+                    'STANDARD RATE FILE (QBSTDRAT)';
+         ET_TEXT2 = 'QSR9002: QPBRIC1  KEY=' || STDKEY||' RESP '||
+                      RESPONSE;
+         SIGNAL ERROR;
+       END;
+   END;  /* END SELECT */
+
+   EXEC CICS IGNORE CONDITION ENDFILE;
+   EXEC CICS READNEXT FILE('QBSTDRAT')
+                      RIDFLD(STDKEY)
+                      INTO (STANDARD)
+                      LENGTH(RECD_LENGTH)
+                      RESP(RESPONSE);
+
+ END;               /*   END OF DO                */
+
+
+ EXEC CICS ENDBR FILE('QBSTDRAT');
+
+ END MILEAGE_RATE;
+
+ %PAGE;
+ GET_HOLIDAYS: PROC;
+ /********************************************************************/
+ /*           READ HOLIDAY FILE AND SAVE IN PRICING COPY MEMBER      */
+ /********************************************************************/
+
+ IF TEST_SW
+  THEN DO;
+    DIAG_TEXT = 'QBPRIC1: GET HOLIDAYS';
+    CALL WTO;
+  END;
+
+ HOLIKEY = '00'X;
+
+ EXEC CICS STARTBR FILE('QBHDAY')
+                   RIDFLD(HOLIKEY)
+                   KEYLENGTH(10)
+                   RESP(RESPONSE);
+
+ IF (RESPONSE = DFHRESP(NORMAL))  THEN
+   DO;
+      RECD_LENGTH = 80;
+
+      EXEC CICS READNEXT FILE('QBHDAY')
+                         RIDFLD(HOLIKEY)
+                         INTO (HOLIDAY_TABLE)
+                         LENGTH(RECD_LENGTH);
+
+     I=0;
+     DO WHILE (RESPONSE ^= DFHRESP(ENDFILE));
+        PRICDATA.QHCOUNT = PRICDATA.QHCOUNT + 1; /*NUMBER OF HOLIDAYS*/
+        I = I + 1;
+        PRICDATA.DHOLIDAY(I) = HOLIDAY_TABLE.DHOLIDAY;
+        RECD_LENGTH = 80;
+        EXEC CICS READNEXT FILE('QBHDAY')
+                           RIDFLD(HOLIKEY)
+                           KEYLENGTH(10)
+                           INTO (HOLIDAY_TABLE)
+                           LENGTH(RECD_LENGTH)
+                           RESP(RESPONSE);
+     END;
+   END;
+ ELSE
+   DO;
+     ET_TEXT1 = 'QSR9002: QBPRIC1  ERROR ON STARTBR OF ' ||
+                'HOLIDAY FILE (QBHDAY)';
+     SIGNAL ERROR;
+   END;
+
+ EXEC CICS ENDBR FILE('QBHDAY');
+
+ END GET_HOLIDAYS;
+
+ %PAGE;
+ WTO: PROC;
+ /********************************************************************/
+ /* WRITE TO CEEMSG TRANSIENT DATA QUEUE CEEMSG                      */
+ /********************************************************************/
+
+     /*EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)   */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END;
+
+ END QBPRIC1 ;
+
+ /* - - - - - - - - - - - - - THE END - - - - - - - - - - - - - - - - */
+

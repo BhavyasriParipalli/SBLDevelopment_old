@@ -1,0 +1,172 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBSBILL     VERSION NR:  01           DATE:  04/10/89    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  QSAR BILLING SEGMENT                                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QBBILL                                        */
+ /*                                                                  */
+ /* TYPE:  SEGMENT                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  MAPPING OF QSAR/ MAIN BILLING SEGMENT              */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  10/10/89 SR0038   0NSK INITIAL VERSION                      JWJ */
+ /*  10/11/89 SR9892   0NSA INITIAL VERSION (NO CHANGE)          JWJ */
+ /*  10/23/89 TU9892D  0NSA ADD NCONTACT, ICONPHON               JWJ */
+ /*                         INCREASE SEG LENGTH 170->240             */
+ /*  12/27/89 I88691   0NSA ADD CMAXCHG                          JWJ */
+ /*  01/19/90 DCR9892E 0NSA ADD CCMREXCP                         JWJ */
+ /*           DCR9892J      ADD CSPLCHG                              */
+ /*                         ADD HSTART                               */
+ /*  02/11/91 SR0535   1NSE ADD ALSTATTAX     LINE ITEM          LBS */
+ /*                             ALCNTYTAX         TAXING             */
+ /*                             ALCITYTAX                            */
+ /*                             AESTATTAX                            */
+ /*                             AECNTYTAX                            */
+ /*                             AECITYTAX                            */
+ /*                         INCREASE SEG LENGTH 240->255             */
+ /*  04/27/92 SR0890   2NSB ADD CINTERNAL                        LBS */
+ /*  10/12/92 SR1153   2NSJ ADD CCDBILACT                        LBS */
+ /*  01/12/93 SR1204   3NSD ADD QACTHRS, QTRAHRS                 LBS */
+ /*  05/02/97 S97002   7NSI ADD IFEDID                           KLI */
+ /*  02/28/01 S01007   1NSA ADD ICCAUTH                          PRM */
+ /*  03/21/02 HSI CC P12NSG increase length of ICCAUTH from      LBS */
+ /*                         13 to 14                                 */
+ /*  11/17/03          4NSC add entitlement data for OUTSIDE HRS REY */
+ /*                         ISERVTYP,FONSITE,HDAY1STRT,HDAY1STOP     */
+ /*                         HDAY2STRT,HDAY2STOP,HDAY3STRT,HDAY3STOP  */
+ /*                         FBILACTH ,FBILTRVH,FBILPART,FBILDIST     */
+ /*                         FBILEXP                                  */
+ /*                                                                  */
+ /*  08/31/05 RQ057017 5NSM CSPLCON indicator added for non std rate */
+ /*                                                             VJ   */
+ /********************************************************************/
+  3 QBBILL,                  
+                                    /*-------------------------------*/
+                                    /* DATABASE KEY FIELDS           */
+                                    /*-------------------------------*/
+    5 IINVOICE     CHAR(7),         /* INVOICE NUMBER       001- 007 */
+                                    /*-------------------------------*/
+    5 XTIMESTP,                     /* BILLING PROCESSOR DATE/TIME   */
+      7 DBILPROC   CHAR(8),         /* DATE STAMP(YYYYMMDD) 008- 015 */
+      7 HBILPROC   CHAR(6),         /* TIME STAMP(HHMMSS)   016- 021 */
+                                    /*-------------------------------*/
+                                    /* PRICING - LABOR               */
+                                    /*-------------------------------*/
+    5 QINHRS       FIXED DEC(3,1),  /* INSIDE  HRS          022- 023 */
+    5 AINRATE      FIXED DEC(5,2),  /* INSIDE  LABOR RATE   024- 026 */
+    5 AINLAB       FIXED DEC(9,2),  /* INSIDE  LABOR AMOUNT 027- 031 */
+    5 QOUTHRS      FIXED DEC(3,1),  /* OUTSIDE HRS          032- 033 */
+    5 AOUTRATE     FIXED DEC(5,2),  /* OUTSIDE LABOR RATE   034- 036 */
+    5 AOUTLAB      FIXED DEC(9,2),  /* OUTSIDE LABOR AMOUNT 037- 041 */
+                                    /*-------------------------------*/
+                                    /* PRICING - EXPENSE             */
+                                    /*-------------------------------*/
+    5 AMILRATE     FIXED DEC(5,2),  /* MILEAGE RATE         042- 044 */
+    5 AMILEXP      FIXED DEC(9,2),  /* MILEAGE EXPENSE      045- 049 */
+                                    /*-------------------------------*/
+                                    /* PRICING - MISC.               */
+                                    /*-------------------------------*/
+    5 CCPFIN       CHAR(1),         /* BILLING CLASS        050- 050 */
+    5 CMININD      CHAR(1),         /* MINIMUM CHARGE? Y/N  051- 051 */
+    5 AMINCHG      FIXED DEC(9,2),  /* MINIMUM CHARGE       052- 056 */
+                                    /*   ADJUSTMENT AMOUNT           */
+    5 CDISCNT      CHAR(1),         /* DISCOUNT APPLIES?Y/N 057- 057 */
+    5 CINCDCHG     CHAR(1),         /* INCIDENT CHARGE  Y/N 058- 058 */
+    5 CMAXCHG      CHAR(1),         /* MAXIMUM CHARGE?  Y/N 059- 059 */
+    5 HSTART       FIXED DEC(3,1),  /* ACTIVITY START TIME  060- 061 */
+    5 CSPLCHG      CHAR(3),         /* SPECIAL CHARGES CODE 062- 064 */
+                                    /*-------------------------------*/
+                                    /* CUSTOMER/TAXING               */
+                                    /*-------------------------------*/
+    5 ICUST        CHAR(7),         /* CUSTOMER ID          065- 071 */
+    5 CTCUS        CHAR(1),         /* CUSTOMER TYPE USED   072- 072 */
+    5 CTAXCL       CHAR(3),         /* TAX CLASS USED       073- 075 */
+    5 CSTATCD      CHAR(2),         /* STATE  CODE          076- 077 */
+    5 CCNTYCD      CHAR(3),         /* COUNTY CODE          078- 080 */
+    5 CCITYCD      CHAR(4),         /* CITY   CODE          081- 084 */
+    5 CBOSVC       CHAR(3),         /* SERVICE BO           085- 087 */
+    5 COCL         CHAR(1),         /* OUTSIDE CITY LIM Y/N 088- 088 */
+    5 CZIP         CHAR(9),         /* CUSTOMER ZIP         089- 097 */
+    5 TCUSTREF     CHAR(19),        /* CUSTOMER REFERENCE   098- 116 */
+    5 NCONTACT     CHAR(22),        /* CUST CONTACT NAME    117- 138 */
+    5 ICONPHON     CHAR(15),        /* CUST CONTACT PHONE   139- 153 */
+    5 ASTATTAX     FIXED DEC(9,2),  /* STATE  TAX (TAXCALC) 154- 158 */
+    5 ACNTYTAX     FIXED DEC(9,2),  /* COUNTY TAX (TAXCALC) 159- 163 */
+    5 ACITYTAX     FIXED DEC(9,2),  /* CITY   TAX (TAXCALC) 164- 168 */
+                                    /*-------------------------------*/
+                                    /* BILLING SUMMARY               */
+                                    /*-------------------------------*/
+    5 ATOTTIME     FIXED DEC(9,2),  /* TOTAL $LABOR         169- 173 */
+    5 ATOTEXP      FIXED DEC(9,2),  /* TOTAL $EXPENSE       174- 178 */
+    5 ATOTPART     FIXED DEC(9,2),  /* TOTAL $PARTS         179- 183 */
+    5 ATOTTAX      FIXED DEC(9,2),  /* TOTAL $TAX           184- 188 */
+    5 ATOTINV      FIXED DEC(9,2),  /* TOTAL $INVOICE       189- 193 */
+                                    /*-------------------------------*/
+                                    /* MISCELLANEOUS                 */
+                                    /*-------------------------------*/
+    5 CHVLC        CHAR(1),         /* HVLC INDICATOR       194- 194 */
+                                    /*   H=HVLC, N=NON-HVLC          */
+    5 CSYSINV      CHAR(1),         /* SYSTEM INVOICE       195- 195 */
+                                    /*   REQUIRED? Y/N               */
+    5 CCMREXCP     CHAR(1),         /* CMR/INV MISMATCH     196- 196 */
+                                    /*   C=NO MPI/CMR MATCH          */
+                                    /*   R=RSO MISMATCH              */
+    5 CBILLERR     CHAR(3),         /* BILLING ERR CODE     197- 199 */
+    5 CCONTROL     CHAR(2),         /* CONTROL BYTES        200- 201 */
+                                    /* LABOR TAXES                   */
+    5 ALSTATTAX    FIXED DEC(9,2),  /* STATE  TAX (TAXCALC) 202- 206 */
+    5 ALCNTYTAX    FIXED DEC(9,2),  /* COUNTY TAX (TAXCALC) 207- 211 */
+    5 ALCITYTAX    FIXED DEC(9,2),  /* CITY   TAX (TAXCALC) 212- 216 */
+                                    /* EXPENSE TAXES                 */
+    5 AESTATTAX    FIXED DEC(9,2),  /* STATE  TAX (TAXCALC) 217- 221 */
+    5 AECNTYTAX    FIXED DEC(9,2),  /* COUNTY TAX (TAXCALC) 222- 226 */
+    5 AECITYTAX    FIXED DEC(9,2),  /* CITY   TAX (TAXCALC) 227- 231 */
+    5 CINTERNAL    CHAR(1),         /* INTERNAL CUST Y|N    232- 232 */
+    5 CCDBILACT    CHAR(2),         /* CAD BILL ACTIV       233- 234 */
+    5 QACTHRS      CHAR(3),         /* SC01/SC08 HRS TOT    235- 237 */
+    5 QTRAHRS      CHAR(3),         /* SC01/SC08 HRS TOT    238- 240 */
+    5 IFEDID       CHAR(1),         /* FEDERAL CUST Y|N     241- 241 */
+    5 ICCAUTH      CHAR(14),        /* CREDIT CARD AUTH     242- 255 */
+                                    /*-------------------------------*/
+                                    /* ENTITLEMENT DATA              */
+                                    /*-------------------------------*/
+    5 IENTSRC      CHAR(3),         /* HOW THE BILLING FLAGS256- 258 */
+                                    /* WERE SET                      */
+                                    /* MPI,DSI,CDB,CR,OEE,MTM,HSI,POW*/
+    5 ICVGTYPE     CHAR(3),         /* COVERAGE TYPE        259- 261 */
+                                    /* WAR, W/U, CNT, MA, PC         */
+    5 ISERVTYP     CHAR(3),         /* SERV TYPE DESCRIPTION262- 264 */
+                                    /* e.g., IOR, IOE, EZS           */
+    5 FONSITE      CHAR(1),         /* ONSITE SERVICE AVAIL 265- 265 */
+                                    /*  Y|N                          */
+    5 HDAY1STRT    CHAR(4),         /* DAY 1 START TIME     266- 269 */
+    5 HDAY1STOP    CHAR(4),         /* DAY 1 STOP TIME      270- 273 */
+    5 HDAY2STRT    CHAR(4),         /* DAY 2 START TIME     274- 277 */
+    5 HDAY2STOP    CHAR(4),         /* DAY 2 STOP TIME      278- 281 */
+    5 HDAY3STRT    CHAR(4),         /* DAY 3 START TIME     282- 285 */
+    5 HDAY3STOP    CHAR(4),         /* DAY 3 STOP TIME      286- 289 */
+                                    /* ----------------------------- */
+                                    /* possible billing flag values: */
+                                    /* N = do not bill               */
+                                    /* I = bill inside hours only    */
+                                    /* O = bill outside hours only   */
+                                    /* Y = bill inside/outside hours */
+                                    /* ----------------------------- */
+    5 FBILACTH    CHAR(1),          /* BILL ACTUAL HRS      290- 290 */
+    5 FBILTRVH    CHAR(1),          /* BILL TRAVEL HRS      291- 291 */
+    5 FBILPART    CHAR(1),          /* BILL PARTS USED Y|N  292- 292 */
+    5 FBILDIST    CHAR(1),          /* BILL DISTANCE   Y|N  293- 293 */
+    5 FBILEXP     CHAR(1),          /* BILL EXPENSES   Y|N  294- 294 */
+    5 CSPLCON     CHAR(1),          /* Non standard rate indicator   */
+                                    /* Y|N                  295- 295 */
+    5 SPAD01      CHAR(30)          /* FILLER               296- 325 */
+ /*------------------------------------------------------------------*/
+ /*                          END  QBSBILL                            */
+ /*------------------------------------------------------------------*/
