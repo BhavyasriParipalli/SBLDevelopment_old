@@ -1,0 +1,74 @@
+*/********************************************************************/
+*/*                                                                  */
+*/* MACRO NAME = QARBPSAR                                            */
+*/*                                                                  */
+*/* FUNCTION = MAPPING OF THE BOULDER PSAR FORMAT USED BY THE        */
+*/*            CENTRAL PROCESSING SITE RECEIVE PROGRAM.              */
+*/*                                                                  */
+*/* INVOCATION = %INCLUDE SYSLIB(QARBPSAR)                           */
+*/*                                                                  */
+*/*  CHANGE HISTORY:                                                 */
+*/*                                                                  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|         |                                         |          |  */
+*/*|   DATE  |   DESCRIPTION                           |  FLAG    |  */
+*/*|         |                                         |          |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|05/01/84 | CREATED                                 |  -       |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*                                                                  */
+*/********************************************************************/
+
+ DCL 1 BLDPSAR BASED(OUTPTR),         /* BOULDER PSAR FORMAT         */
+      3 BLDPREC      CHAR(9),         /* RECORD NUMBER               */
+      3 BLDPMTYP     CHAR(4),         /* MACHINE TYPE                */
+      3 BLDPMSER     CHAR(5),         /* MACHINE SERIAL              */
+      3 BLDPUSER     CHAR(6),         /* EMPLOYEE SERIAL             */
+      3 BLDPOTHR     CHAR(3),         /* OTHER BRANCH OFFICE         */
+      3 BLDPSPCL     CHAR(1),         /* SPECIAL ACTIVITY            */
+      3 BLDPCALL     CHAR(3),         /* CALL RECEIVED   (NOT USED)  */
+      3 BLDPPROB     CHAR(5),         /* PROBLEM NUMBER              */
+      3 BLDPFESN     CHAR(7),         /* FESN BASE & COMP NUMBER     */
+      3 BLDPIMPT     CHAR(1),         /* IMPACT OF PROBLEM           */
+      3 BLDPSOLN     CHAR(1),         /* '3' MEANS RECORD CAME FROM
+                                         RAMS-DCS/PT.                */
+      3 BLDPCAUS     CHAR(2),         /* CAUSE OF PROBLEM            */
+      3 BLDPAPAR     CHAR(5),         /* APAR/TAPE NUMBER            */
+      3 BLDPRELM     CHAR(3),         /* RELEASE/MODEL NUMBER        */
+      3 BLDPLINE(6),                  /* CAN HAVE 6 SERVICE LINES PER
+                                         PSAR RECORD.                */
+        4 BLDPINDI   CHAR(1),         /* INDICATOR BYTE              */
+        4 BLDPSC     CHAR(2),         /* SERVICE CODE                */
+        4 BLDPCIAP   CHAR(1),         /* COMP/INC/ASST/P             */
+        4 BLDPACTN   CHAR(2),         /* ACTION CODE                 */
+        4 BLDPMNTH   CHAR(2),         /* MONTH OF RECORD             */
+        4 BLDPDAY    CHAR(2),         /* DAY OF RECORD               */
+        4 BLDPSTP    CHAR(3),         /* STOP TIME (HHT)             */
+        4 BLDPACT    CHAR(2),         /* ACTUAL HOURS (HT)           */
+        4 BLDPTRV    CHAR(2),         /* TRAVEL HOURS (HT)           */
+        4 BLDPMIL    CHAR(3),         /* MILEAGE                     */
+        4 BLDPEXP    CHAR(4),         /* EXPENSES (DDCC)             */
+        4 BLDPOPTN   CHAR(2),         /* OPTIONAL DATA   (NOT USED)  */
+        4 BLDPSURV   CHAR(1),         /* SURVEY CODE     (NOT USED)  */
+        4 BLDPOVTI   CHAR(1),         /* OVERTIME INDICATOR          */
+      3 BLDPEDAT     CHAR(5),         /* DATE CE WORKED ON MACHINE
+                                         (000YYMMDDS)                */
+      3 BLDPSLAK     CHAR(5),         /* SLACK BYTES                 */
+      3 BLDPERRB     CHAR(93),        /* ERROR BYTES (POSITIONAL, ONE
+                                         FOR EACH DATA FIELD)        */
+      3 BLDPNIRF     FIXED(8),        /* SPECIAL FLAG FOR NON-IR
+                                         WRITER.                     */
+      3 BLDPSLK2     CHAR(2),         /* NOT USED                    */
+      3 BLDPDISP     FIXED(8),        /* DISPOSITION INDICATOR       */
+      3 BLDPLNBL     FIXED(8),        /* LINE NUMBER OF LAST NON-BLANK
+                                         LINE.         (NOT USED)    */
+      3 BLDPNNBL     FIXED(8),        /* NUMBER OF NON-BLANK LINES.
+                                                       (NOT USED)    */
+      3 BLDPSCAN     CHAR(2),         /* SCANNER LOADING THIS RECORD
+                                                       (NOT USED)    */
+      3 BLDPPDAT     CHAR(4),         /* DATE REC WAS SENT TO BOULDER
+                                         (0MMDDYYS)                  */
+      3 BLDPSFLG     FIXED(8),        /* SPECIAL FLAGS               */
+      3 BLDPSSBY     CHAR(1);         /* STACKER SELECT BYTE         */
+
+

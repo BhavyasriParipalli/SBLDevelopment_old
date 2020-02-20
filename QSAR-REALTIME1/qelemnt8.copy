@@ -1,0 +1,90 @@
+ /********************************************************************/
+ /* QUEUE ELEMENT TYPE EIGHT - LOG IDA                               */
+ /********************************************************************/
+ /* 12/08/83  RDCR21 CHANGE MACHINE SERIAL FROM 5 TO 7 DIGITS        */
+ /* 08/17/89  SR9951 ADD Q8ZIPGMT FLAG                 - TLC         */
+ /********************************************************************/
+ DCL
+ 1 QELEMNT8  DEF(QELEXTN),
+   2 QELMNT8H,                      /* NEW LEVEL TO ZERO OUT QELEMNT8 */
+     3 Q8IDATA,                              /* IDA CONSTANT DATA     */
+       5 Q8UCUST#    CHAR(7),                /* USER CUSTOMER NUMBER  */
+       5 Q8UNIQ#     CHAR(2),                /* AAS UNIQUENESS NUMBER */
+       5 Q8OCUST#    CHAR(7),                /* OWNER CUSTOMER NUMBER */
+       5 Q8IKIND     CHAR(1),                  /* KIND OF IDAC 1 TO 5 */
+       5 Q8DISPDT    CHAR(3),      /* DATE TO DISPATCH (YYDDD PACKED) */
+       5 Q8PROC      CHAR(7),                   /* AAS PROCESSED TIME */
+       5 Q8SW1       FIXED(8),                     /* AAS FLAG BYTE 1 */
+       5 Q8SW2       FIXED(8),                     /* AAS FLAG BYTE 2 */
+       5 Q8ADDRS     CHAR(168),           /* AAS INSTALLED AT ADDRESS */
+         7 Q8ADDR1   CHAR(28),                      /* ADDRESS LINE 1 */
+         7 Q8ADDR2   CHAR(28),                      /* ADDRESS LINE 2 */
+         7 Q8ADDR3   CHAR(28),                      /* ADDRESS LINE 3 */
+         7 Q8ADDR4   CHAR(28),                      /* ADDRESS LINE 4 */
+         7 Q8ADDR5   CHAR(28),                      /* ADDRESS LINE 5 */
+         7 Q8ADDR6   CHAR(28),                      /* ADDRESS LINE 6 */
+       5 Q8DPMKT     CHAR(3),                        /* MARKETING B/O */
+       5 Q8FESOF     CHAR(3),                       /* FE SERVICE B/O */
+       5 Q8INST      CHAR(6),      /* INSTALL BY/DISC/REM DATE MMDDYY */
+       5 Q8ESTDT     CHAR(6),       /* ESTIMATED DELIVERY DATE MMDDYY */
+       5 Q8SHIP      CHAR(6),                     /* SHIP DATE MMDDYY */
+       5 Q8NTFY      CHAR(20),                   /* NOTIFY DP CONTACT */
+       5 Q8TEL#      CHAR(12),       /*TELE # AAA-EEE-NNNN OR EEE-NNNN*/
+       5 Q8EXT       CHAR(5),                            /* EXTENSION */
+       5 Q8CPUTYP    CHAR(4),                             /* CPU TYPE */
+       5 Q8CPUSER    CHAR(5),                           /* CPU SERIAL */
+       5 Q8ADDATA    CHAR(56),                 /* ADDITIONAL COMMENTS */
+       5 Q8CSCCLS    CHAR(2),              /* CSC CLASS CODE   SR9951*/
+       5 Q8CSCAREA   CHAR(2),              /* CSC REAL AREA    SR9951*/
+       5 Q8MES#      CHAR(6),                           /* MES NUMBER */
+       5 Q8MESDES    CHAR(60),                     /* MES DESCRIPTION */
+       5 Q8IDREQ     CHAR(1),      /* REQUEST A=ADD,C=CHANGE,D=DELETE */
+     3 Q8NUMENT      FIXED(16),              /* NUMBER OF IDA ENTRYS  */
+     3 Q8RCIDA,                                /* FE CREATED IDA DATA */
+       5 Q8FLAG      FIXED(8),                /* QELEMNT8 FLAG        */
+         7 Q8FEGEN   BIT(1),                     /* FE GENERATED IDAC */
+         7 Q8NOHIT   BIT(1),                   /* FE GENERATED NO-HIT */
+         7 Q8QSGEN   BIT(1),                   /* QSAR GENERATED IDA  */
+         7 Q8ZIPGMT  BIT(1),/* ON IF CUSTOMER GMT DETERMINED BY ZIP   */
+                            /* CODE                          SR9951   */
+         7 *         BIT(2),                     /* RESERVED          */
+         7 Q8XMTFLG  BIT(1),                     /* TO BE TRANSMITTED */
+         7 Q8RCVFLG  BIT(1),             /* RECEIVED BY TRANSMISSION  */
+       5 Q8TELE      CHAR(10),           /* TELEPHONE NUMBER          */
+       5 Q8TEXT      CHAR(5),            /* TELEPHONE EXTENSION       */
+       5 Q8BONUM     CHAR(3),            /* ASSIGNED CE BRANCH OFFICE */
+       5 Q8CEREF     CHAR(3),              /* ASSIGNED CE TERRITORY   */
+       5 Q8DATE      CHAR(6),                         /* DATE ENTERED */
+       5 Q8TIME      CHAR(4),                         /* TIME ENTERED */
+       5 Q8CODE      CHAR(2),                /* ACTIVITY CODE ENTERED */
+   2 Q8ENTRY         CHAR(*);        /* IDA ENTRIES (VARIABLE MAX 95) */
+ @SPACE;
+ DCL 1  Q8ENTDP DEF(Q8ENTRY),      /* DP IDA ENTRIES (VAR MAX 95) */
+      3 Q8DPIDA(95),
+      5 Q8UNIQ   CHAR(2),          /* AAS UNIQUENESS NUMBER 05/24/82 */
+      5 Q8STAT   CHAR(1),          /* STATUS   */
+      5 Q8MTYP   CHAR(4),          /* MACHINE TYPE */
+      5 Q8MSER   CHAR(7),          /* MACHINE SERIAL  RDCR21*/
+      5 Q8IORD   CHAR(1),          /* INSTALL OR DISCONTINUE */
+      5 Q8FEAT   CHAR(6),          /* FEATURE CODE   */
+      5 Q8FETQ   CHAR(3),          /* FEATURE QUANITY */
+      5 Q8FEBYTE  BIT(8),          /* FE BYTE                */
+       7 Q8FREM   BIT(1),          /* FEATURES REMOVED       */
+       7 Q8FDIS   BIT(1),          /* FEATURES DISCONNECTED  */
+       7 Q8RPRTS  BIT(1),          /* RETURNABLE PARTS       */
+       7 *        BIT(4),          /* NOT USED               */
+       7 Q8MEREQ  BIT(1);          /* METER READING REQUIRED */
+ @SPACE;
+ DCL 1  Q8ENTFE DEF(Q8ENTRY),     /* FE IDA ENTRIES (VAR MAX 10) */
+     3  Q8FEIDA(10),
+      5 Q8FSTAT   CHAR(1),         /* STATUS   */
+      5 Q8FMTYP   CHAR(4),         /* MACHINE TYPE */
+      5 Q8FMSER   CHAR(7),         /* MACHINE SERIAL  RDCR21 */
+      5 Q8FMETE   CHAR(6),         /* METER READING  */
+      5 Q8FFEAT   CHAR(6),         /* FEATURE CODE   */
+      5 Q8FFETQ   CHAR(2),         /* FEATURE QUANITY */
+      5 Q8FIORD   CHAR(1),         /* INSTALL OR DISCONTINUE */
+      5 Q8FIRCMP  CHAR(6),         /* IR COMPLETION DATE     */
+      5 Q8FACT    CHAR(2),         /* ACTION                 */
+      5 *         CHAR(3);         /* RESERVED               */
+

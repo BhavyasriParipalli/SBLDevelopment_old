@@ -1,0 +1,64 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QAP2DATA    VERSION NR:  01           DATE:  01/08/96    */
+ /*                                               TIME:  09:45:08    */
+ /*                                                                  */
+ /* TITLE: PET/2 TRUER DATA LAYOUT                                   */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/X                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  03/13/96 S9500060 6NSE INITIAL PROMOTE                    MARKP */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL PETPTR PTR(31);           /* POINTER TO PET/2 INPUT DATA ELEMENT */
+
+ /* THERE ARE FOUR DIFFERENT IMAGES OF PET/2 DATA: A, B, C, AND D     */
+ /*                                                                   */
+ /* IMAGE A: FIELD ID (2B) + DATA VALUE                               */
+ /*                                                                   */
+ /* IMAGE B: FIELD ID (2B) + ARRAY INDEX (1B) + DATA VALUE            */
+ /*                                                                   */
+ /* IMAGE C: FIELD ID (2B) + DATA VALUE LENGTH (1B) + DATA VALUE      */
+ /*                                                                   */
+ /* IMAGE D: FIELD ID (2B) + ARRAY INDEX (1B) +                       */
+ /*                        + DATA VALUE LENGTH (1B) + DATA VALUE      */
+
+ DCL 1 PET2_DATA_A BASED(PETPTR),
+       2 PDAFID FIXED(15) BDY(BYTE),
+       2 PDAVAL CHAR(*);
+ DCL 1 PET2_DATA_B BASED(PETPTR),
+       2 PDBFID FIXED(15) BDY(BYTE),
+       2 PDBIND FIXED(8)  BDY(BYTE),
+       2 PDBVAL CHAR(*);
+ DCL 1 PET2_DATA_C BASED(PETPTR),
+       2 PDCFID FIXED(15) BDY(BYTE),
+       2 PDCLEN FIXED(8)  BDY(BYTE),
+       2 PDCVAL CHAR(*);
+ DCL 1 PET2_DATA_D BASED(PETPTR),
+       2 PDDFID FIXED(15)      /* FIELD ID - ALWAYS                  */
+                BDY(BYTE),
+       2 PDDIND FIXED(8)       /* ARRAY FIELD INDEX FOR ARRAY FIELDS */
+                BDY(BYTE),
+       2 PDDLEN FIXED(8)       /* LENGTH OF VARIABLE TEXT            */
+                BDY(BYTE),
+       2 PDDVAL CHAR(*);       /* VALUE TO CONVERT/MOVE - ALWAYS     */
+ DCL PDX CHAR(*) BASED;        /* ADDITIONAL IMAGES TO ESTABLISH     */
+ DCL PDY CHAR(*) BASED;        /* ADDRESSABILITY TO DATA VALUE (ONLY)*/
+ DCL PDL FIXED(8) BASED;       /* BINARY FIXED IMAGE OF VALUE LENGTH */
+
+ /*------------------------------------------------------------------*/
+ /*                                  END  QAP2DATA                   */
+ /*------------------------------------------------------------------*/
+

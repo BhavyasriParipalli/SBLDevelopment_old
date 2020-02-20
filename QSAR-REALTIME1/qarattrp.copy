@@ -1,0 +1,26 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*  MACRO NAME = QARATTRP (PARAMETER FROM VMSIM TO ATTR)           */
+ /*                                                                 */
+ /*  DESCRIPTION= CONTAINS PARAMETER PASSED FROM VMSIM TO ATTR      */
+ /*               TO CHECK IF RESPONSE FIELD HAS VALID DATA.        */
+ /*                                                                 */
+ /*  INVOCATION = %INCLUDE SYSLIB(QARATTRP)                         */
+ /*                                                                 */
+ /*  CHANGE HISTORY:                                                */
+ /*                                                                 */
+ /*  05/01/84      : CREATED                                        */
+ /*                                                                 */
+ /*******************************************************************/
+
+ DCL 1 PARM BASED,         /* PARAMETER LIST                        */
+      2 RESPTR    PTR(31) , /* PTR TO THE RESPONSE FIELD PASSED     */
+      2 OUTPTR    PTR(31) , /* PTR TO THE OUTPUT FIELD TO BE PASSED */
+      2 TRGPTR    PTR(31) , /* PTR TO THE TRIGGER AREA              */
+      2 BINEQV    FIXED(32),/* BINARY EQUIVALENT AREA               */
+      2 ATTRNUM   FIXED(8), /* ATTRIBUTE NUMBER PASSED FROM CALLINGS*/
+      2 INLEN     FIXED(8), /* LENGTH OF RESPONSE FIELD PASSED      */
+      2 RCCODE    FIXED(8), /* RECTURN CODE TO BE PASSED TO CALLINGS*/
+      2 OUTLEN    FIXED(8); /* LENGTH OF THE OUTPUT FIELD TO BE PASS*/
+
+

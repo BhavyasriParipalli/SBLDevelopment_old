@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QBCMRRQ     VERSION NR:  01           DATE:  08/18/89    */
+ /*                                               TIME:  07:41:51    */
+ /*                                                                  */
+ /* TITLE: QSAR BILLING REQUEST FOR CMR DATA FROM MPI USING          */
+ /*        MPI SYSTEM CONNECTIVITY - PROFILE 2                       */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LENGTH: 8                                                        */
+ /*                                                                  */
+ /* LANGUAGE: PLI                                                    */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*               ---------     NSS QSAR      ---------              */
+ /*               ---------  CUSTOMER DATA    ---------              */
+ /*               ---------  REQUEST FORMAT   ---------              */
+ /*                                                                  */
+ /*        MAPPING OF CUSTOMER NUMBER FROM QSAR BILLING CSP          */
+ /*        CODE TO REQUEST CMR DATA FROM THE CMR DATA BASE.          */
+ /*                                                                  */
+ /*        THIS DATA IS USED TO REQUEST CMR DATA FROM THE CMR        */
+ /*        DATA BASE USING APPC (SNA LU 6.2) VIA MPI SYSTEM          */
+ /*        CONNECTIVITY, MODULE IVNC002, WHICH WILL RECEIVE          */
+ /*        THE REQUEST AND FORMAT PER PROFILE 2, COPY MEMBER         */
+ /*        QBCMRDA.  THIS DATA WILL BE SENT BACK TO THIS MODULE      */
+ /*        AND TRANSFERRED TO THE QSAR BILLING CSP APPLICATION.      */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  08/18/89 SR9892  0CSA  INITIAL PROMOTE                      LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 CMICUST     FIXED BIN(31),  /*                          001- 004 */
+  3 SPAD01            CHAR(4)   /*                          005- 008 */
+ /*------------------------------------------------------------------*/
+ /*                       END  QBCMRRQ                               */
+ /*------------------------------------------------------------------*/

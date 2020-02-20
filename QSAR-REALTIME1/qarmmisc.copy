@@ -1,0 +1,54 @@
+ @EJECT;
+ /** -PROLOG *********************************************************/
+ /*                                                                  */
+ /* PHASE NAME       - QARMMISC                                      */
+ /*                                                                  */
+ /* CSECT NAME       - QARMMISC                                      */
+ /*                                                                  */
+ /* DESCRIPTIVE NAME - DECLARES FOR QARHST2                          */
+ /*                                                                  */
+ /* SECURITY CLASS   - IBM INTERNAL USE ONLY                         */
+ /*                                                                  */
+ /* REASON:   DATE:     DESCRIPTION:                          PGMR:  */
+ /* --------- --------- ------------------------------------- -----  */
+ /* SR9500060 02/14/96  CREATION (EXTRACTION FROM QHOSTDCL)          */
+ /* (6NSE)                                                    MARKP  */
+ /* CICS TS 1.3 02/26/03 added FIMSABND, FREQUEUE             LBS    */
+ /*                                                                  */
+ /** -ENDPROL ********************************************************/
+
+                                      /*MISCELLANEOUS PT INPUT DATA  */
+  DCL 1 QMMISC CHAR(57) BASED,        /*IS NOT PART OF QAR DB        */
+        2 QMBO     CHAR(3),           /*                             */
+        2 QMTERR   CHAR(3),           /*                             */
+        2 QMREGN   CHAR(2),           /*                             */
+        2 QMDIV    CHAR(1),           /*                             */
+        2 QMAPPID  CHAR(2),           /*                             */
+        2 QMFUNC   CHAR(1),           /*                             */
+        2 QMBSRTIM CHAR(6),           /*                             */
+        2 QMBSRDAT CHAR(6),           /*                             */
+        2 QMMSGCTL FIXED(16) BDY(BYTE),
+        2 QMMSGLEN FIXED(16) BDY(BYTE),
+        2 QMRECNO  FIXED(32) BDY(BYTE),
+        2 QMIFUNC  CHAR ( 2),
+        2 QMCOMPIL FIXED(16) BDY(BYTE),
+        2 QMTABID  FIXED(16) BDY(BYTE),
+        2 QMMSGFLG BIT  ( 8),
+          3 QMPTRAMS    BIT(1),
+          3 QMHUB       BIT(1),
+          3 QMIPRPSR    BIT(1),
+          3 *           BIT(5),
+        2 QMFLAGS  BIT  ( 8),
+          3 HAVENARR    BIT(1),
+          3 HAVEPART    BIT(1),
+          3 HAVEEXCP    BIT(1),
+          3 DUPE        BIT(1),
+          3 SUCC30      BIT(1),
+          3 FIMSABND    BIT(1),
+          3 FREQUEUE    BIT(1),
+          3 *           BIT(1),
+        2 QMPETVR  CHAR ( 1),
+        2 *        CHAR (16);
+
+ /* END OF QARMMISC INCLUDE */
+

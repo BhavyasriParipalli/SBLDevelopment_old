@@ -1,0 +1,103 @@
+
+*/********************************************************************/
+*/*                                                                  */
+*/* MACRO NAME = QARPTSEG                                            */
+*/*                                                                  */
+*/* FUNCTION = MAPPING OF THE POSSIBLE QSAR SEGMENTS THAT CAN BE     */
+*/*            CREATED BY A PT.                                      */
+*/*                                                                  */
+*/* INVOCATION = %INCLUDE SYSLIB(QARPTSEG)                           */
+*/*                                                                  */
+*/*  CHANGE HISTORY:                                                 */
+*/*                                                                  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|         |                                         |          |  */
+*/*|   DATE  |   DESCRIPTION                           |  FLAG    |  */
+*/*|         |                                         |          |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|04/27/84 | CREATED                                 |  -       |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|05/24/89 | CAPABILITIES EXPANSION RELEASE 2        | SCARBO   |  */
+*/*|         | DYADICS2-                               |          |  */
+*/*|         | STRENGTHENED RECNO TO WORD, COMLTIME TO |          |  */
+*/*|         | WORD,4, AND TABLID TO WORD,2            |          |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*                                                                  */
+*/********************************************************************/
+
+ DCL 1 DCSHDR BASED(DCSPTR),   /* DCS HEADER */
+       2 USERID   CHAR(6),
+       2 BO       CHAR(3),
+       2 TERR     CHAR(3),
+       2 REGION   CHAR(2),
+       2 DIVISION CHAR(1),
+       2 DAPPLID  CHAR(2),     /* APPLICATION ID */
+       2 DFUNCTID CHAR(1),     /* FUNCTION ID    */
+       2 BSRCVTIM CHAR(6),     /* BASE SERVICES RECEIVE TIME (HHMMSS) */
+       2 BSRCVDAT CHAR(6);     /* BASE SERVICES RECEIVE DATE (YYMMDD) */
+
+ DCL 1 APMSGHDR BASED(APLPTR) BDY(WORD), /* APPLICATION MESSAGE HEADER*/
+       2 MSGCNTL    FIXED(16),           /* MSG CONTROL (X OF Y) INFO */
+       2 MSGLNGTH   FIXED(16),
+       2 RECNO      FIXED(31) BDY(WORD),
+       2 FLAG       BIT(8),         /* PT FLAGS                      */
+         3 FLAGBIT1 BIT(1),         /* 0=FROM PT, 1=FROM RAMS        */
+         3 FLAGBIT2 BIT(1),         /* 1=FROM HUB DURING BACKUP      */
+         3 FLAGBIT3 BIT(1),         /* 0=IPAR REPORT, 1=PSAR REPORT  */
+         3 FLAGBIT4 BIT(1),         /* 0=PT ENTRY,1=TRUER ENTRY      */
+         3 *        BIT(4),         /* UNUSED                        */
+       2 IFUNCID    CHAR(2),             /* FUNCTION ID USED TO CREATE
+                                            THIS QSAR RECORD.        */
+       2 COMLTIME   FIXED(16) BDY(WORD,4),/*REC COMPLETION TIME (HHMM)*/
+       2 TABLID     FIXED(16) BDY(WORD,2); /* PT TABLE ID */
+
+ DCL 1 COMMON1 BASED(SEGPTR) BDY(WORD),  /* COMMON1 SEGMENT */
+       2 C1SEGID    BIT(8),              /* SEGMENT ID */
+       2 C1SEGLEN   FIXED(8),            /* SEGMENT LENGTH */
+       2 C1BITMSK   BIT(32),             /* SEGMENT BIT MASK */
+       2 C1DATA     CHAR(*);             /* SEGMENT DATA */
+
+ DCL 1 GENRPT1 BASED(SEGPTR) BDY(WORD), /* GENERAL REPORTING 1 (IPAR)*/
+       2 ISEGID     BIT(8),
+       2 ISEGLEN    FIXED(8),
+       2 IBITMSK    BIT(32),
+       2 IDATA      CHAR(*);
+
+ DCL 1 GENRPT2 BASED(SEGPTR) BDY(WORD), /* GENERAL REPORTING 2 (PSAR)*/
+       2 PSEGID     BIT(8),
+       2 PSEGLEN    FIXED(8),
+       2 PBITMSK    BIT(32),
+       2 PDATA      CHAR(*);
+
+ DCL 1 PARTS BASED(SEGPTR) BDY(WORD),   /* PARTS SEGMENT */
+       2 RSEGID     BIT(8),
+       2 RSEGLEN    FIXED(8),
+       2 RBITMSK    BIT(32),
+       2 RDATA      CHAR(*);
+
+ DCL 1 COMMENTS BASED(SEGPTR),           /* COMMENTS SEGMENT */
+       2 NSEGID     BIT(8),
+       2 NSEGLEN    FIXED(8),
+       2 NBITMSK    BIT(32),
+       2 NDATA      CHAR(*);
+
+ DCL 1 COMMON2 BASED(SEGPTR) BDY(WORD),  /* COMMON2 SEGMENT */
+       2 C2SEGID    BIT(8),
+       2 C2SEGLEN   FIXED(08),
+       2 C2BITMSK   BIT(32),
+       2 C2DATA     CHAR(*);
+
+ DCL 1 EXCEPT BASED(SEGPTR) BDY(WORD), /* EXCEPTION REPORTING SEGMENT*/
+       2 ESEGID     BIT(8),
+       2 ESEGLEN    FIXED(8),
+       2 EBITMSK    BIT(32),
+       2 EQUESTID   CHAR(2),
+       2 EVERSION   FIXED(8),
+       2 ELEVEL     FIXED(8),
+       2 EDATA,               /* FOR VARIABLE HOSTTBLS, SEGMENT DATA
+                                 BEGINS HERE. THERE IS NO STORAGE MAP.*/
+         3 ESTORMAP(24) FIXED(8), /* STORAGE MAP FOR FIXED HOSTTBLS. */
+         3 EDATA2     CHAR(*);    /* DATA BEGINS HERE FOR FIXED
+                                     HOSTTBLS.                       */
+
+
