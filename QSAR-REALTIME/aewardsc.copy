@@ -1,0 +1,119 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEWARDSC    VERSION NR:  01           DATE:  10/08/02    */
+ /*                                                                  */
+ /* TITLE: WARRANTY DESCRIPTION TABLE FOR REALTIME AUDITS            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: QSSUPPRT                                       */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS DATA DESCRIBES THE SPECIFIC DATA RELATING TO  */
+ /*               VARIOUS WARRANTIES.  DESCRIPTION IN INCLUDES       */
+ /*               COSTING CODES, BILLING VALUES, LENGTH OF WARRANTY, */
+ /*               WARRANTY SPLITS, DAILY COVERAGE, ETC.              */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:     REASON:  DRVR:   DESCRIPTION:                   PGMR: */
+ /*  --------- -------- ---- --------------------------------- ----- */
+ /* 10/04/2002 SR020029 3CSE INITIAL CREATION                    LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECLGTH     FIXED BIN(15),   /* RECORD LENGTH IS '230' 001-002 */
+   3 IRECKEY,                      /*                                */
+    5 IRECID           CHAR(01),   /* RECORD ID       (KEY)  003-003 */
+                                   /* ALWAYS 'W'                     */
+    5 CBASEWAR         CHAR(04),   /* BASE WARRANTY CODE(KEY)004-007 */
+    5 CPHASE           PIC'99',    /* WARRANTY PHASE         008-009 */
+    5 SPAD01           CHAR(24),   /* PADDING         (KEY)  010-033 */
+   3 FSPLIT            CHAR(01),   /* IS THIS A SPLIT WARR?  034-034 */
+                                   /* Y/N                            */
+   3 FONSITE           CHAR(01),   /* DOES THIS WARRANTY     035-035 */
+                                   /* TYPE HAVE ONSITE REPAIR        */
+                                   /* OPTION AVAILABLE?              */
+                                   /* Y yes, warranty has onsite     */
+                                   /* N no                           */
+                                   /* W onsite during base warr      */
+   3 QWMONTHS    FIXED BIN(15),    /* TOTAL WARRANTY LENGTH  036-037 */
+                                   /* IN MONTHS                      */
+   3 QWARDUR     FIXED BIN(15),    /* PHASE DURATION MONTHS  038-039 */
+   3 FCOSTOVR          CHAR(01),   /* OVERRIDE COST CODES?   040-040 */
+   3 CCOSTACT          CHAR(01),   /* ACTUAL HRS COST CODE   041-041 */
+   3 CCOSTTVL          CHAR(01),   /* TRAVEL TRS COST CODE   042-042 */
+   3 CCOSTPRT          CHAR(01),   /* PARTS COST CODE        043-043 */   
+   3 ISERVDEL          CHAR(03),   /* SERVICE DELIVERY       042-046 */
+                                   /* IOR, IOE, CCR, ETC             */
+   3 FACTDW            CHAR(01),   /* BILL ACTUAL HRS (Y/N)  047-047 */
+                                   /* DURING WARRANTY PERIOD?        */
+   3 FTRVLDW           CHAR(01),   /* BILL TRAVEL HRS (Y/N)  048-048 */
+                                   /* DURING WARRANTY PERIOD?        */
+   3 FPARTSDW          CHAR(01),   /* BILL PARTS      (Y/N)  049-049 */
+                                   /* DURING WARRANTY PERIOD?        */
+   3 FDISTDW           CHAR(01),   /* BILL DISTANCE   (Y/N)  050-050 */
+                                   /* DURING WARRANTY PERIOD?        */
+   3 FEXPDW            CHAR(01),   /* BILL EXPENSES   (Y/N)  051-051 */
+                                   /* DURING WARRANTY PERIOD?        */
+   3 FACTOW            CHAR(01),   /* BILL ACTUAL HRS (Y/N)  052-052 */
+                                   /* OUTSIDE WARRANTY PERIOD?       */
+   3 FTRVLOW           CHAR(01),   /* BILL TRAVEL HRS (Y/N)  053-053 */
+                                   /* OUTSIDE WARRANTY PERIOD?       */
+   3 FPARTSOW          CHAR(01),   /* BILL PARTS      (Y/N)  054-054 */
+                                   /* OUTSIDE WARRANTY PERIOD?       */
+   3 FDISTOW           CHAR(01),   /* BILL DISTANCE   (Y/N)  055-055 */
+                                   /* OUTSIDE WARRANTY PERIOD?       */
+   3 FEXPOW            CHAR(01),   /* BILL EXPENSES   (Y/N)  056-056 */
+                                   /* OUTSIDE WARRANTY PERIOD?       */
+   3 QWARHRS      FIXED BIN(15),   /* DAILY HRS OF COVERAGE  057-058 */
+   3 QWARDAYS     FIXED BIN(15),   /* # DAYS/WK OF COVERAGE  059-060 */
+   3 QRSPTIME     FIXED BIN(15),   /* RESPONSE TIME IN HRS   061-062 */
+                                   /* OR DAYS                        */
+   3 CRSPTYPE          CHAR(01),   /* H=HOURS, D=DAYS        063-063 */
+   3 TWARDESC          CHAR(80),   /* WARRANTY DESCRIPTION   064-143 */
+   3 SPAD02            CHAR(01),   /* PAD                    144-144 */
+   3 HSATSTRT          CHAR(04),   /* INSIDE START TIME -SAT 145-148 */
+   3 SPAD03            CHAR(01),   /* PAD                    149-149 */
+   3 HSATSTOP          CHAR(04),   /* INSIDE STOP TIME  -SAT 150-153 */
+   3 SPAD04            CHAR(01),   /* PAD                    154-154 */
+   3 HSUNSTRT          CHAR(04),   /* INSIDE START TIME -SUN 155-158 */
+   3 SPAD05            CHAR(01),   /* PAD                    159-159 */
+   3 HSUNSTOP          CHAR(04),   /* INSIDE STOP TIME  -SUN 160-163 */
+   3 SPAD06            CHAR(01),   /* PAD                    164-164 */
+   3 HMONSTRT          CHAR(04),   /* INSIDE START TIME -MON 165-168 */
+   3 SPAD07            CHAR(01),   /* PAD                    169-169 */
+   3 HMONSTOP          CHAR(04),   /* INSIDE STOP TIME  -MON 170-173 */
+   3 SPAD08            CHAR(01),   /* PAD                    174-174 */
+   3 HTUESTRT          CHAR(04),   /* INSIDE START TIME -TUES175-178 */
+   3 SPAD09            CHAR(01),   /* PAD                    179-179 */
+   3 HTUESTOP          CHAR(04),   /* INSIDE STOP TIME  -TUES180-183 */
+   3 SPAD10            CHAR(01),   /* PAD                    184-184 */
+   3 HWEDSTRT          CHAR(04),   /* INSIDE START TIME -WED 185-188 */
+   3 SPAD11            CHAR(01),   /* PAD                    189-189 */
+   3 HWEDSTOP          CHAR(04),   /* INSIDE STOP TIME  -WED 190-193 */
+   3 SPAD12            CHAR(01),   /* PAD                    194-194 */
+   3 HTHUSTRT          CHAR(04),   /* INSIDE START TIME -THUR195-198 */
+   3 SPAD13            CHAR(01),   /* PAD                    199-199 */
+   3 HTHUSTOP          CHAR(04),   /* INSIDE STOP TIME  -THUR200-203 */
+   3 SPAD14            CHAR(01),   /* PAD                    204-204 */
+   3 HFRISTRT          CHAR(04),   /* INSIDE START TIME -FRI 205-208 */
+   3 SPAD15            CHAR(01),   /* PAD                    209-209 */
+   3 HFRISTOP          CHAR(04),   /* INSIDE STOP TIME  -FRI 210-213 */
+   3 SPAD16            CHAR(01),   /* PADDING                214-214 */
+   3 CCLABOR           CHAR(02),   /* ACTUAL HRS COST CODE   215-216 */
+   3 SPAD17            CHAR(01),   /* PADDING                217-217 */
+   3 CCTRAVEL          CHAR(02),   /* TRAVEL TRS COST CODE   218-219 */
+   3 SPAD18            CHAR(01),   /* PADDING                220-220 */
+   3 CCPARTS           CHAR(02),   /* PARTS COST CODE        221-222 */
+   3 SPAD19            CHAR(01),   /* PADDING                223-223 */
+   3 CCPRTDST          CHAR(02),   /* TRAVEL TRS COST CODE   224-225 */
+   3 SPAD20            CHAR(01),   /* PADDING                226-226 */
+   3 CCRTS             CHAR(02),   /* PARTS COST CODE        227-228 */
+   3 SPAD99            CHAR(02)    /* PADDING                229-230 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEWARDSC                   */
+ /*------------------------------------------------------------------*/

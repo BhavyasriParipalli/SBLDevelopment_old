@@ -1,0 +1,40 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQLXEMP    VERSION NR:  01           DATE:  11/16/2006  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: QUALXSERV EMPLOYEE SERIAL NUUMBER LIST FOR QSAR MSF IN    */
+ /*        NSS ENVIRONMENT                                           */
+ /*                                                                  */
+ /* DESC: THIS INCLUDE MAPS THE DATA LAYOUT FOR THE QUALXSERV        */
+ /*       EMPLOYEE SERIAL NUMBER TO BE USED FOR RTS/DER AND PIMS     */
+ /*       TRANSLATION TO OLD AREA 1, 2 AND 3 EMPLOYEE SERIALS.       */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QSSUPPRT                                      */
+ /*                                                                  */
+ /* RECORD KEY = 'X' + EMPLOYEE SERIAL NUMBER                        */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*---------- -------- ---- ----------------------------------- ---- */
+ /*11/16/2006 PRODSUPT 6CSN ORIGINAL VERSION                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 IRECLGTH   FIXED BIN(15),  /* RECORD LENGTH  45         001- 002 */
+  3 IRECKEY,                   /* RECORD KEY                         */
+    5 IRECID         CHAR( 1), /* RECORD ID "X"             003- 003 */
+    5 IEMPSER        CHAR( 6), /* OFFERING ID               004- 009 */
+    5 FILL           CHAR(24), /*                           010- 033 */
+  3 IEMPBO           CHAR( 3), /* QUALXSERV BRANCH OFFICE   034- 034 */
+  3 SPAD02           CHAR( 1), /*                           035- 035 */
+  3 IEMPTERR         CHAR( 3), /* QUALXWERV SSR TERRITORY   036- 038 */
+  3 SPAD03           CHAR( 7)  /* PADDING                   039- 045 */
+ /*------------------------------------------------------------------*/
+ /*                       END  AEQLXEMP                              */
+ /*------------------------------------------------------------------*/

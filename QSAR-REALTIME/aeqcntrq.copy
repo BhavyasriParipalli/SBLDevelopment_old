@@ -1,0 +1,63 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCNTRQ    VERSION NR:  01           DATE:  08/13/96    */
+ /*                                               TIME:  10:08:40    */
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------  CONTRACT REQUEST ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*                                                                  */
+ /* TITLE: MAPPING OF AEQCNTR-CPCNTR APPC REQUEST FOR CONTRACT DATA  */
+ /*        THIS IS A SHARED COPY MEMBER WITH CONS (SYSTEM - CONS)    */
+ /*                                                                  */
+ /* DESC: THIS INCLUDE MAPS THE REQUEST FOR CONTRACT DATA REQUIRED   */
+ /*       FROM THE NSS QSAR PROCESSING APPLICATION.  THE REQUEST     */
+ /*       IS SENT FROM THE PROGRAM AEQCNTR IN THE NSS QSAR           */
+ /*       APPLICATION TO PROGRAMS AEQCEDB IN THE QSAR PROCESSING     */
+ /*       APPLICATION AND TO CPCNTR IN THE REMOTE MPI DATA SERVER    */
+ /*       CICS REGION                                                */
+ /*                                                                  */
+ /*       CPCNTR AND AEQCEDB RETURNS DATA IN THE FORMAT SPECIFIED BY */
+ /*       AEQCNTRR COPY.                                             */
+ /*                                                                  */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*08/13/1996 S9600141 6NSJ ORIGINAL VERSION            M. PRATER    */
+ /*10/17/1996 S9600620 6NSP ADD DOCUMENT NUMBER         M. PRATER    */
+ /*01/28/1998 S970219  8NSC CEDS 3.0 SUPPORT            M. PRATER    */
+ /*02/25/1999 S970219B 8CSA BMS CHANGE TO TSS ALLIANCE           LBS */
+ /*                         ADD CACTIVITY                            */
+ /*03/05/2004 SR030019 4NSC add IMODEL, FWARRANTY                LBS */
+ /*10/04/2006 SR0600xx 6NSN add DRECCALL                         LBS */ 
+ /*                                                                  */
+ /********************************************************************/
+  3 CCECONT        CHAR(12),      /* CE ENTERED CONTRACT #  001- 012 */
+  3 CNSSCONT       CHAR(12),      /* NSS CONTRACT #         013- 024 */
+  3 CMACHTP        CHAR(04),      /* MACHINE TYPE           025- 028 */
+  3 CSC            CHAR(02),      /* SERVICE CODE           029- 030 */
+  3 DQSARCALL      CHAR(08),      /* QSAR DATE (YYYYMMDD)   031- 038 */
+  3 IMPICUST       CHAR(07),      /* MPI CUSTOMER #         039- 045 */
+  3 IDOCNUM        CHAR(09),      /* DOCUMENT NUMBER        046- 054 */
+  3 CMACHSER       CHAR(07),      /* MACHINE SERIAL         055- 061 */
+  3 ISERMTCH       CHAR(01),      /* TYPE/SERIAL MATCH REQD 062- 062 */
+  3 CACTIVITY      CHAR(02),      /* ACTIVITY CODE          063- 064 */
+  3 IMODEL         CHAR(03),      /* MACHINE MODEL          065- 067 */
+  3 FWARRANTY      CHAR(01),      /* UNDER WARRANTY (Y|N)   068- 068 */
+  3 DRECCALL       CHAR(08),      /* RECEIVE CALL DATE FROM 069- 076 */
+                                  /* FROM CAD CALL RECORD            */
+  3 SPAD01         CHAR(09)       /* PADDING                077- 085 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQCNTRQ                   */
+ /*------------------------------------------------------------------*/
+

@@ -1,0 +1,33 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  COPY MEMBER NAME:    CNQBORF                                    */
+ /*                                                                  */
+ /*  TITLE: CANADA BOREF RECORD LAYOUT  -  NEW SERVICE DIMENSIONS    */
+ /*                                                                  */
+ /*  RECORD KEY = COUNTRY CODE + MARKETING OR SERVICE INDICATOR +    */
+ /*               BRANCH OFFICE + FIELD SERVICE DIVISION + PAD       */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*  12/12/04 SR040017  5NSM NSS ORIGINAL PROMOTE               DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                  /*                                 */
+     3 IRECLGTH     FIXED BIN(15),/* RECORD LENGTH IS "35"  001- 002 */
+     3 IRECKEY,                   /* 'G' + COUNTRY CODE +            */
+                                  /* BRANCH OFFICE + M OR S          */
+                                  /* IS THE KEY. (31 BYTES)          */
+       5 IRECID     CHAR(01),     /* RECORD ID, ALWAYS "G"  003- 003 */
+       5 ICOUNTRY   CHAR(03),     /* COUNTRY CODE           004- 006 */
+                                  /* CANADA = "649"                  */
+       5 IHERITFG   CHAR(01),     /* MKTG/SVC INDICATOR     007- 007 */
+                                  /* M=MARKETING & S=SERVICE         */
+       5 IBRAOFF    CHAR(03),     /* BRANCH OFFICE          008- 010 */
+       5 SPAD01     CHAR(23),     /* PADDING                013- 033 */
+     3 IFLDSDIV     CHAR(02)      /* FIELD SERVICE DIVISION 034- 035 */
+                                  /*                                 */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQBORF                                */
+ /********************************************************************/

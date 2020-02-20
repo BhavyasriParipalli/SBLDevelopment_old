@@ -1,0 +1,58 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* NAME:   AEQCT01     VERSION NR:  01           DATE:  08/10/88   */
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ---------  SYSTEM CONTROL   ---------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR SYSTEM CONTROL RECORD FORMAT             */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE SYSTEM CONTROL RECORD MAINTAINED    */
+ /*  BY THE AEQCTL1 CONTROL PROGRAM.  THE INFORMATION CONTAINED     */
+ /*  IN THIS RECORD IS USED TO CONTROL RESEND AND RECYCLE           */
+ /*  INTERVAL VALUES WHICH AFFECT SYSTEM RESPONSE AND PERFORMANCE.  */
+ /*                                                                 */
+ /*  P                                                              */
+ /*  R                                                              */
+ /*  E                                                              */
+ /*  F                                                              */
+ /*  I                                                              */
+ /*  X                                                              */
+ /*                                                                 */
+ /*  QSARCT01                         POSITIONS 9 THROUGH 31 ARE    */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE QSAR CICS REGION.              */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/10/88  SR 9891    8NSM    ORIGINAL VERSION          SPZ     */
+ /*                                                                 */
+ /*******************************************************************/
+    3 CT01KEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 CT01KEY1  CHAR(8),       /* LITERAL 'QSARCT01'     001- 008*/
+       5 CT01PAD1  CHAR(23),      /* KEY PADDING (BLANKS)   009- 031*/
+    3  CT01RCYC    FIXED BIN(31), /* CONTINUOUS RECYCLE     032- 035*/
+                                  /* INTERVAL IN SECONDS            */
+    3  CT01RCYW    FIXED BIN(31), /* WEEKLY RECYCLE         036- 039*/
+                                  /* INTERVAL IN SECONDS            */
+    3  CT01ATHM    FIXED BIN(31), /* AREA TO HUB MIRRORING  040- 043*/
+                                  /* INTERVAL IN SECONDS            */
+    3  CT01CTLM    FIXED BIN(31), /* AREA TO HUB CONTROL    044- 047*/
+                                  /* FILE MIRRORING INTERVAL        */
+                                  /* IN MINUTES                     */
+    3  CT01DATE    CHAR(6),       /* TIME OF LAST UPDATE    048- 053*/
+                                  /* FORMAT YYMMDD                  */
+    3  CT01TIME    CHAR(6),       /* TIME OF LAST UPDATE    054- 059*/
+                                  /* FORMAT HHMMSS                  */
+    3  CT01PAD2    CHAR(72)       /* PADDING                060- 131*/
+ /*******************************************************************/
+ /*                   END OF AEQCT01 INCLUDE                        */
+ /*******************************************************************/

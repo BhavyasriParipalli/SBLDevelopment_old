@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEINCDNT    VERSION NR:  01           DATE:  12/04/02    */
+ /*                                               TIME:  08:43:49    */
+ /*                                                                  */
+ /* TITLE: INCIDENT FEE DESCRIPTION TABLE (MSF DATA LAYOUT)          */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS DATA DESCRIBES THE SPECIFIC DATA RELATING TO  */
+ /*               THE INCIDENT FEE CODES.  DESCRIPTION INCLUDES      */
+ /*               CODE, RELATED PART NUMBER AND DESCRIPTION.         */
+ /*                                                                  */
+ /*                                                                  */
+ /*  RECORD KEY: RECID + INCIDENT FEE CODE + PAD (31 BYTES)          */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:     REASON:  DRVR:   DESCRIPTION:                   PGMR: */
+ /*  --------- -------- ---- --------------------------------- ----- */
+ /* 12/04/2002 SR020029 3CSE INITIAL CREATION                    LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECLGTH    FIXED BIN(15),    /* RECORD LENGTH IS '92'  001-002 */
+   3 IRECKEY,                      /*                                */
+     5 IRECID    CHAR(01),         /* RECORD ID,      (KEY)  003-003 */
+                                   /* ALWAYS 'D'                     */
+     5 INCIDNT  CHAR(03),          /* SERVICE PLAN CODE      004-006 */
+                                   /* Y/N             (KEY)          */
+     5 SPAD01   CHAR(27),          /* PADDING         (KEY)  006-033 */
+                                   /* IN MONTHS                      */
+   3 IPARTNUM   CHAR(08),          /* ACTUAL HRS COST CODE   034-041 */
+   3 SPAD01     CHAR(01),          /* TRAVEL TRS COST CODE   042-042 */
+   3 TINCDESC   CHAR(50)           /* PARTS COST CODE        043-092 */
+                                   /* OR DAYS                        */
+ /*------------------------------------------------------------------*/
+ /*                   END  AEINCDNT                                  */
+ /*------------------------------------------------------------------*/

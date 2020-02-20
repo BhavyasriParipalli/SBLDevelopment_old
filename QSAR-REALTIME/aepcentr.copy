@@ -1,0 +1,48 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEPCENTR                               DATE:  03/14/05   */
+ /*                                                TIME:  16:25:00   */
+ /*                                                                  */
+ /*  TITLE: PC CO ENTERPRISE TABLE   (MSF)                           */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPRT                                      */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  FUNCTION:                                                       */
+ /*                                                                  */
+ /*                                                                  */
+ /*  RECORD KEY: RECORD ID + ENTERPRISE NUMBER                       */
+ /*                                                                  */
+ /*  SET BY: CPSPBP2                                                 */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                       PGMR: */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*03/14/2005 SR050023  5NSC    ORIGINAL PROMOTE                LBS  */
+ /*                                                                  */
+ /********************************************************************/
+   3 RECLGTH   FIXED BIN(15),      /* RECORD LENGTH IS '120'001- 002 */
+   3 IRECKEY,                      /* KEY - 31 BYTES                 */
+     5 RECID         CHAR(01),     /* RECORD ID, ALWAYS 'H' 003- 003 */
+     5 IENTRPR       CHAR(07),     /* ENTERPRISE #          004- 010 */
+     5 SPAD01        CHAR(23),     /* PADDING               011- 033 */
+   3 FINTRNAL        CHAR( 1),     /* IS INTERNAL Y | N     034- 034 */
+   3 SPAD02          CHAR( 1),     /* PADDING               035- 035 */
+   3 FISSC           CHAR( 1),     /* IS ISSC Y | N         036- 036 */
+   3 SPAD03          CHAR( 1),     /* PADDING               037- 037 */
+   3 FADVANTS        CHAR( 1),     /* IS ADVANTIS Y | N     038- 038 */
+   3 SPAD04          CHAR( 1),     /* PADDING               039- 039 */
+   3 FSO             CHAR( 1),     /* IS STRATEGIC OUTSRC   040- 040 */
+                                   /* Y | N                          */
+   3 SPAD05          CHAR(24),     /* PADDING               041- 064 */
+   3 TCOMMNTS        CHAR(40),     /* COMMENTS              065- 104 */
+   3 SPAD06          CHAR(16)      /* FOR FUTURE USE        105- 120 */
+                                   /*                                */
+ /* ---------------------------------------------------------------- */
+ /*    END  OF  COPY  MEMBER  AEPCENTR                               */
+ /* ---------------------------------------------------------------- */
+

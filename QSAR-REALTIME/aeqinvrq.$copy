@@ -1,0 +1,44 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQINVRQ    VERSION NR:  01           DATE:  02/03/89    */
+ /*                                               TIME:  07:59:28    */
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             --------- INVENTORY REQUEST ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*                                                                  */
+ /* TITLE: MAPPING OF QSAR-TO-MPI APPC REQUEST FOR INVENTORY DATA    */
+ /*        THIS IS A SHARED COPY MEMBER WITH MPI (SYSTEM - MVS)      */
+ /*                                                                  */
+ /* DESC: THIS INCLUDE MAPS THE APPC (SNA LU 6.2) REQUEST FOR        */
+ /*       INVENTORY DATA REQUIRED FROM THE NSS QSAR PROCESSING       */
+ /*       APPLICATION.  THE REQUEST IS SENT FROM PROGRAM             */
+ /*       AEQRUL2 IN THE NSS QSAR APPLICATION TO PROGRAM             */
+ /*       IVCN001 IN THE REMOTE MPI DATA SERVER CICS REGION.         */
+ /*                                                                  */
+ /*       IVCN001 RETURNS DATA IN THE FORMAT SPECIFIED BY            */
+ /*       IVCNMPI1 COPY.                                             */
+ /*                                                                  */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* LENGTH: 14 BYTES.                                                */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                   PGMR:  */
+ /*  -------- -------- ---- -------------------------------- ------- */
+ /*  01/04/89 TU 0076B 9NSE ORIGINAL VERSION                  SPZ    */
+ /*                                                                  */
+ /********************************************************************/
+  3 GJXTYSER,                     /* (DATA FIELD NAMES FROM IVGJMCH) */
+    5 GJIMACT      CHAR(04),      /* MACHINE TYPE            001- 004*/
+    5 GJIMSER      CHAR(07),      /* MACHINE SERIAL          005- 011*/
+  3 PAD01          CHAR(03)       /* UNUSED                  012- 014*/
+ /*------------------------------------------------------------------*/
+ /*                    END OF AEQINVRQ                               */
+ /*------------------------------------------------------------------*/

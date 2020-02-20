@@ -1,0 +1,112 @@
+ /*********************************************************************/
+ /* DCLGEN TABLE(XXXXXX.NSVPAORDLIN)                                  */
+ /*        LIBRARY(SCHLOME.COPYLIB.PLI(AETSSPRT))                     */
+ /*        ACTION(REPLACE)                                            */
+ /*        LANGUAGE(PLI)                                              */
+ /*        STRUCTURE(NSTRTERR)                                        */
+ /*        APOST                                                      */
+ /*        LABEL(YES)                                                 */
+ /* ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS      */
+ /*********************************************************************/
+ EXEC SQL DECLARE NSVPAORDLIN TABLE
+           ( PO_REGION                      CHAR(3)  NOT NULL,
+             PO_FUNCTION                    CHAR(1)  NOT NULL,
+             PO_EMP_NUM                     CHAR(6)  NOT NULL,
+             PO_TRANS_ID                    INTEGER  NOT NULL,
+             PO_ORDER_NUM                   CHAR(6)  NOT NULL,
+             PO_CALLID                      CHAR(11) NOT NULL,
+             PO_OWNING_EMP_NUM              CHAR(6)  NOT NULL,
+             PO_OUT_LOC                     CHAR(3)  NOT NULL,
+             PO_ORDER_CODE                  CHAR(1)  NOT NULL,
+             PO_BOSR                        CHAR(4)  NOT NULL,
+             PO_CANCEL_MSG                  CHAR(48) NOT NULL,
+             PO_CARRIER_NAME                CHAR(24) NOT NULL,
+             PO_WAYBILL                     CHAR(16) NOT NULL,
+             PO_FLT_DEST                    CHAR(17) NOT NULL,
+             PO_ETA                         CHAR(16) NOT NULL,
+             PO_INSTRUCTIONS                CHAR(32) NOT NULL,
+             PO_SHIP_STATUS                 CHAR(2)  NOT NULL,
+             PO_SHIP_RCODE                  CHAR(3)  NOT NULL,
+             PO_SHIP_TIMESTAMP              TIMESTAMP NOT NULL,
+             PO_BOB_TRANS_ID                INTEGER  NOT NULL,
+             PO_DIV                         CHAR(2)  NOT NULL,
+             PO_BO_ASSIGNED                 CHAR(4)  NOT NULL,
+             PO_ALT_BO                      CHAR(4)  NOT NULL,
+             PO_SHIP_TO_ADDR                CHAR(128) NOT NULL,
+             PO_SHIPPING_BO                 CHAR(4)  NOT NULL,
+             PO_RECEIVING_BO                CHAR(4)  NOT NULL,
+             PO_PART_SENT                   CHAR(1)  NOT NULL,
+             PO_ITEM_NUM                    CHAR(2)  NOT NULL,
+             PO_PART_NUM                    CHAR(12) NOT NULL,
+             PO_MACH_TYPE                   CHAR(4)  NOT NULL,
+             PO_PART_DESC                   CHAR(21) NOT NULL,
+             PO_FNF                         CHAR(1)  NOT NULL,
+             PO_ATTRIBUTE                   CHAR(1)  NOT NULL,
+             PO_ACKCNCL                     CHAR(1)  NOT NULL,
+             PO_QTY                         CHAR(2)  NOT NULL,
+             PO_EXCP_DEMAND                 CHAR(1)  NOT NULL,
+             PO_CR_CODE                     CHAR(1)  NOT NULL,
+             PO_SUBSTITUTE_PN               CHAR(1)  NOT NULL,
+             PO_HAZARD                      CHAR(1)  NOT NULL,
+             PO_SENSITIVE                   CHAR(1)  NOT NULL,
+             PO_USEDPART_RETURN             CHAR(1)  NOT NULL,
+             PO_CRITICAL                    CHAR(1)  NOT NULL,
+             PO_RED_GREEN                   CHAR(1)  NOT NULL,
+             PO_CLASS_CODE                  CHAR(2)  NOT NULL,
+             PO_ORIG_PART_NUM               CHAR(12) NOT NULL,
+             AE_IGNORE_CANCEL               CHAR(1)  NOT NULL
+           ) ;
+ /*********************************************************************/
+ /* PLI DECLARATION FOR TABLE DNSST2.NSVPAORDLIN                      */
+ /*********************************************************************/
+ DCL 1 NSTRTERR,
+      5 PO_REGION          CHAR(3),
+      5 PO_FUNCTION        CHAR(1),
+      5 PO_EMP_NUM         CHAR(6),
+      5 PO_TRANS_ID        BIN FIXED(31),
+      5 PO_ORDER_NUM       CHAR(6),
+      5 PO_CALLID          CHAR(11),
+      5 PO_OWNING_EMP_NUM  CHAR(6),
+      5 PO_OUT_LOC         CHAR(3),
+      5 PO_ORDER_CODE      CHAR(1),
+      5 PO_BOSR            CHAR(4),
+      5 PO_CANCEL_MSG      CHAR(48),
+      5 PO_CARRIER_NAME    CHAR(24),
+      5 PO_WAYBILL         CHAR(16),
+      5 PO_FLT_DEST        CHAR(17),
+      5 PO_ETA             CHAR(16),
+      5 PO_INSTRUCTIONS    CHAR(32),
+      5 PO_SHIP_STATUS     CHAR(2),
+      5 PO_SHIP_RCODE      CHAR(3),
+      5 PO_SHIP_TIMESTAMP  CHAR(26),
+      5 PO_BOB_TRANS_ID    BIN FIXED(31),
+      5 PO_DIV             CHAR(2),
+      5 PO_BO_ASSIGNED     CHAR(4),
+      5 PO_ALT_BO          CHAR(4),
+      5 PO_SHIP_TO_ADDR    CHAR(128),
+      5 PO_SHIPPING_BO     CHAR(4),
+      5 PO_RECEIVING_BO    CHAR(4),
+      5 PO_PART_SENT       CHAR(1),
+      5 PO_ITEM_NUM        CHAR(2),
+      5 PO_PART_NUM        CHAR(12),
+      5 PO_MACH_TYPE       CHAR(4),
+      5 PO_PART_DESC       CHAR(21),
+      5 PO_FNF             CHAR(1),
+      5 PO_ATTRIBUTE       CHAR(1),
+      5 PO_ACKCNCL         CHAR(1),
+      5 PO_QTY             CHAR(2),
+      5 PO_EXCP_DEMAND     CHAR(1),
+      5 PO_CR_CODE         CHAR(1),
+      5 PO_SUBSTITUTE_PN   CHAR(1),
+      5 PO_HAZARD          CHAR(1),
+      5 PO_SENSITIVE       CHAR(1),
+      5 PO_USEDPART_RETURN CHAR(1),
+      5 PO_CRITICAL        CHAR(1),
+      5 PO_RED_GREEN       CHAR(1),
+      5 PO_CLASS_CODE      CHAR(2),
+      5 PO_ORIG_PART_NUM   CHAR(12),
+      5 AE_IGNORE_CANCEL   CHAR(1);
+ /*********************************************************************/
+ /* THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 46         */
+ /*********************************************************************/
+

@@ -1,0 +1,81 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AESRVPLN    VERSION NR:  01           DATE:  10/16/02    */
+ /*                                               TIME:  08:43:49    */
+ /*                                                                  */
+ /* TITLE: SERVICE PLAN DESCRIPTION TABLE (MSF DATA LAYOUT)          */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS DATA DESCRIBES THE SPECIFIC DATA RELATING TO  */
+ /*               VARIOUS SERVICE PLANS AS FOUND IN MPI INVENTORY.   */
+ /*               DESCRIPTION INCLUDES                               */
+ /*               COSTING CODES, BILLING VALUES, DAILY COVERAGE,     */
+ /*                                                                  */
+ /*                                                                  */
+ /*  RECORD KEY: RECID + SERVICE PLAN + PAD (31 BYTES)               */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:     REASON:  DRVR:   DESCRIPTION:                   PGMR: */
+ /*  --------- -------- ---- --------------------------------- ----- */
+ /* 10/16/2002 SR020029 3CSE INITIAL CREATION                    LBS */
+ /* 01/20/2004 SR030019 4NSC rename billing flags                LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 RECLGTH    FIXED BIN(15),     /* RECORD LENGTH IS '200' 001-002 */
+   3 IRECKEY,                      /*                                */
+     5 RECID    CHAR(01),          /* RECORD ID,      (KEY)  003-003 */
+                                   /* ALWAYS 'Z'                     */
+     5 ISOURCE  CHAR(04),          /*                                */
+     5 ISRVPLAN CHAR(02),          /* SERVICE PLAN CODE      004-005 */
+                                   /* Y/N             (KEY)          */
+     5 SPAD01   CHAR(24),          /* PADDING         (KEY)  006-033 */
+   3 ICVGTYPE   CHAR(04),          /* COVERAGE TYPE          034-037 */
+                                   /* E.G. MA, W/U, WARR             */
+   3 CCOSTACT   CHAR(01),          /* ACTUAL HRS COST CODE   038-038 */
+   3 CCOSTTVL   CHAR(01),          /* TRAVEL TRS COST CODE   039-039 */
+   3 CCOSTPRT   CHAR(01),          /* PARTS COST CODE        040-040 */
+   3 FBILACTH   CHAR(01),          /* BILL ACTUAL HOURS      041-041 */
+                                   /* Y, I, O, N                     */
+   3 FBILTRVH   CHAR(01),          /* BILL TRAVEL HOURS      042-042 */
+                                   /* Y, I, O, N                     */
+   3 FBILPRT    CHAR(01),          /* BILL INSIDE PARTSY/N   043-043 */
+                                   /*                                */
+   3 FBILDST    CHAR(01),          /* BILL INSIDE DISTANCE   044-044 */
+                                   /*                  Y/N           */
+   3 FBILEXP    CHAR(01),          /* BILL INSIDE EXPENSES   045-045 */
+                                   /*                  Y/N           */
+   3 ISERVDEL   CHAR(03),          /* SERVICE DELIVERY METHOD046-048 */
+                                   /* E.G. IOR, IOE, CCR             */
+   3 SPAD03     CHAR(02),          /*                        049-050 */
+   3 QPLANHRS   CHAR(02),          /* DAILY HRS OF COVERAGE  051-052 */
+   3 QPLANDAY   CHAR(01),          /* # DAYS/WK OF COVERAGE  053-053 */
+   3 QRSPTIME   CHAR(02),          /* RESPONSE TIME IN HRS   054-055 */
+                                   /* OR DAYS                        */
+   3 CRSPTYPE   CHAR(01),          /* H=HOURS, D=DAYS        056-056 */
+   3 FONSITE    CHAR(01),          /* ONSITE PLAN Y/N        057-057 */
+   3 TPLANDSC   CHAR(80),          /* PLAN DESCRIPTION       058-137 */
+   3 HMONSTRT   CHAR(04),          /* START TIME - MONDAY    138-141 */
+   3 HMONSTOP   CHAR(04),          /* STOP TIME  - MONDAY    142-145 */
+   3 HTUESTRT   CHAR(04),          /* START TIME - TUESDAY   146-149 */
+   3 HTUESTOP   CHAR(04),          /* STOP TIME  - TUESDAY   150-153 */
+   3 HWEDSTRT   CHAR(04),          /* START TIME - WEDNESDAY 154-157 */
+   3 HWEDSTOP   CHAR(04),          /* STOP TIME  - WEDNESDAY 158-161 */
+   3 HTHUSTRT   CHAR(04),          /* START TIME - THURSDAY  162-165 */
+   3 HTHUSTOP   CHAR(04),          /* STOP TIME  - THURSDAY  166-169 */
+   3 HFRISTRT   CHAR(04),          /* START TIME - FRIDAY    170-173 */
+   3 HFRISTOP   CHAR(04),          /* STOP TIME  - FRIDAY    174-177 */
+   3 HSATSTRT   CHAR(04),          /* START TIME - SATURDAY  178-181 */
+   3 HSATSTOP   CHAR(04),          /* STOP TIME  - SATURDAY  182-185 */
+   3 HSUNSTRT   CHAR(04),          /* START TIME - SUNDAY    186-189 */
+   3 HSUNSTOP   CHAR(04),          /* STOP TIME  - SUNDAY    190-193 */
+   3 SPAD02     CHAR(07)           /* PADDING                194-200 */
+ /*------------------------------------------------------------------*/
+ /*                   END  AESRVPLN                                  */
+ /*------------------------------------------------------------------*/

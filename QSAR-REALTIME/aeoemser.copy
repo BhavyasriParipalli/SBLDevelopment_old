@@ -1,0 +1,36 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEOEMSER    VERSION NR:  01           DATE:  03/17/2003  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  TITLE: PSD OEM SERIAL NUMBER                                    */
+ /*                                                                  */
+ /*  TYPE:  RECORD                                                   */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  DESCRIPTION: DATA USED TO TRANSLATE A PSD OEM MACHINE SERIAL    */
+ /*               TO A SHORT A/N 7 MACHINE SERIAL TO BE USED FOR     */
+ /*               INVENTORY LOOKUP AND MATCH                         */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                   PGMR:  */
+ /*  -------- -------- ---- --------------------------------- ------ */
+ /*03/17/2003 SR020023 3CSI INITIAL CREATION                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+    3 IRECLGTH     FIXED BIN(15),  /* RECORD LENGTH IS "77" 001- 002 */
+    3 IRECKEY,                     /*                                */
+      5 IRECID     CHAR( 1),       /* RECORD ID IS 'C'      003- 003 */
+      5 IMACHTYP   CHAR( 4),       /* MACHINE TYHPE         004- 007 */
+      5 IOEMMSER   CHAR(25),       /* OEM MACHINE SERIAL    008- 032 */
+      5 SPAD01     CHAR( 1),       /* PAD TO 31 BYTE KEY    033- 033 */
+                                   /*       FOR NEW KEY LENGTH       */
+    3 IMACHSER     CHAR( 7),       /*                       034- 040 */
+    3 DLOAD        CHAR(10),       /*                       041- 050 */
+    3 IUSER        CHAR( 8),       /*                       051- 058 */
+    3 SPAD02       CHAR(17)        /*                       059- 075 */
+ /*------------------------------------------------------------------*/
+ /*      END OF OEM SERIAL TRANSLATION RECORD  (AEOEMSER)            */
+ /*------------------------------------------------------------------*/

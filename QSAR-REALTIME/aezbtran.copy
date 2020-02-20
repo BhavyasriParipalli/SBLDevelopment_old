@@ -1,0 +1,54 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEZBTRAN    VERSION NR:  01           DATE:  02/13/2007  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: QSAR SDT Z** TRANSLATE TO BASE WARRANTY CODE VALUE        */
+ /*                                                                  */
+ /* DESC: THIS IS THE DATA LAYOUT FOR THE TMF TABLE THAT CONTAINS    */
+ /*       THE SDT Z** CODES AND A TRANSLATED BWC VALUE               */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QSSUPPRT                                      */
+ /*                                                                  */
+ /* RECORD KEY = 'V' + COMBINATION OF DATA (SEE BELOW)               */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*---------- -------- ---- ----------------------------------- ---- */
+ /*02/13/2007 SR060049 7NSM ORIGINAL VERSION                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 IRECLGTH   FIXED BIN(15),  /* RECORD LENGTH  54         001- 002 */
+  3 IRECKEY,                   /* RECORD KEY                         */
+    5 IRECID         CHAR( 1), /* RECORD ID 'V'             003- 003 */
+    5 CSDT           CHAR( 3), /* SDT VALUE                 004- 006 */
+    5 SPAD01         CHAR(27), /*                           007- 033 */
+  3 CBASEWAR         CHAR( 4), /* LABOR COST CODE           034- 037 */
+  3 SPAD02           CHAR( 1), /*                           038- 038 */
+  3 QTYPE            CHAR( 1), /* M = MONTHS                039- 039 */
+  3 SPAD03           CHAR( 1), /*                           040- 040 */
+  3 QUANTITY         CHAR( 3), /* NUMBER OF MONTHS/YEARS    041- 043 */
+  3 SPAD04           CHAR( 1), /*                           044- 044 */
+  3 QDALYCOV         CHAR( 4), /* 24X7, 8X5                 045- 048 */
+  3 SPAD05           CHAR( 1), /*                           049- 049 */
+  3 QRESPTYP         CHAR( 1), /* RESPONSE TYPE             050- 050 */
+                               /* H=HOURS, D=DAYS                    */
+  3 SPAD06           CHAR( 1), /*                           051- 051 */
+  3 QRESPTIM         CHAR( 2), /*                           052- 053 */
+  3 SPAD07           CHAR( 1), /*                           054- 054 */
+  3 ISERVICE         CHAR( 3), /* TYPE OF SERVICE           055- 057 */
+                               /* E.G. IOR, IOS, CCR, PAR            */
+  3 SPAD08           CHAR( 1), /*                           058- 058 */
+  3 TDESC            CHAR(40), /* TYPE OF SERVICE           059- 098 */
+  3 SPAD99           CHAR(12)  /*                           099- 110 */
+ /*------------------------------------------------------------------*/
+ /*                       END  AEZBTRAN                              */
+ /*------------------------------------------------------------------*/
+ 
+

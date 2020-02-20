@@ -1,0 +1,47 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             --------- QSA3SNDX SEGMENT  ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*  NAME: AE3SNDX                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR/BILLING EMPLOYEE ROOT.  ALL FIELDS       */
+ /*        CONTAINED IN THIS LOGICAL DATA BASE ARE                  */
+ /*        SOURCED FROM THE QSGENL SEGMENT IN QSAEHI1.              */
+ /*                                                                 */
+ /*        USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS          */
+ /*        COPY MEMBER.                                             */
+ /*                                                                 */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  09/27/89  SR 9892    0NSA    ORIGINAL VERSION          JWJ     */
+ /*  05/17/97  SR9600755  7NSI UPDATE FOR MACHINE SERIAL       LBS  */
+ /*                            LENGTH CHANGE                        */
+ /*                                                                 */
+ /*******************************************************************/
+ /*-----------------------------------------------------------------*/
+ /* DATA BASE KEY FIELDS                                            */
+ /*-----------------------------------------------------------------*/
+ 3 S3_EMPL_KEY,                 /* DATA BASE KEY - DUPS ALLOWED     */
+   5 S3_S0IEMPSE      CHAR(6),  /* QSAR EMPLOYEE SERIAL     001- 006*/
+   5 S3_EMPL_DATE FIXED BIN(31),/* ACTIVITY DATE YYYYMMDD   007- 010*/
+                                /* NEGATED TO PUT MOST RECENT       */
+                                /* ACTIVITY FIRST                   */
+ 3 S3_DATA,                     /* REST OF SEGMENT                  */
+   5 S3_S0IMACTC      CHAR(4),  /* MACHINE TYPE             011- 014*/
+   5 S3_S0IMACSE      CHAR(22), /* MACHINE SERIAL           015- 036*/
+   5 S3_S0QSTOTI      CHAR(3),  /* STOP TIME       (HHT)    037- 039*/
+   5 S3_S0CSVC        CHAR(2),  /* SERVICE CODE             040- 041*/
+   5 S3_S0IDOCMN      CHAR(9)   /* QSAR DOCUMENT NUMBER     042- 050*/
+                                /* 123456789                        */
+                                /*   ------- SEQUENCE DIGITS        */
+                                /* --        AREA/HUB INDICATOR     */
+                                /*    AREA = 01 - 12                */
+                                /*    HUB  = 31 - 42                */
+ /*-----------------------------------------------------------------*/
+ /*              END OF AE3SNDX SEGMENT LAYOUT                      */
+ /*-----------------------------------------------------------------*/
+

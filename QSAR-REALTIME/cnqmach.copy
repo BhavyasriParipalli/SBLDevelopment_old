@@ -1,0 +1,40 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQMACH/EARMACH  VERSION NR:  01      DATE:  06/12/89    */
+ /*                                               TIME:  14:10:05    */
+ /*                                                                  */
+ /* TITLE: CANADIAN MACHINE FILE LAYOUT FOR MASTER SUPPORT FILE      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: QSSUPPRT                                       */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  06/12/89 TU0038   9NSK ORIGINAL VERSION                     HAS */
+ /*  09/24/91 SR0856   1NSM ADD MATCH_REQUIRED FLAG              ABM */
+ /*  04/18/96 S9500206 6NSF ADD ACCOUNT ADMIN  FLAG              LBS */
+ /* 07/28/01    S01032    1NSP    INCREASE THE LENGTH TO ADD A       */
+ /*                               31 BYTE KEY.                   DLP */
+ /* 12/12/04  SR040017    5NSM    CHANGE THE RECORD ID TO "E"    DLP */
+ /*                                                                  */
+ /********************************************************************/
+       3 IRECLGTH      FIXED BIN(15),  /* RECORD LEN  "50"  001- 002 */
+       3 IRECKEY,                      /* RECORD KEY                 */
+         5 IRECID            CHAR(1),  /* RECORD ID "E"     003- 003 */
+         5 IMACHTYP          CHAR(4),  /* TYPE              004- 007 */
+         5 IMACHMOD          CHAR(3),  /* MODEL             008- 010 */
+         5 FILL              CHAR(24), /*                   011- 033 */
+       3 IPERCC        FIXED DEC (3),  /* PCC               034- 036 */
+       3 INVLOC              CHAR(1),  /* INVLOC            037- 037 */
+       3 FMATCHRQ            CHAR(1),  /* MATCH REQUIRED?   038- 038 */
+       3 IACCADMN            CHAR(1),  /* ACCT ADMINISTRA   039- 039 */
+       3 SPAD01              CHAR(11)  /* FILLER            040- 050 */
+ /*------------------------------------------------------------------*/
+ /*                       END  CNQMACH                               */ 
+ /*------------------------------------------------------------------*/

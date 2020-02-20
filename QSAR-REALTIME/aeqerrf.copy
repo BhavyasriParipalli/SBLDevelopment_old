@@ -1,0 +1,548 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQERRF     VERSION NR:  01           DATE:  07/26/88    */
+ /*                                               TIME:  10:44:15    */
+ /*                                                                  */
+ /* TITLE:  ERROR FIELDS FROM A02 TABLE                              */
+ /*                                                                  */
+ /* TYPE:  REAL-TIME                                                 */
+ /*                                                                  */
+ /* LANGUAGE:  PLI                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THE A02 TABLE GIVES THE ERROR NUMBER AND AN        */
+ /*               ABBREVIATION OF THE ERROR.  THIS PRE-PROCESSOR     */
+ /*               TABLE WILL ASSIGN THE ACTUAL DATA FIELD IN ERROR   */
+ /*               TO A FIELD NAME.  THEREFORE IF AN ERROR DATA       */
+ /*               FIELD IS CHANGED ONLY THE COPY MEMBER NEED BE      */
+ /*               CHANGED.                                           */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  07/26/88 SR 9891  8NSM INITIAL PROMOTE             J ROSE       */
+ /*  05/17/91 SR 0768  1NSG ADD ERROR CODE 004 (M/T)    A MORRIS     */
+ /*  06/24/92 SR 0972  2NSD ADD ERROR CODE 296 (PRODID) A MORRIS     */
+ /*  08/23/93 I194364  3NSL ADD ERROR CODE 304 (SERIAL) D KRIMM      */
+ /*  06/30/94 9400091  4NSG ADD ERROR CODE 026 (BA CODE)D KRIMM      */
+ /*  03/31/95 9500015  5NSC ADD ERROR CODE 312 (BILL TYPE)     LBS   */
+ /*                             ERROR CODE 313 (CUST CODE)           */
+ /*                             ERROR CODE 069 (OTHBO)               */
+ /*  04/13/95 C9502804 5NSC NO SC CUST OR ACTV FOR ROLM (314)    DLK */
+ /*  06/16/95 S9400206 5NSE ADD TIN # AND OEM TRANS NOT ON PCREF DLK */
+ /*           S9500073          (315-318)                            */
+ /*  10/31/95 I0404521 5NSK FIX OTHER BRANCH OFFICE FIELD        LBS */
+ /*  06/19/96 S9570033 6NSG ADD PRF PARTS RETURN FORM            DLP */
+ /*                         (320- 323)                               */
+ /*  08/30/96 S9500141 6NSJ EB CONTRACT ENHANCEMENT              DLP */
+ /*                         (324- 330)                               */
+ /*  10/24/96 S9600638  6NSP MACHINE SERIAL LENGTH CHECK (004)   MKP */
+ /*                                                                  */
+ /*  03/11/97  S97033   7NSG VALIDATE TO NOT BE IN THE DROP O/L LIST */
+ /*                         ADD ERROR CODES (172, 196, 229 247)  DLP */
+ /*  04/02/97  S97049   7NSG INTERGRATION OF CEDB INTO THE       DLP */
+ /*                         NSS ENVIRONMENT ADD ERRRO 331            */
+ /*  01/26/98  S97219   8NSC ADD ERRORS FOR BMS 333-339          DLP */
+ /*  04/10/98  S97085   8NSG ADD ZIP CODE ERROR 002              DLP */
+ /*            S97040   8NSG ADD BILL CODE ERROR 023             DLP */
+ /*  11/11/98  S98153   8NSN ADD ACTIVITY CODE ERROR 29          DLP */
+ /* 06/19/2000 S00061   0NSF ADD MACHINE LOCATION ERROR 38       LBS */
+ /* 01/24/2001 PRODSUPT 0NSK ADD ACTIVITY DATE ERROR 19          LBS */
+ /* 08/01/2001 SR01032  1NSP add work number act invalid(340)    LBS */
+ /*                          & work number act date error (341)  LBS */
+ /* 11/26/2001 qsarprod 2NSA change field to S0ICSS on 336       LBS */
+ /* 05/21/2003 SR03014  3NSK add IDM                             LBS */
+ /* 09/30/2005 SR050053 5NSO add SC 48 machine type error 295    LBS */
+ /*                          add return qty errors 351, 352, 353,    */
+ /*                          354                                     */
+ /* 06/09/2008 SR080003 8NSM add error 40, requesting empl       LBS */
+ /* 09/22/2008 Mn36971619 8NSM add error 298, Cust Name          LBS */
+ /*                                                                  */
+ /********************************************************************/
+ 
+ %DCL E002FLD CHAR;          /* ERROR CODE 002 = S0CZIPCDE           */
+ %E002FLD = 'S0CZIPCDE';     /* ZIP CODE INVALID                     */
+
+ %DCL E003FLD CHAR;          /* ERROR CODE 003 = S0CSVC              */
+ %E003FLD = 'S0CSVC';
+
+ %DCL E004FLD CHAR;          /* ERROR CODE 004 = S0IMACSE            */
+ %E004FLD = 'S0IMACSE';
+
+ %DCL E006FLD CHAR;          /* ERROR CODE 006 = S0IMACTC            */
+ %E006FLD = 'S0IMACTC';
+
+ %DCL E007FLD CHAR;          /* ERROR CODE 007 = SOIMACTC            */
+ %E007FLD = 'S0IMACTC';
+
+ %DCL E008FLD CHAR;          /* ERROR CODE 008 = SOIMACTC            */
+ %E008FLD = 'S0IMACTC';
+
+ %DCL E010FLD CHAR;          /* ERROR CODE 010 = S0IMACSE            */
+ %E010FLD = 'S0IMACSE';
+
+ %DCL E011FLD CHAR;          /* ERROR CODE 011 = S0IMACTC & S0IMACSE */
+ %E011FLD = 'S0IMACTC || ''/''  || S0IMACSE';
+
+ %DCL E013FLD CHAR;          /* ERROR CODE 013 = S0IEMPSE            */
+ %E013FLD = 'S0IEMPSE';
+
+ %DCL E014FLD CHAR;          /* ERROR CODE 014 = S0IEMPSE            */
+ %E014FLD = 'S0IEMPSE';
+
+ %DCL E015FLD CHAR;          /* ERROR CODE 015 = LINKFAIL            */
+ %E015FLD = 'LINKFAIL';
+
+ %DCL E016FLD CHAR;          /* ERROR CODE 016 = S0CCIA              */
+ %E016FLD = 'S0CCIA';
+
+ %DCL E018FLD CHAR;          /* ERROR CODE 018 = S0DCALCM & S0DCALCD */
+ %E018FLD = 'S0DCALCM || ''/'' || S0DCALCD||''/''|| S0DCALCY';
+
+ %DCL E019FLD CHAR;          /* ERROR CODE 019 = S0DCALCM & S0DCALCD */
+                             /*                  & S0DCALCY          */
+ %E019FLD = 'S0DCALCM || ''/'' || S0DCALCD ||''/''|| S0DCALCY';
+
+ %DCL E020FLD CHAR;          /* ERROR CODE 020 = S0ICSS              */
+ %E020FLD = 'S0ICSS';
+
+ %DCL E022FLD CHAR;          /* ERROR CODE 022 = S0CMODNA            */
+ %E022FLD = 'S0CMODNA';
+
+ %DCL E023FLD CHAR;          /* ERROR CODE 023 = S0CTAC              */
+ %E023FLD = 'S0CTAC';
+
+ %DCL E026FLD CHAR;          /* ERROR CODE 026 = S0CBIOSA            */
+ %E026FLD = 'S0CBIOSA';
+
+ %DCL E027FLD CHAR;          /* ERROR CODE 027 = S0CBIOSA            */
+ %E027FLD = 'S0CBIOSA';
+
+ %DCL E029FLD CHAR;          /* ERROR CODE 029 = S0CHACT             */
+ %E029FLD = 'S0CHACT';       /* ACTIVITY CODE INVALID FOR TSS        */
+
+ %DCL E035FLD CHAR;          /* ERROR CODE 035 = S0ICSS              */
+ %E035FLD = 'S0ICSS';
+
+ %DCL E036FLD CHAR;          /* ERROR CODE 036 = S0IPMFSA            */
+ %E036FLD = 'S0IPMFSA';
+
+ %DCL E038FLD CHAR;          /* ERROR CODE 038 = MACHINE SERIAL      */
+                             /* HAS PROLE CODE 0, INVALID LOCATION   */
+ %E038FLD = 'S0IMACTC || ''/''  || S0IMACSE';
+
+ %DCL E040FLD CHAR;          /* ERROR CODE 040 = IREQEMPL, INVALID   */
+ %E040FLD = 'IREQEMPL';      /* REQUESTING EMPLOYEE                  */
+
+ %DCL E041FLD CHAR;          /* ERROR CODE 041 = S0CMSCM             */
+ %E041FLD = 'S0CMSCM';
+
+ %DCL E043FLD CHAR;          /* ERROR CODE 043 = S0CMSCM             */
+ %E043FLD = 'S0CMSCM';
+
+ %DCL E044FLD CHAR;          /* ERROR CODE 044 = S0CHACT             */
+ %E044FLD = 'S0CHACT';
+
+ %DCL E047FLD CHAR;          /* ERROR CODE 047 = S0CIDM              */
+ %E047FLD = 'S0CIDM';
+
+ %DCL E051FLD CHAR;          /* ERROR CODE 051 = S0QSVCHR            */
+ %E051FLD = 'S0QSVCHR';
+
+ %DCL E052FLD CHAR;          /* ERROR CODE 052 = S0QSVCHR            */
+ %E052FLD = 'S0QSVCHR';
+
+ %DCL E054FLD CHAR;          /* ERROR CODE 054 = S0QOVTHR            */
+ %E054FLD = 'S0QOVTHR';
+
+ %DCL E055FLD CHAR;          /* ERROR CODE 055 = BLANK               */
+ %E055FLD = 'BLANK';
+
+ %DCL E056FLD CHAR;          /* ERROR CODE 056 = BLANK               */
+ %E056FLD = 'BLANK';
+
+ %DCL E057FLD CHAR;          /* ERROR CODE 057 = S0QSTOTI            */
+ %E057FLD = 'S0QSTOTI';
+
+ %DCL E063FLD CHAR;          /* ERROR CODE 063 = S0IOTBCW            */
+ %E063FLD = 'S0IOTBCW';
+
+ %DCL E064FLD CHAR;          /* ERROR CODE 064 = S0IOTBCW            */
+ %E064FLD = 'S0IOTBCW';
+
+ %DCL E069FLD CHAR;          /* ERROR CODE 069 = S0IOTBCW            */
+ %E069FLD = 'S0IOTBCW';
+
+ %DCL E070FLD CHAR;          /* ERROR CODE 070 = CMIBOMKT            */
+ %E070FLD = 'CMIBOMKT';
+
+ %DCL E076FLD CHAR;          /* ERROR CODE 076 = S0CCSCPC            */
+ %E076FLD = 'S0CCSCPC';
+
+ %DCL E120FLD CHAR;          /* ERROR CODE 120 = CGHDAOLD            */
+ %E120FLD = 'CGHDAOLD';
+
+ %DCL E142FLD CHAR;          /* ERROR CODE 142 = S0ISENBO            */
+ %E142FLD = 'S0ISENBO';
+
+ %DCL E143FLD CHAR;          /* ERROR CODE 143 = S0ISENOL            */
+ %E143FLD = 'S0ISENOL';
+
+ %DCL E144FLD CHAR;          /* ERROR CODE 144 = S0ISENBO            */
+ %E144FLD = 'S0ISENBO';
+
+ %DCL E145FLD CHAR;          /* ERROR CODE 145 = S0ISENOL            */
+ %E145FLD = 'S0ISENOL';
+
+ %DCL E146FLD CHAR;          /* ERROR CODE 146 = BLANK               */
+ %E146FLD = 'BLANK';
+
+ %DCL E147FLD CHAR;          /* ERROR CODE 147 = BLANK               */
+ %E147FLD = 'BLANK';
+
+ %DCL E148FLD CHAR;          /* ERROR CODE 148 = BLANK               */
+ %E148FLD = 'BLANK';
+
+ %DCL E150FLD CHAR;          /* ERROR CODE 150 = S0CFUNC(1)          */
+ %E150FLD = 'S0CFUNC(1)';
+
+ %DCL E151FLD CHAR;          /* ERROR CODE 151 = IOEMPART(1)         */
+ %E151FLD = 'IOEMPART(1)';
+
+ %DCL E152FLD CHAR;          /* ERROR CODE 152 = IOEMPART(1)         */
+ %E152FLD = 'IOEMPART(1)';
+
+ %DCL E153FLD CHAR;          /* ERROR CODE 153 = S0IRECBO(1)         */
+ %E153FLD = 'S0IRECBO(1)';
+
+ %DCL E154FLD CHAR;          /* ERROR CODE 154 = S0IRECOL(1)         */
+ %E154FLD = 'S0IRECOL(1)';
+
+ %DCL E155FLD CHAR;          /* ERROR CODE 155 = S0IRECBO(1)         */
+ %E155FLD = 'S0IRECBO(1)';
+
+ %DCL E156FLD CHAR;          /* ERROR CODE 156 = S0IRECOL(1)         */
+ %E156FLD = 'S0IRECOL(1)';
+
+ %DCL E157FLD CHAR;          /* ERROR CODE 157 = S0IRECBO(1)         */
+ %E157FLD = 'S0IRECBO(1)';
+
+ %DCL E158FLD CHAR;          /* ERROR CODE 158 = S0IRECOL(1)         */
+ %E158FLD = 'S0IRECOL(1)';
+
+ %DCL E159FLD CHAR;          /* ERROR CODE 159 = S0IRECBO(1) &       */
+ %E159FLD = 'S0IRECBO(1) || ''/'' || S0IRECOL(1)'; /* S0IRECOL(1)    */
+
+ %DCL E160FLD CHAR;          /* ERROR CODE 160 = S0QDISUS(1)         */
+ %E160FLD = 'S0QDISUS(1)';
+
+ %DCL E161FLD CHAR;          /* ERROR CODE 161 = S0QREPOR(1)         */
+ %E161FLD = 'S0QREPOR(1)';
+
+ %DCL E162FLD CHAR;          /* ERROR CODE 162 = S0QREPOR(1)         */
+ %E162FLD = 'S0QREPOR(1)';
+
+ %DCL E163FLD CHAR;          /* ERROR CODE 163 = OEM PART NO 1       */
+ %E163FLD = 'IOEMPART(1)';
+
+ %DCL E167FLD CHAR;          /* ERROR CODE 167 = S0CFUNC(1)          */
+ %E167FLD = 'S0CFUNC(1)';
+
+ %DCL E171FLD CHAR;          /* ERROR CODE 171 = S0IRECOL(1)         */
+ %E171FLD = 'S0IRECOL(1)';
+
+ %DCL E172FLD CHAR;          /* ERROR CODE 172 = S0IRECOL(1)         */
+ %E172FLD = 'S0IRECOL(1)';
+
+ %DCL E180FLD CHAR;          /* ERROR CODE 180 = S0CFUNC(2)          */
+ %E180FLD = 'S0CFUNC(2)';
+
+ %DCL E181FLD CHAR;          /* ERROR CODE 181 = IOEMPART(2)         */
+ %E181FLD = 'IOEMPART(2)';
+
+ %DCL E182FLD CHAR;          /* ERROR CODE 182 = IOEMPART(2)         */
+ %E182FLD = 'IOEMPART(2)';
+
+ %DCL E183FLD CHAR;          /* ERROR CODE 183 = S0IRECBO(2)         */
+ %E183FLD = 'S0IRECBO(2)';
+
+ %DCL E184FLD CHAR;          /* ERROR CODE 184 = S0IRECOL(2)         */
+ %E184FLD = 'S0IRECOL(2)';
+
+ %DCL E185FLD CHAR;          /* ERROR CODE 185 = S0IRECBO(2)         */
+ %E185FLD = 'S0IRECBO(2)';
+
+ %DCL E186FLD CHAR;          /* ERROR CODE 186 = S0IRECOL(2)         */
+ %E186FLD = 'S0IRECOL(2)';
+
+ %DCL E187FLD CHAR;          /* ERROR CODE 187 = S0IRECBO(2)         */
+ %E187FLD = 'S0IRECBO(2)';
+
+ %DCL E188FLD CHAR;          /* ERROR CODE 188 = S0IRECOL(2)         */
+ %E188FLD = 'S0IRECOL(2)';
+
+ %DCL E189FLD CHAR;          /* ERROR CODE 189 = S0IRECBO(2) &       */
+ %E189FLD = 'S0IRECBO(2) || ''/'' || S0IRECOL(2)'; /* S0IRECOL(2)    */
+
+ %DCL E190FLD CHAR;          /* ERROR CODE 190 = S0QDISUS(2)         */
+ %E190FLD = 'S0QDISUS(2)';
+
+ %DCL E191FLD CHAR;          /* ERROR CODE 191 = S0QREPOR(2)         */
+ %E191FLD = 'S0QREPOR(2)';
+
+ %DCL E192FLD CHAR;          /* ERROR CODE 192 = S0QREPOR(2)         */
+ %E192FLD = 'S0QREPOR(2)';
+
+ %DCL E193FLD CHAR;          /* ERROR CODE 193 = OEM PART NO 2       */
+ %E193FLD = 'IOEMPART(2)';
+
+ %DCL E194FLD CHAR;          /* ERROR CODE 194 = S0IMATL2(2)         */
+ %E194FLD = 'S0IMATL2(2)';
+
+ %DCL E195FLD CHAR;          /* ERROR CODE 195 = S0IRECOL(2)         */
+ %E195FLD = 'S0IRECOL(2)';
+
+ %DCL E196FLD CHAR;          /* ERROR CODE 196 = S0CFUNC(2)          */
+ %E196FLD = 'S0CFUNC(2)';
+
+ %DCL E197FLD CHAR;          /* ERROR CODE 197 = S0IRECOL(2)         */
+ %E197FLD = 'S0IRECOL(2)';
+
+ %DCL E210FLD CHAR;          /* ERROR CODE 210 = S0CFUNC(3)          */
+ %E210FLD = 'S0CFUNC(3)';
+
+ %DCL E211FLD CHAR;          /* ERROR CODE 211 = IOEMPART(3)         */
+ %E211FLD = 'IOEMPART(3)';
+
+ %DCL E212FLD CHAR;          /* ERROR CODE 212 = IOEMPART(3)         */
+ %E212FLD = 'IOEMPART(3)';
+
+ %DCL E213FLD CHAR;          /* ERROR CODE 213 = S0IRECBO(3)         */
+ %E213FLD = 'S0IRECBO(3)';
+
+ %DCL E214FLD CHAR;          /* ERROR CODE 214 = S0IRECOL(3)         */
+ %E214FLD = 'S0IRECOL(3)';
+
+ %DCL E215FLD CHAR;          /* ERROR CODE 215 = S0IRECBO(3)         */
+ %E215FLD = 'S0IRECBO(3)';
+
+ %DCL E216FLD CHAR;          /* ERROR CODE 216 = S0IRECOL(3)         */
+ %E216FLD = 'S0IRECOL(3)';
+
+ %DCL E217FLD CHAR;          /* ERROR CODE 217 = S0IRECBO(3)         */
+ %E217FLD = 'S0IRECBO(3)';
+
+ %DCL E218FLD CHAR;          /* ERROR CODE 218 = S0IRECOL(3)         */
+ %E218FLD = 'S0IRECOL(3)';
+
+ %DCL E219FLD CHAR;          /* ERROR CODE 219 = S0IRECBO(3) &       */
+ %E219FLD = 'S0IRECBO(3) || ''/'' || S0IRECOL(3)'; /* S0IRECOL(3)    */
+
+ %DCL E220FLD CHAR;          /* ERROR CODE 220 = S0QDISUS(3)         */
+ %E220FLD = 'S0QDISUS(3)';
+
+ %DCL E221FLD CHAR;          /* ERROR CODE 221 = S0QREPOR(3)         */
+ %E221FLD = 'S0QREPOR(3)';
+
+ %DCL E222FLD CHAR;          /* ERROR CODE 222 = S0QREPOR(3)         */
+ %E222FLD = 'S0QREPOR(3)';
+
+ %DCL E223FLD CHAR;          /* ERROR CODE 223 = OEM PART NO 3       */
+ %E223FLD = 'IOEMPART(3)';
+
+ %DCL E224FLD CHAR;          /* ERROR CODE 224 = S0IMATL2(3)         */
+ %E224FLD = 'S0IMATL2(3)';
+
+ %DCL E226FLD CHAR;          /* ERROR CODE 226 = S0CFUNC(3)          */
+ %E226FLD = 'S0CFUNC(3)';
+
+ %DCL E227FLD CHAR;          /* ERROR CODE 227 = S0IRECOL(3)         */
+ %E227FLD = 'S0IRECOL(3)';
+
+ %DCL E229FLD CHAR;          /* ERROR CODE 229 = S0IRECOL(3)         */
+ %E229FLD = 'S0IRECOL(3)';
+
+ %DCL E230FLD CHAR;          /* ERROR CODE 230 = S0CFUNC(4)          */
+ %E230FLD = 'S0CFUNC(4)';
+
+ %DCL E231FLD CHAR;          /* ERROR CODE 231 = IOEMPART(4)         */
+ %E231FLD = 'IOEMPART(4)';
+
+ %DCL E232FLD CHAR;          /* ERROR CODE 232 = IOEMPART(4)         */
+ %E232FLD = 'IOEMPART(4)';
+
+ %DCL E233FLD CHAR;          /* ERROR CODE 233 = S0IRECBO(4)         */
+ %E233FLD = 'S0IRECBO(4)';
+
+ %DCL E234FLD CHAR;          /* ERROR CODE 234 = S0IRECOL(4)         */
+ %E234FLD = 'S0IRECOL(4)';
+
+ %DCL E235FLD CHAR;          /* ERROR CODE 235 = S0IRECBO(4)         */
+ %E235FLD = 'S0IRECBO(4)';
+
+ %DCL E236FLD CHAR;          /* ERROR CODE 236 = S0IRECOL(4)         */
+ %E236FLD = 'S0IRECOL(4)';
+
+ %DCL E237FLD CHAR;          /* ERROR CODE 237 = S0IRECBO(4)         */
+ %E237FLD = 'S0IRECBO(4)';
+
+ %DCL E238FLD CHAR;          /* ERROR CODE 238 = S0IRECOL(4)         */
+ %E238FLD = 'S0IRECOL(4)';
+
+ %DCL E239FLD CHAR;          /* ERROR CODE 239 = S0IRECBO(4) &       */
+ %E239FLD = 'S0IRECBO(4) || ''/'' || S0IRECOL(4)'; /* S0IRECOL(4)    */
+
+ %DCL E240FLD CHAR;          /* ERROR CODE 240 = S0QDISUS(4)         */
+ %E240FLD = 'S0QDISUS(4)';
+
+ %DCL E241FLD CHAR;          /* ERROR CODE 241 = S0QREPOR(4)         */
+ %E241FLD = 'S0QREPOR(4)';
+
+ %DCL E242FLD CHAR;          /* ERROR CODE 242 = S0QREPOR(4)         */
+ %E242FLD = 'S0QREPOR(4)';
+
+ %DCL E243FLD CHAR;          /* ERROR CODE 243 = OEM PART NO 4       */
+ %E243FLD = 'IOEMPART(4)';
+
+ %DCL E244FLD CHAR;          /* ERROR CODE 244 = S0IMATL2(4)         */
+ %E244FLD = 'S0IMATL2(4)';
+
+ %DCL E245FLD CHAR;          /* ERROR CODE 245 = S0IRECOL(4)         */
+ %E245FLD = 'S0IRECOL(4)';
+
+ %DCL E246FLD CHAR;          /* ERROR CODE 246 = S0CCSCPC            */
+ %E246FLD = 'S0CFUNC(4)';
+
+ %DCL E247FLD CHAR;          /* ERROR CODE 247 = S0IRECOL(4)         */
+ %E247FLD = 'S0IRECOL(4)';
+
+ %DCL E256FLD CHAR;          /* ERROR CODE 256 = SOISENOL            */
+ %E256FLD = 'S0ISENOL';
+
+ %DCL E277FLD CHAR;          /* ERROR CODE 277 = S0CCSCPC            */
+ %E277FLD = 'S0CCSCPC';
+
+ %DCL E295FLD CHAR;          /* ERROR CODE 295 = S0IMACTC            */
+ %E295FLD = 'S0IMACTC';
+
+ %DCL E296FLD CHAR;          /* ERROR CODE 296 = S0IPRDID            */
+ %E296FLD = 'S0IPRDID';
+
+ %DCL E297FLD CHAR;          /* ERROR CODE 297 = S0IPRDID            */
+ %E297FLD = 'S0IPRDID';
+
+ %DCL E298FLD CHAR;          /* ERROR CODE 298 = S8CUSTNM            */
+ %E298FLD = 'S8CUSTNM';
+
+
+ %DCL E310FLD CHAR;          /* ERROR CODE 309 = S0QSVCHR            */
+ %E310FLD = 'S0QSVCHR';
+
+ %DCL E311FLD CHAR;          /* ERROR CODE 311 = ACTUAL HOURS        */
+ %E311FLD = 'S0QSVCHR';
+
+ %DCL E312FLD CHAR;          /* ERROR CODE 312 = BILL TYPE           */
+ %E312FLD = 'S0CTAC';
+
+ %DCL E313FLD CHAR;          /* ERROR CODE 313 = CUSTOMER NUMBER     */
+ %E313FLD = 'S0ICUST';
+
+ %DCL E314FLD CHAR;          /* ERROR CODE 314 = CUSTOMER NUMBER     */
+ %E314FLD = 'S0ICUST';
+
+ %DCL E315FLD CHAR;          /* ERROR CODE 315 = PART NUMBER FOR TIN1*/
+ %E315FLD = 'IOEMPART(1)';
+
+ %DCL E316FLD CHAR;          /* ERROR CODE 316 = PART NUMBER FOR TIN2*/
+ %E316FLD = 'IOEMPART(2)';
+
+ %DCL E317FLD CHAR;          /* ERROR CODE 317 = PART NUMBER FOR TIN3*/
+ %E317FLD = 'IOEMPART(3)';
+
+ %DCL E318FLD CHAR;          /* ERROR CODE 318 = PART NUMBER FOR TIN4*/
+ %E318FLD = 'IOEMPART(4)';
+
+ %DCL E320FLD CHAR;          /* ERROR CODE 320 = PRF 1               */
+ %E320FLD = 'IPRFNUM(1)';
+
+ %DCL E321FLD CHAR;          /* ERROR CODE 321 = PRF 2               */
+ %E321FLD = 'IPRFNUM(2)';
+
+ %DCL E322FLD CHAR;          /* ERROR CODE 322 = PRF 3               */
+ %E322FLD = 'IPRFNUM(3)';
+
+ %DCL E323FLD CHAR;          /* ERROR CODE 323 = PPF 4               */
+ %E323FLD = 'IPRFNUM(4)';
+
+ %DCL E324FLD CHAR;          /*  PARTS NOT ALLOWED FOR THIS CONTRACT */
+ %E324FLD = 'S0ICSS';        /* ERROR CODE 324 = S0ICSS              */
+
+ %DCL E325FLD CHAR;          /* SC NOT VALID FOR CONTRACT            */
+ %E325FLD = 'S0ICSS';        /* ERROR CODE 325 = S0ICSS              */
+
+ %DCL E326FLD CHAR;          /* TYPE NOT COVERED BY CONTRACT         */
+ %E326FLD = 'S0ICSS';        /* ERROR CODE 326 = S0ICSS              */
+
+ %DCL E327FLD CHAR;          /* CONTRACT INVALID FOR SERVICE DATE    */
+ %E327FLD = 'S0ICSS';        /* ERROR CODE 327 = S0ICSS              */
+
+ %DCL E328FLD CHAR;          /* CONTRACT EXPIRED                     */
+ %E328FLD = 'S0ICSS';        /* ERROR CODE 328 = S0ICSS              */
+
+ %DCL E329FLD CHAR;          /* INVALID EMPLOYEE SERIAL IN CONTRACT  */
+ %E329FLD = 'IREQEMPL';      /* ERROR CODE 329 = S0ICSS              */
+
+ %DCL E330FLD CHAR;          /* CONTRACT REQUIRES A INVENTORY MATCH  */
+ %E330FLD = 'S0ICSS';        /* ERROR CODE 330 = S0ICSS              */
+
+ %DCL E331FLD CHAR;          /* TYPE/SERIAL NOT VALID FOR CONTRACT   */
+ %E331FLD = 'S0ICSS';        /* ERROR CODE 331 = S0ICSS              */
+
+ %DCL E333FLD CHAR;          /* CONTRACT IS INVALID (BMS)            */
+ %E333FLD = 'S0ICSS';        /* ERROR CODE 333 = S0ICSS              */
+
+ %DCL E334FLD CHAR;          /* ACTIVITY CODE INVALID (BMS)          */
+ %E334FLD = 'S0CHACT';       /* ERROR CODE 334 = S0CHACT             */
+
+ %DCL E335FLD CHAR;          /* DATE INVALID FOR BILLING CD (BMS)    */
+ %E335FLD = 'S0CTAC';        /* ERROR CODE 335 = S0CTAC              */
+
+ %DCL E336FLD CHAR;          /* DATE INVALID FOR Work Number (BMS)   */
+ %E336FLD =  'S0ICSS';       /* ERROR CODE 336 = WORK NUMBER ACTIVITY*/
+ /*%E336FLD =  'IWKNUMAC';      ERROR CODE 336 = WORK NUMBER ACTIVITY*/
+
+ %DCL E337FLD CHAR;          /* ACT HRS > 24 FOR DATE                */
+ %E337FLD = 'S0QSVCHR';      /* ERROR CODE 337 = S0QSVCHR            */
+
+ %DCL E338FLD CHAR;          /* ACT DATE BEFORE EFF DATE             */
+                             /* ERROR CODE 338 = S0DCALCM/S0DCALCD   */
+ %E338FLD = 'S0DCALCM || ''/'' || S0DCALCD';
+
+ %DCL E339FLD CHAR;          /* ACT DATE AFTER INACT DATE            */
+                             /* ERROR CODE 339 = S0DCALCM/S0DCALCD   */
+ %E339FLD = 'S0DCALCM || ''/'' || S0DCALCD';
+
+ %DCL E340FLD CHAR;          /* WORK NUMBER ACTIVITY ID INVALID      */
+ %E340FLD = 'IWKNUMAC';      /* ERROR CODE 340 = IWKNUMAC            */
+
+
+ %DCL E341FLD CHAR;          /* WORK NUMBER ACT ID PAST EXPIRE DATE   */
+ %E341FLD = 'IWKNUMAC';      /* ERROR CODE 341 = IWKNUMAC             */
+
+ %DCL E351FLD CHAR;          /* RETURN QTY ERROR                      */
+ %E351FLD = 'S0QREPOR(1)';   /* ERROR CODE 351 = S0QREPOR(1)          */
+
+ %DCL E352FLD CHAR;          /* RETURN QTY ERROR                      */
+ %E352FLD = 'S0QREPOR(2)';   /* ERROR CODE 352 = S0QREPOR(2)          */
+
+ %DCL E353FLD CHAR;          /* RETURN QTY ERROR                      */
+ %E353FLD = 'S0QREPOR(3)';   /* ERROR CODE 353 = S0QREPOR(3)          */
+
+ %DCL E354FLD CHAR;          /* RETURN QTY ERROR                      */
+ %E354FLD = 'S0QREPOR(4)';   /* ERROR CODE 354 = S0QREPOR(4)          */
+
+
+
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQERRF                    */
+ /*------------------------------------------------------------------*/
+

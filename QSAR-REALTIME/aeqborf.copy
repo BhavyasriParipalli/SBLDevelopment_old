@@ -1,0 +1,65 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQBORF     VERSION NR:  01           DATE:  06/06/88    */
+ /*                                                                  */
+ /*  TITLE: BOREF RECORD LAYOUT  -  NEW SERVICE DIMENSIONS           */
+ /*                                                                  */
+ /*  RECORD KEY = MARKETING OR SERVICE INDICATOR + BRANCH OFFICE     */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891   8NSM NSS ORIGINAL PROMOTE               JWR  */
+ /*  10/16/90 SR-0577   0NSL CONS  ADD NSD HERITAGE FLAG        ABM  */
+ /*  12/16/91 SR-0934C  1NSM NSS  ADD BOREF HOIAIC OFFICE       HAS  */
+ /*  06/05/95 SR9500062 5NSE NSS  ADD BOREF AVALIABILITY CENTER DLP  */
+ /*  11/16/95 S9500161  5NSM      ADD SERVICE GROUP             LBS  */
+ /*  08/16/99 QSARPROD  9NSA      NEW FOR MSF2                  PRM  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS "60" 001- 002 */
+     3 BORFKEY,                    /* 'A' + BRANCH OFFICE + M OR S   */
+                                   /* IS THE KEY. (31 BYTES)         */
+       5 RECID      CHAR(01),      /* RECORD ID, ALWAYS A " 003- 003 */
+       5 BRMKSV     CHAR(01),      /* MKTG/SVC INDICATOR    004- 004 */
+                                   /* M=MARKETING & S=SERVICE        */
+       5 BRBRANCH   CHAR(03),      /* BRANCH OFFICE         005- 007 */
+       5 SPAD01     CHAR(26),      /* PADDING               006- 033 */
+     3 BRFUNC       CHAR(01),      /* FUNCTION              034- 034 */
+     3 BRFORG,                     /* FLD ORGANIZATION BITS          */
+       5 BRFCSD     BIT(1),        /* NSD SERVICE OFFICE    035- 035 */
+       5 BRFASC     BIT(1),        /* ALT. SERVICE CHANNEL  035- 035 */
+       5 BRFNUS2    BIT(1),        /* NOT USED              035- 035 */
+       5 BRFELE     BIT(1),        /* ELEMENT EXCHANGE      035- 035 */
+       5 BRFREM     BIT(1),        /* REMOTE LOCATION       035- 035 */
+       5 BRFNUS6    BIT(1),        /* MEASUREMENTS INDICATO 035- 035 */
+       5 BRFNUS7    BIT(1),        /* NOT USED              035- 035 */
+       5 BRFNUS8    BIT(1),        /* NOT USED              035- 035 */
+     3 BRDIV        CHAR(02),      /* LOCATION DIVISION     036- 037 */
+     3 BRTYPE       CHAR(01),      /* TYPE                  038- 038 */
+     3 BRREGN       CHAR(02),      /* REGION                039- 040 */
+     3 BRAREA       CHAR(01),      /* AREA                  041- 041 */
+     3 BROPAR       CHAR(01),      /* OPERATIONS AREA       042- 042 */
+     3 BRPOFF       CHAR(03),      /* PARENT OFFICE         043- 045 */
+     3 SRC_BO       CHAR(01),      /* SRC OFFICE INDICATOR  046- 046 */
+     3 BRHERTG      CHAR(01),      /* B/O HERITAGE INDICATO 047- 047 */
+     3 BRHERBT,                    /* B/O HERITAGE BITS              */
+       5 BRFCSH  BIT(1),           /* CS HERITAGE           048- 048 */
+       5 BRFFEH  BIT(1),           /* FE HERITAGE           048- 048 */
+       5 FNSDH   BIT(1),           /* NSD HERITAGE          048- 048 */
+       5 FAVLCTR BIT(1),           /* AVAILABILITY CENTER   048- 048 */
+       5 BRFNUS3 BIT(4),           /* NOT USED              048- 048 */
+     3 BRRECOV,                    /* L OUTLOC INDS                  */
+       10 HOFFROF  BIT(1),         /* 1 FORCED RECOVERY OFF 049- 049 */
+       10 HOCANDA  BIT(1),         /* 2 CANADA INDICATIOR   049- 049 */
+       10 HOFUNS4 BIT(6),          /* 3-8 NOT USED          049- 049 */
+     3 BRIAIC       CHAR(2),       /* BOREF HOIAIC OFFICE   050- 051 */
+     3 BRAVLCTR     CHAR(3),       /* AVAILABILITY CENTER   052- 054 */
+     3 ISRVGRP      CHAR(4),       /* SERVICE GROUP         055  058 */
+     3 SPAD02       CHAR(2)        /* UNUSED                059- 060 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBORF                                */
+ /********************************************************************/

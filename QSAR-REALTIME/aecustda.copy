@@ -1,0 +1,33 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECUSTDA    VERSION NR:  01           DATE:  03/08/99    */
+ /*                                               TIME:  09:23:38    */
+ /*                                                                  */
+ /* TITLE:                                                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*  03/08/99 S97140   9NSA ORIGINAL PROMOTE                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 CRETURN      FIXED BIN(15), /* RETURN CODE FIELD        001- 002 */
+  3 ICUSTNUM          PIC'(7)9',/* CUSTOMER NUMBER          003- 009 */
+  3 CEFFSTAT          CHAR( 1), /* EFFECTIVE STATUS         010- 010 */
+  3 IQUALIFR          CHAR( 1), /* STATUS QUALIFIER         011- 011 */
+  3 CMPISTAT          CHAR( 2), /* MPI MACHINE STATUS       012- 013 */
+  3 SPAD01            CHAR(12)  /* PAD                      014- 025 */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /*                        END  AECUSTDA                             */
+ /*------------------------------------------------------------------*/

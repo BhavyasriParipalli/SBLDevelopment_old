@@ -1,0 +1,87 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* COPYRIGHT IBM CORP.                                             */
+ /*    CREATED - 10/20/80                                           */
+ /*    CHANGED - 12/01/80                                           */
+ /*                                                                 */
+ /*      THIS BLOCK IS CREATED BY THE COMMAND LEVEL TRANSLATOR      */
+ /*      AND IS BASED OFF OF REGISTER 13.  THE ADDRESSABILITY       */
+ /*      IS ESTABLISHED BY THE PROLOG CODE THAT GETS THE STORAGE.   */
+ /*                                                                 */
+ /*      CICS MAPS THIS AREA WITH THE DFHEISTG MACRO.  IF THAT      */
+ /*      AREA CHANGES THIS MAP MUST ALSO BE CHANGED. SEE THE        */
+ /*      MACRO EXPANSION FROM THE TRANSLATOR OUTPUT.                */
+ /*                                                                 */
+ /*      THIS BLOCK CONSISTS OF TWO DISTINCT AREAS: THE CICS        */
+ /*      COMMAND TRANSLATOR AREA AND THE USERS DYNAMIC AREA.        */
+ /*                                                                 */
+ /*      THE SIZE OF THE USERS DYNAMIC AREA IS DEPENDENT UPON       */
+ /*      THE VALUE THE USER SPECIFIES AFTER A DFHEISTG DSECT.       */
+ /*                                                                 */
+ /*  EXAMPLE OF DYNAMIC AREA DEFINE -                               */
+ /*                                                                 */
+ /*           DCL DYNAM CHAR(3000) GENERATED                        */
+ /*           GENERATE DATA DEFS(DYNAM)                             */
+ /*           DFHEISTG DSECT                                        */
+ /*           DYNAM    DS      CL3000         DYNAMIC LENGTH        */
+ /*           @ENDGEN                                               */
+ /*                                                                 */
+ /*  IN THIS EXAMPLE DYNAM IS THE USERS AUTOMATIC (OR DYNAMIC)      */
+ /*  STORAGE.  THIS PROCEDURE IS DEFINED IN THE CICS COMMAND        */
+ /*  LEVEL REFERENCE MANUAL IN THE SECTION ENTITLED COMMAND         */
+ /*  LEVEL TRANSLATOR.                                              */
+ /*                                                                 */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL 1 DYNAMIC  BDY(DWORD) BASED DYNPTR,  /* ADDRESSABILITY         */
+       2 DYNSAVE  BDY(WORD) CHAR(72),   /* FORWARD REG SAVE AREA    */
+          3 *        FIXED(32),         /* NOT USED                 */
+          3 DYNAREAB PTR(31),           /* BACKWARD SAVE AREA PTR   */
+          3 DYNAREAF PTR(31),           /* FORWARD SAVE AREA PTR    */
+          3 DYNREG14 FIXED(32),         /* RETURN ADDRESS           */
+          3 DYNREG15 FIXED(32),         /* ENTRY POINT              */
+          3 DYNREG0  FIXED(32),         /* REG 0                    */
+          3 DYNREG1  FIXED(32),         /* REG 1                    */
+          3 DYNREG2  FIXED(32),         /* REG 2                    */
+          3 DYNREG3  FIXED(32),         /* REG 3                    */
+          3 DYNREG4  FIXED(32),         /* REG 4                    */
+          3 DYNREG5  FIXED(32),         /* REG 5                    */
+          3 DYNREG6  FIXED(32),         /* REG 6                    */
+          3 DYNREG7  FIXED(32),         /* REG 7                    */
+          3 DYNREG8  FIXED(32),         /* REG 8                    */
+          3 DYNREG9  FIXED(32),         /* REG 9                    */
+          3 DYNREG10 FIXED(32),         /* REG 10                   */
+          3 DYNREG11 FIXED(32),         /* REG 11                   */
+          3 DYNREG12 FIXED(32),         /* REG 12                   */
+       2 *        CHAR(12),             /* RESERVED                 */
+       2 DYNEIR13 PTR(31),              /* CMD TRAN REG 13          */
+       2 *        CHAR(4),              /* RESERVED                 */
+       2 DYNEIBP  PTR(31),              /* EIB POINTER              */
+       2 DYNCOMMA PTR(31),              /* COMMAREA POINTER         */
+
+                      /**********************************************/
+                      /* SR 9902 (CICS 1.7) - INCREMENT FIELD FROM  */
+                      /*   84 CHAR. TO 148 CHAR. (64 BYTES)         */
+                      /*     NOTE:::                                */
+                      /*      CHANGE MUST ALSO BE MADE IN THE       */
+                      /*      TWASAVE2 AREA OF THE 'TWA' COPY       */
+                      /*      MEMBER.                               */
+                      /**********************************************/
+
+       2 *        CHAR(148);            /* RESERVED AREA            */
+   /*****************************************************************/
+   /*                                                               */
+   /*    THE FOLLOWING TWO DECLARES IDENTIFY TO PLS THE             */
+   /*    GENERATED NAMES FOR THE EIB POINTER AND THE COMMAREA       */
+   /*    POINTER.  REFERENCING THESE FIELDS WILL REDUCE ERROR       */
+   /*    POTENTIAL IN THE EVENT CICS CHANGES ITS DEFINITIONS.       */
+   /*                                                               */
+   /*****************************************************************/
+  DCL DFHEIBP PTR(32)  GENERATED,      /* EIB POINTER                */
+      DFHEICAP PTR(32) GENERATED;      /* COMMAREA POINTER           */
+   /*****************************************************************/
+   /* USER DYNAMIC STORAGE IS ALLOCATED AFTER THIS STORAGE. DFHEISTG*/
+   /* DEFINITIONS CREATED BY THE CICS COMMAND LEVEL TRANSLATOR      */
+   /*****************************************************************/
+ @EJECT;
+

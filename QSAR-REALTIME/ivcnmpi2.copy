@@ -1,0 +1,91 @@
+ /*********************************************************************/
+ /*                                                                   */
+ /* NAME: IVCNMPI2                                                    */
+ /*                                                                   */
+ /* TITLE:  MPI SYSTEM CONNECTIVITY - PROFILE 2 (QSAR/P)              */
+ /*                                                                   */
+ /* IMS SEGMENT NAME:  n/a                                            */
+ /*                                                                   */
+ /* TYPE:  Record                                                     */
+ /*                                                                   */
+ /* LANGUAGE:  PL/I                                                   */
+ /*                                                                   */
+ /* DESCRIPTION:                                                      */
+ /*               ---------     NSS QSAR      ---------               */
+ /*               ---------  CUSTOMER REPLY   ---------               */
+ /*               ---------      FORMAT       ---------               */
+ /*                                                                   */
+ /*        MAPPING OF MPI-TO-QSAR REPLY TO CUSTOMER REQUEST.          */
+ /*                                                                   */
+ /*        THIS INCLUDE MAPS THE APPC (SNA LU 6.2) REPLY TO THE       */
+ /*        CUSTOMER DATA REQUEST FROM THE NSS QSAR PROCESSING         */
+ /*        APPLICATION.  THE REPLY IS RETURNED TO PROGRAM             */
+ /*        QBCMR FROM MPI PROGRAM IVCN002, WHICH RECEIVES A           */
+ /*        REQUEST FOR CUSTOMER DATA IN THE FORMAT SPECIFIED          */
+ /*        BY AEQCMRRQ COPY.                                          */
+ /*                                                                   */
+ /*  NOTE:  -STARTING WITH BYTE 7, THIS OVERLAY MUST EXACTLY MATCH    */
+ /*          AEQSCUST.  ANY CHANGE TO EITHER COPY MEMBER MUST BE      */
+ /*          REFLECTED IN THE OTHER.                                  */
+ /*                                                                   */
+ /*  CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                   */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:             PROGRAMMER:*/
+ /*  --------  ---------  ----    ------------------       -----------*/
+ /*  09/27/89  TU 9892C   9CV9    ORIGINAL VERSION         R. COFFEY  */
+ /*  08/23/90  TU 0527A   1CV3    REMOVE SEGBILL FIELD     L. DO      */
+ /*  04/27/06  RQ057010   DVRK    ADD FIELDS:              D. MLINCEK */
+ /*                               CMKTAFFN, CRESTIND, CRESABNM        */
+ /*                               CRESTCDE, COEMIND, CBPACCT          */
+ /*                                                                   */
+ /*********************************************************************/
+  3 CUSTOMER,
+    5 RETCODE1   FIXED BIN(15),     /* RETURN CODE FIELD      001- 002*/
+                                    /*--------------------------------*/
+                                    /*0 - ALL SEGMENTS FOUND          */
+                                    /*4 - ALL SEGMENTS WEREN'T        */
+                                    /*    FOUND                       */
+                                    /*12 - CUSTOMER ROOT SEGMENT NOT  */
+                                    /*    FOUND                       */
+                                    /*16 - ERROR IN ACCESSING DATA    */
+                                    /*    BASE                        */
+                                    /*                                */
+                                    /*--------------------------------*/
+    5 SEGPAD1    CHAR(1),           /*PADDING - NOT USED      003- 003*/
+                                    /*--------------------------------*/
+    5 CRESTCDE   CHAR(3),           /*RESTRICTED CUST CODE    004- 006*/
+    5 CMICUST    FIXED BIN(31),     /*CUSTOMER NUMBER         007- 010*/
+    5 CMIENNO    FIXED BIN(31),     /*ENTERPRISE NUMBER       011- 014*/
+    5 CMNABBNA   CHAR(15),          /*ABBREVIATED NAME        015- 029*/
+    5 CMIBOMKT   CHAR(3),           /*MARKETING B/O-DP/GS/OP  030- 032*/
+    5 CMCTCUS1   CHAR(1),           /*TYPE CUSTOMER 1         033- 033*/
+    5 CMCTAX1    CHAR(3),           /*TAXING CODE 1           034- 036*/
+    5 CMCTCUS2   CHAR(1),           /*TYPE CUSTOMER 2         037- 037*/
+    5 CMCTAX2    CHAR(3),           /*TAXING CODE 2           038- 040*/
+    5 CMCTCUS3   CHAR(1),           /*TYPE CUSTOMER 3         041- 041*/
+    5 CMCTAX3    CHAR(3),           /*TAXING CODE 3           042- 044*/
+    5 CMCTCD     FIXED DEC(9),      /*CITY/COUNTY/STATE CODE  045- 049*/
+    5 CMFOCL     CHAR(1),           /*OUTSIDE CITY LIMITS     050- 050*/
+    5 CMFCOD     CHAR(1),           /*COD INDICATOR           051- 051*/
+    5 CMFIIC     CHAR(1),           /*INTERNAL IBM CUSTOMER   052- 052*/
+    5 CMFADIFF   CHAR(1),           /*INST-AT ^= INV-TO       053- 053*/
+    5 CBNLEGNA   CHAR(28),          /*CUSTOMER LEGAL NAME     054- 081*/
+    5 CBNCYNA    CHAR(13),          /*CUSTOMER CITY           052- 094*/
+    5 CBNSTNA    CHAR(2),           /*CUSTOMER STATE          095- 096*/
+    5 CBCZIP     CHAR(9),           /*CUSTOMER ZIP CODE       097- 105*/
+    5 CBNLINE1   CHAR(24),          /*INVOICE TO DIVISION     106- 129*/
+    5 CBNLINE2   CHAR(24),          /*INVOICE TO DEPT/ATTN:   130- 153*/
+    5 CBNLINE3   CHAR(24),          /*INVOICE TO PO BOX       154- 177*/
+    5 CBNLINE4   CHAR(24),          /*INVOICE TO ADDRESS      178- 201*/
+    5 CBNLINE5   CHAR(24),          /*INVOICE TO ADDRESS      202- 225*/
+                                    /* (CONTINUED)                    */
+    5 CBNLINE6   CHAR(24),          /*INVOICE TO CITY,STATE,  226- 249*/
+                                    /* ZIP                            */
+    5 CMKTAFFN   CHAR(7),           /*AFFILIATE NUMBER        250- 256*/
+    5 CRESTIND   CHAR(1),           /*RESTRICT INDICATOR Y|N  257- 257*/
+    5 CRESABNM   CHAR(5),           /*RESTRICT ABBREV NAME    258- 262*/
+    5 COEMIND    CHAR(1),           /*OEM IND           Y|N   263- 263*/
+    5 CBPACCT    CHAR(1)            /*BP ACCOUNT TYPE  D,E,P  264- 264*/
+ /*-------------------------------------------------------------------*/
+ /*                      E N D   I V C N M P I 2                      */
+ /*-------------------------------------------------------------------*/

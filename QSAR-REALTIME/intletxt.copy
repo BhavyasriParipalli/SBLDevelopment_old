@@ -1,0 +1,31 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*        Name: INTLETXT                                            */
+ /*                                                                  */
+ /* Description: Table used by IN25LETX. Identifies storage areas    */
+ /*              that should not be protected by Intertest           */
+ /*              (e.g. statistics tables, application anchor         */
+ /*              blocks, etc).                                       */
+ /*                                                                  */
+ /*              This table is acquired and initialized by           */
+ /*              RAMSINI2. The INTLETX macro can be used to          */
+ /*              add entries to this table.                          */
+ /*                                                                  */
+ /* Change Activity:                                                 */
+ /*                                                                  */
+ /*    SR    DRVR   DATE   DESCRIPTION                    PROGRAMMER */
+ /*                                                                  */
+ /* DYADICS2 9NSG 05/26/89 CAPABILITIES EXPANSION II      HOOD       */
+ /*                                                                  */
+ /* 01/19/95 I317056 5NSA  CICS 3.3 upgrade               M.A Fus    */
+ /*                                                                  */
+ /********************************************************************/
+ DCL
+   1 INTLETXT BASED(CWALETX),       /* Table used by IN25LETX        */
+     3 LETXCNT  FIXED(32),          /* Count of array entries used   */
+     3 *        CHAR(4),            /* unused                        */
+     3 LETXARRY(127),
+       5 LETXBEGIN PTR,             /* Address of storage area       */
+       5 LETXEND   PTR;             /* End of storage area           */
+ @EJECT;
+

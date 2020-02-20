@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* INCLUDE: AEQBOD2      VERSION NR:  01           DATE:  10174/97  */
+ /*                                                 TIME:  15:23:52  */
+ /*                                                                  */
+ /* FUNCTION: RECORD LAYOUT FOR OUTSIDE LOCATION FILE -              */
+ /*           NEW SERVICE DIMENSIONS.                                */
+ /*                                                                  */
+ /*  RECORD KEY: COUNTRY + DIVISION + BRANCH OFFICE + PAD            */
+ /*  KEYLENGTH :  30                                                 */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  10/09/97 SR-97083 7CPR NSS ORIGINAL PROMOTE                SFM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS 168  001- 002 */
+     3 RECID        CHAR(01),      /* RECORD ID, ALWAYS     003- 003 */
+                                   /* A '4'.                         */
+     3 AEOTLC,                     /* ( KEY ) IS COUNTRY +           */
+                                   /* DIVISION + BRANCH OFFICE.      */
+                                   /* (KEY LENGTH IS 30 BYTES)       */
+       5 AEQCTRY    CHAR(3),       /* COUNTRY         (KEY) 004- 006 */
+       5 AEQDIV     CHAR(2),       /* DIVISION        (KEY) 007- 008 */
+       5 AEQBO      CHAR(3),       /* BRANCH OFFICE   (KEY) 009- 011 */
+       5 SPAD05     CHAR(22),      /* PADDING         (KEY) 012- 033 */
+                                   /* FOR NEW KEY LENGTH             */
+     3 AEOUTLC(1000) BIT(1),       /* VALID OUTLIDE LOCS    034- 158 */
+                                   /* FOR BRANCH OFFICE              */
+     3 AEEPSC       CHAR(3),       /* EMERGENCY PARTS       159- 161 */
+                                   /* SERVICE CENTER  OR (BOSR)      */
+                                   /* B/O SERVICING REQUEST          */
+     3 AEQNUSED     CHAR(7)        /* UNUSED                162- 168 */
+                                   /* FOR THE BRANCH OFFICE          */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBOD2                                */
+ /********************************************************************/
+

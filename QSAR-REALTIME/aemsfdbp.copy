@@ -1,0 +1,36 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME: AEMSFDBP                               DATE:  07/02/03    */
+ /*                                                                  */
+ /*  DESC: AEMSFDB PARAMETER LIST FROM NSS                           */
+ /*                                                                  */
+ /*  IMPORTANT NOTE !!!!! - ANY CHANGES IN THIS COPY MEMBER MUST     */
+ /*            BE REFLECTED IN THE COPY MEMBER AEMSFDBP WHICH IS     */
+ /*            THE PLS VERSION OF THIS COPY MEMBER IN NSS.           */
+ /*                                                                  */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPORT  @@QSPAI1 DATA BASE                 */
+ /*                                                                  */
+ /*  TYPE:  RECORD                                                   */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + CCOUNTRY + IWORKNUM + 19 PAD            */
+ /*    KEYLENGTH: 31 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:                 PGMR: */
+ /*  --------  ---------  ----    --------------------------- ------ */
+ /*06/24/2003  SR020065  3NSO    INITIAL CREATION              GYULA */
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1  AEMSFDBP AEMSFDBP_STG,
+      2 MSF_REQUEST           CHAR(2),  /* type of request    001-002*/
+      2 MSF_RETURN_CODE       CHAR(2),  /* RETURN CODE        003-004*/
+      2 MSF_WORK_NUMBER       CHAR(8),  /* WORK ORDER NUMBER  005-012*/                                               
+      2 MSF_RECEIVE_DATE      CHAR(8)   /*                    013-020*/  
+                                        /* RECEIVE DATE YYYYMMDD     */
+                                        /* - CAD DRECEIVE MMDDYY     */

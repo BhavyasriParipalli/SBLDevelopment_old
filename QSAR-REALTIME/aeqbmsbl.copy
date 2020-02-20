@@ -1,0 +1,51 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQBMSBL                               DATE:  01/15/98   */
+ /*                                                TIME:  17:40:00   */
+ /*                                                                  */
+ /*  TITLE: BMS/CLAIM WORK NUMBER/BILLING CODE RECORD                */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME:                                               */
+ /*                                                                  */
+ /*  TYPE:  RECORD                                                   */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + CCOUNTRY + IWORKNUM + IBILLCD + 16  PAD */
+ /*    KEYLENGTH: 31 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   DESCRIPTION:                   PGMR: */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  01/15/98 SR97219   8NSC    INITIAL RELEASE                 PRM  */
+ /*  09/03/98 QSARPROD  9NSA    CORRECT COMMENTS                PRM  */
+ /*  12/12/04 SR040017  5CSM    ADD COUNTRY CODE TO KEY         DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "50" 001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "N" 003- 003 */
+       5 CCOUNTRY   CHAR(3),       /* COUNTRY CODE    (KEY) 004- 006 */
+                                   /*  649 - CANADA                  */
+                                   /*  897 - US                      */
+       5 IWORKNUM   CHAR(8),       /* WORK NUMBER     (KEY) 007- 014 */
+       5 IBILLCD    CHAR(3),       /* BILL CODE       (KEY) 015- 017 */
+       5 SPAD01     CHAR(16),      /* PADDING         (KEY) 018- 033 */
+                                   /*                                */
+     3 DBILLOPN   CHAR(08),        /* THE DATE THE          034- 041 */
+                                   /* ACCOUNT WAS OPENED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 DBILLCLS   CHAR(08),        /* THE DATE THE          042- 049 */
+                                   /* ACCOUNT WAS CLOSED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 CBILLSTA   CHAR(01)         /* BILLING CODE STATUS   050- 050 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBMSBL                               */
+ /********************************************************************/
+

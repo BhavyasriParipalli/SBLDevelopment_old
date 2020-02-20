@@ -1,0 +1,1359 @@
+ /********************************************************************/
+ /********************************************************************/
+ /*****  S T A R T   O F   C O P Y  --    A E F E D I T           ****/
+ /********************************************************************/
+ /********************************************************************/
+ /*                                                                  */
+ /*  THIS INCLUDE CONTAINS THE FEDIT AUDIT EDIT MACRO                */
+ /*                                                                  */
+ /*  FUNCTION: EXECUTES QSAR/CSR AUDITS AND EDITS AFTER THE          */
+ /*            SUPPORT FILE GATHERING PROCESS IS COMPLETE.           */
+ /*                                                                  */
+ /*  03/21/88 NSDREL3      ORIGINAL PROTOTYPE VERSION            SPZ */
+ /*  08/17/89 SR0038  9NSK ADD ALPHANBS DATATYPE                 SPZ */
+ /*  11/17/89 I88227  9NSK ADD COMMA AS VALID CHARACTER TO       SPZ */
+ /*                        ALPHANBS DATA TYPE                        */
+ /*  09/22/08 prodsupt 8NSM add more special chars to ALBPHANBS  LBS */
+ /*                                                                  */
+ /********************************************************************/
+1
+ %DCL FEDIT          ENTRY;
+ %FEDIT: PROC (A1,  A2,  A3,  A4,  A5,  A6,  A7)
+              RETURNS(CHAR);
+
+ /* ARGUMENTS */
+
+ DCL          (A1,  A2,  A3,  A4,  A5,  A6,  A7)
+              CHAR;
+
+ /* WORK / PREPROCESSOR VARIABLES */
+
+ DCL COUNTER     BUILTIN;
+ DCL AUDIT_NBR   CHAR;
+ AUDIT_NBR = '';
+ DCL LINDEX      FIXED;
+ LINDEX = 0;
+ DCL BINDEX      FIXED;
+ BINDEX = 0;
+ DCL STARTPOS    FIXED;
+ STARTPOS = 0;
+ DCL NEXT_COMMA  FIXED;
+ NEXT_COMMA = 0;
+ DCL VALUES      FIXED;
+ VALUES = 0;
+
+ DCL LINE        CHAR;     /* WORK CHARACTER VARIABLE */
+ LINE = '';
+ DCL RANGE       CHAR;     /* ONE RANGE VALUE PERMITTED */
+ RANGE = 'N';
+ DCL BOOL1       CHAR;     /* BOOLEAN OPERATORS         */
+ BOOL1 = '';
+ DCL BOOL2       CHAR;
+ BOOL2 = '';
+ DCL BOOL3       CHAR;
+ BOOL3 = '';
+ DCL VALUE_LIST  CHAR;
+ VALUE_LIST = 'N';
+ DCL LAST_PARM   CHAR;
+ LAST_PARM = 'N';
+ DCL ERRSEV      CHAR;    /* ERROR SEVERITY        */
+ ERRSEV = '0';
+ DCL ERRNBR      CHAR;     /* ERROR NUMBER          */
+ ERRNBR = '0';
+ DCL (V1, V2, V3, V4, V5, V6, V7, V8,
+      V9, V10, V11, V12, V13, V14, V15,
+      V16, V17, V18, V19, V20, V21, V22,
+      V23, V24, V25, V26, V27, V28, V29, V30) CHAR;
+
+ V1  = '';
+ V2  = '';
+ V3  = '';
+ V4  = '';
+ V5  = '';
+ V6  = '';
+ V7  = '';
+ V8  = '';
+ V9  = '';
+ V10 = '';
+ V11 = '';
+ V12 = '';
+ V13 = '';
+ V14 = '';
+ V15 = '';
+ V16 = '';
+ V17 = '';
+ V18 = '';
+ V19 = '';
+ V20 = '';
+ V21 = '';
+ V22 = '';
+ V23 = '';
+ V24 = '';
+ V25 = '';
+ V26 = '';
+ V27 = '';
+ V28 = '';
+ V29 = '';
+ V30 = '';
+
+
+ DCL BLANK       CHAR;
+ BLANK='
+                                                                    ';
+
+ DCL RETURN  CHAR;   /* OUTPUT SOURCE CODE */
+ RETURN='';
+ /********************************************************************/
+
+ /* REMOVE LEADING BLANKS - PREPROCESSOR PARSING RULES STRIKE AGAIN  */
+ /* WE USE A GO TO BECAUSE THERE IS NO WHILE OR UNTIL OPTION IN THE  */
+ /* PREPROCESSOR DO STATEMENT                                        */
+ /********************************************************************/
+ 
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A1);
+   IF SUBSTR(A1,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A1;
+ END;
+ SET_A1:
+ A1 = SUBSTR(A1,STARTPOS,LENGTH(A1)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A2);
+   IF SUBSTR(A2,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A2;
+ END;
+ SET_A2:
+ A2 = SUBSTR(A2,STARTPOS,LENGTH(A2)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A3);
+   IF SUBSTR(A3,BINDEX,1) = ' '
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A3;
+ END;
+ SET_A3:
+ A3 = SUBSTR(A3,STARTPOS,LENGTH(A3)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A4);
+   IF SUBSTR(A4,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A4;
+ END;
+ 
+ SET_A4:
+ A4 = SUBSTR(A4,STARTPOS,LENGTH(A4)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A5);
+   IF SUBSTR(A5,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A5;
+ END;
+ 
+ SET_A5:
+ A5 = SUBSTR(A5,STARTPOS,LENGTH(A5)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A6);
+   IF SUBSTR(A6,BINDEX,1) = ' '
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A6;
+ END;
+ SET_A6:
+ A6 = SUBSTR(A6,STARTPOS,LENGTH(A6)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(A7);
+   IF SUBSTR(A7,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_A7;
+ END;
+ 
+ SET_A7:
+ A7 = SUBSTR(A7,STARTPOS,LENGTH(A7)-STARTPOS + 1);
+
+ /* WE'RE DONE REMOVING LEADING BLANKS...  */
+ /* NOW PUT RESULTS IN COMPILER LISTING... */
+
+ RETURN = '/* STATEMENTS GENERATED BY: */';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ 
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ RETURN = RETURN ||
+          '/* FEDIT ('|| A1 || ',' || A2 || ',' || A3 ||
+          ',' || A4 ||  ', */';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ 
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ RETURN = RETURN ||
+          '/*        '|| A5 || ',' || A6 || ',' || A7 ||
+          ') */';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ 
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ RETURN = RETURN || 'DO;    /* START OF GENERATED CODE */';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ 
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ IF ( A2 ^= 'REQUIRED' ) &
+    ( A2 ^= 'NOTALLOWED' ) 
+   THEN DO;
+     RETURN = RETURN ||
+     '/* FEDIT: "REQUIREMENT" FIELD ' || A2 || ' INVALID. */';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+     NOTE ('FEDIT: "REQUIREMENT" FIELD MUST BE "REQUIRED" ' ||
+           'OR "NOTALLOWED"',8);
+   END;
+
+ IF ( A3 ^= 'BI' )       &
+    ( A3 ^= 'NUM' )      &
+    ( A3 ^= 'NUMB' )     &
+    ( A3 ^= 'ALPHANB' )  &
+    ( A3 ^= 'ALPHANBS' ) &
+    ( A3 ^= 'ALPHAN' ) 
+   THEN DO;
+     RETURN = RETURN ||
+     '/* FEDIT: "DATATYPE" FIELD ' || A3 || ' INVALID. */';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+     NOTE ('FEDIT: "DATATYPE" FIELD MUST BE "BI", "NUM", "NUMB",' ||
+          ' "ALPHAN", "ALPHANBS", OR "ALPHANB"',8);
+   END;
+
+ IF ( A4 = 'PEND' )
+   THEN DO;
+     VALUE_LIST = 'N';       /* NO VALUES SPECIFIED */
+     ERRSEV = '3';
+   END;
+   ELSE
+     IF ( A4 = 'WARNING' )
+       THEN DO;
+         VALUE_LIST = 'N';       /* NO VALUES SPECIFIED */
+         ERRSEV = '2';
+       END;
+       ELSE
+         IF ( A4 ^= 'GT' ) &
+            ( A4 ^= 'LT' ) &
+            ( A4 ^= 'EQ' ) &
+            ( A4 ^= 'NE' ) &
+            ( A4 ^= 'LE' ) &
+            ( A4 ^= 'GE' ) 
+           THEN DO;
+             RETURN = RETURN ||
+         '/* FEDIT: "ARGUMENT #4" FIELD ' || A4 || ' INVALID. */';
+             DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+             END;
+             RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+             NOTE ('FEDIT: "ARGUMENT #4" FIELD MUST BE "PEND",' ||
+                   ' "WARNING", OR A RELATIONAL OPERATOR',8);
+           END;
+           ELSE VALUE_LIST = 'Y';
+
+ IF ( VALUE_LIST = 'N' )       /* 5TH PARM MUST BE ERROR NUMBER */
+   THEN IF ( A5 < '000' ) |
+           ( A5 > '999' ) 
+          THEN DO;
+            RETURN = RETURN ||
+        '/* FEDIT: "ARGUMENT #5" FIELD ' || A5 || ' INVALID. */';
+            DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+            END;
+            RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+            NOTE ('FEDIT: "ARGUMENT #5" FIELD MUST BE ERROR NUMBER'
+                ||' WITHIN 1 AND 999',8);
+          END;
+          ELSE ERRNBR = A5;
+
+ IF ( VALUE_LIST = 'Y' )         /* PARSE ARG 5 - A5 */
+   THEN DO;
+     /* REMOVE LEADING AND TRAILING PARENTHESES */
+     A5 = SUBSTR(A5,2,LENGTH(A5)-2);
+     /* WE ALWAYS HAVE A FIRST VALUE */
+     VALUES = 1;
+     IF INDEX(A5,',') = 0        /* LAST ARG IN LIST */
+       THEN DO;
+          V1 = A5;
+          LAST_PARM = 'Y';
+          IF INDEX(V1,'-') > 0        /* CHECK FOR RANGE */
+            THEN DO;
+              RANGE = 'Y';
+              V2 = SUBSTR(V1,INDEX(V1,'-')+1,   /* SECOND VALUE */
+                         LENGTH(V1)-INDEX(V1,'-'));
+              V1 = SUBSTR(V1,1,INDEX(V1,'-')-1); /* FIRST VALUE */
+            END;
+       END;
+       ELSE DO;
+         V1 = SUBSTR(A5,1,INDEX(A5,',')-1);
+         NEXT_COMMA = INDEX(A5,',');
+       END;
+
+     IF LAST_PARM = 'N'                /* CHECK FOR MULT VALUES */
+       THEN IF ( A4 ^= 'EQ' ) &
+               ( A4 ^= 'NE' ) 
+             THEN DO;
+               RETURN = RETURN ||
+               '/* FEDIT: MULTIPLE VALUES SPECIFIED WITHOUT "EQ" '
+               ||'OR "NE" OPERATOR */';
+               DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+               END;
+               RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+               NOTE ('FEDIT: MULTIPLE VALUES SPECIFIED WITHOUT "EQ" '
+                   ||'OR "NE" OPERATOR',8);
+             END;
+     IF LAST_PARM = 'N'                /* PARSE VALUE 2 */
+       THEN DO;
+         VALUES = 2;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V2 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V2 = SUBSTR(A5,NEXT_COMMA+1,
+                        INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                        LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 3 */
+       THEN DO;
+         VALUES = 3;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V3 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V3 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 4 */
+       THEN DO;
+         VALUES = 4;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V4 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V4 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 5 */
+       THEN DO;
+         VALUES = 5;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V5 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V5 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 6 */
+       THEN DO;
+         VALUES = 6;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V6 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V6 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 7 */
+       THEN DO;
+         VALUES = 7;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V7 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V7 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 8 */
+       THEN DO;
+         VALUES = 8;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V8 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V8 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 9 */
+       THEN DO;
+         VALUES = 9;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V9 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V9 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 10 */
+       THEN DO;
+         VALUES = 10;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V10 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V10 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 11 */
+       THEN DO;
+         VALUES = 11;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V11 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V11 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 12 */
+       THEN DO;
+         VALUES = 12;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+              V12 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+              LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V12 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 13 */
+       THEN DO;
+         VALUES = 13;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V13 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V13 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 14 */
+       THEN DO;
+         VALUES = 14;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V14 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V14 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 15 */
+       THEN DO;
+         VALUES = 15;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V15 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V15 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 16 */
+       THEN DO;
+         VALUES = 16;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V16 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V16 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 17 */
+       THEN DO;
+         VALUES = 17;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V17 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V17 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 18 */
+       THEN DO;
+         VALUES = 18;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V18 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V18 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 19 */
+       THEN DO;
+         VALUES = 19;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V19 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V19 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 20 */
+       THEN DO;
+         VALUES = 20;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V20 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V20 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 21 */
+       THEN DO;
+         VALUES = 21;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V21 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V21 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 22 */
+       THEN DO;
+         VALUES = 22;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V22 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V22 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 23 */
+       THEN DO;
+         VALUES = 23;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V23 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V23 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 24 */
+       THEN DO;
+         VALUES = 24;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V24 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V24 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 25 */
+       THEN DO;
+         VALUES = 25;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V25 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V25 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 26 */
+       THEN DO;
+         VALUES = 26;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V26 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V26 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 27 */
+       THEN DO;
+         VALUES = 27;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V27 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V27 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 28 */
+       THEN DO;
+         VALUES = 28;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0
+           THEN DO;
+             V28 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V28 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 29 */
+       THEN DO;
+         VALUES = 29;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V29 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V29 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+
+     IF LAST_PARM = 'N'                /* PARSE VALUE 30 */
+       THEN DO;
+         VALUES = 30;
+         IF INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                  LENGTH(A5)-NEXT_COMMA),',') = 0 
+           THEN DO;
+             V30 = SUBSTR(A5,NEXT_COMMA+1,LENGTH(A5)-NEXT_COMMA);
+             LAST_PARM = 'Y';
+           END;
+           ELSE DO;
+             V30 = SUBSTR(A5,NEXT_COMMA+1,
+                         INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                         LENGTH(A5)-NEXT_COMMA),',') - 1);
+             NEXT_COMMA =
+             INDEX(SUBSTR(A5,NEXT_COMMA+1,
+                   LENGTH(A5)-NEXT_COMMA),',') + NEXT_COMMA;
+           END;
+       END;
+       
+     IF LAST_PARM = 'N'                /* EXCEEDS LIMIT OF 30 */
+       THEN DO;
+         RETURN = RETURN ||
+         '/* FEDIT: MORE THAN 30 VALUES SPECIFIED. */';
+         DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+         END;
+         RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+         NOTE ('FEDIT: MORE THAN 30 VALUES SPECIFIED',8);
+       END;
+   END;   /* PARSE A5 FOR VALUES */
+
+ IF ( VALUE_LIST = 'Y' )         /* PARSE ARG 6 - A6 */
+   THEN DO;
+     IF ( A6 = 'PEND' ) 
+       THEN DO;
+         ERRSEV = '3';
+       END;
+       ELSE IF ( A6 = 'WARNING' )
+              THEN DO;
+                ERRSEV = '2';
+              END;
+              ELSE DO;
+                RETURN = RETURN ||
+                '/* FEDIT: "ERROR SEVERITY" FIELD ' || A6 ||
+                ' INVALID. */';
+                DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+                END;
+                RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+                NOTE ('FEDIT: "ERROR SEVERITY" FIELD ' || A6
+                   || ' INVALID - MUST BE "PEND" OR "WARNING"',8);
+              END;
+   END;
+ IF ( VALUE_LIST = 'Y' )         /* PARSE ARG 7 - A7 */
+   THEN IF ( A7 < '001' ) |
+           ( A7 > '999' ) 
+          THEN DO;
+            RETURN = RETURN ||
+            '/* FEDIT: "ERROR NUMBER" FIELD ' || A7 || ' INVALID. */';
+            DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+            END;
+            RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+            NOTE ('FEDIT: "ERROR NUMBER" FIELD MUST BE ERROR NUMBER'
+                  ||' WITHIN 1 AND 999',8);
+          END;
+          ELSE ERRNBR = A7;
+          
+ /* INSERT CODE TO CALL TRACER (USER DEFINED ROUTINE) */
+
+ AUDIT_NBR = COUNTER;
+
+ /* REMOVE LEADING BLANKS FROM ERRSEV, ERRNBR AND AUDIT_NBR */
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(ERRSEV);
+   IF SUBSTR(ERRSEV,BINDEX,1) = ' '
+     THEN STARTPOS = BINDEX + 1;
+ END;
+ ERRSEV = SUBSTR(ERRSEV,STARTPOS,LENGTH(ERRSEV)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(ERRNBR);
+   IF SUBSTR(ERRNBR,BINDEX,1) = ' ' 
+     THEN STARTPOS = BINDEX + 1;
+ END;
+ ERRNBR = SUBSTR(ERRNBR,STARTPOS,LENGTH(ERRNBR)-STARTPOS + 1);
+
+ STARTPOS = 1;
+ DO BINDEX = 1 TO LENGTH(AUDIT_NBR);
+   IF SUBSTR(AUDIT_NBR,BINDEX,1) = '0' 
+     THEN STARTPOS = BINDEX + 1;
+     ELSE GO TO SET_AUDIT_NBR;         /* FIRST NON-ZERO, BAIL OUT */
+ END;
+ SET_AUDIT_NBR:
+ AUDIT_NBR = SUBSTR(AUDIT_NBR,STARTPOS,
+             LENGTH(AUDIT_NBR)-STARTPOS + 1);
+
+ RETURN = RETURN ||
+ 'CALL TRACER (' || AUDIT_NBR || ');';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ IF ( RANGE = 'Y' )            /* SET BOOLEANS IF RANGE SPECIFIED */
+   THEN DO;
+     IF ( A4 = 'EQ' ) 
+       THEN DO;
+         BOOL1 = ' >= ';
+         BOOL2 = ' & ';
+         BOOL3 = ' <= ';
+       END;
+       ELSE DO;
+         BOOL1 = ' < ';
+         BOOL2 = ' | ';
+         BOOL3 = ' > ';
+       END;
+   END;
+
+ IF ( RANGE = 'N') & ( VALUE_LIST = 'Y' )
+   THEN DO;
+     IF ( A4 = 'EQ' ) 
+       THEN DO;
+         BOOL1 = ' = ';
+         BOOL2 = ' | ';
+       END;
+       ELSE IF ( A4 = 'NE' ) 
+              THEN DO;
+                BOOL1 = ' ^= ';
+                BOOL2 = ' & ';
+              END;
+              ELSE IF ( A4 = 'LT' ) 
+                     THEN BOOL1 = ' < ';
+                     ELSE IF ( A4 = 'LE' )
+                            THEN BOOL1 = ' <= ';      
+                            ELSE IF ( A4 = 'GE' )
+                                   THEN BOOL1 = ' >= ';
+                                   ELSE IF ( A4 = 'GT' )
+                                          THEN BOOL1 = ' > ';
+   END;
+
+
+ /* INSERT CODE TO RUN A VERIFY AGAINST THE DATA TYPE INVOLVED */
+ /* REGARDLESS OF "REQUIREMENT", DATA MUST MATCH TYPE.         */
+
+ IF ( A3 = 'NUM' ) 
+   THEN LINE = 'IF VERIFY(' || A1 || ',' ||
+           '''0123456789'') > 0 THEN ';
+ IF ( A3 = 'NUMB' ) 
+   THEN  LINE = 'IF VERIFY(' || A1 || ',' ||
+           ''' 0123456789'') > 0 THEN ';
+ IF ( A3 = 'ALPHAN' ) 
+   THEN LINE = 'IF VERIFY(' || A1 || ',' ||
+           '''0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'') > 0 THEN ';
+ IF ( A3 = 'ALPHANB' )
+   THEN LINE = 'IF VERIFY(' || A1 || ',' ||
+           ''' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'') > 0 THEN ';
+ IF ( A3 = 'ALPHANBS' ) 
+   THEN LINE = 'IF VERIFY(' || A1 || ',' ||
+    '''' || ' !@#$%=:;?<>"().+-*/,&{}_\' || '''' || '''' ||
+    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'')' ||
+    ' > 0 THEN ';
+
+ IF ( A3 ^= 'BI' )            /* PUT OUT VERIFY CODE */
+   THEN DO;
+     RETURN = RETURN || LINE;
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+     RETURN = RETURN ||
+     '  CALL SET_ERROR_ARRAY(' || AUDIT_NBR || ',' ||
+     '''' || A1 || ''',' || ERRSEV || ',' || ERRNBR || ');';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   END;
+
+ IF ( A3 ^= 'BI' ) & ( VALUES > 0 )        /* PUT OUT AN ELSE */
+   THEN DO;
+     RETURN = RETURN ||
+     'ELSE';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   END;
+
+ IF ( VALUES = 0 )
+   THEN GO TO END_CODE;
+
+ IF ( RANGE = 'Y' )
+   THEN DO;
+     RETURN = RETURN ||
+     '  IF ( ' || A1 || BOOL1 || V1 || ' )' || BOOL2;
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+     RETURN = RETURN ||
+     '     ( ' || A1 || BOOL3 || V2 || ' )';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+     GO TO END_VALUES;
+   END;
+
+   RETURN = RETURN ||
+   '  IF ( ' || A1 || BOOL1 || V1 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 1 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V2 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 2 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V3 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 3 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V4 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 4 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V5 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 5
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V6 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 6
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V7 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 7
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V8 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 8 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V9 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 9 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V10 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 10
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V11 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 11 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V12 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 12
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V13 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 13
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V14 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 14
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V15 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 15
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V16 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 16
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V17 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 17 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V18 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 18
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V19 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 19
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V20 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 20 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V21 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 21 
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V22 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 22
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V23 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 23
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V24 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 24
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V25 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 25
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V26 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 26
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V27 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 27
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V28 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 28
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V29 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 29
+     THEN GO TO END_VALUES;
+
+   RETURN = RETURN ||
+   ' ' || BOOL2 || ' ( ' || A1 || BOOL1 || V30 || ' )';
+   DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+   END;
+   RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   
+   IF VALUES = 30
+     THEN GO TO END_VALUES;
+
+
+ END_VALUES:  /* FINISH IF STATEMENT WHEN VALUES PRESENT */
+
+ IF ( A2 = 'REQUIRED') 
+   THEN DO;
+     RETURN = RETURN ||
+     '  THEN ; ELSE';
+     DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+     END;
+     RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+   END;
+   ELSE IF ( A2 = 'NOTALLOWED') 
+          THEN DO;
+            RETURN = RETURN ||
+            '  THEN ';
+            DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+            END;
+            RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+          END;
+         
+ RETURN = RETURN ||
+ '    CALL SET_ERROR_ARRAY(' || AUDIT_NBR || ',' ||
+ '''' || A1 || ''',' || ERRSEV || ',' || ERRNBR || ');';
+ 
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+
+ END_CODE:    /* NO MORE PLI CODE TO GENERATE */
+ /* --------------------------------------------------------------*/
+ RETURN = RETURN || 'END;    /* END OF GENERATED CODE */';
+ DO LINDEX=LINDEX TO LENGTH(RETURN) BY 71;
+ END;
+ RETURN=RETURN||SUBSTR(BLANK,1,LINDEX-LENGTH(RETURN));
+ RETURN(RETURN);
+ %END FEDIT;
+ /********************************************************************/
+ /*  E N D   O F   A E F E D I T   M A C R O                         */
+ /********************************************************************/
+

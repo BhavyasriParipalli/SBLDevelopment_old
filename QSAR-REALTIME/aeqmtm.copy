@@ -1,0 +1,163 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*                                                                  */
+ /* NAME:   AEQMTM                                 DATE:  06/06/88   */
+ /*                                                                  */
+ /*  FUNCTION: DATA RETURNED FROM QSAR/P AUDIT/EDIT PREPROCESSOR TO  */
+ /*            BE USED BY NEW SERVICE DIMENSION.                     */
+ /*                                                                  */
+ /*  RECORD KEY: TYPE + MODEL.                                       */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR  */
+ /*  09/16/89 SR 9892  0NSA ADD TAX CODE, MACH DESCR FOR        LBS  */
+ /*                    NSD 3.1                                       */
+ /*  09/30/91 SR 0853  ADD COSMACH FLAG TO INDICATE WHETHER     ABM  */
+ /*                    MACHINE TYPE IS A VALID COS PRODUCT ID        */
+ /*  03/16/92 SR 0967  ADD FIELD FOR GSA SCHEDULE INDICATOR     LBS  */
+ /*                                                                  */
+ /*  04/22/92 SR 0972  ADD PRODUCT ID FLAG (PIDMACH)            ABM  */
+ /*                                                                  */
+ /*  05/05/93 SR93111  MPI SECOND LOOKUP FOR NON OEM MACHINES   DLP  */
+ /*  09/09/95 S950000  ADD BETHESDA CONTROL FLAGS               LBS  */
+ /*  03/19/98 S9600001 ADD CPRODDIV,DAVAIL,AWARLEN              MKP  */
+ /*  04/02/98 S9600001 ADD NEW CREATED FOR MSF2 PROCESSING      PRM  */
+ /*                        FROM AEQMTM1                              */
+ /*  05/11/99 S9900005 9NSA AWARSVC (WARRANTY SVC INDICATOR)    PRM  */
+ /*  08/30/99 QSARPROD 9NSA CHANGE NAME FOR CPSPBP2             PRM  */
+ /*  10/15/02 SR020029 3NSE ADD CBASEWAR                        LBS  */
+ /*  02/25/05 SR050023 5NSC ADD CWARLIAB AND COFRLIAB FOR       LBS  */
+ /*                         LENOVO                                   */
+ /*  12/15/06 SR060054 7NSR ADD CCOUNTRY, CWARSERV, GDFGWS           */
+ /*                         CHANGE LENGTH FROM 110 TO 125       LBS  */
+ /*                                                                  */
+ /********************************************************************/
+     3 RECLGTH       FIXED BIN(15),/* RECORD LENGTH IS '125'001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 RECID       CHAR(01),     /* RECORD ID, ALWAYS '3' 003- 003 */
+       5 GDCTYMD     CHAR(07),     /* ( KEY ) TYPE/MODEL    004- 010 */
+       5 SPAD01      CHAR(23),     /* PADDING         (KEY) 011- 033 */
+     3 GDXFLAG,                    /* F2  SWITCHES/FLAGS             */
+       5 GDFUN01     BIT(01),      /* NOT USED              034- 034 */
+       5 GDFBOLD     BIT(01),      /* BOULDER FASTBACK      034- 034 */
+       5 GDFAUSA     BIT(01),      /* FASTBACK AUSTIN A     034- 034 */
+       5 FLNVSPCL    BIT(01),      /* LENOVO SPECIAL MACH   034- 034 */
+       5 GDFUN05     BIT(01),      /* NOT USED              034- 034 */
+       5 GDFUN06     BIT(01),      /* NOT USED              034- 034 */
+       5 GDFUN07     BIT(01),      /* NOT USED              034- 034 */
+       5 GDFUN08     BIT(01),      /* NOT USED              034- 034 */
+       5 GDFUN09     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN10     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN11     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN12     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN13     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN14     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN15     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN16     BIT(01),      /* NOT USED              035- 035 */
+       5 GDFUN17     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFDELT     BIT(01),      /* DELETE FLAG           036- 036 */
+       5 GDFUN19     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN20     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN21     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN22     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN23     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN24     BIT(01),      /* NOT USED              036- 036 */
+       5 GDFUN25     BIT(01),      /* NOT USED              037- 037 */
+       5 GDFUN26     BIT(01),      /* NOT USED              037- 037 */
+       5 GDFPRSM     BIT(01),      /* PPRS FULL REPORTING   037- 037 */
+       5 GDFUN28     BIT(01),      /* NOT USED              037- 037 */
+       5 GDFPIMS     BIT(01),      /* EXTRACT FOR PIMS      037- 037 */
+       5 GDFGWS      BIT(01),      /* Global Warranty       037- 037 */
+                                   /* Service indicator              */
+       5 GDFPPRS     BIT(01),      /* EXTRACT FOR PPRS      037- 037 */
+       5 GDFMETR     BIT(01),      /* METERED MACHINE       037- 037 */
+     3 GDCBILCL      CHAR(01),     /* BILLING CLASS         038- 038 */
+     3 GDCMTREQ      CHAR(01),     /* INV. MATCH REQ  (Y|N) 039- 039 */
+     3 GDCACTCL      CHAR(01),     /* ACCOUNTING CLASS      040- 040 */
+     3 GDCUN01       CHAR(01),     /* NOT USED              041- 041 */
+     3 GDCMAHR       CHAR(01),     /* MACHINE HERITAGE IND. 042- 042 */
+     3 GDCPMSH       CHAR(02),     /* PM SCHEDULE           043- 044 */
+     3 GDXFLG,                     /* MISC FLAGS                     */
+       5 GDFLG01     BIT(01),      /*   WITHDRAWN FROM MAIN 045- 045 */
+       5 GDFLG02     BIT(01),      /*   AUTO CUSTOMER INSTA 045- 045 */
+       5 GDFLG03     BIT(01),      /*   SERVICE REPAIR CENT 045- 045 */
+       5 GDBTHSET    BIT(01),      /*   BETHESDA CNT SET    045- 045 */
+       5 GDBTHCTL    BIT(01),      /*   BETHESDA CONTROLLED 045- 045 */
+       5 GDFLG06     BIT(01),      /*   NOT USED            045- 045 */
+       5 GDFLG07     BIT(01),      /*   NOT USED            045- 045 */
+       5 GDFLG08     BIT(01),      /*   NOT USED            045- 045 */
+       5 GDFLG09     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG10     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG11     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG12     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG13     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG14     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG15     BIT(01),      /*   NOT USED            046- 046 */
+       5 GDFLG16     BIT(01),      /*   NOT USED            046- 046 */
+     3 GDXSS1        FIXED BIN(15),/* TERR SUB. COMMUNICAT. 047- 048 */
+     3 GDXSS2        FIXED BIN(15),/* TERR SUB. SYSTEM      046- 050 */
+     3 GDXSS3        FIXED BIN(15),/* TERR SUB. TERRITORY   051- 052 */
+     3 GDCMTRM       CHAR(01),     /* METERED MACH (Y/N)    053- 053 */
+     3 GDCPRDT       CHAR(01),     /* PRODUCT TYPE (F/M)    054- 054 */
+     3 GDCMLC        CHAR(01),     /* MLC SHIP CTL (Y/N)    055- 055 */
+     3 GDCSCPU       CHAR(01),     /* SOFTWARE CPU (Y/N)    056- 056 */
+     3 GDCPOC        CHAR(02),     /* POINT OF CTL - PLANT  057- 058 */
+     3 GDCMLCPC      CHAR(02),     /* MLC PLANT OF CONTROL  059- 060 */
+     3 GDCRUN00,                   /* NOT USED                       */
+       5 GDCRUN01    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN02    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN03    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN04    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN05    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN06    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN07    BIT(01),      /* NOT USED              061- 061 */
+       5 GDCRUN08    BIT(01),      /* NOT USED              061- 061 */
+     3 GDCCUSTI      CHAR(01),     /* CUSTOMER INSTALL(Y|N) 062- 062 */
+     3 GDCTACGP      CHAR(02),     /* TAC GROUP CODE        063- 064 */
+     3 GDCTCP        CHAR(01),     /* TECHNICAL CAREER PATH 065- 065 */
+     3 CTAXCD        CHAR(02),     /* TAX CODE              066- 067 */
+     3 TMACHDSC      CHAR(15),     /* MACHINE DESCRIPTION   068- 082 */
+     3 COSMACH       CHAR(01),     /* COS M/T = Y, ELSE = N 083- 083 */
+     3 CGSASCH       CHAR(01),     /* GSA SCHEDULE (A|C)    084- 084 */
+     3 PIDMACH       CHAR(01),     /* PRODUCT ID? (Y|N)     085- 085 */
+     3 FOEMTYPE      CHAR(01),     /* OEM MACHINE FLAG (Y/N 086- 086 */
+     3 CPRODDIV      CHAR(02),     /* PRODUCT DIVISION      087- 088 */
+     3 DAVAIL        CHAR(08),     /* GENERAL AVAILABILITY  089- 096 */
+                                   /* DATE YYYYMMDD                  */
+     3 AWARLEN       CHAR(03),     /* WARRANTY LENGTH IN    097- 099 */
+                                   /* MONTHS                         */
+     3 AWARSVC       CHAR(01),     /* WARRANTY SERVICE      100- 100 */
+                                   /* INDICATOR                      */
+     3 CBASEWAR      CHAR(04),     /* BASE WARRANTY SERVICE 101- 104 */
+                                   /* DELIVERY VALUE                 */
+     
+     3 CWARLIAB      CHAR(01),     /* RESPONSIBLE FOR       105- 105 */
+                                   /* WARRANTY                       */
+                                   /* I = IBM                        */
+                                   /* L = LENOVO                     */
+                                   /* M = MIXED LIABILITY            */
+                                   /*     IBM/LENOVO                 */
+     3 COFRLIAB      CHAR(01),     /* RESPONSIBLE FOR       106- 106 */
+                                   /* OFFERING, M/A                  */
+                                   /* I = IBM                        */
+                                   /* L = LENOVO                     */
+     3 IPLATFRM      CHAR(02),     /* TYPE OF PLATFORM      107- 108 */
+                                   /* TC = THINKCENTRE               */
+                                   /* TP = THINKPAD                  */
+                                   /* TV = THINKVISION               */
+     3 CCOUNTRY      CHAR(03),     /* COUNTRY CODE          109- 111 */
+     3 CWARSERV      CHAR(01),     /* MACHINE AVAILABLE FOR 112- 112 */
+                                   /* SPECIAL WARRANTY SERVICE       */
+                                   /* G = Global Warranty Service    */
+                                   /* I = International Warr Service */
+                                   /* N = No warranty service        */
+     3 SPAD02        CHAR(13)      /* FOR FUTURE USE        113- 125 */                                   
+                                   /*                                */                                   /*                                */
+ /* ---------------------------------------------------------------- */
+ /*    END  OF  COPY  MEMBER  AEQMTM                                 */
+ /* ---------------------------------------------------------------- */
+

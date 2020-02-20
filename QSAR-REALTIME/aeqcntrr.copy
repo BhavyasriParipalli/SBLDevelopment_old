@@ -1,0 +1,122 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCNTRR    VERSION NR:  01           DATE:  08/13/96    */
+ /*                                               TIME:  10:08:40    */
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------  CONTRACT RETURN  ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*                                                                  */
+ /* TITLE: MAPPING OF CPCNTR-AEQCNTR APPC REQUEST FOR CONTRACT DATA  */
+ /*        THIS IS A SHARED COPY MEMBER WITH CONS (TSO3S)            */
+ /*                                                                  */
+ /* DESC: THIS INCLUDE MAPS THE REQUEST FOR CONTRACT DATA RETURNING  */
+ /*       FROM CPCNTR ON SY1A AND QSAR APPLICATION PROGRAM           */
+ /*       AEQCEDB TO QSAR APPLICATION PROGRAM AEQCNTR                */
+ /*                                                                  */
+ /*       CPCNTR AND AEQCEDB RETURN DATA IN THE FORMAT SPECIFIED BY  */
+ /*       AEQCNTRR COPY.                                             */
+ /*                                                                  */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:    REASON:  DRVR:   DESCRIPTION:                      PGMR:*/
+ /* -------- -------- ---- ------------------------------------ ---- */
+ /* 08/13/96 S9600141 6NSJ ORIGINAL VERSION                      MKP */
+ /* 01/27/98 S970219  8NSC ADD NEW FIELDS FOR CEDB               MKP */
+ /* 10/22/03 SR030019 4NSC ADD NEW FIELDS OUTSIDE HRS SUPPORT    LBS */
+ /*                        MOD, ONSITE, SPLIT, EXCLUDE, WARRANTY     */
+ /*                        UPGRADE,FWARUPGD, ISERVTYP, ISTPMNT       */
+ /* 03/17/04 SR030069 4NSC ADD FHVCEDB FOR HV CEDB CONTRACTS     DLP */
+ /* 03/05/05 SR050023 5NSC add fields for LENOVO                 DLP */
+ /*                        CSSRCIND, QRSPTIME,CRSPTYPE,CSERVDEL      */
+ /* 09/14/06 SR060032 6NSN add CCHIS, IAGRTCN fields             LBS */
+ /* 02/21/07 SR060049 7NSM ADD IDIV FOR COST CODE                LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 CRETCODE       FIXED BIN(15), /* RETURN CODE            001- 002 */
+                                  /* 0 - CONTRACT FOUND              */
+                                  /* 4 - NO CONTRACT FOUND           */
+                                  /* OTHER VALUE IS SQLCODE          */
+                                  /* CODE FOR SQL ERROR              */
+  3 ICONTRACT      CHAR(12),      /* VALID CONTRACT NUMBER  003- 014 */
+  3 CVALLVL        CHAR(01),      /* LEVEL CONTRACT WAS VAL 015- 015 */
+                                  /* 0 - NO VALID CONTRACT           */
+                                  /* 1 - CE CONTRACT                 */
+                                  /* 2 - CUST# FROM CE CNTR          */
+                                  /* 3 - NSS CONTRACT                */
+                                  /* 4 - CUST# FROM NSS CNTR         */
+                                  /* 5 - MPI CUST #                  */
+  3 CVALLOC        CHAR(01),      /* LOC CONTRACT VALIDATED 016- 016 */
+                                  /* 0 - NO VALID CONTRACT           */
+                                  /* 1 - EB                          */
+                                  /* 2 - CTOOL                       */
+                                  /* A - CERIS                       */
+  3 CINVCNTR       CHAR(01),      /* INVALID CONTRACT FLAG  017- 017 */
+                                  /* A -  NOT FOUND                  */
+                                  /* B -  SC INVALID                 */
+                                  /* C -  TYPE INVALID               */
+                                  /* D -  OUT OF DATE                */
+                                  /* E -  EXPIRED                    */
+  3 CMTMOVRD       CHAR(06),      /* HOW TO HANDLE MTM      018- 023 */
+  3 CTARGET        CHAR(07),      /* HOW TO HANDLE QSAR     024- 030 */
+  3 CPERCALL       CHAR(01),      /* PER CALL DISPOSITION   031- 031 */
+  3 FPARTUSE       CHAR(01),      /* PARTS USAGE ALLOWED    032- 032 */
+  3 FTYPECHK       CHAR(01),      /* TYPE CHECK REQUIRED    033- 033 */
+  3 ICUST          CHAR(07),      /* BILLING/MASTER CUST    034- 040 */
+  3 HSTRTSAT       CHAR(04),      /* SAT START TIME HHMM    041- 044 */
+  3 HENDSAT        CHAR(04),      /* SAT END   TIME HHMM    045- 048 */
+  3 HSTRTSUN       CHAR(04),      /* SUN START TIME HHMM    049- 052 */
+  3 HENDSUN        CHAR(04),      /* SUN END   TIME HHMM    053- 056 */
+  3 HSTRTMON       CHAR(04),      /* MON START TIME HHMM    057- 060 */
+  3 HENDMON        CHAR(04),      /* MON END   TIME HHMM    061- 064 */
+  3 HSTRTTUE       CHAR(04),      /* TUE START TIME HHMM    065- 068 */
+  3 HENDTUE        CHAR(04),      /* TUE END   TIME HHMM    069- 072 */
+  3 HSTRTWED       CHAR(04),      /* WED START TIME HHMM    073- 076 */
+  3 HENDWED        CHAR(04),      /* WED END   TIME HHMM    077- 080 */
+  3 HSTRTTHU       CHAR(04),      /* THU START TIME HHMM    081- 084 */
+  3 HENDTHU        CHAR(04),      /* THU END   TIME HHMM    085- 088 */
+  3 HSTRTFRI       CHAR(04),      /* FRI START TIME HHMM    089- 092 */
+  3 HENDFRI        CHAR(04),      /* FRI END   TIME HHMM    093- 096 */
+  3 TCMNTS         CHAR(20),      /* COMMENTS               097- 116 */
+  3 FLBRIND        CHAR(01),      /* LABOR USAGE COVERED    117- 117 */
+  3 FTRVIND        CHAR(01),      /* TRAVEL COVERED         118- 118 */
+  3 FSRVDLV        CHAR(03),      /* SERVICE DELIVERY       119- 121 */
+  3 FCHF           CHAR(01),      /* CURRENT/HISTORY/FUTURE 122- 122 */
+                                  /* FLAG FROM CEDB                  */
+  3 IMOD           CHAR(03),      /* MODEL NUMBER           123- 125 */
+  3 FONSITE        CHAR(01),      /* ONSITE SERVICE ALLOWED 126- 126 */
+                                  /*                  Y/N            */
+  3 FSPLIT         CHAR(01),      /* SPLIT SERVICE CONTRACT 127- 127 */
+                                  /*                  Y/N            */
+  3 FEXCLUDE       CHAR(01),      /* EXCLUDE FROM OUTSIDE HR128- 128 */
+                                  /* LOGIC            Y/N            */
+  3 FWARUPGD       CHAR(03),      /* WARRANTY UPGRADE Y/N   129- 131 */
+  3 ISERVTYP       CHAR(05),      /* SERVICE TYPE (CEDB)    130- 136 */
+  3 ISTPMNT        CHAR(05),      /* MAINTENANCE TYPE (CEDB)137- 141 */
+  3 FHVCNTR        CHAR(01),      /* IS THIS A CEDB HV      142- 142 */
+                                  /* CONTRACT (Y/N)                  */
+  3 CSSRCIND       CHAR(01),      /* CEDB SOURCE INDICATOR  143- 143 */
+                                  /* ' '                             */
+                                  /* 'C' - CHIS                      */
+                                  /* 'S' -                           */
+                                  /* 'V' - SERVICEPAC                */
+  3 QRSPTIME       CHAR(02),      /*                        144- 145 */
+  3 CRSPTYPE       CHAR(01),      /* H=HOURS, D=DAYS        146- 146 */
+  3 CSERVDEL       CHAR(03),      /* SERVICE DELIVERY METHOD147- 149 */
+                                  /*         E.G. IOR, IOE, CCR      */
+  3 CCHIS(5)       CHAR(02),      /* CHIS SPECIAL ENTITLE-  150- 159 */
+                                  /* MENT CODES                      */
+  3 IAGRTCN        CHAR(10),      /* TYPE OF CONTRACT       160- 169 */
+  3 IDIV           CHAR(02),      /* EMPLOYEE DIVISION      170- 171 */
+  3 SPAD01         CHAR(29)       /* PADDING                172- 200 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQCNTRR                   */
+ /*------------------------------------------------------------------*/

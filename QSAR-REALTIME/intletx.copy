@@ -1,0 +1,67 @@
+ %INTLETX: MACRO KEYS(ADDR,LGTH);
+ /********************************************************************/
+ /*        Name: INTLETX                                             */
+ /*                                                                  */
+ /* Description: This macro is used to add entries to the            */
+ /*              table used by IN25LETX (mapped by INTLETXT).        */
+ /*              The table identifies storage areas that should      */
+ /*              not be protected by Intertest (e.g. statistics      */
+ /*              tables, application anchor blocks, etc).            */
+ /*                                                                  */
+ /*              The ADDR and LGTH keywords are required. They       */
+ /*              identify the address and length of the storage      */
+ /*              area to 'unprotect'.                                */
+ /*                                                                  */
+ /*              Note: Copy member INTLETXT must be included in      */
+ /*                    your program.                                 */
+ /*                                                                  */
+ /*    Examples: ?INTLETX ADDR(R1) LGTH(R0)                          */
+ /*              ?INTLETX ADDR(ADDR(NNN)) LGTH(LENGTH(NNN))          */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHANGE ACTIVITY -                                                */
+ /*                                                                  */
+ /*    SR    DRVR   DATE   DESCRIPTION                    PROGRAMMER */
+ /*                                                                  */
+ /* DYADICS2 9NSG 05/26/89 CAPABILITIES EXPANSION II      HOOD       */
+ /*                                                                  */
+ /* 01/19/95 I317056 5NSA  CICS 3.3 upgrade               M.A Fus    */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL I                        FIXED;
+ DCL MACKEYS1                 CHAR;
+
+ MACKEYS1 = ' ';
+ DO I = 1 TO LENGTH(MACKEYS);
+   MACKEYS1 = MACKEYS1 || MACKEYS(I:I);
+   IF I < LENGTH(MACKEYS) &
+      MACKEYS(I:I) = ')' &
+      MACKEYS(I+1:I+1) ^= ')' THEN
+     MACKEYS1 = MACKEYS1 || ' ';
+ END;
+ ANS('/* ?'||MACNAME||MACLIST||MACKEYS1||' */') SKIP COL(5);
+
+ IF ADDR(1) = '' THEN
+   DO;
+     ANS MSG('?'||MACNAME||': ADDR keyword required.');
+     RETURN CODE(8);
+   END;
+
+ IF LGTH(1) = '' THEN
+   DO;
+     ANS MSG('?'||MACNAME||': LGTH keyword required.');
+     RETURN CODE(8);
+   END;
+
+ ANS('DO;                                   ') SKIP COL(2);
+ ANS(' IF LETXCNT < DIM(LETXARRY) THEN     ') SKIP COL(2);
+ ANS('  DO;                                ') SKIP COL(2);
+ ANS('   LETXCNT=LETXCNT+1;                ') SKIP COL(2);
+ ANS('   LETXBEGIN(LETXCNT)='||ADDR(1)||';') SKIP COL(2);
+ ANS('   LETXEND(LETXCNT)='||ADDR(1)||'+'||LGTH(1)||';') SKIP COL(2);
+ ANS('  END;                               ') SKIP COL(2);
+ ANS('END;                                 ') SKIP COL(2);
+
+ %END INTLETX;
+

@@ -1,0 +1,34 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECUSTRQ    VERSION NR:  01           DATE:  03/08/99    */
+ /*                                               TIME:  09:22:12    */
+ /*                                                                  */
+ /* TITLE:                                                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*  03/08/99 S97140   9NSA ORIGINAL PROMOTE                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 IECCONUM          CHAR( 7), /* ECCO ID NUMBER FROM NSS  001- 007 */
+  3 NNSSCUST          CHAR(17), /* NSS CUSTOMER NAME        008- 024 */
+  3 ICUSTNUM          CHAR( 7), /* NSS CUSTOMER NUMBER      025- 031 */
+  3 IAREA             CHAR( 2), /* NSS CUSTOMER NUMBER      032- 033 */
+  3 IDOCNUM           CHAR( 9), /* QSAR DOC NUMBER          034- 042 */
+  3 FTRACE            CHAR( 1), /* QUALIFIER                043- 043 */
+  3 SPAD01            CHAR( 7)  /* PAD                      044- 050 */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /*                        END  AECUSTRQ                             */
+ /*------------------------------------------------------------------*/

@@ -1,0 +1,52 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  COPY MEMBER NAME:    AEQDLPT                                    */
+ /*                                                                  */
+ /*  TITLE: MAPPING OF PT DOWNLEVEL TABLE - NEW SERVICE DIMENSIONS   */
+ /*                                                                  */
+ /*  THIS MEMBER DEFINES THE PT DOWNLEVEL TABLE FORMAT               */
+ /*                                                                  */
+ /*  CURRENT TOTAL LENGTH IS 45 BYTES.                               */
+ /*                                                                  */
+ /*  RECORD KEY: PT TABLE LEVEL.                                     */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR  */
+ /*  09/30/92 SR-1080  2NSH ADD COMPILE-TIME LOGIC FOR PL/AS    ABM  */
+ /*  10/31/96 S9600073 6NSP ADD TRUER DOWN LEVEL PEND INDICATOR DLP  */
+ /*  08/16/99 QSARPROD 9CSA CHANGE FOR MSF2                     PRM  */
+ /********************************************************************/
+ %IF LANG='PLI' %THEN %GOTO PLI02;          /* BYPASS PLS VERION     */
+     3 RECLGTH      FIXED BIN(15), /* 01-02 RECORD LENGTH IS "45".   */
+     3 PT_KEY,                     /* 04-33 ( KEY ) PT LEVEL         */
+                                   /*       (KEY LENGTH IS 31 BYTES) */
+       5 RECID      CHAR(01),      /* 03-03 RECORD ID, ALWAYS A "6". */
+       5 LEVEL      CHAR(3),       /* 04-06 ( KEY ) PT TABLE LEVEL   */
+       5 SPAD01     CHAR(27),      /* 07-33 PAD TO 31 BYTE KEY       */
+     3 REPORT       CHAR(1),       /* 34-34 REPORT IND 'Y' OR 'N'    */
+     3 PEND         CHAR(1),       /* 35-35 PEND   IND 'Y' OR 'N'    */
+     3 FPNDPET2     CHAR(1),       /* 36-36 TRUER  PEND INDICATOR    */
+                                   /*                   Y' OR 'N'    */
+     3 SPAD02       CHAR(9);       /* 37-45 UNUSED FILL CHARACTERS   */
+ %GOTO DLPT2;
+ %PLI02:;
+     3 RECLGTH      FIXED BIN(15), /* 01-02 RECORD LENGTH IS "45".   */
+     3 PT_KEY,                     /* 04-33 ( KEY ) PT LEVEL         */
+                                   /*       (KEY LENGTH IS 31 BYTES) */
+       5 RECID      CHAR(01),      /* 03-03 RECORD ID, ALWAYS A "6". */
+       5 LEVEL      CHAR(3),       /* 04-06 ( KEY ) PT TABLE LEVEL   */
+       5 SPAD01     CHAR(27),      /* 07-33 PAD TO 31 BYTE KEY       */
+     3 REPORT       CHAR(1),       /* 34-34 REPORT IND 'Y' OR 'N'    */
+     3 PEND         CHAR(1),       /* 35-35 PEND   IND 'Y' OR 'N'    */
+     3 FPNDPET2     CHAR(1),       /* 36-36 TRUER  PEND INDICATOR    */
+                                   /*                   Y' OR 'N'    */
+     3 SPAD02       CHAR(9);       /* 37-45 UNUSED FILL CHARACTERS   */
+ %DLPT2:;
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQDLPT                                */
+ /********************************************************************/
+

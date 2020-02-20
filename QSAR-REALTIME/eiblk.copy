@@ -1,0 +1,95 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*    CHANGED 02/24/82 - REMOVED NOEIBAID CHECK.                   */
+ /*                     - IF REQUESTOR DOES NOT WANT EIBAID         */
+ /*                       DEFINITIONS THEN SET MACRO VARIABLE       */
+ /*                       NOEIBAID=YES AND INCLUDE EIBNOAID         */
+ /*                       FROM CICSCOPY INSTEAD OF EIB    DGS.      */
+ /*                                                                 */
+ /*                                                                 */
+ /*   THE EIB IS A CICS CONTROL BLOCK.  IT IS DEFINED BY THE        */
+ /*   CICS COMMAND LEVEL TRANSLATOR AND IS BASED OFF OF REGISTER    */
+ /*   11.  THERFORE REGISTER 11 SHOULD BE DECLARED AS RESTRICTED.   */
+ /*                                                                 */
+ /*   THE RESERVED EIB FIELDS ARE NOT DEFINED.  THE LIST HERE       */
+ /*   DOES NOT REFLECT THE POSITION WITHIN THE EIB.                 */
+ /*                                                                 */
+ /*******************************************************************/
+   DCL DFHEIBLK  GENERATED,             /* INPUT EIB FROM CICS      */
+       EIBCOMPL  CHAR(1)   GENERATED,   /* DATA COMPLETE            */
+       EIBCONF   CHAR(1)   GENERATED,   /* CONFIRM REQUESTED        */
+       EIBERR    CHAR(1)   GENERATED,   /* LU6.2 ERROR              */
+       EIBERRCD  CHAR(4)   GENERATED,   /* ERROR CODE               */
+       EIBNODAT  CHAR(1)   GENERATED,   /* NO DATA SENT             */
+       EIBRESP   FIXED(31) GENERATED,   /* RESPONSE                 */
+       EIBRESP2  FIXED(31) GENERATED,   /* RESPONSE 2               */
+       EIBRLDBK  CHAR(1)   GENERATED,   /* ROLLED BACK              */
+       EIBSIG    CHAR(1)   GENERATED,   /* SIGNAL RECEIVED          */
+       EIBSYNRB  CHAR(1)   GENERATED,   /* SYNCPOINT ROLLBACK       */
+       EIBTIME   FIXED(32) GENERATED,   /* TIME IN 0HHMMSS          */
+       EIBDATE   FIXED(32) GENERATED,   /* DATE IN 00YYDDD          */
+       EIBTRNID  CHAR(4)   GENERATED,   /* TRANSACTION IDENTIFIER   */
+       EIBTASKN  FIXED(32) GENERATED,   /* TASK NUMBER              */
+       EIBTRMID  CHAR(4)   GENERATED,   /* TERMINAL IDENTIFIER      */
+       EIBCPOSN  FIXED(16) GENERATED,   /* CURSOR POSITION          */
+       EIBCALEN  FIXED(16) GENERATED,   /* COMMAREA LENGTH          */
+       EIBAID    CHAR(1)   GENERATED,   /* ATTENTION IDENTIFIER     */
+       EIBFN     CHAR(2)   GENERATED,   /* FUNCTION CODE            */
+       EIBRCODE  CHAR(6)   GENERATED,   /* RESPONSE CODE            */
+       EIBDS     CHAR(8)   GENERATED,   /* DATASET NAME             */
+       EIBREQID  CHAR(8)   GENERATED,   /* REQUEST IDENTIFIER       */
+       EIBRSRCE  CHAR(8)   GENERATED,   /* ALLOCATE RETURN SESSION  */
+       EIBSYNC   CHAR(1)   GENERATED,   /* SYNC POINT REQUESTED     */
+       EIBFREE   CHAR(1)   GENERATED,   /* FREE THE RESOURCE        */
+       EIBRECV   CHAR(1)   GENERATED,   /* GO TO RECEIVE MODE       */
+       EIBSEND   CHAR(1)   GENERATED,   /* GO TO SEND MODE          */
+       EIBATT    CHAR(1)   GENERATED,   /* RU HAS ATTACHED HEADER   */
+       EIBEOC    CHAR(1)   GENERATED,   /* END OF CHAIN RU RECIEVED */
+       EIBFMH    CHAR(1)   GENERATED;   /* FMH HAS BEEN RETRIEVED   */
+ /*******************************************************************/
+ /*                                                                 */
+ /*                                                                 */
+ /*   THE FOLLOWING COPY DFHAID  WILL INCLUDE THE EIBAID EQUATES    */
+ /*   NEEDED TO REFERENCE THE EIBAID FIELD.  BECAUSE THE EQUATES    */
+ /*   ARE ASSEMBLER STATEMENTS THE PLS COMPLILER MUST BE TOLD THAT  */
+ /*   THE NAMES ARE GENERATED.                                      */
+ /*                                                                 */
+ /*   IF A NEW CONSTANT IS ADDED IT MUST ALSO BE ADDED TO THE       */
+ /*   PLS DCL STATEMENT IMMEDIATELY FOLLOWING THE COPY STATEMENT.   */
+ /*                                                                 */
+ /*******************************************************************/
+   GENERATE CODE (COPY DFHAID);         /* GET AID BYTE DEFINES     */
+   DCL DFHNULL  FIXED(8) CONSTANT(0),
+       DFHENTER CHAR(1) CONSTANT(''''),
+       DFHCLEAR CHAR(1) CONSTANT('_'),
+       DFHPEN   CHAR(1) CONSTANT('='),
+       DFHOPID  CHAR(1) CONSTANT('W'),
+       DFHPA1   CHAR(1) CONSTANT('%'),
+       DFHPA2   CHAR(1) CONSTANT('>'),
+       DFHPA3   CHAR(1) CONSTANT(','),
+       DFHPF1   CHAR(1) CONSTANT('1'),
+       DFHPF2   CHAR(1) CONSTANT('2'),
+       DFHPF3   CHAR(1) CONSTANT('3'),
+       DFHPF4   CHAR(1) CONSTANT('4'),
+       DFHPF5   CHAR(1) CONSTANT('5'),
+       DFHPF6   CHAR(1) CONSTANT('6'),
+       DFHPF7   CHAR(1) CONSTANT('7'),
+       DFHPF8   CHAR(1) CONSTANT('8'),
+       DFHPF9   CHAR(1) CONSTANT('9'),
+       DFHPF10  CHAR(1) CONSTANT(':'),
+       DFHPF11  CHAR(1) CONSTANT('#'),
+       DFHPF12  CHAR(1) CONSTANT('@'),
+       DFHPF13  CHAR(1) CONSTANT('A'),
+       DFHPF14  CHAR(1) CONSTANT('B'),
+       DFHPF15  CHAR(1) CONSTANT('C'),
+       DFHPF16  CHAR(1) CONSTANT('D'),
+       DFHPF17  CHAR(1) CONSTANT('E'),
+       DFHPF18  CHAR(1) CONSTANT('F'),
+       DFHPF19  CHAR(1) CONSTANT('G'),
+       DFHPF20  CHAR(1) CONSTANT('H'),
+       DFHPF21  CHAR(1) CONSTANT('I'),
+       DFHPF22  CHAR(1) CONSTANT('›'),
+       DFHPF23  CHAR(1) CONSTANT('.'),
+       DFHPF24  CHAR(1) CONSTANT('<');
+ @EJECT;
+

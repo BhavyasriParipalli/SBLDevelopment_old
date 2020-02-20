@@ -1,0 +1,45 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* MACRO NAME = ABDMPARM                 RAMS SYSTEM                */
+ /*                                                                  */
+ /* DESCRIPTION = MAPPING OF PARAMETER LIST FOR 'QARABDMP' (CICS     */
+ /*               ERROR AND DUMP ROUTINE).                           */
+ /*                                                                  */
+ /* INVOCATION = %INCLUDE QSARMAC(ABDMPARM)                          */
+ /*                                                                  */
+ /* DEPENDENCIES = YOU MUST HAVE ALREADY INCLUDED THE 'DBSTWA'       */
+ /*                MACRO FROM 'DCSCOPY' OR 'SYSLIB' MACLIB. 'DBSTWA' */
+ /*                DEFINES 'TWAUAREA' WHICH IS USED TO BUILD THE     */
+ /*                PARAMETER LIST.                                   */
+ /*                                                                  */
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/
+ /*                use NSSAOR instead of DBSTWA                      */
+ /*                added AD_xxxx                                     */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL 1 ADMPTWA BASED(AORUPTR),     /* NSSAOR USER AREA          PS*/
+       3  ADMPCOM,            /* RESERVED FOR COMMON AREAS           */
+         5 PARMPTR  PTR(31),  /* CICS PARAMETER POINTER SAVE AREA    */
+         5 ADPROGN CHAR(8),   /* PROGRAM NAME                        */
+         5 ADEIBFN CHAR(2),   /* FUNCTION CODE FROM THE EIB          */
+         5 ADEIBRC CHAR(6),   /* RESPONSE CODE FROM THE EIB          */
+         5 ADEIBDS CHAR(8),   /* DATASET  NAME FROM THE EIB          */
+         5 ADTSNAME CHAR(8),  /* NAME OF DUMP TIMESTAMP TO CHECK     */
+         5 ADSTORPT PTR(31),  /* POINTER TO PGM STORAGE TO BE DUMPED */
+         5 ADTIMSTP FIXED(15),/* ACTUAL TIMESTAMP (HHMM)             */
+         5 ADCURTIM CHAR(4),  /* CURRENT TIME (HHMM)                 */
+         5 ADSTORLN FIXED(15),/* LENGTH OF PGM STORAGE TO BE DUMPED  */
+         5 ADTIMLMT FIXED(8), /* DUMP TIME LIMIT (MINUTES)           */
+         5 ADFLAGS  BIT(8),   /* CONTROL FLAGS                       */
+           7 ADERRMSG BIT(1), /* ON=WRITE CICS ERROR MSG TO CONSOLE  */
+           7 ADCDUMP  BIT(1), /* ON=CREATE CICS DUMP                 */
+           7 *        BIT(6), /* UNUSED                              */
+         5 AD_QARHSTL FIXED(15), ! length of record to QARHOST/HST2  PS
+         5 AD_QARHST PTR(31), ! address of record to QARHOST/HST2  PS
+         5 AD_QARIDA PTR(31), /* for link to QARIDA                PS*/
+         5 AD_QARSEND PTR(31), /* for link to QARSEND              PS*/
+         5 AD_LENGTH FIXED(15);/* length of this block             PS*/
+   !   3  ADMPWKA  CHAR(LENGTH(TWAUAREA)-LENGTH(ADMPCOM));    PS
+
+

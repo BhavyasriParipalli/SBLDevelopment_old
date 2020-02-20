@@ -1,0 +1,66 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQRTPO     VERSION NR:  01           DATE:  10/21/91    */
+ /*                                               TIME:  12:35:17    */
+ /*                                                                  */
+ /* TITLE: QSAR REAL-TIME PARTS ORDERING FOR RTS PARTS SYSTEM        */
+ /*        COMM AREA  (QSAR CICS TO NSS CICS)                        */
+ /*        QSAR USES THE SAME REAL-TIME NSS QUEUING THAT DCS PARTS   */
+ /*        ORDERING DOES.  SEE NSS MODULE PA01.                      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: OTHER                                                      */
+ /*                                                                  */
+ /* LANGUAGE: PLI                                                    */
+ /*                                                                  */
+ /* DESCRIPTION: LAYOUT OF DATA REQUIRED TO PASS FROM QSAR REAL-TIME */
+ /*              IN THE QSAR CICS REGION TO AEQPARO MODULE IN THE    */
+ /*              NSS CICS REGION.                                    */
+ /*                                                                  */
+ /* LENGTH: 130                                                      */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/21/91 SR0776   1NSM INITIAL VERSION                     LBS  */
+ /*  11/26/91 DCR776C  1NSM ADDED FROM BRANCH OFFICE            LBS  */
+ /*  04/02/92          2NSA CHANGE ICEBO FROM ASSIGNED B/O TO   LBS  */
+ /*                    B/O IN PT PROBLEM WITH CE'S ASSIGNED TO       */
+ /*                    SAM IN EDF AND W__ IN THE PT                  */
+ /*                                                                  */
+ /********************************************************************/
+    3 IDOCNUM          CHAR(9),     /* QSAR DOCUMENT NUMBER 001- 009 */
+    3 IPTDOCMN   FIXED BIN(31),     /* PT DOCUMENT NUMBER   010- 013 */
+                                    /* RTS HEADER INFORMATION        */
+    3 URTSHDR,
+      5 IEMPLNO        CHAR(6),     /* CE EMPLOYEE NUMBER   014- 019 */
+      5 IEPSC          CHAR(3),     /* EMER PARTS SUPPORT   020- 022 */
+                                    /* CENTER                        */
+      5 ICEPTBO        CHAR(3),     /* CE PT B/O            023- 025 */
+      5 SPAD01         CHAR(10),    /*                      026- 035 */
+                                    /* ORDER DATA                    */
+    3 UORDRDATA,
+      5 IFROMBO        CHAR(3),     /* SENDING B/O          036- 038 */
+      5 IFROMOL        CHAR(3),     /* SENDING OUTSIDE LOC  039- 041 */
+      5 QLINEITM FIXED BIN(15),     /* NUM OF PARTS DATA    042- 043 */
+      5 UADRBITS,                   /*                               */
+        7 FDELPT       BIT(1),      /*                      044- 044 */
+        7 FALTBO       BIT(1),      /*                      044- 044 */
+        7 FFROMOL      BIT(1),      /*                      044- 044 */
+        7 SPAD02       BIT(5),      /*                      044- 044 */
+      5 IDELPT         CHAR(2),     /* DELIVERY POINT       045- 046 */
+      5 IALTBO         CHAR(3),     /* ALTERNATE SHIP BO    047- 049 */
+      5 SPAD03         CHAR(10),    /*                      050- 059 */
+                                    /* INDIVIDUAL PART DATA          */
+    3 UPRTDATA(4),
+      5 IPARTNO        CHAR(8),     /* PART NUMBER          060- 073 */
+      5 QORDQTY        CHAR(2),     /* ORDER QUANTITY       074- 087 */
+      5 CMACHTYP       CHAR(4),     /* MACHINE TYPE         088- 101 */
+                                    /*                      102- 115 */
+    3 SPAD04           CHAR(15)     /*                      116- 130 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQRTPO                    */
+ /*------------------------------------------------------------------*/
+

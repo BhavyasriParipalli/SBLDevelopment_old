@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME: AEQCECAL                                                  */
+ /*                                                                  */
+ /*  TITLE: QSAR/P NSD CALENDAR RECORD                               */
+ /*                                                                  */
+ /*  CURRENT TOTAL LENGTH IS 33 BYTES.                               */
+ /*                                                                  */
+ /*  RECORD KEY: WEEK # IN NSDC CALENDAR.                            */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* 01-02 RECORD LENGTH IS "33".   */
+     3 RECID        CHAR(01),      /* 03-03 RECORD ID, ALWAYS A "7". */
+     3 CJXWEEED     FIXED BIN(15), /* 04-05 ( KEY) WEEK ENDING DATE  */
+     3 CJXWKNCY     FIXED BIN(15), /* 06-07 WEEK# IN NSD CAL         */
+     3 CJIREPPY     FIXED BIN(15), /* 08-09 REPORT PERIOD YYMM       */
+     3 CJIWKWR      FIXED BIN(15), /* 10-11 WEEK NUMBER WITHIN       */
+                                   /*       REPORT PERIOD(1-4)       */
+     3 CJICALDW     FIXED BIN(15), /* 12-13 NUMBER OF CALENDAR       */
+                                   /*        DAYS IN WEEK(1-24)      */
+     3 CJIDAYWS     FIXED BIN(15), /* 14-15 DAY THE WEEK STARTS      */
+                                   /*        (1=SATURDAY - 7)        */
+     3 CJFONFWD     BIT(24),       /* 16-18 ON=WORK DAY              */
+                                   /*        (1ST BIT IS THE DAY     */
+                                   /*         OF WEEK THE WEEK       */
+                                   /*         STARTS)                */
+     3 CJIPAD       CHAR(1),       /*    19 (ALIGNMENT PAD)          */
+     3 CJIWKWY      FIXED BIN(15), /* 20-21 WEEK# WITHIN YEAR        */
+     3 CJDPROEW     FIXED BIN(15), /* 22-23 PROCESSING END DATE      */
+                                   /*        FOR WEEK                */
+     3 CJILL        CHAR(10)       /* 24-33 //// NOT USED ////       */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQCECAL                               */
+ /********************************************************************/
+

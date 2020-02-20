@@ -1,0 +1,69 @@
+ /********************************************************************/  
+ /*                                                                  */
+ /* NAME:   AEQCNTRR                              DATE:  02/16/99    */
+ /*                                                                  */
+ /*                                                                  */  
+ /*             ---------         QSAR      ---------                */  
+ /*             ------- QSAR SOFT PEND CONTROL ------                */  
+ /*             ---------   RECORD FORMAT   ---------                */  
+ /*                                                                  */  
+ /*  DESC: MAPPING OF QSAR SOFTPEND CONTROL RECORD FORMAT            */  
+ /*                                                                  */  
+ /*             A                                                    */  
+ /*  P          C                                                    */  
+ /*  R          T                                                    */  
+ /*  E       A  D                                                    */  
+ /*  F       R  A                                                    */  
+ /*  I       E  T                                                    */  
+ /*  X       A  E                                                    */  
+ /*                                                                  */  
+ /*  QSARQSRCXXYYYYMMDD               POSITIONS 19 THROUGH 31 ARE    */  
+ /*  |...+....1....+....2....+....3|  BLANKS                         */  
+ /*                                                                  */  
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES   */  
+ /*  OF DATA.                                                        */  
+ /*                                                                  */  
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.    */  
+ /*  THIS RECORD IS UPDATED FROM THE QSAR CICS REGION.               */  
+ /*                                                                  */  
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */  
+ /*                                                                  */  
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:           PROGRAMMER: */  
+ /*  --------  ---------  ----    ------------------     ----------- */  
+ /*  02/16/99  S970157    9NSA    ORIGINAL VERSION               SFM */  
+ /*                                                                  */  
+ /********************************************************************/  
+    3 UKEY,                        /* 31 BYTE KEY STRUCTURE          */  
+       5 ISFTPKEY  CHAR(8),        /* LITERAL 'QSARSFTC'     001- 008*/  
+       5 IAREA     CHAR(2),        /* AREA - WHEN AT HUB,    009- 010*/  
+                                   /* ADD 30 TO AREA NUMBER          */  
+                                   /* 01-12 AREA RECORDS             */  
+                                   /* 31-42 HUB RECORDS              */  
+       5 DPROCES   CHAR(8),        /* QSAR ACTIVITY DATE     011- 018*/  
+                                   /* FORMAT YYYYMMDD                */  
+                                   /* DON'T CHANGE THIS WITHOUT      */  
+                                   /* CHANGING AEQDBP1               */  
+       5 SPAD01    CHAR(13),       /* KEY PADDING (BLANKS)   019- 031*/  
+    3  QHELD       FIXED BIN(31),  /* # OF HELD SOFTPENDS    032- 035*/  
+                                   /* PROCESSED                      */  
+    3  QUPDATED    FIXED BIN(31),  /* # OF UPDATED SOFTPENDS 036- 039*/  
+                                   /* PROCESSED                      */  
+    3  QRELEASD    FIXED BIN(31),  /* # RELEASED SOFTPENDS   040- 043*/  
+                                   /* PROCESSED                      */  
+    3  QTOTQSAR    FIXED BIN(31),  /* TOTAL # QSARS          044- 047*/  
+                                   /* PROCESSED SOFT PEND            */  
+    3  QRESTART    FIXED BIN(31),  /* # TIMES RESTARTED      048- 051*/  
+                                   /*                                */  
+    3  QC01CT      FIXED BIN(31),  /* EMPTY                  052- 055*/  
+                                   /*                                */  
+    3  DUPDATE     CHAR(6),        /* DATE OF LAST UPDATE    056- 061*/  
+                                   /* FORMAT YYMMDD                  */  
+    3  TUPDATE     CHAR(6),        /* TIME OF LAST UPDATE    062- 067*/  
+                                   /* FORMAT HHMMSS                  */  
+                                   /*                                */  
+    3  IDOCHELD    CHAR(9),        /* DOC # OF LAST HELD     068- 076*/  
+                                   /*  FOR RESTART                   */  
+    3  SPAD02      CHAR(62)        /* PADDING                077- 131*/  
+ /********************************************************************/  
+ /*                   END OF AEQSFTC INCLUDE                         */  
+ /********************************************************************/  

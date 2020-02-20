@@ -1,0 +1,48 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQEROUT    VERSION NR:  01           DATE:  03/19/98    */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: PART   QSAR ERRPR LAYOUT OUTBOUND        (API)            */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE API OUTBOUND PART DATA                        */
+ /*     SENT FROM THE QSAR R/T AUDIT EDIT PROCESS BACK TO            */
+ /*     THE SENDING APPLICATION                                      */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------  ----- */
+ /*  03/19/98 S98016   8NSI NEW COPY MEMBER CREATED             MKP  */
+ /*                                                                  */
+ /********************************************************************/
+ /********************************************************************/
+ /*                                                                  */
+ /********************************************************************/
+     3 QSRKEY,                  /* KEY FIELD                         */
+       5 CRECTYP  CHAR(1),      /* RECORD TYPE              001- 001 */
+                                /* R = ROOT RECORD                   */
+                                /* P = PART RECORD                   */
+       5 IDOCNUMB CHAR(9),      /* DOCUMENT NUMBER          002- 010 */
+       5 IINDOCNM CHAR(15),     /* UNIQUENESS IDENTIFIER    011- 025 */
+       5 IAPPLIC  CHAR(2),      /* APPLICATION              026- 027 */
+                                /* IR, PO                            */
+       5 IEMPSER  CHAR(6),      /* EMPLOYEE SERIAL          028- 033 */
+ /********************************************************************/
+ /* QSAR OUTBOUND ERROR DATA                                         */
+ /********************************************************************/
+     3 ERRARRAY (5),            /* ERROR ARRAY              034- 148 */
+       5 IERRNUM  CHAR(3),      /* ERROR NUMBER             034- 036 */
+       5 TDESCR   CHAR(25),     /* ERROR DESCRIPTION        037- 061 */
+     3 TPAD01   CHAR(27)        /* PAD                      174- 200 */
+ /********************************************************************/
+ /*  END OF AEQEROUT INCLUDE                                         */
+ /********************************************************************/
+

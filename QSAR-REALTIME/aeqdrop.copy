@@ -1,0 +1,34 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQDROP     VERSION NR:  01           DATE:  03/12/97    */
+ /*                                               TIME:  14:23:26    */
+ /*                                                                  */
+ /*  TITLE: DROP OUTSIDE LOCATION FILE                               */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: RECID + RECBO + RECOL + 23 PAD                   */
+ /*    KEYLENGTH :  31 BYTES                                         */
+ /*    SECONDAY KEY: NONE                                            */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  03/12/97 S97033    7NSG    ORIGINAL PROMOTE                DLP  */
+ /*  09/03/99 QSARPROD  9NSA    CORRECT COMMENTS                PRM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "35" 001- 002 */
+     3 IRECKEY,                    /*                                */
+      5 IRECID      CHAR(01),      /* RECORD ID, ALWAYS "K" 003- 003 */
+      5 IRECBO      CHAR(03),      /* DROP BRANCH OFFICE    004- 006 */
+      5 IRECOL      CHAR(03),      /* DROP OUTSIDE LOCATION 007- 009 */
+      5 SPAD01      CHAR(23),      /* UNUSED PADDING        010- 032 */
+     3 SPAD02       CHAR(03)       /* UNUSED PADDING        033- 035 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQDROP                                */
+ /********************************************************************/
+

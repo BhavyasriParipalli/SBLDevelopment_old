@@ -1,0 +1,39 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQRTHDR    VERSION NR:  01           DATE:  10/23/91    */
+ /*                                               TIME:  11:38:37    */
+ /*                                                                  */
+ /* TITLE: QSAR -  RTS (REAL-TIME SYSTEM) PARTS HEADER               */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PLI                                                    */
+ /*                                                                  */
+ /* DESCRIPTION: LAYOUT FOR THE HEADER PORTION OF THE QSAR REAL-TIME */
+ /*              PARTS ORDER BEING SENT TO RTS-TAMPA.                */
+ /*                                                                  */
+ /* LENGTH: 40                                                       */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/23/91 SR0776   1NSM INITIAL VERSION                      LBS */
+ /*                                                                  */
+ /********************************************************************/
+    3 XRTSTATS   CHAR(8),     /* RAMS STAT FIELD             001- 008*/
+    3 IRTHSTID   CHAR(3),     /* REGION HOST ID              009- 011*/
+    3 CRTFUNCD   CHAR(1),     /* FUNCTION CODE               012- 012*/
+    3 IRTEMPL    CHAR(6),     /* EMPLOYEE ID                 013- 018*/
+    3 IRTTRNID   CHAR(1),     /* PT TRANSACTION NUMBER       019- 019*/
+    3 IRTBOSR    CHAR(4),     /* BOSR                        020- 023*/
+    3 IRTDIV     CHAR(2),     /* DIVISION                    024- 025*/
+    3 IRTBOASN   CHAR(4),     /* BRANCH OFFICE ASSIGNED      026- 029*/
+    3 FRTERBTS   CHAR(3),     /* ERROR BIT MASK              030- 032*/
+    3 IRTCADNUM  CHAR(8)      /* CAD UNIQUENESS NUMBER       033- 040*/
+
+ /* ----------------------------------------------------------------- */
+ /*                                  END  AEQRTHDR                    */
+ /* ----------------------------------------------------------------- */
+

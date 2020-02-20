@@ -1,0 +1,53 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME: AEQEAMT                                 DATE:  03/15/2005  */
+ /*                                               TIME:  14:22:13    */
+ /*                                                                  */
+ /* TITLE: QSAR MSF VERSION OF SDMS OF eAMT/PCF DATA                 */
+ /*                                                                  */
+ /*                                                                  */
+ /* DESCRIPTION: Machine ownership data for machines owned by IBM    */
+ /*              employees                                           */
+ /*              MACHINE TYPE                                        */
+ /*              MODIFIED MACHINE SERIAL                             */
+ /*                It consists of characters 3 to 7 followed by 1    */
+ /*                and 2M then followed by 8 to 21                   */
+ /*                This allows for a truncated search without using  */
+ /*                the first 2 characters of the serial number.      */
+ /*                                                                  */
+ /*              EFFECTIVE DATE format - YYMMDD10.                   */
+ /*              EMPLOYEE DIVISON                                    */
+ /*              EMPLOYEE DEPARTMENT                                 */
+ /*              OWNER SERIAL NUMBER                                 */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:     REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /* --------- -------- ---- ---------------------------------- ----- */
+ /*03/15/2005 SR050023 5CSC INITIAL PROMOTE                      LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECLGTH     FIXED BIN(15),/* RECORD LENGTH IS "75".    001- 002*/
+   3 IRECKEY,                   /*                                   */
+     5 IRECID     CHAR( 1),     /* RECORD ID, ALWAYS A "K".  003- 003*/
+     5 IMACTYPE   CHAR( 4),     /* MACHINE TYPE              005- 007*/
+     5 IMACSER    CHAR(22),     /* MACHINE SERIAL            008- 029*/
+                                /* input file machine serial is split*/
+                                /* into actual mach serial pos 3-7   */
+                                /*                         pos 1-2   */
+                                /*                         remainder */
+     5 SPADKEY    CHAR( 4),     /* PADDING FOR MSF KEY       030- 033*/
+   3 DEFFECTV     CHAR(10),     /* EFFECTIVE DATE OF RECORD  034- 043*/
+   3 IEMPDIV      CHAR( 2),     /* EMPLOYEE DIVISION         044- 045*/
+   3 IEMPDEPT     CHAR( 4),     /* EMPLOYEE DEPARTMENT       046- 049*/
+   3 IEMPLSER     CHAR( 6),     /* EMPLOYEE SERIAL NUMBER    050- 055*/
+   3 ICNTRSER     CHAR( 6),     /* CONTRACTOR SERIAL NUMBER  056- 061*/
+   3 ISOURCE      CHAR( 3),     /* SOURCE OF RECORD          062- 064*/
+                                /* PCF, eAMT or ISAM                 */
+   3 SPAD01       CHAR(11)      /* SOURCE OF RECORD          065- 075*/
+ /*------------------------------------------------------------------*/
+ /*                   end of AEQEAMT                                 */
+ /*------------------------------------------------------------------*/

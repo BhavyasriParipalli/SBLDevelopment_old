@@ -1,0 +1,255 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQFLAGS                              DATE:  06/03/88    */
+ /*                                               TIME:  14:46:08    */
+ /*                                                                  */
+ /* TITLE: QSAR REAL TIME PROCESSING/CONTROL FLAGS                   */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /*  THE FLAGS ARE USED TO INDICATE THE SUCCESS/FAILURE OF AUDIT     */
+ /*  EDIT MATCHING.  WHEN A FLAG IS 'Y', THE MATCH WAS SUCCESSFUL.   */
+ /*  OTHERWISE, THE MATCH WAS UNSUCCESSFUL OR WASN'T PERFORMED.      */
+ /*  MISCELLANEOUS FIELDS ARE USED TO PASS INFORMATION FROM          */
+ /*  MODULE TO MODULE, (HAZARDOUS PARTS, PT USERID, QSAR/C TERMINAL  */
+ /*  ID)                                                             */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:                  PGMR:*/
+ /*  --------  ---------  ----    ------------------            -----*/
+ /*  06/03/88  SR 9891    8NSM    ORIGINAL VERSION                SPZ*/
+ /*  07/20/88  SR 9891    8NSM    REMOVED Z12 FLAG, ADDED         SPZ*/
+ /*                               NSDC DELETE FLAG,                  */
+ /*                               NSDC TERMINAL ID,BOREF FUNC        */
+ /*  08/30/88  SR 9891    8NSM    REMOVED NSDC_DEL FLAG - IS      SPZ*/
+ /*                               NOW CARRIED IN AEQSGENL.           */
+ /*  10/12/88  SR 9891    8NSM    ADD LINKFAIL FLAG TO            SPZ*/
+ /*                               INDICATE SYSTEM UNAVAILABLE        */
+ /*  09/13/89  SR 0313    9NSK    ADD HAZARDOUS PART FLAGS        LBS*/
+ /*  05/10/91  SR 0768    1NSG    ADD "MATCH TO PCBID" FLAG       ABM*/
+ /*  09/30/91  SR 0853    1NSM    ADD FLAG FOR MATCH TO              */
+ /*                               COS CONTRACT NUMBER FILE        ABM*/
+ /*  11/16/91  I135929    1NSM    ADD FMPIABND FLAG               LBS*/
+ /*  02/12/92  SR0848     2NSA    ADD ACTHRS<PMHRS PEND FLAG      ABM*/
+ /*  04/09/92  SR0972     2NSD    ADD MATCH TO PRODUCT ID         ABM*/
+ /*  10/04/92  SR1175     2NSJ    ADD MATCH TO ISSC ENTERPRISE    HAS*/
+ /*  10/06/92  SR1121     2NSJ    ADD "IS M/T A PRODID?" FLAG     ABM*/
+ /*  02/18/93  SR93045    3NSD    ADD FOUR PCBID PEND FLAGS       DLK*/
+ /*  11/14/94  S9400190   4NSK    ADD COS AND SCORE FLAGS         DLK*/
+ /*  03/30/95  S9500015   5NSC    ADD CMR MATCH FLAG              LBS*/
+ /*  05/27/95  S9500073   5NSE    ADD TIN_REQ FLAG                LBS*/
+ /*  05/23/96  S9570033   6NSG    ADD PRF REQ FLAG                DLP*/
+ /*  08/16/96  S9600490   6NSJ    REMOVE PCBID FEED               MKP*/
+ /*            S9950141           EB CONTRACT ENHANCEMENT         DLP*/
+ /*  10/15/96  S9600489   6NSP    ADD OL INVALID FLAG FOR         MKP*/
+ /*                               OWNER CODE                         */
+ /*  01/08/96  S9600638   7NSA    VALIDATE S/N LENGTH ON SELECT      */
+ /*                               OEM M/TS ADD QMSERMIN,             */
+ /*                               QMSERMAX AND FMTYPCHK           DLP*/
+ /*  03/11/97  S97033     7NSG    VALIDATE TO TO NOT BE IN THE       */
+ /*                               DROP O/L LIST. ADD FGDROPOL(4)  DLP*/
+ /*  01/22/98  S97253     8NSA    ADD SERVICE DELIVERY INDICATOR     */
+ /*                               FROM CEDS DB2 TABLE             MKP*/
+ /*  03/24/98  S97085     8NSG ADD VALID ZIPCODE INDICATOR        DLP*/
+ /*  05/07/98  S97055     8NSI ADD VALID BILL CODE INDICATOR      DLP*/
+ /*  09/14/98  S98160     8NSM BA 1 ON WARR OR M/A - BLOCK HSI    LBS*/
+ /* 03/06/2001 S01007     1NSA add fields for HSI Credit Card     MKP*/
+ /* 01/21/2002 QSARPROD   2NSD remove FDROPOL                     LBS*/
+ /* 03/21/2002 HSI CC P2  2NSG increase ICCAUTH from 13 to 14     LBS*/
+ /* 11/11/2002 SR020029   3NSE add IHELDCNTR,IENTSRC,FINCDPRT     LBS*/
+ /* 11/03/2003 SR030019   4NSC add FONSITE, ICVGTYPE, ISERVTYP    LBS*/
+ /*                            CWARRPHS                              */
+ /* 03/16/2004 SR030069   4NSC add FHVCNTR for CEDB contracts     DLP*/
+ /* 06/15/2004 hsi_4nsc_52 4NSC add FCORABND for cor modules      DLP*/
+ /*                             abending                             */
+ /* 12/01/2004 SR040017   5NSM moved NCONTACT to AEQSMISC         LBS*/
+ /* 03/14/2005 SR050023   5NSC add FLIABRECALC                    LBS*/
+ /* 05/12/2005 SR040017   5NSM RETROFIT 5CSC/5CSM                 DLP*/
+ /* 06/08/2007 QSAR7NSM003     add CCDBSERV                       LBS*/
+ /* 08/15/2007 SR060054   7NSR add CCADISO, FLNVSPCL,             LBS*/
+ /*                            SDT_WARR_LEN FIXED                    */
+ /*                                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* AUDIT EDIT MATCH FLAGS                                           */
+ /*------------------------------------------------------------------*/
+ 3 M_FEDF             CHAR(01), /* FEDF MATCH                001- 001*/
+ 3 M_FROMBO           CHAR(01), /* FROM BO MATCH             002- 002*/
+ 3 M_FROMOL           CHAR(01), /* FROM OL MATCH             003- 003*/
+ 3 M_MPI              CHAR(01), /* MPI/RSO MATCH             004- 004*/
+ 3 M_MTM_REG          CHAR(01), /* MTM MODEL MATCH           005- 005*/
+ 3 M_MTM_SUPERLOW     CHAR(01), /* MTM GENERIC MATCH         006- 006*/
+ 3 M_SRC              CHAR(01), /* SERVICE REPAIR B/O        007- 007*/
+ 3 M_MPIREQ           CHAR(01), /* MPI MATCH REQUIRED        008- 008*/
+ 3 M_OTHOFF_S         CHAR(01), /* BOREF - SERVICE OFF.      009- 009*/
+ 3 M_OTHOFF_M         CHAR(01), /* BOREF - MKTNG. OFF.       010- 010*/
+ 3 M_PART1            CHAR(01), /* PART REF FILE-PART1       011- 011*/
+ 3 M_PART2            CHAR(01), /* PART REF FILE-PART2       012- 012*/
+ 3 M_PART3            CHAR(01), /* PART REF FILE-PART3       013- 013*/
+ 3 M_PART4            CHAR(01), /* PART REF FILE-PART4       014- 014*/
+ 3 M_PTBO_BOREF       CHAR(01), /* BOREF - PT ASS. B/O       015- 015*/
+ 3 M_PMSCHED          CHAR(01), /* PM SCHED MACHINE (MTM)    016- 016*/
+ 3 M_RCVBO_1          CHAR(01), /* MATCH RCV B/O - PART1     017- 017*/
+ 3 M_RCVBO_2          CHAR(01), /* MATCH RCV B/O - PART2     018- 018*/
+ 3 M_RCVBO_3          CHAR(01), /* MATCH RCV B/O - PART3     019- 019*/
+ 3 M_RCVBO_4          CHAR(01), /* MATCH RCV B/O - PART4     020- 020*/
+ 3 M_RCVOL_1          CHAR(01), /* MATCH RCV O/L - PART1     021- 021*/
+ 3 M_RCVOL_2          CHAR(01), /* MATCH RCV O/L - PART2     022- 022*/
+ 3 M_RCVOL_3          CHAR(01), /* MATCH RCV O/L - PART3     023- 023*/
+ 3 M_RCVOL_4          CHAR(01), /* MATCH RCV O/L - PART4     024- 024*/
+ 3 BRFUNC             CHAR(01), /* BOREF FUNCTION CODE       025- 025*/
+ 3 HAZ_PART (4)       CHAR(01), /* HAZARDOUS FLAG - PART 1   026- 029*/
+                                /* HAZARDOUS FLAG - PART 2   027- 027*/
+                                /* HAZARDOUS FLAG - PART 3   028- 028*/
+                                /* HAZARDOUS FLAG - PART 4   029- 029*/
+ /*------------------------------------------------------------------*/
+ /* APPLICATION CONTROL FIELDS                                       */
+ /*------------------------------------------------------------------*/
+ 3 LINKFAIL_MPI       CHAR(01), /* REMOTE SUPPORT FILE       030- 030*/
+                                /* LINK OK? Y/N                      */
+ 3 NSDC_TERMID        CHAR(04), /* QSAR/C TERMINAL ID        031- 034*/
+ 3 PTUID              CHAR(06), /* PT USER ID - NEEDED       035- 040*/
+                                /* FOR MESSAGES BACK TO PT           */
+ 3 M_COS              CHAR(01), /* MATCH TO COS CONTRACT #   041- 041*/
+ 3 FMPIABND           CHAR(01), /* FLAG TO INDICATE MPI      042- 042*/
+                                /* ABENDED                           */
+ 3 PEND_PM            CHAR(01), /* ACTHRS < PMHRS PEND FLAG  043- 043*/
+ 3 M_PRODID           CHAR(01), /* MATCH TO PRODUCT ID       044- 044*/
+ 3 M_ISSC             CHAR(01), /* MATCH TO ISSC ENTERPRISE  045- 045*/
+ 3 MT_IS_PRODID       CHAR(01), /* IS M/T A PRODUCT ID?      046- 046*/
+ 3 COS_VALID          CHAR(01), /* COS CONTRACT IS VALID     047- 047*/
+ 3 SCORE_VALID        CHAR(01), /* SCORE CONTRACT IS VALID   048- 048*/
+ 3 M_CMR              CHAR(01), /* IS CE ENTERED CMR VALID   049- 049*/
+ 3 TIN_REQ(4)         CHAR(01), /* IS SENSITIVE PART TIN     050- 050*/
+                                /* REQUIRED                          */
+ 3 PRF_REQ(4)         CHAR(01), /* IS UPR PART NUMBER        054- 051*/
+                                /* REQUIRED                          */
+ 3 CMTMOVRD           CHAR(06), /* HOW TO HANDLE MTM         058- 057*/
+ 3 CTARGET            CHAR(07), /* HOW TO HANDLE QSAR        064- 064*/
+ 3 CPERCALL           CHAR(01), /* PER CALL DISPOSITION      071- 065*/
+ 3 FPARTUSE           CHAR(01), /* PARTS USAGE ALLOWED       072- 066*/
+ 3 FTYPECHK           CHAR(01), /* TYPE CHECK REQUIRED       073- 067*/
+ 3 CBILLABOR          CHAR(01), /* PEW/SDT BILL LABOR?       074- 068*/
+ 3 CBILLEXP           CHAR(01), /* PEW/SDT BILL EXPENSES?    075- 069*/
+ 3 CBILLPART          CHAR(01), /* PEW/SDT BILL PARTS?       076- 070*/
+ 3 HSTRTSAT           CHAR(04), /* SAT START TIME            077- 074*/
+ 3 HENDSAT            CHAR(04), /* SAT END   TIME            081- 078*/
+ 3 HSTRTSUN           CHAR(04), /* SUN START TIME            085- 082*/
+ 3 HENDSUN            CHAR(04), /* SUN END   TIME            089- 086*/
+ 3 HSTRTMON           CHAR(04), /* MON START TIME            093- 090*/
+ 3 HENDMON            CHAR(04), /* MON END   TIME            097- 094*/
+ 3 HSTRTTUE           CHAR(04), /* TUE START TIME            101- 098*/
+ 3 HENDTUE            CHAR(04), /* TUE END   TIME            105- 102*/
+ 3 HSTRTWED           CHAR(04), /* WED START TIME            109- 106*/
+ 3 HENDWED            CHAR(04), /* WED END   TIME            113- 116*/
+ 3 HSTRTTHU           CHAR(04), /* THU START TIME            117- 120*/
+ 3 HENDTHU            CHAR(04), /* THU END   TIME            121- 124*/
+ 3 HSTRTFRI           CHAR(04), /* FRI START TIME            125- 128*/
+ 3 HENDFRI            CHAR(04), /* FRI END   TIME            129- 132*/
+ 3 FCTRABND           CHAR(01), /* FLAG TO INDICATE CPCNTR   133- 133*/
+                                /* ABENDED                           */
+ 3 LINKFAIL_CNTR      CHAR(01), /* REMOTE SUPPORT FILE       134- 134*/
+                                /* LINK OK? Y/N                      */
+ 3 FOLINVLD(4)        CHAR(01), /* OWNER CD/FROMOL ERROR     135- 138*/
+                                /* 'Y', 'N' OR ' ' ARE VALID         */
+ 3 QMSERMIN           PIC '99', /* M/SERIAL MIN LENGTH (NN)  139- 140*/
+ 3 QMSERMAX           PIC '99', /* M/SERIAL MAX LENGTH (NN)  141- 142*/
+ 3 FMTYPCHK           CHAR(01), /* WAS THE MACHINE TYPE      143- 143*/
+                                /* FOUND ON THE TMF TABLE            */
+                                /* 'Y', 'N' OR ' ' ARE VALID         */
+ 3 M_MACH_REG         CHAR(01), /* MATCH TO CANADA MACHINE   144- 144*/
+                                /* FILE                              */
+ 3 CSDTOPTN           CHAR(01), /* SDF OPTIONS               145- 145*/
+                                /* H = HARD DISK DRIVE RETENTION     */
+                                /* T = TPP                           */
+ 3 CCADISO            CHAR(02), /* CAD ISO COUNTRY CODE      146- 147*/
+ 3 IEMERGBO           CHAR(03), /* EMERGENCY PARTS SERVICE   148- 150*/
+                                /* CENTER  OR (BOSR)                 */
+                                /* B/O SERVICING REQUEST             */
+ 3 ICVGTYPE           CHAR(03), /* WAR, W/U, CNT, MA         151- 153*/ 
+ 3 FPASTDEACT         CHAR(01), /* QSAR DATE > FEDF DEACT D  154- 154*/
+ 3 FPREACT            CHAR(01), /* QSAR DATE < FEDF ACT DAT  155- 155*/
+                                /* INDICATOR                         */
+ 3 FHRSINV            CHAR(01), /* HOURS INVALID (>24/DAY)   156- 156*/
+ 3 VALID_ZIP_CODE     CHAR(01), /* IS THERE A VALID ZIP CODE 157- 157*/
+                                /* ZIP CODE                          */
+ 3 VALID_BILL_CODE    CHAR(01), /* IS THERE A VALID          158- 158*/
+                                /* BILL CODE                         */
+                                /* ----------------------------------*/
+ 3 ISERVPLN           CHAR(07), /* SERVICE PLAN              159- 165*/
+ 3 IBILLSTAT          CHAR(01), /* BILLABLE STATUS CODE      166- 166*/
+ 3 FLNVSPCL           CHAR(01), /* Y = LENOVO SPECIAL MACHINE167- 167*/
+ 3 SDT_WARR_LEN FIXED BIN (15), /* SDT WARRANTY LENGTH MONTHS168- 169*/
+ 3 SPAD03             CHAR(22), /*                           170- 191*/
+ 3 ICONPHON           CHAR(15), /* CONTACT PHONE             192- 206*/
+                                /* ----------------------------------*/
+ 3 ICCAUTH            CHAR(14), /* CREDIT CARD AUTH #        207- 220*/
+ 3 IHELDCNTR          CHAR(12), /* FOUND CONTRACT            221- 232*/
+ 3 ICADENT            CHAR(01), /* CAD ENTITLEMENT SOURCE    233- 233*/
+ 3 FINCDPRT           CHAR(01), /* INCIDENT FEE CODE THAT    234- 234*/
+                                /* HAS A PART ASSOCIATED             */
+ 3 CWARRPHS           CHAR(02), /* SDT WARRANTY PHASE        235- 236*/
+ 3 FONSITE            CHAR(01), /* ONSITE SERVICE AVAILABLE  237- 237*/
+                                /* Y|N                               */
+ 3 ISERVTYP           CHAR(03), /* SERVICE TYPE DESCRIPTION  238- 240*/
+                                /* e.g., IOR, IOE, EZS               */                                
+ 3 ISTPMNT            CHAR(05), /* CEDB - MAINTENANCE TYPE   241- 245*/
+ 3 CSDTBILL           CHAR(01), /* BILLING CODE FROM SDT     246- 246*/
+ 3 FHVCNTR            CHAR(01), /* CEDB HV CONTRACT          247- 247*/
+ 3 FCORABND           CHAR(01), /* ABEND IN COR PROCESSING   248- 248*/
+                                /* SET TO ON  IN AEQCAD -            */
+                                /* SET TO OFF IN AEQCNTR -           */
+                                /* CHECKED IN AEQCAD AFTER COMING    */
+                                /* BACK FROM THE LINK TO THE COR     */
+ 3 FLIABRECALC        CHAR(01), /* N = MACHINE TYPE/SERIAL   249- 249*/
+                                /* contract match to QSAR            */
+                                /* Y = different machine type or     */
+                                /* serial or contract in QSAR        */
+ 3 CMTMBASEW          CHAR(01), /* MTM base warranty         250- 250*/
+                                /* liability indicator value         */
+ 3 COFRLIAB           CHAR(01), /* MTM Lenovo offering for   251- 251*/
+                                /* mach type available               */
+ 3 CCDBSRCIND         CHAR(01), /* CEDB source indicator     252- 252*/
+                                /* ' '-                              */
+                                /* 'C'- CHIS                         */
+                                /* 'S'- ServicePak                   */
+                                /* 'V'-                              */
+ 3 UBASECVG,                    /*                                   */
+   5 QHRSCVG          CHAR(02), /*                           253- 254*/
+   5 QDAYSCVG         CHAR(01), /*                           255- 255*/
+   5 QRSPTIME         CHAR(02), /*                           256- 257*/
+   5 CRSPTYPE         CHAR(01), /*                           258- 258*/
+   5 CSERVDEL         CHAR(03), /*                           259- 261*/
+ 3 UWUPCVG,                     /*                                   */
+   5 QHRSCVG          CHAR(02), /*                           262- 263*/ 
+   5 QDAYSCVG         CHAR(01), /*                           264- 264*/ 
+   5 QRSPTIME         CHAR(02), /*                           266- 266*/ 
+   5 CRSPTYPE         CHAR(01), /*                           267- 267*/ 
+   5 CSERVDEL         CHAR(03), /*                           268- 270*/ 
+ 3 CMPISPLN           CHAR(03), /* MPI SERVICE PLAN          271- 273*/
+ 3 ISVCTYPE           CHAR(03), /* CAD CALL SERVICE TYPE     274- 276*/ 
+                                /* IOR,PAR,NSC,etc                   */
+ 3 ISVCCLAS           CHAR(03), /* CAD CALL SERVICE CLASS    277- 279*/ 
+                                /* M/A,WAR,W/U,S/B,DSW, etc          */
+                                /* CADETCAL segment                  */ 
+ 3 TCALLRSP           CHAR(04), /* CALL RESPONSE TIME        280- 283*/ 
+                                /* CARSD segment HTARGIT             */ 
+ 3 TDALYHRS           CHAR(08), /* CAD DAILY START/STOP TIME 284- 291*/ 
+                                /* CARSD segment                     */ 
+ 3 DRECCALL           CHAR(08), /* CALL RECEIVE DATE         292- 299*/ 
+                                /* yyyymmdd                          */
+ 3 FWARUPGD           CHAR(03), /* Contract Repository WarrUp301- 303*/
+                                /* column                            */
+ 3 CCONTYPE           CHAR(03), /* CAD contract type edited  304- 306*/
+ 3 CCDBSERV           CHAR(01), /* CEDB service type         307- 307*/
+ 3 FSERVUPG           CHAR(01), /* WARRANTY UPGRADED SERVICE 308- 308*/
+ 3 SPAD01             CHAR(23)  /* PADDING                   309- 330*/ 
+
+ /*------------------------------------------------------------------*/
+ /*                  END OF AEQFLAGS INCLUDE                         */
+ /*------------------------------------------------------------------*/

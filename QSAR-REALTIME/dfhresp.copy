@@ -1,0 +1,182 @@
+ %DFHRESP: MACRO;
+ /********************************************************************/
+ /*        Name: DFHRESP                                             */
+ /*                                                                  */
+ /*       Title: CICS condition name to number translation           */
+ /*                                                                  */
+ /*    Language: PLAS                                                */
+ /*                                                                  */
+ /* Description: Replaces the macro invocation with the unique       */
+ /*              number (in decimal) corresponding to the            */
+ /*              condition identified by the argument.               */
+ /*                                                                  */
+ /* Macro Usage: ?DFHRESP(condition);                                */
+ /*                                                                  */
+ /*              The argument is any condition described in the      */
+ /*              CICS Application Programmer's Reference Manual.     */
+ /*              Additionally, a condition of NORMAL can be          */
+ /*              used (returns a decimal 0).                         */
+ /*                                                                  */
+ /*               e.g. IF EIBRESP=?DFHRESP(NOSPACE); THEN ....       */
+ /*                                                                  */
+ /*                    SELECT(EIBRESP);                              */
+ /*                      WHEN(?DFHRESP(NORMAL);) .....               */
+ /*                      WHEN(?DFHRESP(NOSPACE);) .....              */
+ /*                      WHEN(?DFHRESP(QIDERR);) .....               */
+ /*                      OTHERWISE ....                              */
+ /*                    END;                                          */
+ /*                                                                  */
+ /*  Dependency: This macro may be CICS release dependent. If        */
+ /*              additional conditions are added in subsequent       */
+ /*              releases of CICS, this macro would have to be       */
+ /*              updated to reflect the changes.                     */
+ /*                                                                  */
+ /* Chronological update log:                                        */
+ /* Date     Reason   Drvr Description                    Programmer */
+ /* -------- -------- ---- ----------------------------------------- */
+ /* 03/22/90 DCR0411A 0NSG New file                         Bob Hood */
+ /* 08/10/90 SR0529   0NSI Add new constants for 3.1        Bob Hood */
+ /*                                                                  */
+ /********************************************************************/
+ DCL COND(100) CHARACTER;           /* Array of valid conditions     */
+ DCL RESP(100) CHARACTER;           /* Array of responses            */
+ DCL ERR_MSG CHARACTER;             /* Error message                 */
+ DCL INVOCATION CHARACTER;          /* Macro invocation string       */
+ DCL RET_CODE FIXED;                /* Return code                   */
+ DCL I FIXED;                       /* Arithmetic work variable      */
+ DCL J FIXED;                       /* Arithmetic work variable      */
+ /********************************************************************/
+ /*                                                                  */
+ /* The COND array is initialized with a list of valid conditions.   */
+ /* The RESP array is initialized with the unique number             */
+ /* corresponding to the condition.                                  */
+ /*                                                                  */
+ /********************************************************************/
+ I=1;   COND(I)='NORMAL';        RESP(I)='0';
+ I=I+1; COND(I)='OK';            RESP(I)='0';
+ I=I+1; COND(I)='ERROR';         RESP(I)='1';
+ I=I+1; COND(I)='RDATT';         RESP(I)='2';
+ I=I+1; COND(I)='WRBRK';         RESP(I)='3';
+ I=I+1; COND(I)='EOF';           RESP(I)='4';
+ I=I+1; COND(I)='EODS';          RESP(I)='5';
+ I=I+1; COND(I)='EOC';           RESP(I)='6';
+ I=I+1; COND(I)='INBFMH';        RESP(I)='7';
+ I=I+1; COND(I)='ENDINPT';       RESP(I)='8';
+ I=I+1; COND(I)='NONVAL';        RESP(I)='9';
+ I=I+1; COND(I)='NOSTART';       RESP(I)='10';
+ I=I+1; COND(I)='TERMIDERR';     RESP(I)='11';
+ I=I+1; COND(I)='FILENOTFOUND';  RESP(I)='12';
+ I=I+1; COND(I)='NOTFND';        RESP(I)='13';
+ I=I+1; COND(I)='DUPREC';        RESP(I)='14';
+ I=I+1; COND(I)='DUPKEY';        RESP(I)='15';
+ I=I+1; COND(I)='INVREQ';        RESP(I)='16';
+ I=I+1; COND(I)='IOERR';         RESP(I)='17';
+ I=I+1; COND(I)='NOSPACE';       RESP(I)='18';
+ I=I+1; COND(I)='NOTOPEN';       RESP(I)='19';
+ I=I+1; COND(I)='ENDFILE';       RESP(I)='20';
+ I=I+1; COND(I)='ILLOGIC';       RESP(I)='21';
+ I=I+1; COND(I)='LENGERR';       RESP(I)='22';
+ I=I+1; COND(I)='QZERO';         RESP(I)='23';
+ I=I+1; COND(I)='SIGNAL';        RESP(I)='24';
+ I=I+1; COND(I)='QBUSY';         RESP(I)='25';
+ I=I+1; COND(I)='ITEMERR';       RESP(I)='26';
+ I=I+1; COND(I)='PGMIDERR';      RESP(I)='27';
+ I=I+1; COND(I)='TRANSIDERR';    RESP(I)='28';
+ I=I+1; COND(I)='ENDDATA';       RESP(I)='29';
+ I=I+1; COND(I)='INVTSREQ';      RESP(I)='30';
+ I=I+1; COND(I)='EXPIRED';       RESP(I)='31';
+ I=I+1; COND(I)='RETPAGE';       RESP(I)='32';
+ I=I+1; COND(I)='RTEFAIL';       RESP(I)='33';
+ I=I+1; COND(I)='RTESOME';       RESP(I)='34';
+ I=I+1; COND(I)='TSIOERR';       RESP(I)='35';
+ I=I+1; COND(I)='MAPFAIL';       RESP(I)='36';
+ I=I+1; COND(I)='INVERRTERM';    RESP(I)='37';
+ I=I+1; COND(I)='INVMPSZ';       RESP(I)='38';
+ I=I+1; COND(I)='IGREQID';       RESP(I)='39';
+ I=I+1; COND(I)='OVERFLOW';      RESP(I)='40';
+ I=I+1; COND(I)='INVLDC';        RESP(I)='41';
+ I=I+1; COND(I)='NOSTG';         RESP(I)='42';
+ I=I+1; COND(I)='JIDERR';        RESP(I)='43';
+ I=I+1; COND(I)='QIDERR';        RESP(I)='44';
+ I=I+1; COND(I)='NOJBUFSP';      RESP(I)='45';
+ I=I+1; COND(I)='DSSTAT';        RESP(I)='46';
+ I=I+1; COND(I)='SELNERR';       RESP(I)='47';
+ I=I+1; COND(I)='FUNCERR';       RESP(I)='48';
+ I=I+1; COND(I)='UNEXPIN';       RESP(I)='49';
+ I=I+1; COND(I)='NOPASSBKRD';    RESP(I)='50';
+ I=I+1; COND(I)='NOPASSBKWR';    RESP(I)='51';
+ I=I+1; COND(I)='SYSIDERR';      RESP(I)='53';
+ I=I+1; COND(I)='ISCINVREQ';     RESP(I)='54';
+ I=I+1; COND(I)='ENQBUSY';       RESP(I)='55';
+ I=I+1; COND(I)='ENVDEFERR';     RESP(I)='56';
+ I=I+1; COND(I)='IGREQCD';       RESP(I)='57';
+ I=I+1; COND(I)='SESSIONERR';    RESP(I)='58';
+ I=I+1; COND(I)='SYSBUSY';       RESP(I)='59';
+ I=I+1; COND(I)='SESSBUSY';      RESP(I)='60';
+ I=I+1; COND(I)='NOTALLOC';      RESP(I)='61';
+ I=I+1; COND(I)='CBIDERR';       RESP(I)='62';
+ I=I+1; COND(I)='INVEXITREQ';    RESP(I)='63';
+ I=I+1; COND(I)='INVPARTNSET';   RESP(I)='64';
+ I=I+1; COND(I)='INVPARTN';      RESP(I)='65';
+ I=I+1; COND(I)='PARTNFAIL';     RESP(I)='66';
+ I=I+1; COND(I)='USERIDERR';     RESP(I)='69';
+ I=I+1; COND(I)='NOTAUTH';       RESP(I)='70';
+ I=I+1; COND(I)='VOLIDERR';      RESP(I)='71';
+ I=I+1; COND(I)='SUPPRESSED';    RESP(I)='72';
+ I=I+1; COND(I)='NOSPOOL';       RESP(I)='80';
+ I=I+1; COND(I)='TERMERR';       RESP(I)='81';
+ I=I+1; COND(I)='ROLLEDBACK';    RESP(I)='82';
+ I=I+1; COND(I)='END';           RESP(I)='83';
+ I=I+1; COND(I)='DISABLED';      RESP(I)='84';
+ I=I+1; COND(I)='ALLOCERR';      RESP(I)='85';
+ I=I+1; COND(I)='STRELERR';      RESP(I)='86';
+ I=I+1; COND(I)='OPENERR';       RESP(I)='87';
+ I=I+1; COND(I)='SPOLBUSY';      RESP(I)='88';
+ I=I+1; COND(I)='SPOLERR';       RESP(I)='89';
+ I=I+1; COND(I)='NODEIDERR';     RESP(I)='90';
+ I=I+1; COND(I)='TASKIDERR';     RESP(I)='91';
+ I=I+1; COND(I)='TCIDERR';       RESP(I)='92';
+ I=I+1; COND(I)='DSNNOTFOUND';   RESP(I)='93';
+ I=I+1; COND(I)='LOADING';       RESP(I)='94';
+ I=I+1; COND(I)='OUTDESCRERR';   RESP(I)='96';
+ /********************************************************************/
+ /* End of CONDition and RESPonse initialization                     */
+ /********************************************************************/
+ RET_CODE=0;                        /* Assume good return            */
+ INVOCATION='?'||MACNAME||MACLIST;
+ IF NUMBER(MACLIST)=0 |             /* No arguments passed?          */
+   (NUMBER(MACLIST)=1 & MACLIST(1)='') THEN
+  DO;
+   RET_CODE=8;
+   ERR_MSG='Required argument missing.';
+  END;
+ IF NUMBER(MACLIST)>1 THEN          /* Too many arguments?           */
+  DO;
+   RET_CODE=8;
+   ERR_MSG='Only one argument allowed.';
+  END;
+ IF RET_CODE=0 THEN                 /* Still OK to continue          */
+  DO;
+   /******************************************************************/
+   /* Scan the array of valid conditions. If a valid condition was   */
+   /* supplied, return a decimal constant in place of the macro      */
+   /* invocation.                                                    */
+   /******************************************************************/
+   DO J = 1 TO I UNTIL MACLIST(1)=COND(J);
+   END;
+   IF J <= I THEN
+    DO;
+     ANS(RESP(J));                  /* Argument is valid             */
+     ANS(COMMENT(INVOCATION));      /* Invocation string in listing  */
+    END;
+   ELSE                             /* Argument is invalid!          */
+    DO;
+     RET_CODE=8;
+     ERR_MSG='Argument not found in table, check spelling.';
+    END;
+  END;
+ IF RET_CODE^=0 THEN
+   ANS MSG(INVOCATION||': '||ERR_MSG);
+ RETURN CODE(RET_CODE);
+ %END DFHRESP;
+

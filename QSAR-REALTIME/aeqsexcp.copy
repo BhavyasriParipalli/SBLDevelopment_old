@@ -1,0 +1,58 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ---------  QSEXCP SEGMENT   ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*  NAME: AEQSEXCP                                                 */
+ /*  PARENT: QSGENL                                                 */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR EXCEPTION REPORTING SEGMENT              */
+ /*                                                                 */
+ /*        EXCEPTION REPORTING IS USED TO TRACK CERTAIN MACHINE     */
+ /*        TYPES WITH A QUESTIONAIRE IN THE PT QSAR APPLICATION.    */
+ /*        THE DESTINATION OF THE DATA IS THE QSR SYSTEM, WHICH     */
+ /*        FEEDS QDS.                                               */
+ /*                                                                 */
+ /*  CURRENT TOTAL LENGTH IS 220 BYTES.                             */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  07/07/88  SR 9891    8NSM    ORIGINAL VERSION             LBS  */
+ /*  08/09/89  SR 0300    9NSI    CHANGE DYNAMIC QUESTIONS.    TTT  */
+ /*******************************************************************/
+ 3 EXCEPTION,
+   5 INTEQID         CHAR(2),    /* QUESTIONNAIRE ID        001- 002*/
+   5 IVERSLVL  FIXED BIN(15),    /* VERSION & LEVEL         003- 004*/
+   5 SPAD01          CHAR(1),    /* PADDING                 005- 005*/
+   5 CSQ02A          CHAR(1),    /* SPEC QUEST  2 A         006- 006*/
+   5 CSQ02B          CHAR(1),    /* SPEC QUEST  2 B         007- 007*/
+   5 CSQ02C          CHAR(1),    /* SPEC QUEST  2 C         008- 008*/
+   5 CSQ02D          CHAR(1),    /* SPEC QUEST  2 D         009- 009*/
+   5 CSQ03A          CHAR(12),   /* SPEC QUEST  3 A         010- 021*/
+   5 CSQ03B          CHAR(12),   /* SPEC QUEST  3 B         022- 033*/
+   5 CSQ04           CHAR(2),    /* SPEC QUEST  4           034- 035*/
+   5 CSQ05           CHAR(3),    /* SPEC QUEST  5           036- 038*/
+   5 CSQ06           CHAR(3),    /* SPEC QUEST  6           039- 041*/
+   5 CSQ07           CHAR(2),    /* SPEC QUEST  7           042- 043*/
+   5 CSQ08           CHAR(1),    /* SPEC QUEST  8           044- 044*/
+   5 CSQ09           CHAR(1),    /* SPEC QUEST  9           045- 045*/
+   5 CSQ10           CHAR(1),    /* SPEC QUEST 10           046- 046*/
+   5 CSQ11           CHAR(1),    /* SPEC QUEST 11           047- 047*/
+   5 SPAD02          CHAR(1),    /* PADDING                 048- 048*/
+   5 CDQ01           CHAR(8),    /* DYNAMIC QUEST 1         049- 056*/
+   5 CDQ02           CHAR(8),    /* DYNAMIC QUEST 2         057- 064*/
+   5 CDQ03           CHAR(8),    /* DYNAMIC QUEST 3         065- 072*/
+   5 CDQ04           CHAR(8),    /* DYNAMIC QUEST 4         073- 080*/
+   5 CDQ05           CHAR(2),    /* DYNAMIC QUEST 5         081- 082*/
+   5 CDQ06           CHAR(8),    /* DYNAMIC QUEST 6         083- 090*/
+   5 CDQ07           CHAR(8),    /* DYNAMIC QUEST 7         091- 098*/
+   5 CDQ08           CHAR(8),    /* DYNAMIC QUEST 8         099- 106*/
+   5 CDQ09           CHAR(8),    /* DYNAMIC QUEST 9         107- 114*/
+   5 CDQ10           CHAR(1),    /* DYNAMIC QUEST 10        115- 115*/
+   5 SPAD03          CHAR(105)   /* PADDING                 116- 220*/
+ /*-----------------------------------------------------------------*/
+ /*              END OF AEQSEXCP SEGMENT LAYOUT                     */
+ /*-----------------------------------------------------------------*/
+

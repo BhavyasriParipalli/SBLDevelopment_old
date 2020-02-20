@@ -1,0 +1,40 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCUST      VERSION NR:  01           DATE:  03/25/97   */
+ /*                                                TIME:  14:25:30   */
+ /*                                                                  */
+ /*  TITLE: HOUSECALL CUSTOMER OUTPUT FILE LAYOUT                    */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME:                                               */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*        PRIMARY KEY: IRECID + ICUSTNO + SPAD01                    */
+ /*        KEYLENGTH  : 30                                           */
+ /*                                                                  */
+ /*        SECONDARY KEY STRUCTURE 1: THERE IS NO SECONDARY          */
+ /*                                   KEY AT THIS TIME.              */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  03/25/97 S97018    7CSG    ORIGINAL PROMOTE                MLN  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "49" 001- 002 */
+     3 IDBKEY,                     /* DATA BASE PRIMARY KEY          */
+       5 IRECID     CHAR(01),      /* RECORD ID, ALWAYS "L" 003- 003 */
+       5 ICUSTNO    CHAR(07),      /* CUSTOMER NUMBER       004- 010 */
+       5 SPAD01     CHAR(22),      /* UNUSED PADDING        011- 032 */
+     3 ISDATE       CHAR(08),      /* CONTRACT START DATE   033- 040 */
+     3 IEDATE       CHAR(08),      /* CONTRACT END DATE     041- 048 */
+     5 SPAD02       CHAR(01)       /* UNUSED PADDING        049- 049 */
+ /********************************************************************/
+ /*   END  OF  COPY  MEMBER  AEQCUST                                 */
+ /********************************************************************/

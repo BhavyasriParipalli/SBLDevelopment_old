@@ -1,0 +1,35 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQMSER     VERSION NR:  01           DATE:  12/04/96    */
+ /*                                                                  */
+ /* TITLE: MACHINE SERIAL LENGTH RECORD WITH 31 BYTE KEY             */
+ /*                                                                  */
+ /* TYPE : RECORD                                                    */
+ /*                                                                  */
+ /* LANGUAGE:  PLI                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: THIS COPY MEMBER MAPS THE LAYOUT OF THE OUTPUT      */
+ /*              RECORDS BEING WRITTEN TO THE MASTER SUPPORT FILE    */
+ /*              WITH A 31 BYTE KEY.                                 */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  12/04/96 S9600638 6CSR INITAL CREATION FOR NEW FILE         MLN */
+ /*  09/03/99 QSARPROD 9NSA CORRECT COMMENTS                     PRM */
+ /*                                                                  */
+ /********************************************************************/
+    3 IRECLGTH    FIXED BIN(15),   /* RECORD LENGTH (55)    001- 002 */
+    3 IRECID      CHAR(01),        /* RECORD ID - ALWAYS 0  003- 003 */
+    3 IMACTYPE    CHAR(04),        /* MACHINE TYPE          004- 007 */
+    3 SPAD1       CHAR(27),        /* UNUSED                008- 034 */
+    3 IMIN        CHAR(02),        /* MIN LENGTH FOR SERIAL 035- 036 */
+    3 SPAD2       CHAR(01),        /* UNUSED                037- 037 */
+    3 IMAX        CHAR(02),        /* MAX LENGTH FOR SERIAL 038- 039 */
+    3 SPAD3       CHAR(01),        /* UNUSED                040- 040 */
+    3 IMFGR       CHAR(10),        /* MANUFACTURER          041- 050 */
+    3 SPADDING    CHAR(05)         /* PAD TO 55             051- 055 */
+ /*------------------------------------------------------------------*/
+ /*                                  END AEQMSER                     */
+ /*------------------------------------------------------------------*/
+

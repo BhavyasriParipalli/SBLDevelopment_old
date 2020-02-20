@@ -1,0 +1,262 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------    AUDIT/EDIT     ---------                */
+ /*             ---------   COMM AREA #2    ---------                */
+ /*             ---------    REC FORMAT     ---------                */
+ /*             ---------   NSS TO QSAR     ---------                */
+ /*                                                                  */
+ /* MACRO NAME = AEQCOMM2                                            */
+ /*                                                                  */
+ /* TITLE:  COMM AREA FOR PT/QSAR DATA                               */
+ /*                                                                  */
+ /* FUNCTION = MAPPING OF THE PT INCOMING DATA TO A COMMUNICATION    */
+ /*            AREA WHICH WILL BE USED TO PASS DATA FROM             */
+ /*            NSS MODULE QARDBFMT TO THE QSAR/P MODULE AEQDBU1      */
+ /*                                                                  */
+ /* INVOCATION = %INCLUDE (AEQCOMM2)                                 */
+ /*                                                                  */
+ /* LRECL = 1466                                                     */
+ /*                                                                  */
+ /* NOTES = CHANGES TO THIS FILE (EXCLUDING THE QMISC SECTION)       */
+ /*         SHOULD BE INITIATED IF NSS QARDBSEG COPY/CNQDBSEG COPY   */
+ /*         HAS BEEN CHANGED.  ANY CHANGES SHOULD BE REFLECTED IN    */
+ /*         NSS MODULE QARDBFMT AND QHOSTDCL COPY                    */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  07/15/88  SR 9891 8NSM  COMM AREA LAYOUT TO PASS DATA      LBS  */
+ /*                          FROM NSS - QARDBFMT PLS TO              */
+ /*                          AEQDBU1 PLIEX6. LAYOUT MUST MATCH       */
+ /*                          LAYOUT IN QHOSTDCL                      */
+ /*                                                                  */
+ /*  08/07/89  SR 0300 9NSI  ADD REPAIR CODE, CSP AND EXCEPTION LBS  */
+ /*               0267       DATA                                    */
+ /*                                                                  */
+ /*  09/07/89  SR 0038 9NSK  ADD CANADA DATA AREAS              SPZ  */
+ /*  09/25/89  SR 9892 9NSK  ADD CUSTOMER REF AND ZIP CODE      SPZ  */
+ /*  02/09/90  SR 0252 0NSG  ADD OLD AND NEW HDA AND DEV. ADDR  BLS */
+ /*  03/09/90  SR 0444 0NSG  ADD UNAVAILABLE TIME               BLS */
+ /*  08/21/90  SR 0384 0NSK  ADD ADP FAILURE/ACTION CODE AND        */
+ /*                          ADP PRODUCT CODE                   DVC */
+ /*  02/07/91  SR 0649 1NSB  CHANGES TO CANADIAN FIELDS:             */
+ /*                         REMOVE CUSTOMER NUMBER AND MACHINE       */
+ /*                         STATUS, ADD METER READING AND PART       */
+ /*                         ORDER QUANTITY, MOVE PART ACQUISITION    */
+ /*                         TIME AND PART SOURCE CODE FROM PART      */
+ /*                         INTO ROOT SEGMENT SECTION           ABM  */
+ /*  02/07/91  SR 0702 1NSE  ADD QDCPROB2 - SAVED CAD PROB #    LBS */
+ /*  11/07/91  SR 0650 1NSM  REMOVE CANADA SECTIONS             ABM */
+ /*  12/17/91  SR 0848 2NSA  ADD PM HOURS                       ABM */
+ /*  12/17/91  SR 0882 2NSA  ADD COMMENTS EXTENSION             ABM */
+ /*  04/06/92  I148274 2NSA  MERGE THE TWO COMMENTS FIELDS      LBS */
+ /*                          (TEMPORARILY?)                         */
+ /*  04/09/92  SR0590  2NSD  EXPAND METER READING FROM 7 TO 9   ABM */
+ /*  04/09/92  SR0972  2NSD  ADD PRODUCT ID                     ABM */
+ /*  04/09/92  SR1061  2NSD  ADD MDQ SURVEY (SERVICE PERF.)     ABM */
+ /*  08/26/92  SR0999  2NSH  EXPAND REF/FSC FROM 8 TO 12 BYTES  ABM */
+ /*  10/12/92  SR1084  2NSJ  ADD CE ENTERED CUSTOMER TYPE       LBS */
+ /*                            - QDCUSTYP                           */
+ /*  08/03/93 S9300162 3NSL  ADD ADP WORK ORDER NUMBER          DLK */
+ /*                            - QDADPWON                           */
+ /*  09/14/94 S9300229 4NSM  ADD 1 DIGIT TO EXPENSE FIELD       DLK */
+ /*                                                                 */
+ /*******************************************************************/
+
+ /*******************************************************************/
+ /* QSAR ROOT SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDR".        */
+ /*******************************************************************/
+     3 QDROOT ,
+       5 QDRKEY,                /* KEY FIELD                         */
+         7 QDREMPSR CHAR(6),    /* EMPLOYEE SERIAL      OFFSET = 000 */
+         7 QDRDAYWK CHAR(1),    /* DAY OF WEEK (1=SATURDAY)      006 */
+         7 QDRAMPM  CHAR(1),    /* A=A.M. (STOP TIME  0.0-13.9)  007 */
+                                /* P=P.M. (STOP TIME 14.0-24.0)      */
+
+ /*******************************************************************/
+ /* QSAR DATE SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDD".        */
+ /*******************************************************************/
+     3 QDDATE,
+       5 QDDRECDT CHAR(6),      /* KEY: DATE (YYMMDD)   OFFSET = 000 */
+       5 QMNUS01  CHAR(2),      /* UNUSED                        006 */
+
+ /*******************************************************************/
+ /* QSAR COMMON SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDC".      */
+ /*******************************************************************/
+     3 QDCOMMON,
+       5 QDCKEY,                /* KEY FIELD                         */
+         7 QDCSTOP  CHAR(3),    /* STOP TIME (HHT)      OFFSET = 000 */
+         7 QDCRECNO CHAR(9),    /* RECORD NO GENERATED BY PT     003 */
+       5 QDCSEQCL CHAR(3),      /* SEQUENCE/CALL NUMBER          012 */
+       5 QDCOMPL  CHAR(4),      /* PT REC COMPLETION (HHMM)      015 */
+       5 QDCRCVTM CHAR(4),      /* HOST RECEIVE TIME (HHMM)      019 */
+       5 QDCRCVDT CHAR(4),      /* HOST RECEIVE DATE (MMDD)      023 */
+       5 QDCSC    CHAR(2),      /* SERVICE CODE                  027 */
+       5 QDCACTUL CHAR(3),      /* ACTUAL HOURS (HHT)            029 */
+       5 QDCTRAVL CHAR(3),      /* TRAVEL HOURS (HHT)            032 */
+       5 QDCMILES CHAR(3),      /* MILEAGE-ACTUAL MILES          035 */
+       5 QDCEXPNS CHAR(5),      /* EXPENSE                       038 */
+       5 QDCOVRTM CHAR(3),      /* OVERTIME HOURS (HHT)          043 */
+       5 QDCMTYPE CHAR(4),      /* MACHINE TYPE                  046 */
+       5 QDCMSERL CHAR(7),      /* MACHINE SERIAL (RIGHT JUST)   050 */
+       5 QDCSREQ  CHAR(1),      /* SCHEDULED (SERVICE REQUEST)   057 */
+       5 QDCIAP   CHAR(1),      /* COMPLETION CODE (CIDASP)      058 */
+       5 QDCTAC   CHAR(4),      /* TECHNICAL AREA CODE           059 */
+       5 QDCACTN  CHAR(2),      /* ACTION CODE                   063 */
+       5 QDCACTIV CHAR(2),      /* ACTIVITY CODE                 065 */
+       5 QDCOTHMK CHAR(3),      /* OTHER/MARKETING B/O           067 */
+       5 QDCPROB  CHAR(5),      /* CE ENTERED PROBLEM NUMBER     070 */
+       5 QDCBILSP CHAR(1),      /* BILLABLE/SPECIAL ACTIVITY     075 */
+       5 QDCTBLVL FIXED BIN(15),
+                                /* PT TABLE VERSION AND LEVEL -      */
+                                /* NOT ASSIGNED DIRECTLY FROM PT     */
+       5 QDCSTYPE CHAR(1),      /* CONCURRENT(SERVICE TYPE)      078 */
+       5 QDCFLAGS,              /* BIT FLAGS                     079 */
+         7 QDCRCORG BIT(1),     /*   0 = FROM PT     1 = FROM RAMS   */
+         7 QDCPSFLG BIT(1),     /*   0 = IPAR/PARTS  1 = PSAR        */
+         7 QDCPRFLG BIT(1),     /*   0 = IPAR/PSAR   1 = PARTS ONLY  */
+         7 QDCPTFLG BIT(1),     /*   0 = IPAR/PSAR   1 = PARTS TRAIL */
+         7 QMNUS02  BIT(4),     /* UNUSED PADDING                    */
+       5 QDCSHIFT   CHAR(1),    /* ASSIGNED SHIFT                080 */
+       5 QDCPROB2 CHAR(5),      /* ORIGINAL CAD ASSIGNED PROB NO 081 */
+       5 QDCPMHRS CHAR(3),      /* PM HOURS                      086 */
+       5 QMNUS05  CHAR(1),      /* UNUSED PADDING                    */
+
+ /*******************************************************************/
+ /* QSAR IPAR SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDI".        */
+ /*******************************************************************/
+     3 QDIPAR,
+       5 QDICONT,               /* CUSTOMER CONTACT        @AFE      */
+         7 QDICSS   CHAR(5),    /* UNUSED               OFFSET = 000 */
+         7 QDICOURS CHAR(5),    /* UNUSED                        005 */
+         7 QDIERNMF CHAR(8),    /* ECA/REA/MICROCODE FIX         010 */
+       5 QDIMES     CHAR(6),    /* MES NUMBER                    018 */
+       5 QDI1CSSX,              /* UNUSED                            */
+         7 QDIMAJOR CHAR(3),    /* UNUSED                        024 */
+         7 QDIOPER  CHAR(3),    /* UNUSED                        027 */
+       5 QDIHSDNM ,             /*                                   */
+         7 QDICAUSE CHAR(2),    /* UNUSED                        030 */
+         7 QDIBILMT CHAR(7),    /* BILL OF MATERIAL              032 */
+       5 QDIMETER   CHAR(7),    /* METER READING                 039 */
+       5 QDIUSAGE   CHAR(4),    /* USAGE CREDIT                  046 */
+       5 QDIPMFRQ   CHAR(2),    /* PM FREQUENCY                  050 */
+       5 QDIFEATR   CHAR(6),    /* UNUSED                            */
+       5 QDIMCYC    CHAR(2),    /* UNUSED                            */
+       5 QDIIDM     CHAR(1),    /* PLAN INSTALL RR/CSU DIS 1-4   060 */
+       5 QDIEFI     CHAR(1),    /* UNUSED                        061 */
+       5 QDIMOD     CHAR(1),    /* MODIFICATIONS 1=MES  2=ECA    062 */
+       5 QDIMODN    CHAR(1),    /* MODS N/A (PREINST NOTHER CNL) 063 */
+       5 QDIBTYP    CHAR(1),    /* UNUSED                        064 */
+       5 QDIIMM     CHAR(1),    /* UNUSED                        065 */
+       5 QDINOD     CHAR(1),    /* UNUSED                        066 */
+       5 QDICSS2    CHAR(7),    /* CONTRACT NUMBER (CSS)         067 */
+       5 QDIRPAIR   CHAR(1),    /* REPAIR CODE                   074 */
+       5 QDIOLHDA   CHAR(12),   /* OLD HDA SERIAL                075 */
+       5 QDINWHDA   CHAR(12),   /* NEW HDA SERIAL                087 */
+       5 QDIDVADD   CHAR(3),    /* DEVICE ADDRESS                099 */
+       5 QDIUTIME   CHAR(2),    /* UNAVAILABLE TIME              102 */
+       5 QDIADPFA   CHAR(2),    /* ADP FAILURE/ACTION CODE       104 */
+       5 QDIADPPC   CHAR(3),    /* ADP PRODUCT CODE              106 */
+       5 QDIPRDID   CHAR(4),    /* PRODUCT ID                    109 */
+       5 QDISRVP    CHAR(5),    /* MDQ SURVEY (SERVICE PERF)     113 */
+       5 QDCUSTYP   CHAR(1),    /* CUSTOMER TYPE                 118 */
+       5 QDADPWON   CHAR(8),    /* ADP WORK ORDER NUMBER         119 */
+       5 QMNUS07    CHAR(33),   /* UNUSED                        127 */
+
+ /*******************************************************************/
+ /* QSAR PARTS SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDT".       */
+ /*******************************************************************/
+     3 QDTPARTS (8),
+       5 QMNUS08  CHAR(4),      /* FUTURE EXP OF KEY    OFFSET = 000 */
+       5 QDTPRTNM CHAR(8),      /* KEY: PART NUMBER              004 */
+       5 QDTFUNCT CHAR(2),      /* FUNCTION CODE                 012 */
+       5 QDTFRMBO CHAR(3),      /* FROM BRANCH OFFICE            014 */
+       5 QDTRCVBO CHAR(3),      /* RECEIVING BRANCH OFFICE       017 */
+       5 QDTFRMOL CHAR(3),      /* FROM OUTSIDE LOCATION         020 */
+       5 QDTRCVOL CHAR(3),      /* RECEIVING OUTSIDE LOCATION    023 */
+       5 QDTQTYUS CHAR(2),      /* USG/DISB/UPR QTY              026 */
+       5 QDTQTYOR CHAR(2),      /* QTY ORDERED                   028 */
+       5 QDTEXCPT CHAR(1),      /* EXCEPT DEMD/PARTS AVAIL       030 */
+       5 QDTBINLC CHAR(6),      /* BIN LOCATION                  031 */
+       5 QDTALTSH CHAR(3),      /* ALTERNATE SHIP                037 */
+       5 QDTDELIV CHAR(2),      /* DELIVERY POINT                040 */
+       5 QDTPAT   CHAR(3),      /* PARTS ACQUISITION TIME        042 */
+       5 QDTREORD CHAR(4),      /* REORDER M/T (FROM 'PO')       045 */
+       5 QDTCSP   CHAR(1),      /* CERTIFIED SERVICE PART        049 */
+       5 QMNUS09  CHAR(9),      /* UNUSED                        050 */
+
+ /*******************************************************************/
+ /* QSAR PARTS SEGMENT. HERE, ALL VARIABLES BEGIN WITH "QDT".       */
+ /*******************************************************************/
+     3 QDNARR,
+       5 QDNREFCD CHAR(12),     /* REFERENCE CODE       OFFSET = 000 */
+       5 QDNLOCAT CHAR(8),      /* CARD LOCATION                 012 */
+       5 QDNCSTNM CHAR(15),     /* CUSTOMER NAME                 020 */
+       5 QDNCUSRF CHAR(19),     /* CUSTOMER REFERENCE            035 */
+       5 QDNZIPCD CHAR(09),     /* ZIP CODE                      054 */
+       5 QDNCMTS  CHAR(70),     /* COMMENTS                      063 */
+
+ /*******************************************************************/
+ /* MISC QSAR DATA SEGMENT. HERE, ALL VARIABLES START WITH "QM"     */
+ /*******************************************************************/
+     3 QMISC,                        /* MISCELLANEOUS DATA NOT      */
+       5 QMBO     CHAR(3),           /* ORIGINALLY PART OF NSS QSAR */
+       5 QMTERR   CHAR(3),           /* DB                          */
+       5 QMREGN   CHAR(2),           /*                             */
+       5 QMDIV    CHAR(1),           /*                             */
+       5 QMAPPID  CHAR(2),           /*                             */
+       5 QMFUNC   CHAR(1),           /*                             */
+       5 QMBSRTIM CHAR(6),           /* HHMMSS                      */
+       5 QMBSRDAT CHAR(6),           /* YYMMDD                      */
+       5 QMMSGCTL FIXED BIN(15),
+       5 QMMSGLEN FIXED BIN(15),
+       5 QMRECNO  FIXED BIN(31),
+       5 QMIFUNC       CHAR (2),
+       5 QMCOMPIL FIXED BIN(15),
+       5 QMTABID  FIXED BIN(15),
+       5 QMMSGFLG,
+         7 QMPTRAMS    BIT(1),
+         7 QMHUB       BIT(1),
+         7 QMIPRPSR    BIT(1),
+         7 QMNUS12     BIT(5),
+       5 QMFLAGS,
+         7 HAVENARR    BIT(1),
+         7 HAVEPART    BIT(1),
+         7 HAVEEXCP    BIT(1),
+         7 DUPE        BIT(1),
+         7 SUCC30      BIT(1),
+         7 QMNUS13     BIT(3),
+
+ /*******************************************************************/
+ /*                OBSOLETE EXCEPTION REPORTING DATA.               */
+ /*******************************************************************/
+      3 XCPTSEG,
+        5 XCQSTID  CHAR(2),
+        5 XCVERLVL FIXED BIN(15),
+        5 XCSQ02   CHAR(4),
+        5 XCSQ3A   CHAR(12),
+        5 XCSQ3B   CHAR(12),
+        5 XCSQ04   CHAR(2),
+        5 XCSQ05   CHAR(3),
+        5 XCSQ06   CHAR(3),
+        5 XCSQ07   CHAR(2),
+        5 XCSQ08   CHAR(1),
+        5 XCSQ09   CHAR(1),
+        5 XCSQ10   CHAR(1),
+        5 XCSQ11   CHAR(1),
+        5 XCDQ01   CHAR(8),
+        5 XCDQ02   CHAR(8),
+        5 XCDQ03   CHAR(8),
+        5 XCDQ04   CHAR(8),
+        5 XCDQ05   CHAR(2),
+        5 XCDQ06   CHAR(8),
+        5 XCDQ07   CHAR(8),
+        5 XCDQ08   CHAR(8),
+        5 XCDQ09   CHAR(8),
+        5 XCDQ10   CHAR(1),
+        5 XCNUSED  CHAR(12)
+ /********************************************************************/
+ /*  END OF AEQCOMM2 INCLUDE                                         */
+ /********************************************************************/
+

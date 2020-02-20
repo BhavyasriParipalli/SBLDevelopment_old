@@ -1,0 +1,29 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCOS1     VERSION NR:  01           DATE:  09/13/90    */
+ /*                                               TIME:  09:10:20    */
+ /*                                                                  */
+ /* TITLE: CONTRACT NUMBER REFERENCE FILE.                           */
+ /*                                                                  */
+ /* KEYLENGTH :  14                                                  */
+ /*                                                                  */
+ /* LRECL :      17                                                  */
+ /*                                                                  */
+ /* LANGUAGE:  PLI                                                   */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/17/91  SR0853  1NSM ORIGINAL PROMOTE                     ABM */
+ /*  06/12/95 C9420601 5CSE EXPAND THE LENGTH OF CONTRACT        DLP */
+ /*                         NUMBER                                   */
+ /********************************************************************/
+    3 RECLGTH   FIXED BIN(15), /* RECORD LENGTH IS "17"     001- 002 */
+    3 RECID      CHAR(1),      /* RECORD ID, ALWAYS A "9".  003- 003 */
+    3 CONTKEY,                 /* KEY TO THE CONTRACT NUMBER FILE    */
+      5 CONTNUM  CHAR(12),     /* CONTRACT NUMBER           004- 015 */
+      5 PADDING  CHAR(2)       /* UNUSED PORTION OF KEY     016- 017 */
+ /*------------------------------------------------------------------*/
+ /*                                  END AEQCOS1                     */
+ /*------------------------------------------------------------------*/

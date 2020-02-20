@@ -1,0 +1,132 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME: AEQMTMD                                 DATE:  09/06/01   */
+ /*                                                                  */
+ /*  FUNCTION: Data returned from QSAR Support file MTM table        */
+ /*            read and converted to character data for use by       */
+ /*            CAD Prescreens in Prescreen field, CONDIAG1.          */
+ /*                                                                  */
+ /*  Note: Needs to be kept in sync with QSAR copy member, AEQMTM    */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG                                        */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*09/06/2001 SR01034   1NSP  NSS ORIGINAL PROMOTE               JBL */
+ /*02/28/2005 SR050022  5NSC  NSS changes for Lenovo support     LBS */
+ /*12/06/2006 SR0600xx  7NSA  remove GDTSS1, GDTSS2, GDTSS3      LBS */
+ /*                           add CBWC, SPAD01                       */
+ /*04/27/2007 SR060054  7NSR  add CWARSERV                       LBS */
+ /*                                                                  */
+ /********************************************************************/
+     3 GDXFLAGA      CHAR(08),     /* F2WITCHES/FLAGS       001- 008 */
+                                   /* NOT USED              001- 001 */
+                                   /* BOULDER FASTBACK      001- 001 */
+                                   /* FASTBACK AUSTIN A     001- 001 */
+                                   /* NOT USED              001- 001 */
+                                   /* NOT USED              002- 002 */
+                                   /* NOT USED              002- 002 */
+                                   /* NOT USED              002- 002 */
+                                   /* NOT USED              002- 002 */
+                                   /* NOT USED              003- 003 */
+                                   /* NOT USED              003- 003 */
+                                   /* NOT USED              003- 003 */
+                                   /* NOT USED              003- 003 */
+                                   /* NOT USED              004- 004 */
+                                   /* NOT USED              004- 004 */
+                                   /* NOT USED              004- 004 */
+                                   /* NOT USED              004- 004 */
+                                   /* NOT USED              005- 005 */
+                                   /* DELETE FLAG           005- 005 */
+                                   /* NOT USED              005- 005 */
+                                   /* NOT USED              005- 005 */
+                                   /* NOT USED              006- 006 */
+                                   /* NOT USED              006- 006 */
+                                   /* NOT USED              006- 006 */
+                                   /* NOT USED              006- 006 */
+                                   /* NOT USED              007- 007 */
+                                   /* NOT USED              007- 007 */
+                                   /* PPRS FULL REPORTING   007- 007 */
+                                   /* NOT USED              007- 007 */
+                                   /* EXTRACT FOR PIMS      008- 008 */
+                                   /* Global Warranty       008- 008 */
+                                   /* Service indicator              */
+                                   /* EXTRACT FOR PPRS      008- 008 */
+                                   /* METERED MACHINE       008- 008 */
+     3 GDCBILCL      CHAR(01),     /* BILLING CLASS         009- 009 */
+     3 GDCMTREQ      CHAR(01),     /* INV. MATCH REQ  (Y|N) 010- 010 */
+     3 GDCACTCL      CHAR(01),     /* ACCOUNTING CLASS      011- 011 */
+     
+     3 CWARLIAB      CHAR(01),     /* RESPONSIBLE FOR       012- 012 */
+                                   /* WARRANTY                       */
+                                   /* I = IBM                        */
+                                   /* L = LENOVO                     */
+                                   /* M = MIXED LIABILITY            */
+                                   /*     IBM/LENOVO                 */
+     3 COFRLIAB      CHAR(01),     /* RESPONSIBLE FOR       013- 013 */
+                                   /* OFFERING, M/A                  */
+                                   /* I = IBM                        */
+                                   /* L = LENOVO                     */
+     3 GDCPMSH       CHAR(02),     /* PM SCHEDULE           014- 015 */
+     3 GDXFLAGB      CHAR(04),     /* MISC FLAGS            016- 019 */
+                                   /*   WITHDRAWN FROM MAIN 016- 016 */
+                                   /*   AUTO CUSTOMER INSTA 016- 016 */
+                                   /*   SERVICE REPAIR CENT 016- 016 */
+                                   /*   BETHESDA CNT SET    016- 016 */
+                                   /*   BETHESDA CONTROLLED 017- 017 */
+                                   /*   NOT USED            017- 017 */
+                                   /*   NOT USED            017- 017 */
+                                   /*   NOT USED            017- 017 */
+                                   /*   NOT USED            018- 018 */
+                                   /*   NOT USED            018- 018 */
+                                   /*   NOT USED            018- 018 */
+                                   /*   NOT USED            018- 018 */
+                                   /*   NOT USED            019- 019 */
+                                   /*   NOT USED            019- 019 */
+                                   /*   NOT USED            019- 019 */
+                                   /*   NOT USED            019- 019 */
+     /*3 GDTSS1        CHAR(03),     TERR SUB. COMMUNICAT. 020- 022 */
+     /*3 GDTSS2        CHAR(03),     TERR SUB. SYSTEM      023- 025 */
+     /*3 GDTSS3        CHAR(03),     TERR SUB. TERRITORY   026- 028 */
+     3 CBASEWAR      CHAR(04),     /* BASE WARRANTY CODE    020- 023 */
+     3 CWARSERV      CHAR(01),     /* MACHINE AVAILABLE FOR 024- 024 */
+                                   /* SPECIAL WARRANTY SERVICE       */
+                                   /* G = Global Warranty Service    */
+                                   /* I = International Warr Service */
+                                   /* N = No warranty service        */
+     3 SPAD01        CHAR(04),     /*                       025- 028 */
+     3 GDCMTRM       CHAR(01),     /* METERED MACH (Y/N)    029- 029 */
+     3 GDCPRDT       CHAR(01),     /* PRODUCT TYPE (F/M)    030- 030 */
+     3 GDCMLC        CHAR(01),     /* MLC SHIP CTL (Y/N)    031- 031 */
+     3 GDCSCPU       CHAR(01),     /* SOFTWARE CPU (Y/N)    032- 032 */
+     3 GDCPOC        CHAR(02),     /* POINT OF CTL - PLANT  033- 034 */
+     3 GDCMLCPC      CHAR(02),     /* MLC PLANT OF CONTROL  035- 036 */
+     3 GDXFLAGC      CHAR(02),     /* NOT USED                       */
+                                   /* NOT USED              037- 037 */
+                                   /* NOT USED              037- 037 */
+                                   /* NOT USED              037- 037 */
+                                   /* NOT USED              037- 037 */
+                                   /* NOT USED              038- 038 */
+                                   /* NOT USED              038- 038 */
+                                   /* NOT USED              038- 038 */
+                                   /* NOT USED              038- 038 */
+     3 GDCCUSTI      CHAR(01),     /* CUSTOMER INSTALL(Y|N) 039- 039 */
+     3 GDCTACGP      CHAR(02),     /* TAC GROUP CODE        040- 041 */
+     3 GDCTCP        CHAR(01),     /* TECHNICAL CAREER PATH 042- 042 */
+     3 CTAXCD        CHAR(02),     /* TAX CODE              043- 044 */
+     3 COSMACH       CHAR(01),     /* COS M/T = Y, ELSE = N 045- 045 */
+     3 CGSASCH       CHAR(01),     /* GSA SCHEDULE (A|C)    046- 046 */
+     3 PIDMACH       CHAR(01),     /* PRODUCT ID? (Y|N)     047- 047 */
+     3 FOEMTYPE      CHAR(01),     /* OEM MACHINE FLAG (Y/N 048- 048 */
+     3 CPRODDIV      CHAR(02),     /* PRODUCT DIVISION      049- 050 */
+     3 DAVAIL        CHAR(08),     /* GENERAL AVAILABILITY  051- 058 */
+                                   /* DATE YYYYMMDD                  */
+     3 AWARLEN       CHAR(03),     /* WARRANTY LENGTH IN    059- 061 */
+                                   /* MONTHS                         */
+     3 AWARSVC       CHAR(01),     /* WARRANTY SERVICE      062- 062 */
+                                   /* INDICATOR                      */
+     3 RETCODE       CHAR(02)      /* Prescreen RETURN CODE 063- 064 */
+                                   /*                                */
+ /* ---------------------------------------------------------------- */
+ /*              END OF  COPY  MEMBER  AEQMTMD                       */
+ /* ---------------------------------------------------------------- */

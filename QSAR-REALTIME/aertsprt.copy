@@ -1,0 +1,340 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AERTSPRT    VERSION NR:  01           DATE:  09/28/97    */
+ /*                                               TIME:  23:12:50    */
+ /*                                                                  */
+ /* TITLE: QSAR TO RTS REAL TIME INTERFACE                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: MAPPING THE QSAR TO RTS REAL TIME PARTS INTERFACE   */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  09/15/97 S97133   7NSP INITIAL PROMOTE                      DLP */
+ /*  01/07/99 S98156   8NSN ADD CCOUNTRY                         LBS */
+ /*03/04/2005 SR050023 5NSC ADD ILIABLTY Lenovo liability        LBS */
+ /*                         indicator                                */
+ /*                                                                  */
+ /********************************************************************/
+   3 CNEWCHG      CHAR (01),   /* CURRENT VERSION OF THE    001- 001 */
+                               /* RECORD LAYOUT(R)                   */
+   3 CRTSSTAT     CHAR (01),   /* STATUS OF THE RECORD(R)   002- 002 */
+                               /*  C - REC IS CLEAN THE FIRST TIME   */
+                               /*  P - REC IS PENDED NOT FOR PARTS   */
+                               /*      DATA                          */
+                               /*  K - REC WAS PENDED, IS CLEAN NOW  */
+                               /*  D - REC WAS DLETED                */
+                               /*                                    */
+   3 IDOCNUMB     CHAR (09),   /* DOCUMENT NUMBER, QSAR     003- 011 */
+                               /* UNIQUE NUMBER FOR REC(R)           */
+   3 IMACHMOD     CHAR (03),   /* MACHINE MODEL             012- 014 */
+   3 IMACHSER     CHAR (22),   /* MACHINE SERIAL # OF THE   015- 036 */
+                               /* MACH WHERE THE PART WAS USED       */
+   3 ICECUST#     CHAR (07),   /* CUSTOMER NUMBER (FROM CE) 037- 043 */
+   3 IEMPSER      CHAR (06),   /* EMPLOYEE SERIAL(R)        044- 049 */
+   3 CBILLACT     CHAR (01),   /* BILLABLE OR SPEC. ACT. CD 050- 050 */
+   3 DCALCOMP     CHAR (08),   /* CALL COMPLETE DATE        051- 058 */
+                               /*                   YYYYMMDD         */
+   3 QTRAVLMI     CHAR (03),   /* TRAVEL MILES      NNN     059- 061 */
+   3 ATRAVLEX     CHAR (07),   /* TRAVEL EXPENSES   $$$$$CC 062- 068 */
+   3 HTRAVEL      CHAR (03),   /* TRAVEL HOURS      HHT     069- 071 */
+   3 CCOMPLET     CHAR (01),   /* COMPLETION CODE(R)        072- 072 */
+                               /*  1 - COMPLETE                      */
+                               /*  2 - IMCOMPLETE                    */
+                               /*  3 - DAIGNOSTIC ASSISTANCE         */
+                               /*  4 - ASSISTANCE                    */
+                               /*  5 - SUSPENDED FOR PARTS           */
+                               /*  6 - POST INSTALLION               */
+                               /*                                    */
+   3 CSERVICE     CHAR (02),   /* SERVICE CODE(PT) AKA      073- 074 */
+                               /* SERVICE ACTIVITY (TRUER)           */
+   3 CACTIVTY     CHAR (02),   /* ACTIVITY CODE             075- 076 */
+   3 CIDM         CHAR (01),   /* INSTALL/DISC/MOVE CODE    077- 077 */
+                               /*  1 = INSTALLATION PLANNING         */
+                               /*  2 = INITIAL INSTALL               */
+                               /*  3 = RELOCATE,REARRANGE OR         */
+                               /*      CUSTOMER SETUP                */
+                               /*  4 = DISASSEMBLE PACK TRANSPORT    */
+                               /*  5 = MARKETING PROMOTION           */
+                               /*      DISASSEMBLE MACHINE FOR       */
+                               /*      RETURN TO IBM.                */
+                               /*                                    */
+   3 CMOD         CHAR (01),   /* MODIFICATIONS CODE        078- 078 */
+                               /*  1 = MES NUMBER                    */
+                               /*  2 = EC  NUMBER                    */
+                               /*                                    */
+   3 CMESECA      CHAR (08),   /* MES/ECA/REA NUMBER        079- 086 */
+                               /*?MES/ECA/REA/MICRO FIX              */
+                               /* ECA       LENGTH   3               */
+                               /* MES       LENGTH   6               */
+                               /* MICROCODE LENGTH 1-8               */
+                               /* REA       LENGTH   5               */
+                               /*                                    */
+   3 IOTHBOWK     CHAR (04),   /* OTHER SR B/O WORKED       087- 090 */
+   3 IBILLMAT     CHAR (07),   /* BILL OF MATERIAL          091- 097 */
+   3 IPROBNUM     CHAR (11),   /* PROBLEM # FROM CAD        098- 108 */
+   3 ICONTRCT     CHAR (12),   /* CSS CONTRACT NUMBER       109- 120 */
+                               /*                                    */
+                               /* ---------------------------------  */
+   3 UPARTS(4),                /* PARTS LINE STRUCTURE      121-344  */
+                               /* ---------------------------------  */
+                               /* PARTS DATA LINE 1                  */
+                               /*                                    */
+     5 CFUNC      CHAR (02),   /* FUNCTION CODE PT(R) AKA   121- 122 */
+                               /* PARTS ACTIVITY CODE(TRUER)         */
+                               /*  01 - PART TRANSFER                */
+                               /*  02 - PART USAGE                   */
+                               /*  03 - PART ORDER                   */
+                               /*  05 - NET ORDER (06 AT HOST)       */
+                               /*  06 - BIN LOCATION CHANGE          */
+                               /*  09- NOT MY PART                   */
+                               /*  10 - NEVER RECEIVED PART          */
+                               /*  21 - DISBURSEMENT/USAGE           */
+                               /*  99 - NEW DEFECTIVE RETURN         */
+                               /*                                    */
+     5 CPARTUSE   CHAR (01),   /* PART USAGE CODE           123- 123 */
+                               /*  D - DEFECTIVE                     */
+                               /*  U - USAGE                         */
+                               /*  R - NEW RETURN                    */
+                               /*  BLANK                             */
+     5 QDISBUSE   CHAR (02),   /* DISB/USAGE/UPR SUB QTY    124- 125 */
+     5 IPARTNUM   CHAR (08),   /* IBM PART NUMBER(R)        126- 133 */
+                               /*                                    */
+     5 IRTSORD#   CHAR (06),   /* RTS PART REORDER NUMBER   134- 139 */
+                               /* ---------------------------------  */
+     5 UBINLOC,                /* BIN LOCATION   OR  RBO/ROL         */
+                               /* ---------------------------------  */
+       7 IRECBO   CHAR (03),   /* RECEIVING BRANCH OFFICE   140- 142 */
+       7 IRECOL   CHAR (03),   /* RECEIVING OUT LOCATION    143- 145 */
+                               /*                                    */
+     5 QREORDER   CHAR (02),   /* REPLENISH - ORD - RTN QTY 146- 147 */
+     5 IPRTMACH   CHAR (04),   /* MACHINE TYPE              148- 151 */
+     5 HPARTACQ   CHAR (03),   /* PART ACQUISITION TIME HHT 152- 154 */
+     5 IPRFNUM    CHAR (07),   /* PART RETURN FORM NUMBER   155- 161 */
+     5 CRETREAS   CHAR (01),   /* PART RETURN REASON        162- 162 */
+                               /*  F - FUNCTIONAL FAILURE            */
+                               /*  P - PHYSICAL FAILURE/             */
+                               /*      OTHERWISE UNUSABLE            */
+                               /*  O - OTHER                         */
+     5 IRETRNBO   CHAR (04),   /* RETURN BO                 163- 166 */
+     5 SPAD01     CHAR (10),   /*                           167- 176 */
+                               /* ---------------------------------  */
+                               /* PARTS LINE STRUCTURE 2    177- 232 */
+                               /* ---------------------------------  */
+                               /* PARTS LINE STRUCTURE 3    233- 288 */
+                               /* ---------------------------------  */
+                               /* PARTS LINE STRUCTURE 4    289- 344 */
+                               /* ---------------------------------  */
+                               /*                                    */
+                               /* ================================== */
+                               /* PARTS DATA COMMON                  */
+                               /* ================================== */
+                               /*                                    */
+   3 IPARTTLR     CHAR (01),   /* PARTS TRAILER INDICATOR   345- 345 */
+                               /*  1     = PART TRAILER              */
+                               /*  BLANK = NOT A PART TRAILER        */
+                               /*                                    */
+   3 ISENDBO      CHAR (04),   /* SENDING BRANCH OFFICE     346- 349 */
+   3 ISENDOL      CHAR (03),   /* SENDING OUT LOCATION      350- 352 */
+   3 IALTSBO      CHAR (04),   /* ALTERNATE SHIP B/O        353- 356 */
+   3 CDELVPT      CHAR (02),   /* DROP POINT/DELIVERY POINT 357- 358 */
+   3 IPTLVL       CHAR (03),   /*?PT/TRUER LEVEL(R)         359- 361 */
+                               /*   VERSION OF THE PT/TRUER TABLE    */
+                               /*   THAT CREATED THE ACTIVITY        */
+                               /*   RECORD                           */
+   3 IEMPBOPT     CHAR (04),   /* EMP B/O FROM PT/TRUER     362- 365 */
+                               /*                                    */
+                               /* ---------------------------------- */
+   3 USOURCE,                  /* SOURCE FLAGS                       */
+                               /* ---------------------------------- */
+     5 FERRMSG    BIT (01),    /* PT ERROR/MSG SENT FLAG    366- 366 */
+     5 FSRCPT     BIT (01),    /* SOURCED FROM PT/TRUER(R)  366- 366 */
+     5 FSRCNSDC   BIT (01),    /* SOURCED FROM QSAR/   (R)  366- 366 */
+                               /* CORRECTIONS (HOST)   (R)           */
+     5 FRESUB     BIT (01),    /* RESUBMIT DOCUMENT    (R)  366- 366 */
+                               /* (PREVIOUSLY PENDED)  (R)           */
+                               /*                                    */
+     5 FRECYCLE   BIT (01),    /* RECYCLED DOCUMENT    (R)  366- 366 */
+     5 FLATEIND   BIT (01),    /* LATE FLAG INDICATOR  (R)  366- 366 */
+     5 FSRCNSS    BIT (01),    /* SOURCED NSS SCHEDULER     366- 366 */
+     5 FPAD02     BIT (01),    /* UNUSED BIT FLAGS          366- 366 */
+                               /*                                    */
+   3 IPTDOCNM   FIXED BIN(31), /* ORIGINAL PT-ASSIGNED      367- 370 */
+                               /* DOCUMENT NUMBER (BINARY)           */
+                               /*                                    */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       SUPPLEMENTAL QSAR DATA       */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 IPROCLOC     CHAR (01),   /* NSS PROCESS LOC INDICATOR 371- 371 */
+                               /* 'H' = PROCESSED AT HUB             */
+                               /* 'A' = PROCESSED AT AREA (R)        */
+                               /*                                    */
+   3 DAUDIT       CHAR (08),   /* AUDIT DATE YYYYMMDD(R)    372- 379 */
+                               /* DATE RECORD WAS LAST AUDITED       */
+   3 HAUDIT       CHAR (06),   /* AUDIT TIME HHMMSS(R)      380- 385 */
+                               /* TIME OF DAY REC WAS LAST AUDITED   */
+   3 NEMPLAST     CHAR (17),   /* EMPLOYEE LAST NAME(R)     386- 402 */
+   3 CEMPCP       CHAR (01),   /* EMPLOYEE CAREER PATH(R)   403- 403 */
+                               /*                                    */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       ORGANIZATIONAL DATA          */
+                               /*       1)  EMPLOYEE ASSIGNED DATA   */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 IEMPOP       CHAR (01),   /* ASSIGNED OPS(R)           404- 404 */
+   3 IEMPAREA     CHAR (02),   /* ASSIGNED AREA(R)          405- 406 */
+   3 IEMPREGN     CHAR (01),   /* ASSIGNED REGION(R)        407- 407 */
+   3 ICEABO       CHAR (04),   /* ASSIGNED BRANCH(R)        408- 411 */
+   3 IEMPDIV      CHAR (02),   /* ASSIGNED DIVISION(R)      412- 413 */
+   3 ICETERR      CHAR (03),   /* ASSIGNED TERRITORY(R)     414- 416 */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       2)  OFFICE WORKED DATA       */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 IWRKDIV      CHAR (02),   /* DIVISION WORKED(R)        417- 418 */
+   3 IWRKOP       CHAR (01),   /* OPS WORKED(R)             419- 419 */
+   3 IWRKAREA     CHAR (02),   /* AREA WORKED(R)            420- 421 */
+   3 IWRKREGN     CHAR (01),   /* REGION WORKED(R)          422- 422 */
+   3 IWRKBO       CHAR (04),   /* BRANCH WORKED(R)          423- 426 */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       3)  MACHINE DATA FROM RSO    */
+                               /*           DATA BASE                */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 IRSOOP       CHAR (01),   /* MACHINE OPS               427- 427 */
+   3 IRSOAREA     CHAR (02),   /* MACHINE AREA              428- 429 */
+   3 IRSOREGN     CHAR (01),   /* MACHINE REGION            430- 430 */
+   3 ICEBO        CHAR (04),   /* CE BRANCH OFFICE          431- 434 */
+   3 IMACHTER     CHAR (03),   /* MACHINE TERRITORY         435- 437 */
+                               /*                                    */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       PIMS STATUS INDICATORS       */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 CCLASFC      CHAR (02),   /* INVENTORY(MPI) CLASS      438- 439 */
+   3 CCLASPIM     CHAR (01),   /* PIMS INTERFACE CLASS      440- 440 */
+   3 CSTATPIM     CHAR (01),   /* PIMS INTERFACE STATUS     441- 441 */
+   3 CEFFSTAT     CHAR (01),   /* EFFECTIVE MACHINE STATUS  442- 442 */
+   3 CEFFTYPE     CHAR (01),   /* EFFECTIVE INVENTORY TYPE  443- 443 */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       TYPE MODEL DATA              */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 CBILLTYP     CHAR (01),   /* BILLING TYPE              444- 444 */
+   3 FINVMTRQ     CHAR (01),   /* INVENTORY MATCH REQD?     445- 445 */
+   3 CACTCLAS     CHAR (01),   /* ACCOUNTING CLASS          446- 446 */
+   3 CMACHERT     CHAR (01),   /* MACHINE HERITAGE          447- 447 */
+   3 FWDMAT       CHAR (01),   /* WITHDRAWN FROM MAINT?     448- 448 */
+                               /* - - - - - - - - - - - - - - - - - -*/
+                               /*       INVENTORY DATA SECTION       */
+                               /* - - - - - - - - - - - - - - - - - -*/
+   3 ISYSTYPE     CHAR (04),   /* SYSTEM TYPE               449- 452 */
+   3 ISYSNUMB     CHAR (07),   /* SYSTEM NUMBER             453- 459 */
+                               /*                                    */
+   3 UINVTYPE,                 /* INVENTORY TYPE                     */
+     5 FSERV30    BIT  (01),   /* 30% SERVICE               460- 460 */
+     5 FSERV40    BIT  (01),   /* 40% SERVICE               460- 460 */
+     5 FDEMONST   BIT  (01),   /* DEMONSTRATOR              460- 460 */
+     5 FCELOAN    BIT  (01),   /* CE LOANER                 460- 460 */
+                               /*                                    */
+     5 FMLCAUTO   BIT  (01),   /* MLC AUTOMATIC             460- 460 */
+     5 FDCFTSER   BIT  (01),   /* DCF TYPE/SERIAL           460- 460 */
+     5 FCUSTSOL   BIT  (01),   /* CUSTOMER SOLICATION       460- 460 */
+     5 FPAD03     BIT  (01),   /* PAD                       460- 460 */
+                               /*                                    */
+   3 IEQUPTYP     CHAR (01),   /* TYPE EQUIPMENT            461- 461 */
+   3 DINSTALL     CHAR (08),   /* TYPE EQUIP INSTALL DATE   462- 469 */
+                               /*                YYYYMMDD            */
+   3 DMFG         CHAR (08),   /* MANUFACTURE DATE          470- 477 */
+                               /*                YYYYMMDD            */
+   3 DORGINST     CHAR (08),   /* ORIGINAL INSTALL DATE     478- 485 */
+                               /*                YYYYMMDD            */
+   3 DRECON       CHAR (08),   /* RECONDITION DATE          486- 493 */
+                               /*                YYYYMMDD            */
+   3 DSTATEFF   CHAR (08),     /* STATUS EFFECTIVE DATE     494- 501 */
+                               /*                YYYYMMDD            */
+   3 DCURINST   CHAR (08),     /* CURRENT INSTALL DATE      502- 509 */
+                               /*                YYYYMMDD            */
+   3 DWAREXP    CHAR (08),     /* WARRANTY EXPIRATION DATE  510- 517 */
+                               /*                YYYYMMDD            */
+   3 DDISC      CHAR (08),     /* DISC DATE FOR CUSTOMER    518- 525 */
+                               /*                YYYYMMDD            */
+   3 CSTATUS    CHAR (02),     /* STATUS        CODE        526- 527 */
+   3 CLOCAT     CHAR (01),     /* LOCATION      CODE        528- 528 */
+   3 CSERVPLN   CHAR (02),     /* SERVICE PLAN  CODE        529- 530 */
+   3 CPROLE     CHAR (01),     /* PROCESS LEVEL CODE        531- 531 */
+                               /*----------------------------------- */
+                               /* CUSTOMER DATA                      */
+                               /*----------------------------------- */
+   3 ICUSTTYP     CHAR (01),   /* TYPE CUSTOMER             532- 532 */
+   3 IMCUST#      CHAR (07),   /* CUSTOMER NUMBER           533- 539 */
+   3 IMCSTNAM     CHAR (17),   /* CUSTOMER NAME             540- 556 */
+   3 IPARNTBO     CHAR (04),   /* PARENT    B/O             557- 560 */
+                               /* MASTER SERVICE B/O (CAN)           */
+   3 IMKTBO       CHAR (04),   /* MARKETING B/O             561- 564 */
+   3 IRSO         CHAR (04),   /* SERVICE   B/O             565- 568 */
+   3 IMFGPLNT     CHAR (02),   /* PLANT OF MANUFACTURE      569- 570 */
+   3 IPLNTCTL     CHAR (02),   /* POINT OF CONTROL - PLANT  571- 572 */
+   3 CPOMLC       CHAR (02),   /* PLANT OF MLC CONTROL      573- 574 */
+   3 IESTAB   FIXED BIN(31),   /* CMR ESTABLISHMENT NUMBER  575- 578 */
+   3 IENTNUM  FIXED BIN(31),   /* CMR ENTERPRISE NUMBER     579- 582 */
+   3 CNATACC      CHAR (03),   /* CMR NAT'L ACCOUNT CODE    583- 585 */
+   3 IMS_HRTG     CHAR (01),   /* M&S HERITAGE   SR0577     586- 586 */
+                               /* 'S'= SERVICE, 'M'=MARKETING        */
+   3 FRTORDER     CHAR (01),   /* REALTIME PART ORDER Y|N   587- 587 */
+   3 TCOMMENT     CHAR (70),   /* CE COMMENTS/PROB FIX DATA 588- 657 */
+   3 CZIP         CHAR (09),   /* ZIPCODE FIELD             658- 666 */
+   3 CCOUNTRY     CHAR (03),   /* COUNTRY CODE              667- 669 */
+                               /*   US       = 000                   */
+                               /*   CANADA   = 649                   */
+   3 ILIABLTY     CHAR (06),   /* Lenovo liability ind      670- 675 */
+                               /* POSITION 1-BASE WARRANTY LIABILITY */
+                               /* 0 = N/A (ZERO)                     */
+                               /* F = F&F, INTERNAL                  */
+                               /* I = IBM GLOBAL FINANCE             */
+                               /* L = LENOVO                         */
+                               /* M = IBM                            */
+                               /* S = STRATEGIC OUTSOURCING          */
+                               /* P = PCD                            */
+                               /*                                    */
+                               /* POSITION 2-WARR/UPGRADE LIABILITY  */
+                               /* 0 = N/A (ZERO)                     */
+                               /* F = F&F, INTERNAL                  */
+                               /* I = IBM GLOBAL FINANCE             */
+                               /* L = LENOVO                         */
+                               /* M = IBM                            */
+                               /* S = STRATEGIC OUTSOURCING          */
+                               /* P = PCD                            */
+                               /*                                    */
+                               /* POSITION 3-MAINT AGREEMENT LIAB    */
+                               /* 0 = N/A (ZERO)                     */
+                               /* F = F&F, INTERNAL                  */
+                               /* I = IBM GLOBAL FINANCE             */
+                               /* L = LENOVO                         */
+                               /* M = IBM                            */
+                               /* S = STRATEGIC OUTSOURCING          */
+                               /* P = PCD                            */
+                               /*                                    */
+                               /* POSITION 4-HSI BILLABLE            */
+                               /* 0 = NO | N/A                       */
+                               /* 1 = YES                            */
+                               /* POSITION 5-SPECIAL APPROVAL TO     */
+                               /* BILL BACK                          */
+                               /* 0 = NO | N/A                       */
+                               /* L = LENOVO                         */
+                               /* POSITION 6 FUTURE USE              */
+   3 CBASEWAR     CHAR(04),    /* MTM BASE WARR CODE        676- 679 */
+   3 NWARPHSE     CHAR(01),    /* base warranty phase       680- 680 */
+   3 CWARRUP      CHAR(04),    /* Warranty upgrade/maint    681- 684 */
+                               /* like base warranty code            */
+   3 NWUPHSE      CHAR(01),    /* Warranty upgrade/maint    685- 685 */
+                               /* phase                              */
+   3 CCOU02       CHAR(15)     /* PADDING                   686- 700 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AERTSPRT                   */
+ /*------------------------------------------------------------------*/
+
+
+

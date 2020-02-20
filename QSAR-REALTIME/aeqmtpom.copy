@@ -1,0 +1,28 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQMTPOM    VERSION NR:  01           DATE:  10/03/92    */
+ /*                                                                  */
+ /*  TITLE: MACHINE TYPE PLANT OF MANUFACTURE                        */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  10/03/92 S9300253 4NSA NSS ORIGINAL PROMOTE                DLP  */
+ /*  08/16/99 QSARPROD 9NSA     CHANGE TO MSF 2 FORMAT          PRM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "40". 001-002 */
+     3 MTPOM_KEY,                  /* MACHINE TYPE KEY       003-033 */
+       5 CRECID     CHAR(01),      /* RECORD ID, ALWAYS "P". 003-003 */
+       5 IMTYPE     CHAR(04),      /* MACHINE TYPE           004-007 */
+       5 SPAD01     CHAR(02),      /* UNUSED PADDING         008-009 */
+       5 IPNTMFG    CHAR(02),      /* PLANT OF MANUFACTURE   010-011 */
+       5 SPAD02     CHAR(22),      /* PAD FOR 31 BYTE KEY    012-033 */
+     3 SPAD03       CHAR(07)       /* UNUSED PADDING         034-040 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQMTPOM                               */
+ /********************************************************************/

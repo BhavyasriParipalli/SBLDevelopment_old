@@ -1,0 +1,29 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  COPY MEMBER NAME:    AEQISSC                                    */
+ /*                                                                  */
+ /*  TITLE: ISSC ENTERPRISE# TMF TABLE Z21                           */
+ /*                                                                  */
+ /*  RECORD KEY = RECID + ENTERPRISE #                               */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  10/03/92 SR-1175   2NSJ NSS ORIGINAL PROMOTE               HAS  */
+ /*  08/16/99 QSARPROD  9CSA    CHANGE TO MSF 2                 PRM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* 01-02 RECORD LENGTH IS "40".   */
+     3 ISSCKEY,                    /*       ENTERPRISE NUMBER KEY    */
+                                   /*       NUMERIC VALUE            */
+       5 RECID      CHAR(01),      /* 03-03 RECORD ID, ALWAYS "F".   */
+       5 ISSCENT    CHAR(07),      /* 04-10 ENTERPRISE NUMBER        */
+       5 SPAD01     CHAR(23),      /* 11-33 PAD FOR 31 BYTE KEY      */
+     3 ISSCPAD      CHAR(07)       /* 34-40 UNUSED PADDING           */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQISSC                                */
+ /********************************************************************/

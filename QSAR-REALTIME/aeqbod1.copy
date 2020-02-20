@@ -1,0 +1,45 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* INCLUDE: AEQBOD1                                                 */
+ /*                                                                  */
+ /* FUNCTION: RECORD LAYOUT FOR OUTSIDE LOCATION FILE - NEW SERVICE  */
+ /*           DIMENSIONS.                                            */
+ /*                                                                  */
+ /* LRECL: 146 BYTES                                                 */
+ /*                                                                  */
+ /*  RECORD KEY: COUNTRY + DIVISION + BRANCH OFFICE.                 */
+ /*  KEYLENGTH : 11                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR  */
+ /*  10/11/91 SR-0776  1NSM QSAR REALTIME PARTS ORDERING        LBS  */
+ /*                                                                  */
+ /*  10/11/91 SR-0776  1NSM QSAR REALTIME PARTS ORDERING        LBS  */
+ /*                         ADD AEEPSC                               */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* 01-02 RECORD LENGTH IS "146".  */
+     3 RECID        CHAR(01),      /* 03-03 RECORD ID, ALWAYS A "4". */
+     3 AEOTLC,                     /* 04-11 ( KEY ) IS COUNTRY +     */
+                                   /*       DIVISION + BRANCH OFFICE.*/
+                                   /*       (KEY LENGTH IS 11 BYTES) */
+       5 AEQCTRY    CHAR(3),       /* 04-06 COUNTRY         (KEY)    */
+       5 AEQDIV     CHAR(2),       /* 07-08 DIVISION        (KEY)    */
+       5 AEQBO      CHAR(3),       /* 09-11 BRANCH OFFICE   (KEY)    */
+     3 AEOUTLC(1000) BIT(1),       /* 12-136 VALID OUTLIDE LOCS      */
+                                   /*       FOR BRANCH OFFICE        */
+     3 AEEPSC       CHAR(3),       /* 137-139 EMERGENCY PARTS SERVICE*/
+                                   /*         CENTER  OR (BOSR)      */
+                                   /*        B/O SERVICING REQUEST   */
+     3 AEQNUSED     CHAR(7)        /* 140-146 UNUSED                 */
+                                   /*        FOR THE BRANCH OFFICE   */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBOD1                                */
+ /********************************************************************/
+

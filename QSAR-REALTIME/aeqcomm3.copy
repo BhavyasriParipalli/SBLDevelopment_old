@@ -1,0 +1,34 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ---------      AEQRSC1      ---------               */
+ /*             ---------     COMMAREA      ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*  NAME: AEQCOMM3                                                 */
+ /*                                                                 */
+ /*  DESC: MAPPING OF COMMAREA FOR AEQRSC1 PROGRAM                  */
+ /*                                                                 */
+ /*  THIS INCLUDE CONTAINS FIELDS THAT INDICATE HOW BUSY THE        */
+ /*  CICS REGION IS.  THE FIELDS ARE SET IN AEQRSC1.                */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  09/12/88  SR 9891    8NSM    ORIGINAL VERSION              SPZ */
+ /*  03/18/92  SR XXXX    2NSB    REMOVE REFERENCES TO CSA      LBS */
+ /*                               PREPARATION FOR CICS 3.2          */
+ /*                                                                 */
+ /*******************************************************************/
+    3  BUSYFLG    CHAR(01),       /* SYSTEM BUSY?           001- 001*/
+                                  /* (Y/N)                          */
+    3  BUSYPCT    FIXED BIN(15),  /* PERCENTAGE BUSY -      002- 003*/
+                                  /* (WHOLE NUMBER)                 */
+    3  CURACTSK   FIXED DEC(3,0), /* CURRENT # OF TASKS     004- 005*/
+    3  MAXACTSK   FIXED DEC(3,0)  /* MAX # OF TASKS         006- 007*/
+ /*******************************************************************/
+ /*                   END OF AEQCOMM3 INCLUDE                       */
+ /*******************************************************************/
+  

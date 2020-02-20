@@ -1,0 +1,174 @@
+        /* CREATED - 05/30/81    ------------------------------------
+           CHANGED - 12/14/81    CHANGED BATPEER TO BATNHUB  DGS
+           CHANGED - 05/05/82    ADDED CONSTANTS FOR PGMIDS  DGS
+           CHANGED - 01/20/83    ADDED QSTAR PROGRAM ID      DRC
+           CHANGED - 09/08/83    ADDED DCS PROGRAM ID         JJ
+           CHANGED - 10/04/83    ADDED DCS PROGRAM ID LOST/STOLE BW
+           CHANGED - 01/30/84    ADDED QSAR RECEIVE PGM ID'S RCS
+           CHANGED - 09/23/86    ADDED SEC LOCATOR PROGRAM   JCP
+           THIS IS A MAPPING OF THE INPUT PARAMETER LIST USED TO PASS
+           REQUESTS TO RAMBSPL (THE RAMS BATCH SPOOL MANAGER ROUTINE).
+           THE INTERFACE TO THE ROUTINE IS CONTAINED COMPLETELY WITHIN
+           THIS PARAMETER LIST.  THE ADDRESS OF THIS LIST IS PLACED
+           IN REGISTER 1 WHEN BRANCH ENTRY TO CWABSPL ENTRY POINT.
+           IN ADDITION REGISTER 13 MUST POINT TO A REGISTER SAVE AREA
+           WITH REG 14 BEING THE RETURN ADDRESS AND REG 15 MUST CONTAIN
+           THE ENTRY POINT ADDRESS.
+           NOTE THAT THE PARAMETER LIST MUST BE IN DYNAMIC STORAGE
+           BECAUSE THE SPOOL MANAGER   WILL ALTER THE PARAMETER LIST.
+           IN EFFECT THE PARMLIST WILL CONTAIN THE REQUEST ON INPUT
+           AND IT WILL CONTAIN THE RESPONSE DATA UPON RETURN.
+           THE MAX LENGTH OF THE ENTIRE RECORD IS 3000 BYTES.  THE
+           RECORD IS SET UP IN TWO SECTIONS - THE PREFIX AND THE DATA.
+           THE LENGTH FIELD (IN THE PREFIX) MUST INDICATE THE TOTAL
+           LENGTH OF THE RECORD
+           INCLUDING THE PREFIX.  THE DATA PORTION OF THE RECORD MAY
+           BE 2982 BYTES LONG.  ANY LENGTH GREATER THAN 2982 WILL BE
+           TRUNCATED AT 2982.   */
+           /* Year 2000 - Y2K - No changes made, read subr changed*/
+ %DCL BATCK CHAR EXTERNAL;
+ DCL
+   1 BATCHREC CHAR(3000) BDY(DWORD) BASED,
+      /*  THE FIRST SECTION OF THE PARM LIST CONTAINS THE SPOOL PREFIX
+          WHICH WILL BE CREATED BY THE SPOOL MANAGER.  THE USER MAY
+          OPTIONALLY PROVIDE THE FIRST THREE BYTES.  THE FIRST THREE
+          BYTES MAY CONTAIN A TARGET REGION NUMBER IF THE ACTION FLAGS
+          INDICATE THAT THIS REQUEST IS TARGETED TO A REGION OR A SUB
+          NODE IN THE RAMS HIERARCHY.
+          IF THE REQUEST IS TARGETED TO A SUB-NODE THEN THE REQUESTOR
+          MUST INDICATE WHETHER THE REQUEST MUST GO TO THE ACTIVE OR
+          REAL NODE.  (ACTIVE VS REAL MEANS THAT A NODE MAY BE RUNNING
+          IN BACKUP MODE WITHIN THE CURRENT NODE.  IF THE REQUEST IS
+          TO BE PROCESSED IN THE CURRENT BACKUP NODE SPECIFY ACTIVE.  IF
+          THE REQUEST IS TO BE QUEUED UNTIL THE SUB NODE IS AGAIN ACTIVE
+          THEN SPECIFY REAL.)
+          THE BATCHRC   FIELD WILL PROVIDE A RETURN CODE AS TO THE
+          RESULT OF THE REQUEST.  */
+     2 BATPREFX BDY(DWORD),
+       3 BATCHDR CHAR(15) BDY(DWORD),
+       4 BATREG CHAR(3),              /* IF REGION THE FIRST TWO BYTES
+                                         ARE THE REGION WITH BYTE 3 A
+                                         BLANK.  A BO MUST BE 3 BYTES*/
+       4 BATGMT CHAR(11),             /* GMT OF REQUEST BUILT BY SPOOL
+                                         MANAGER YYDDDHHMMSS  */
+       4 BATCHRC  FIXED(8),           /* REQUEST FLAGS AND RETURN CODE
+                                         VALID RETURN CODES - 0 = OKAY
+                                         4 = INVALID LENGTH RECORD IS
+                                         TRUNCATED.
+                                         8 = INVALID REGION NUM. OR
+                                         INVALID VALUE IN BATPGMDX OR
+                                         BATARGET IS 1 AND BATPGMDX
+                                         INDICATES THAT THE JOURNAL PGM
+                                         IS TO PROCESS THE RECORD.
+                                         JOURNAL RECORDS CAN ONLY GO
+                                         UP THE HIERARCHY STRUCTURE.
+                                         C = SPOOL FILE IS DOWN CANNOT
+                                         PROCESS THE REQUEST.    10 =
+                                         UNEXPECTED ERROR.     */
+         5 BATCHFLG BIT(8),
+           6 BATARGET BIT(1),        /* IF 0 GO TO NEXT HIGHER NODE. IF
+                                        A 1 SEND RECORD TO LOWER NODE
+                                        IDENTIFIED IN
+                                        THE FIRST THREE BYTES OF THE
+                                        REQUEST (BATREG).
+                                        THE NODE MUST BE AN IMMEDIATE
+                                        SUBORDINATE NODE OF THE NODE
+                                        ISSUING THE REQUEST.  THIS MUST
+                                        BE ZERO FOR JOURNAL RECORDS.  */
+          /* THE FOLLOWING FLAG IS MEANINGLESS UNLESS BATARGET IS 0
+             (INDICATING THE RECORD SHOULD BE SENT TO THE
+             NEXT HIGHER NODE)
+             AND IT ONLY HAS AN EFFECT IF THE REQUEST IS ISSUED IN
+             THE HIGHEST NODE  IN THE HIERARCHY.   */
+           6 BATPURGE BIT(1),        /* IF 0 PUT IN THE INPUT SPOOL OF
+                                        THIS NODE.
+                                        IF 1 DO NOT PROCESS THE RECORD.
+                                        NOTE - FOR JOURNAL RECORDS THIS
+                                        FLAG IS MEANINGLESS.   */
+          /* THE FOLLOWING FLAG IS MEANINGLESS UNLESS BATARGET IS 1
+             AND IT ONLY HAS AN EFFECT IF TARGET NODE IS IN BACKUP
+             MODE.   */
+           6 BATREAL  BIT(1),        /* IF 0 GO TO REAL REGION NODE
+                                        IF 1 GO TO WHEREVER THE REGION
+                                        IS ACTIVE EVEN IF IN BACKUP. */
+           6 BATNHUB BIT(1),         /* IF ONE SEND THIS RECORD TO
+                                        THE NATIONAL HUB MACHINE.  THIS
+                                        IS VALID ONLY IF REQUESTED IN A
+                                        HUB MACHINE OTHER THAN THE
+                                        NATIONAL HUB.  IF REQUESTED IN
+                                        THE NATIONAL HUB RETURN CODE
+                                        IS 0C.  IF ISSUED IN NON HUB
+                                        IT IS IGNORED.
+                                        BATARGET MUST BE 0.  */
+           6 * BIT(4),               /* UNUSED   */
+      3 BATDAT  BDY(DWORD,8),
+        4 BATPGMDX FIXED(8),           /* INDEX NUMBER OF BATCH PROGRAM
+                                          TO BE RUN. SEE CONSTANTS ON
+                                          PAGE FOLLOWING THIS DSECT
+                                          NOTE THAT THE HI ORDER
+                                          BIT  CANNOT BE USED AS AN INDX
+                                          VALUE. LIMIT 127 PGM IDS*/
+         /* THE FIRST BIT IS SET WHEN THE REQUESTED PROGRAM
+            IS DISPATCHED. IF THE SYSTEM GOES DOWN THE PROGRAM WILL BE
+            REDISPATCHED AND THE RECORD WILL BE PURGED TO PREVENT A
+            THIRD DISPATCH */
+           6 BATDISP2   BIT(1),      /* 0 FOR FIRST DISP  AND A BIN 1
+                                        IF SECOND TIME.        */
+        4 BATCHLEN FIXED(16),          /* LENGTH OF THE ENTIRE RECORD
+                                          INCLUDING THE PREFIX. */
+    2 BATDATA CHAR(2982) BDY(DWORD,3); /* USER DEFINED DATA RECORD    */
+ @EJECT;
+       /* THE FOLLOWING CONSTANTS DEFINE THE VALID PROGRAM INDEXES
+          THAT MAY USE THE BATCH QUEUE RECORDS.  THESE ARE THE VALUES
+          THAT MAY BE PLACED IN THE BATPGMDX FIELD.      ANY CHANGES
+          TO THIS LIST ALSO REQUIRES A CHANGE IN THE  RAMDISP MODULE
+          IN THE PGMARRAY DECLARATION.    */
+       DCL BATJRNL BIT(8) CONSTANT('01'X);     /* JOURNAL RECORD TO BE
+                                                  PROCESSED.  */
+       DCL BATIDA  BIT(8) CONSTANT('02'X);     /* IDA RECORD     */
+       DCL BATIMS  BIT(8) CONSTANT('03'X);     /* EMF/IMS RECORD */
+       DCL BATBLDR BIT(8) CONSTANT('04'X);     /* BOULDER TAE RECORD */
+       DCL BATTAE  BIT(8) CONSTANT('05'X);     /* DP TAE RECORD */
+       DCL BATTEMF BIT(8) CONSTANT('06'X);     /* EMF RECORD TRANSFER*/
+       DCL BATUPR  BIT(8) CONSTANT('07'X);
+       DCL BATMPIU BIT(8) CONSTANT('08'X);
+       DCL BATUPRU BIT(8) CONSTANT('09'X);
+       DCL BATEMFU BIT(8) CONSTANT('0A'X);
+       DCL BATBOTU BIT(8) CONSTANT('0B'X);
+       DCL BATTAEU BIT(8) CONSTANT('0C'X);
+       DCL BATFCSTU BIT(8) CONSTANT('0D'X);
+       DCL BATIDACM BIT(8) CONSTANT('0E'X); /* IDA ACUM ROUTINE IN HUB*/
+       DCL BATANODE BIT(8) CONSTANT('0F'X); /* AMSNODE PROGRAM IN REG */
+       DCL BATPMLU  BIT(8) CONSTANT('10'X); /* AMS MAILING LIST       */
+       DCL BATFDBK  BIT(8) CONSTANT('11'X); /* AMS FEEDBACK ROUTINE   */
+       DCL BATUBKU  BIT(8) CONSTANT('12'X); /* AMS UPR BOOK UPDTE RTN.*/
+       DCL BATIMSG  BIT(8) CONSTANT('13'X); /* AMS UPR BOOK UPDTE RTN.*/
+       DCL BATQSRUP BIT(8) CONSTANT('14'X); /* QSTAR QUESTIONNAIRE
+                                             UPDATE PROGRAM @RQSR1DC */
+       DCL BATQSRHR BIT(8) CONSTANT('15'X); /* QSTAR HUB RECEIVER PGM */
+       DCL BATQSRRR BIT(8) CONSTANT('16'X); /* QSTAR REGIONAL REC PGM */
+       DCL BATDCSFN BIT(8) CONSTANT('17'X); /* DCS FNE CONFIG RCV PGM */
+       DCL BATDCSLS BIT(8) CONSTANT('18'X); /* DCS LOST/STOLE RCV PGM */
+       DCL BATQARRR BIT(8) CONSTANT('19'X); /* QSAR REGION RECEIVE PGM*/
+       DCL BATQARHR BIT(8) CONSTANT('1A'X); /* QSAR HUB RECEIVE PGM   */
+       DCL BATQARTR BIT(8) CONSTANT('1B'X); /* QSAR HUB RECEIVE PGM   */
+       DCL BATSECTR BIT(8) CONSTANT('1C'X); /* SEC LOCATOR DIST. PGM  */
+       DCL BATMAX  BIT(8) CONSTANT('1D'X);     /* USED TO DETERMINE IF
+                                                  VALID INDEX REQUEST */
+      /* THE FOLLOWING DECLARES ARE USED TO IDENTIFY THE FILE NAMES
+         USED IN THE SPOOLING OF RECORDS THROUGHOUT THE RAMS NETWORK
+         FOR THE BATCH TYPE RECORDS.  */
+   DCL BATDNSPL CHAR(8) CONSTANT('BTXMTDL '); /* DOWNWARD SPOOL FILE*/
+   /* THE FOLLOWING MACRO CODE IS TO DETECT AND AVOID MULTIPLE
+       DECLARES OF THE SAME 2 VARIABLES "BATUPSPL" AND "BATRCSPL" BY
+       BOTH INCLUDED DCL MACROS: "BATCHREC" AND "SPOOLRCD" - WHICH
+       WAS CAUSING RC12 ON COMPILES OF CADIDCLR AND PQSRHUB
+                                                  (JAM 12/15/84)  */
+   %IF BATCK = 'ON' %THEN %GOTO SKIP;
+   %BATCK = 'ON';
+   DCL BATUPSPL CHAR(8) CONSTANT('BTXMTDS '); /* UPWARD SPOOL FILE */
+   DCL BATRCSPL CHAR(8) CONSTANT('BTRCVDS '); /* INPUT RECEIVER FILE*/
+   %SKIP:;
+   DCL JOURNAL  CHAR(8) CONSTANT('RAMJNL0 '); /* RAMS JOURNAL FILE */
+ @EJECT;
+

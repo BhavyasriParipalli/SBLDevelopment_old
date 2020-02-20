@@ -1,0 +1,29 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQSCORE    VERSION NR:  01           DATE:  11/02/94    */
+ /*                                               TIME:  12.45.05    */
+ /*                                                                  */
+ /* TITLE: SCORE CONTRACT NUMBER INTERFACE                           */
+ /*        LAYOUT OF SCORE DATA AS IT APPEARS ON THE MSF             */
+ /*                                                                  */
+ /* TYPE      : IMS SEGMENT                                          */
+ /*                                                                  */
+ /* LRECL     : 20                                                   */
+ /*                                                                  */
+ /* LANGUAGE  : PLI                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  11/02/94 S9400190 4CSM Original PROMOTE            DLP          */
+ /*                                                                  */
+ /********************************************************************/
+      3 IRECLGTH  FIXED BIN(15),/* RECORD LENGTH IS 20,      01 - 02 */
+      3 CRECID    CHAR(1),      /* RECORD ID IS IS ALWAYS "G"03 - 03 */
+      3 ISCORE    CHAR(5),      /* SCORE NUMBER              04 - 08 */
+      3 SPADDING  CHAR(12)      /* UNUSED PADDING            09 - 20 */
+ /*------------------------------------------------------------------*/
+ /*                             END AEQSCORE                         */
+ /*------------------------------------------------------------------*/
+

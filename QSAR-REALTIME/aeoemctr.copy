@@ -1,0 +1,42 @@
+ /********************************************************************/ 
+ /*                                                                  */ 
+ /* NAME:   AEOEMCTR    VERSION NR:  01           DATE:  05/04/00    */ 
+ /*                                               TIME:  10:34:00    */ 
+ /*                                                                  */ 
+ /* TITLE: QSAR OEM CONTRACT WHERE PART CHECKING AND SENDING TO      */ 
+ /*        RTS AND PIMS IS PROHIBITED                                */ 
+ /*                                                                  */ 
+ /* TYPE:         IMS SEGMENT                                        */ 
+ /*                                                                  */ 
+ /* LRECL:        75                                                 */ 
+ /*                                                                  */ 
+ /* LANGUAGE:     PL/I                                               */ 
+ /*                                                                  */ 
+ /* RECORD KEYS:                                                     */ 
+ /*               PRIMARY KEY  : 'B' + OEM CONTRACT NUMBER + 18 PAD  */ 
+ /*               KEYLENGTH    : 31                                  */ 
+ /*                                                                  */ 
+ /*                                                                  */ 
+ /* DESCRIPTION:                                                     */ 
+ /*                                                                  */ 
+ /*                                                                  */ 
+ /*                                                                  */ 
+ /* CHRONOLOGICAL UPDATE LOG:                                        */ 
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */ 
+ /*  -------- -------- ---- ---------------------------------- ----- */ 
+ /*  05/04/00 S00032   0CSD ORIGINAL PROMOTE                    PRM  */ 
+ /*  06/22/00 S000NN   0CSF ADD MNEMONIC AND COUNTRY FIELDS     PRM  */ 
+ /*                                                                  */ 
+ /********************************************************************/ 
+    3 IRECLGTH  FIXED BIN(15),  /* RECORD LENGTH IS 75      001- 002 */ 
+    3 IRECKEY,                                                          
+      5 IRECID    CHAR(1),      /* RECORD ID =  B           003- 003 */ 
+      5 ICONTRACT CHAR(12),     /* OEM CONTRACT NUMBER      004- 015 */ 
+      5 SPAD01    CHAR(18),     /* PAD FOR KEY FIELD        016- 033 */ 
+    3 IOEMCODE    CHAR(02),     /* OEM MNEMONIC             034- 035 */ 
+    3 ICOUNTRY    CHAR(03),     /* COUNTRY                  036- 038 */ 
+    3 IOEMNAME    CHAR(17),     /* OEM NAME                 039- 055 */ 
+    3 SPAD02      CHAR(20)      /* PAD FOR EXPANSION        056- 075 */ 
+ /*------------------------------------------------------------------*/ 
+ /*                END  AEOEMCTR                                     */ 
+ /*------------------------------------------------------------------*/ 

@@ -1,0 +1,85 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             --------- COMMON WORK AREA  ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*  NAME: AEQCWA1                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR SYSTEM CONTROL RECORD FORMAT             */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE SYSTEM COMMON WORK AREA CONTAINED   */
+ /*  IN THE QSAR CICS REGION.  A COMMON WORK AREA (CWA) IS PART     */
+ /*  OF THE CICS CSA (COMMON SYSTEM AREA).  STORAGE REFERENCED      */
+ /*  BY THE CWA IS INTACT AS LONG AS THE CICS REGION IS UP.  ANY    */
+ /*  APPLICATION PROGRAM MAY CHANGE THE CWA - SEE THE EXEC CICS     */
+ /*  ADDRESS COMMAND.                                               */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS MAINTAINED IN THE QSAR CICS REGION.             */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/10/88  SR 9891    8NSM    ORIGINAL VERSION          SPZ     */
+ /*  09/12/88  SR 9891    8NSM    ADD BUSYFLG, BUSYPCT      SPZ     */
+ /*  12/19/90  SR 0708    1NSL    ADD ROLM_LATE             LBS     */
+ /*  08/25/92  SR 0999    2NSH    ADD AREA CONVERT FLAGS    LBS     */
+ /*  09/08/93  SR 9300208 3NSL    ADD OEM INVOICE FLAGS     LBS     */
+ /*  11/02/93  SR 9300237 3NSL    REMOVE OEM INVOICE FLAGS  LBS     */
+ /*                                                                 */
+ /*  05/08/96  S9600243   6NSG    REMOVE ROLM PRODUCTS FROM TAC     */
+ /*                               REPORTING. ALSO REMOVE SAUSE      */
+ /*                               REPAIR AND THE SEVERITY PROMPTS.  */
+ /*                                                          DLP    */
+ /*                                                                 */
+ /*                                                                 */
+ /*******************************************************************/
+    3  CWA1RCYC    CHAR(1),       /* CONTINUOUS RECYCLE     001- 001*/
+                                  /* ACTIVE? (Y/N)                  */
+    3  CWA1RCYW    CHAR(1),       /* WEEKLY RECYCLE         002- 002*/
+                                  /* ACTIVE? (Y/N)                  */
+    3  CWA1ATHM    CHAR(1),       /* AREA TO HUB MIRRORING  003- 003*/
+                                  /* ACTIVE? (Y/N)                  */
+    3  CWA1CTLM    CHAR(1),       /* CONTROL FILE MIRRORING 004- 004*/
+                                  /* ACTIVE? (Y/N)                  */
+    3  CWATABLE (76),             /* AREA TABLE                     */
+       5  CWA1HTAM CHAR(1),       /* MIRRORING              005- 005*/
+                                  /* ACTIVE? (Y/N)                  */
+    3  AREACNVT (22)    CHAR(1),  /* IS AREA CONVERTED TO   081- 102*/
+                                  /* NEW CODE LEVEL? (Y/N)          */
+    3  HUBCNVT          CHAR(1),  /* IS HUB CONVERTED TO    103- 103*/
+                                  /* NEW CODE LEVEL? (Y/N)          */
+    3  ABDATE      FIXED BIN(15), /* DATE OF LAST QSAR ABND 104- 105*/
+                                  /* FORMAT MMDD                    */
+    3  ABTIME      FIXED BIN(31), /* TIME OF LAST QSAR ABND 106- 109*/
+                                  /* FORMAT HHMMSS                  */
+    3  ST_DATE     FIXED BIN(15), /* STATS DATE             110- 111*/
+                                  /* FORMAT MMDD                    */
+    3  SUCC_CT     FIXED BIN(31), /* COUNT OF SUCCESSFUL    112- 115*/
+                                  /* AUDIT EDIT ATTEMPTS            */
+    3  FAIL_CT     FIXED BIN(31), /* COUNT OF FAILING       116- 119*/
+                                  /* AUDIT EDIT ATTEMPTS            */
+    3  AUDFAIL    FIXED DEC(5,2), /* PERCENTAGE OF QSARS    120- 122*/
+                                  /* FAILING AUDITS                 */
+    3  RMTFAIL     FIXED BIN(15), /* COUNT OF UNSUCCESSFUL  123- 124*/
+                                  /* REMOTE SUPPORT FILE            */
+                                  /* ACCESS ATTEMPTS                */
+    3  SPPTLINK    CHAR(1),       /* LAST REMOTE SUPPORT    125- 125*/
+                                  /* FILE ACCESS SUCCESSFUL? (Y/N)  */
+    3  HUBALINK    CHAR(1),       /* LAST MIRROR ATTEMPT    126- 126*/
+                                  /* SUCCESSFUL? (Y/N)              */
+    3  BUSYFLG     CHAR(1),       /* CICS SYSTEM BUSY (Y/N) 127- 127*/
+    3  BUSYPCT     FIXED BIN(15), /* PERCENT SYSTEM BUSY    128- 129*/
+    3  AREA        CHAR(2),       /* AREA (01-12, HH FOR    130- 131*/
+                                  /* QSAR HUB)                      */
+    3  LATE_HOURS  PIC '99',      /* LATE CRITERIA          132- 133*/
+    3  TRACEFLG    CHAR(1),       /* SYS TRACE FLAG USED    134- 134*/
+                                  /* FOR TEST                       */
+    3  RT_PART_ORD CHAR(1),       /* REALTIME PART ORDERING 135- 135*/
+    3  SPAD01      CHAR(65)       /* UNUSED PADDING         136- 200*/
+                                  /*                                */
+ /*******************************************************************/
+ /*                   END OF AEQCWA1 INCLUDE                        */
+ /*******************************************************************/
+

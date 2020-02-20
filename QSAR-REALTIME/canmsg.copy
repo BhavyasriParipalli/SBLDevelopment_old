@@ -1,0 +1,114 @@
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/
+ /*                                                                  */
+ %CANMSG: MACRO;
+ DCL NAME(255) CHAR;
+ DCL I FIXED;
+ DCL PAD CHAR;
+ NAME(1)='INVALID INVALID/UNAUTHORIZED COMMAND DETECTED.
+           ';
+ NAME(2)='VERIFY  PRESS PA1 TO CANCEL OR PA2 TO VERIFY.
+           ';
+ NAME(3)='INVINPT INVALID INPUT DATA.
+           ';
+ NAME(4)='NTAUTHUPUSER NOT AUTHORIZED FOR UPDATE.
+           ';
+ NAME(5)='INVDORU DISPLAY/UPDATE FIELD MUST BE D OR U.
+           ';
+ NAME(6)='MOREDATAADDITIONAL DATA - PAGING ALLOWED.
+           ';
+ NAME(7)='NTAUTHBOUNAUTHORIZED/INVALID BRANCH OFFICE.
+           ';
+ NAME(8)='RQFLDNS REQUIRED DATA NOT SPECIFIED.
+           ';
+ NAME(9)='INVCEREFINVALID SR REFERENCE.
+           ';
+ NAME(10)='INVSEL  INVALID SELECTION.
+            ';
+ NAME(11)='MSGNTFNDMESSAGE NOT FOUND IN DATABASE.
+            ';
+ NAME(12)='PRTQUED OUTPUT QUEUED TO PRINTER.
+            ';
+ NAME(13)='PAGNALOWPAGING NOT ALLOWED.
+            ';
+ NAME(14)='CONFLICTCONFLICTING INPUT DATA.
+            ';
+ NAME(15)='NODELETENOTHING TO DELETE.
+            ';
+ NAME(16)='OPCOMP  OPERATION COMPLETE.
+            ';
+ NAME(17)='INVTEL  TELEPHONE MUST BE TEN DIGITS.
+            ';
+ NAME(18)='OPCANC  OPERATION CANCELLED.
+            ';
+ NAME(19)='UPDSCH  UPDATE HAS BEEN SCHEDULED.
+            ';
+ NAME(20)='NOUPDSCHUNABLE TO SCHEDULE REQUESTED UPDATE.
+            ';
+ NAME(21)='BACKPAGEFORWARD PAGING NOT ALLOWED.
+            ';
+ NAME(22)='FORWPAGEBACKWARD PAGING NOT ALLOWED.
+            ';
+ NAME(23)='NODATA  NO DATA FOR THE BRANCH OFFICE.
+            ';
+ NAME(24)='NOCSRDT NO DATA FOR THIS SR.
+            ';
+ NAME(25)='QDERMSG OPERATION COMPLETE - MESSAGE(S) QUEUED
+            ';
+ NAME(26)='PTEXIST PRODUCT TYPE ALREADY EXISTS
+            ';
+ NAME(27)='INVKEY  INVALID KEY SELECTED
+            ';
+ NAME(28)='NOTERCOVNO TERRITORY COVERAGE DATA FOR THIS BRANCH OFFICE
+            ';
+ NAME(29)='NOPT    INVALID REQUEST - PT USER NOT SIGNED ON.
+            ';
+ NAME(30)='READONLYUPDATE NOT ALLOWED - DATA BASE IN READ ONLY MODE
+            ';
+ NAME(31)='NOTINTBLBRANCH OFFICE LISTS NOT FOUND IN DATA TABLE.
+            ';
+ NAME(32)='GENDEF  GENERIC PRODUCT LEVEL DEFAULTED TO 1. OPERATION COMPL
+ ETE.        ';
+ NAME(33)='DUPLICATDUPLICATE FIELDS.
+             ';                                                    ! PS
+ DCL MSGMAXIX FIXED;
+ MSGMAXIX=33;                                                      ! PS
+ IF MACLIST(1) = 'LIST' THEN DO;
+ ANS ('/* PARM -
+     */') COL(2);
+ ANS ('/*     AND MESSAGE TEXT
+     */') COL(2);
+  DO I = 1 TO 255 WHILE NAME(I) ^= '';
+   ANS('/* '||NAME(I,1:8)||'*/') COL(2);
+   ANS('/*   '||NAME(I,9:72)||'*/') COL(2);
+   END;
+  ANS('/****************************************************************
+ *****/') COL(2);
+ END;
+ IF MACLIST(1) = 'DCL' THEN DO;
+  ANS('DCL MSGMAX FIXED(8) CONSTANT('||CHAR(MSGMAXIX)||');') SKIP;
+  ANS('DCL MESSAGES(MSGMAXIX) CHAR(64) INIT(') COL(5);
+  DO I=1 TO MSGMAXIX-1;
+   ANS(''''||NAME(I,9:72)||''',') COL(6);
+   END;
+  ANS (''''||NAME(MSGMAXIX,9:72)||''') STATIC LOCAL;') COL(6);
+  END;
+ IF MACLIST(1)^='DCL'&MACLIST(1)^='LIST' THEN
+   DO;
+    PAD = '        ';
+    PAD = MACLIST(1);
+    DO I = 1 TO 255 BY 1 WHILE NAME(I)^='';
+      IF NAME(I,1:8) = PAD THEN
+        DO;
+         ANS('PROTMSGL='||CHAR(I)||'; /* '||PAD||' MESSAGE */') SKIP;
+         ANS('PROTCMSG=''1''B;') SKIP;
+         I = 299;
+        END;
+    END;
+    IF I < 299 THEN
+      DO;
+       ANS('/* INVALID MESSAGE IDENTIFIER -'||PAD||' */') SKIP;
+       RETURN CODE(12);
+      END;
+   END;
+ %END CANMSG;
+

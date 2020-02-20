@@ -1,0 +1,78 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQBMSWK                               DATE:  01/28/99   */
+ /*                                                TIME:  16:22:00   */
+ /*                                                                  */
+ /*  TITLE: BMS/CLAIM WORK NUMBER RECORD (MSF2)                      */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPORT  @@QSPAI1 DATA BASE                 */
+ /*                                                                  */
+ /*  TYPE:  RECORD                                                   */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + CCOUNTRY + IWORKNUM + 19 PAD            */
+ /*    KEYLENGTH: 31 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   DESCRIPTION:                    PGMR:*/
+ /*  -------- --------  -----   -------------------------------  --- */
+ /*                                                                  */
+ /*01/28/1999 SR98153   8NSN    INITIAL RELEASE                  PRM */
+ /*09/01/1999 QSARPROD  9NSA    CORRECT COMMENTS                 PRM */
+ /*07/11/2001 SR01032   1NSP    add fileds COWNCTRY, COWNCMPY,   LBS */
+ /*                             FAUTOACT, FLABRACT                   */
+ /*12/12/2004 SR040017  5CSM    ADD COUNTRY CODE TO KEY          DLP */
+ /*06/19/2007 SR060042  7NSP    ADD DFINISH                      LBS */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS 100  001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "M" 003- 003 */
+       5 CCOUNTRY   CHAR(3),       /* COUNTRY CODE    (KEY) 004- 006 */
+                                   /*  649 - CANADA                  */
+                                   /*  897 - US                      */
+       5 IWORKNUM   CHAR(8),       /* WORK NUMBER     (KEY) 007- 014 */
+       5 SPAD01     CHAR(19),      /* PADDING         (KEY) 015- 033 */
+                                   /*                                */
+     3 DWORKOPN   CHAR(08),        /* THE DATE THE          034- 041 */
+                                   /* WORK NUMBER WAS OPENED         */
+                                   /* FORMAT YYYYMMDD                */
+     3 DWORKCLS   CHAR(08),        /* THE DATE THE          042- 049 */
+                                   /* WORK NUMBER WAS CLOSED         */
+                                   /* FORMAT YYYYMMDD                */
+     3 CWORKSTA   CHAR(01),        /* WORK NUMBER STATUS    050- 050 */
+                                   /* O = Open                       */
+                                   /* C = Closed                     */
+     3 CSOWTYP    CHAR(02),        /* STATEMENT OF WORK CODE051- 052 */
+     3 CWORKTYP   CHAR(01),        /* WORK NUMBER TYPE      053- 053 */
+                                   /*   C = CONTRACT ACCOUNTS        */
+                                   /*   I = INTERNAL ACCOUNTS        */
+                                   /*   O = OPPORTUNITY ACCOUNTS     */
+                                   /*   T = INTERNAL TRANSFER PRICE  */
+     3 CCTLGRP    CHAR(08),        /* CONTROL GROUP ID      054- 061 */
+     3 ICUSTNO    CHAR(08),        /* CUSTOMER NUMBER       062- 069 */
+     3 COWNCTRY   CHAR(03),        /* OWNING COUNTRY CODE   070- 072 */
+     3 COWNCMPY   CHAR(08),        /* OWNING COMPANY CODE   073- 080 */
+     3 FAUTOACT   CHAR(01),        /* AUTO GENERATED        081- 081 */
+                                   /* ACTIVITY IDs  Y|N              */
+                                   /* Y = AUTO GENERATED ACTIVITY IDs*/
+                                   /* N = MANUALLY GENERATED         */
+     3 FLABRACT   CHAR(01),        /* LABOR ACTIVTY INDIC   082- 082 */
+                                   /* Y|N indicates if there are     */
+                                   /* 'ACID' record                  */
+     3 DFINISH    CHAR(08),        /* The LAST DATE labor   083- 090 */
+                                   /* can be posted to SAP           */
+                                   /* Ledger Account - YYYYMMDD      */
+     3 SPAD99     CHAR(10)         /* UNUSED PADDING        091- 100 */
+                                   /*                                */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBMSWK                               */
+ /********************************************************************/
+

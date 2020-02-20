@@ -1,0 +1,124 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME: AEQMTM1                                                   */
+ /*                                                                  */
+ /*  FUNCTION: DATA RETURNED FROM QSAR/P AUDIT/EDIT PREPROCESSOR TO  */
+ /*            BE USED BY NEW SERVICE DIMENSION.                     */
+ /*                                                                  */
+ /*  CURRENT SECTION LENGTH  = 70  BYTES                             */
+ /*                                                                  */
+ /*  RECORD KEY: TYPE + MODEL.                                        */
+ /*                                                                  */
+ /*  SET BY: CPSPBTM                                                 */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/06/88 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR  */
+ /*  09/16/89 SR 9892  0NSA ADD TAX CODE, MACH DESCR FOR        LBS  */
+ /*                    NSD 3.1                                       */
+ /*  09/30/91 SR 0853  ADD COSMACH FLAG TO INDICATE WHETHER     ABM  */
+ /*                    MACHINE TYPE IS A VALID COS PRODUCT ID        */
+ /*  03/16/92 SR 0967  ADD FIELD FOR GSA SCHEDULE INDICATOR     LBS  */
+ /*                                                                  */
+ /*  04/22/92 SR 0972  ADD PRODUCT ID FLAG (PIDMACH)            ABM  */
+ /*                                                                  */
+ /*  05/05/93 SR93111  MPI SECOND LOOKUP FOR NON OEM MACHINES   DLP */
+ /*  09/09/95 S950000  ADD BETHESDA CONTROL FLAGS               LBS */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH       FIXED BIN(15),/* RECORD LENGTH IS '52' 001- 002 */
+     3 RECID         CHAR(01),     /* RECORD ID, ALWAYS '3' 003- 003 */
+     3 GDCTYMD       CHAR(07),     /* ( KEY ) TYPE/MODEL    004- 010 */
+     3 GDXFLAG,                    /* F2WITCHES/FLAGS                */
+       5 GDFUN01     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFBOLD     BIT(01),      /* BOULDER FASTBACK      011- 011 */
+       5 GDFAUSA     BIT(01),      /* FASTBACK AUSTIN A     011- 011 */
+       5 GDFUN04     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFUN05     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFUN06     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFUN07     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFUN08     BIT(01),      /* NOT USED              011- 011 */
+       5 GDFUN09     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN10     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN11     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN12     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN13     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN14     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN15     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN16     BIT(01),      /* NOT USED              012- 012 */
+       5 GDFUN17     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFDELT     BIT(01),      /* DELETE FLAG           013- 013 */
+       5 GDFUN19     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN20     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN21     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN22     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN23     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN24     BIT(01),      /* NOT USED              013- 013 */
+       5 GDFUN25     BIT(01),      /* NOT USED              014- 014 */
+       5 GDFUN26     BIT(01),      /* NOT USED              014- 014 */
+       5 GDFPRSM     BIT(01),      /* PPRS FULL REPORTING   014- 014 */
+       5 GDFUN28     BIT(01),      /* NOT USED              014- 014 */
+       5 GDFPIMS     BIT(01),      /* EXTRACT FOR PIMS      014- 014 */
+       5 GDFUN30     BIT(01),      /* NOT USED              014- 014 */
+       5 GDFPPRS     BIT(01),      /* EXTRACT FOR PPRS      014- 014 */
+       5 GDFMETR     BIT(01),      /* METERED MACHINE       014- 014 */
+     3 GDCBILCL      CHAR(01),     /* BILLING CLASS         015- 015 */
+     3 GDCMTREQ      CHAR(01),     /* INV. MATCH REQ  (Y|N) 016- 016 */
+     3 GDCACTCL      CHAR(01),     /* ACCOUNTING CLASS      017- 017 */
+     3 GDCUN01       CHAR(01),     /* NOT USED              018- 018 */
+     3 GDCMAHR       CHAR(01),     /* MACHINE HERITAGE IND. 019- 019 */
+     3 GDCPMSH       CHAR(02),     /* PM SCHEDULE           020- 021 */
+     3 GDXFLG,                     /* MISC FLAGS                     */
+       5 GDFLG01     BIT(01),      /*   WITHDRAWN FROM MAIN 022- 022 */
+       5 GDFLG02     BIT(01),      /*   AUTO CUSTOMER INSTA 022- 022 */
+       5 GDFLG03     BIT(01),      /*   SERVICE REPAIR CENT 022- 022 */
+       5 GDBTHSET    BIT(01),      /*   BETHESDA CNT SET    022- 022 */
+       5 GDBTHCTL    BIT(01),      /*   BETHESDA CONTROLLED 022- 022 */
+       5 GDFLG06     BIT(01),      /*   NOT USED            022- 022 */
+       5 GDFLG07     BIT(01),      /*   NOT USED            022- 022 */
+       5 GDFLG08     BIT(01),      /*   NOT USED            022- 022 */
+       5 GDFLG09     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG10     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG11     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG12     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG13     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG14     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG15     BIT(01),      /*   NOT USED            023- 023 */
+       5 GDFLG16     BIT(01),      /*   NOT USED            023- 023 */
+     3 GDXSS1        FIXED BIN(15),/* TERR SUB. COMMUNICAT. 024- 025 */
+     3 GDXSS2        FIXED BIN(15),/* TERR SUB. SYSTEM      026- 027 */
+     3 GDXSS3        FIXED BIN(15),/* TERR SUB. TERRITORY   028- 029 */
+     3 GDCMTRM       CHAR(01),     /* METERED MACH (Y/N)    030- 030 */
+     3 GDCPRDT       CHAR(01),     /* PRODUCT TYPE (F/M)    031- 031 */
+     3 GDCMLC        CHAR(01),     /* MLC SHIP CTL (Y/N)    032- 032 */
+     3 GDCSCPU       CHAR(01),     /* SOFTWARE CPU (Y/N)    033- 033 */
+     3 GDCPOC        CHAR(02),     /* POINT OF CTL - PLANT  034- 035 */
+     3 GDCMLCPC      CHAR(02),     /* MLC PLANT OF CONTROL  036- 037 */
+     3 GDCRUN00,                   /* NOT USED                       */
+       5 GDCRUN01    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN02    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN03    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN04    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN05    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN06    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN07    BIT(1),       /* NOT USED              038- 038 */
+       5 GDCRUN08    BIT(1),       /* NOT USED              038- 038 */
+     3 GDCCUSTI      CHAR(01),     /* CUSTOMER INSTALL(Y|N) 039- 039 */
+     3 GDCTACGP      CHAR(02),     /* TAC GROUP CODE        040- 041 */
+     3 GDCTCP        CHAR(01),     /* TECHNICAL CAREER PATH 042- 042 */
+     3 CTAXCD        CHAR(2),      /* TAX CODE              043- 044 */
+     3 TMACHDSC      CHAR(15),     /* MACHINE DESCRIPTION   045- 059 */
+     3 COSMACH       CHAR(01),     /* COS M/T = Y, ELSE = N 060- 060 */
+     3 CGSASCH       CHAR(1),      /* GSA SCHEDULE (A|C)    061- 061 */
+     3 PIDMACH       CHAR(1),      /* PRODUCT ID? (Y|N)     062- 062 */
+     3 FOEMTYPE      CHAR(01),     /* OEM MACHINE FLAG (Y/N)063- 063 */
+     3 SPAD01        CHAR(07)      /* FOR FUTURE USE        064- 070 */
+                                   /*                                */
+ /* ---------------------------------------------------------------- */
+ /*    END  OF  COPY  MEMBER  AEQMTM1                                */
+ /* ---------------------------------------------------------------- */
+

@@ -1,0 +1,100 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  COPY MEMBER NAME:    AEQFEDF2                                   */
+ /*                                                                  */
+ /*  TITLE: FIELD EMPLOYEE DATA SECTION  -  NEW SERVICE DIMENSIONS   */
+ /*                                                                  */
+ /*  CURRENT SECTION LENGTH  =  100 BYTES                            */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*        PRIMARY KEY: EMPLOYEE SERIAL + NEG. EFFECTIVE DATE + PAD  */
+ /*        KEYLENGTH  : 30 BYTES                                     */
+ /*                                                                  */
+ /*        SECONDARY KEY STRUCTURE 1:                                */
+ /*                  ASSIGNED BRANCH OFFICE + TERRITORY NUMBER.      */
+ /*                                                                  */
+ /*        SECONDARY KEY STRUCTURE 2:                                */
+ /*                  ASSIGNED BRANCH OFFICE + FIELD MANAGER CODE.    */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  06/03/97 YEAR2000 7CSI ORIGINAL CREATION FOR 30 BYTE KEY   MLN  */
+ /*  10/09/97 PRODSUPT 7CSR REPOSITION 20 BYTE PAD AFTER KEY VALUES  */
+ /*                         RENAMED FROM CPQFEDF                SFM  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH      FIXED BIN(15),/* RECORD LENGTH IS"100" 001- 002 */
+     3 IRECID        CHAR(01),     /* RECORD ID, ALWAYS     003- 003 */
+                                   /* A "2"                          */
+     3 IPRIMEKEY,                  /*  PRIMARY KEY STRUCTURE         */
+       5 IEMPSER    CHAR(6),       /* SR EMPLOYEE SERIAL    004- 009 */
+       5 DATNEGEL   FIXED BIN(31), /* NEGATED EFFECTIVE     010- 013 */
+       5 SPAD20     CHAR(20),      /* PADDING FOR KEY       014- 033 */
+                                   /*      LILIAN DATE               */
+                                   /*     (NEGATED TO CAUSE MOST     */
+                                   /*      RECENT RECORD FOR SR      */
+                                   /*      TO BE FIRST)              */
+                                   /*                                */
+     3 ISECNKY1,                   /*  SECONDARY KEY STRUCTURE 1     */
+       5 IABROFF    CHAR(3),       /* SR ASSIGNED BRANCH OF 034- 036 */
+       5 ITERRNUM   CHAR(3),       /* SR TERRITORY NUMBER   037- 039 */
+                                   /*                                */
+     3 ISECNKY2,                   /*  SECONDARY KEY STRUCTURE 2     */
+       5 IASBROFF   CHAR(3),       /* SR ASSIGNED BRANCH OF 040- 042 */
+       5 IFMGRCOD   CHAR(1),       /* FIELD MANAGER CODE    043- 043 */
+       5 IEMPSER2   CHAR(6),       /* SR EMPLOYEE SERIAL    044- 049 */
+                                   /*                                */
+     3 IRECORD,                    /*  REMAINDER OF RECORD STRUCTURE */
+       5 NEMPL1ST   CHAR(1),       /* EMPLOYEE FIRST INITIA 050- 050 */
+       5 NEMPL2ND   CHAR(1),       /* EMPLOYEE SECOND INIT  051- 051 */
+       5 NEMPLSUR   CHAR(17),      /* EMPLOYEE LAST NAME    052- 068 */
+       5 IEMPLDIV   CHAR(2),       /* EMPLOYEE DIVISION     069- 070 */
+       5 IOBOPAR    CHAR(1),       /* OBSOLETE OP AREA      071- 071 */
+       5 IOBREG     CHAR(2),       /* OBSOLETE REGION       072- 073 */
+       5 IOBSAREA   CHAR(1),       /* OBSOLETE AREA         074- 074 */
+       5 ILOHRTG,                  /* CSR LOCATION HERITAGE          */
+         7 ILOCSH   BIT(1),        /*  LOCATION HERITAGE =  075- 075 */
+         7 ILOFEH   BIT(1),        /*  LOCATION HERITAGE =  075- 075 */
+         7 IUNUSED  BIT(6),        /*  UNUSED BITS          075- 075 */
+       5 IPOSTYPC   CHAR(1),       /* POSITION TYPE CODE    076- 076 */
+                                   /*      1=FSC MANAGER             */
+                                   /*      2=SR MANAGER              */
+                                   /*      3=FIELD MANAGER           */
+                                   /*      4=SR                      */
+       5 IASHOURS   CHAR(3),       /* ASSIGNED HOURS PER    077- 079 */
+                                   /*      FIVE WORK DAYS -          */
+                                   /*      INTERPRET AS TENTHS OF    */
+                                   /*      HOURS (NN.N)              */
+       5 DATEFFST   CHAR(8),       /* EFFECTIVE STATUS DATE 080- 087 */
+                                   /*     YYYYMMDD                   */
+       5 IASDAILY   FIXED BIN(15), /* ASSIGNED DAILY WORK   088- 089 */
+                                   /*      HOURS EXPRESSED IN        */
+                                   /*      TENTHS                    */
+       5 IOBSFDTR   CHAR(2),       /* OBSOLETE EMPL.SRC. CO 090- 091 */
+                                   /*   FIRST BYTE : FORMER DIVISION */
+                                   /*      1 = GSD                   */
+                                   /*      2 = OPD                   */
+                                   /*      3 = OTHER                 */
+                                   /*      4 = FE                    */
+                                   /*   SECOND BYTE :                */
+                                   /*      0 = NOT CROSS/TRAINED     */
+                                   /*      1 = IS CROSS/TRAINED      */
+       5 IWRITCD    CHAR(1),       /* IR WRITING CODE       092- 092 */
+                                   /*      '1' = IR WRITING          */
+                                   /*      ' ' = NON IR WRITING      */
+       5 ICARPATH   CHAR(1),       /* CAREER PATH CODE      093- 093 */
+       5 IPOSNTYP   CHAR(2),       /* EDF POSITION TYPE     094- 095 */
+                                   /*     TU8990B                    */
+       5 ISVGPCE    CHAR(4),       /* SERVICE GROUP CE      096- 099 */
+       5 ILSTDACT   CHAR(1)        /* LAST DAILY ACTIVITY   100- 100 */
+                                   /*  ADD     = 'A'                 */
+                                   /*  CHANGE  = 'C'                 */
+                                   /*  DELETE  = 'D'                 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQFEDF2                               */
+ /********************************************************************/
+

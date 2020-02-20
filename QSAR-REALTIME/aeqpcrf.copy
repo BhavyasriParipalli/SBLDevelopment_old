@@ -1,0 +1,109 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQPCRF     VERSION NR:  01           DATE:  10/15/96    */
+ /*                                               TIME:  07:53:16    */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: PART COST REFERENCE FILE - NEW SERVICE DIMENSIONS         */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* RECORD KEY: PART NUMBER.                                         */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* NOTES:  NSS MODULE PA01 ALSO USES THIS COPY MEMBER               */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /* ---------- -------- ---- ----------------------------------- --- */
+ /* 06/06/1988 SR-9891  8NSM NSS ORIGINAL PROMOTE                JWR */
+ /* 10/05/1989 SR-0313  9NSK ADD HAZARDOUS PARTS INDICATORS      LBS */
+ /* 05/08/1990 I96518   0NSA ADD QUOTE/NON-QUOTABLE PRICE IND    LBS */
+ /* 01/14/1991 SR0523   1NSA ADD PART CLASS (CLASS), CANADIAN UPR    */
+ /*                          UPR FLAG (CUPR),  AND DOMESTIC UPR      */
+ /*                          FLAG (DUPR)                         DLP */
+ /* 02/15/1995 S9400206 5NSE ADD FOEMPART INDICATOR              LBS */
+ /* 08/21/1995 S9500118 5NSK ADD CAPC ASSET PROTECTION CLASS     DLK */
+ /* 10/15/1996 S9600592 6NSP ADD ICONSGND PART CONSIGNED TO IBM  LBS */
+ /* 10/29/1996 S9600073 6NSP ADD CAPC IN POSITION 39             LBS */
+ /* 08/16/1999 QSARPROD 9CSA CHANGE FOR MSF2                     PRM */
+ /* 08/31/2006 SR060032 6CSN ADD FPARTYPE                        LBS */
+ /*                                                                  */
+ /********************************************************************/
+
+ %IF LANG = 'PLI' %THEN %DO;
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH = '65'  001- 002 */
+     3 PCRFKEY,                    /* ( KEY ) '5' + PART NUMBER      */
+       5 RECID      CHAR(01),      /* RECORD ID, ALWAYS '5' 003- 003 */
+       5 PART       CHAR(08),      /* PART NUMBER           004- 011 */
+       5 SPAD01     CHAR(22),      /* PAD KEY TO 31 BYTES   012- 033 */
+     3 PRICE        FIXED BIN(31), /* PART PRICE (CENTS)    034- 037 */
+     3 COST         FIXED BIN(31), /* PART COST  (MILLS)    038- 041 */
+     3 DESCR        CHAR(10),      /* PART DESCRIPTION      042- 051 */
+     3 TAG          CHAR(01),      /* RED TAG Y=YES,N=NO    052- 052 */
+     3 HAZUS        CHAR(01),      /* HAZARDOUS PART U.S.   053- 053 */
+                                   /* Y = YES, N= NO                 */
+     3 HAZCAN       CHAR(01),      /* HAZARDOUS PART CANADA 054- 054 */
+                                   /* Y = YES, N= NO                 */
+     3 QUOTE        CHAR(01),      /* QUOTE/NO QUOTE PRICE  055- 055 */
+                                   /* 0,1,3,5,6 = QUOTE PRICE        */
+                                   /* 2,4,7,8,9,' ' = NON-QUOTE PRICE*/
+     3 CLASS        CHAR(01),      /* PART MAINT CLASS      056- 056 */
+     3 CUPR         CHAR(01),      /* CANADA UPR PART       057- 057 */
+     3 DUPR         CHAR(01),      /* DOMESTIC UPR PART     058- 058 */
+     3 FOEMPART     CHAR(01),      /* PART FROM VENDOR(OEM) 059- 059 */
+                                   /* Y = YES, ' '= NO               */
+     3 ICONSGND     CHAR(01),      /* CONSIGNED PART TO IBM 060- 060 */
+                                   /* Y = YES, ' '= NO (IBM OWNED)   */
+     3 CAPC         CHAR(01),      /* ASSET PROTECTION      061- 061 */
+                                   /* CLASS. THIS FIELD/CHAR         */
+                                   /* IS USED BY CANADA              */
+     3 FPARTYPE     CHAR(01),      /* PART TYPE             062- 062 */
+     3 SPAD1        CHAR(03)       /* UNUSED PADDING        063- 065 */
+
+ %END;
+ %ELSE %DO;
+
+     3 RECLGTH      FIXED(15),     /* RECORD LENGTH = '65'  001- 002 */
+     3 PCRFKEY,                    /* ( KEY ) '5' + PART NUMBER      */
+       5 RECID      CHAR(01),      /* RECORD ID, ALWAYS '5' 003- 003 */
+       5 PART       CHAR(08),      /* PART NUMBER           004- 011 */
+       5 SPAD01     CHAR(22),      /* PAD KEY TO 31 BYTES   012- 033 */
+                                   /* PART PRICE (CENTS)    034- 037 */
+     3 PRICE        FIXED(31) BDY(BYTE),
+                                   /* PART COST  (MILLS)    038- 041 */
+     3 COST         FIXED(31) BDY(BYTE),
+     3 DESCR        CHAR(10),      /* PART DESCRIPTION      042- 051 */
+     3 TAG          CHAR(01),      /* RED TAG Y=YES,N=NO    052- 052 */
+     3 HAZUS        CHAR(01),      /* HAZARDOUS PART U.S.   053- 053 */
+                                   /* Y = YES, N= NO                 */
+     3 HAZCAN       CHAR(01),      /* HAZARDOUS PART CANADA 054- 054 */
+                                   /* Y = YES, N= NO                 */
+     3 QUOTE        CHAR(01),      /* QUOTE/NO QUOTE PRICE  055- 055 */
+                                   /* 0,1,3,5,6 = QUOTE PRICE        */
+                                   /* 2,4,7,8,9,' ' = NON-QUOTE PRICE*/
+     3 CLASS        CHAR(01),      /* PART MAINT CLASS      056- 056 */
+     3 CUPR         CHAR(01),      /* CANADA UPR PART       057- 057 */
+     3 DUPR         CHAR(01),      /* DOMESTIC UPR PART     058- 058 */
+     3 FOEMPART     CHAR(01),      /* PART FROM VENDOR(OEM) 059- 059 */
+                                   /* Y = YES, ' '= NO               */
+     3 ICONSGND     CHAR(01),      /* CONSIGNED PART TO IBM 060- 060 */
+                                   /* Y = YES, ' '= NO (IBM OWNED)   */
+     3 CAPC         CHAR(01),      /* ASSET PROTECTION      061- 061 */
+                                   /* CLASS. THIS FIELD/CHAR         */
+                                   /* IS USED BY CANADA              */
+     3 FPARTYPE     CHAR(01),      /* PART TYPE             062- 062 */
+     3 SPAD1        CHAR(03)       /* UNUSED PADDING        063- 065 */
+
+
+
+
+ %END;
+
+ /* ---------------------------------------------------------------- */
+ /*             END  OF  COPY  MEMBER  AEQPCRF                       */
+ /* ---------------------------------------------------------------- */
+

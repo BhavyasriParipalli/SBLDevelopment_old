@@ -1,0 +1,73 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECECAL     VERSION NR:  01           DATE:  10/13/98    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: QSAR/P CE CALENDAR RECORD                                 */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* RECORD KEY: IRECID + WEEK ENDING DATE IN CALENDAR + PADDING      */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ---------------------------------------- */
+ /*  10/13/98 YEAR2000 8NSN  COPY MEMBER FOR MSF2 USE           PRM  */
+ /*  09/03/99 QSARPROD 9NSA  CORRECT COMMENTS                   PRM  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "66".   01-02 */
+     3 IRECID       CHAR(01),      /* RECORD ID, ALWAYS A "7". 03-03 */
+     3 IRECKEY,                    /*                                */
+       5 DWEEKEND   CHAR(8),       /* WEEK ENDING:YYYYMMDD(KEY)04-11 */
+       5 SPADKEY    CHAR(22),      /* PADDING FOR MSF KEY      12-33 */
+     3 IWEEKNO      FIXED BIN(15), /* WEEK# IN CE CAL          34-35 */
+     3 DREPTPD      CHAR(6),       /* REPORT PERIOD YYYYMM     36-41 */
+     3 IWKINPER     FIXED BIN(15), /* WEEK NUMBER WITHIN       42-43 */
+                                   /*    REPORT PERIOD(1-4)          */
+     3 IDAYINWK     FIXED BIN(15), /* NUMBER OF CALENDAR       44-45 */
+                                   /*    DAYS IN WEEK(1-24)          */
+     3 ISTRTDAY     FIXED BIN(15), /* DAY THE WEEK STARTS      46-47 */
+                                   /*    (1=SATURDAY - 7)            */
+     3 IDAYFALL,                   /* ON=WORK DAY              48-50 */
+                                   /*    (1ST BIT IS THE DAY         */
+                                   /*     OF WEEK THE WEEK           */
+                                   /*     STARTS)                    */
+       5 DAY1  BIT(1),             /*                                */
+       5 DAY2  BIT(1),             /*                                */
+       5 DAY3  BIT(1),             /*                                */
+       5 DAY4  BIT(1),             /*                                */
+       5 DAY5  BIT(1),             /*                                */
+       5 DAY6  BIT(1),             /*                                */
+       5 DAY7  BIT(1),             /*                                */
+       5 DAY8  BIT(1),             /*                                */
+       5 DAY9  BIT(1),             /*                                */
+       5 DAY10 BIT(1),             /*                                */
+       5 DAY11 BIT(1),             /*                                */
+       5 DAY12 BIT(1),             /*                                */
+       5 DAY13 BIT(1),             /*                                */
+       5 DAY14 BIT(1),             /*                                */
+       5 DAY15 BIT(1),             /*                                */
+       5 DAY16 BIT(1),             /*                                */
+       5 DAY17 BIT(1),             /*                                */
+       5 DAY18 BIT(1),             /*                                */
+       5 DAY19 BIT(1),             /*                                */
+       5 DAY20 BIT(1),             /*                                */
+       5 DAY21 BIT(1),             /*                                */
+       5 DAY22 BIT(1),             /*                                */
+       5 DAY23 BIT(1),             /*                                */
+       5 DAY24 BIT(1),             /*                                */
+                                   /*                                */
+     3 IWKINYR      FIXED BIN(15), /* WEEK# WITHIN YEAR        51-52 */
+     3 DPROCEDT     CHAR(8),       /* PROCESSING END DATE      53-60 */
+                                   /*     FOR WEEK:  YYYYMMDD        */
+     3 SPAD01       CHAR(6)        /* PAD FOR FUTURE USE       61-66 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AECECAL                                */
+ /********************************************************************/
+

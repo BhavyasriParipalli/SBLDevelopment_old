@@ -1,0 +1,111 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ------- QSAR ACTIVITY CONTROL -------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: AEQQSRC                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR ACTIVITY CONTROL RECORD FORMAT           */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE STATISTICS RECORD MAINTAINED FROM   */
+ /*  THE QSAR REGION.  THE RECORD CONTAINS INFO RELATING TO THE     */
+ /*  QUANTITY OF QSARS AND NUMBER OF ACTUAL HOURS PROCESSED.        */
+ /*                                                                 */
+ /*             A                                                   */
+ /*  P          C                                                   */
+ /*  R          T                                                   */
+ /*  E       A  D                                                   */
+ /*  F       R  A                                                   */
+ /*  I       E  T                                                   */
+ /*  X       A  E                                                   */
+ /*                                                                 */
+ /*  QSARQSRCXXYYYYMMDD               POSITIONS 19 THROUGH 31 ARE   */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE QSAR CICS REGION.              */
+ /*                                                                 */
+ /*  !!! NOTE !!!  THIS COPY MEMBER IS SHARED WITH 'CONS' SYSTEM.   */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/10/88  SR 9891    8NSM    ORIGINAL VERSION          SPZ     */
+ /*  08/31/88  SR 9891    8NSM    ADDED NSD/C COUNT,        SPZ     */
+ /*                               STATS FIELDS                      */
+ /*  07/27/89  SR 0258    9NSI    ADDED THREE NEW FIELDS    DLK     */
+ /*                               FOR BALANCING REPORT              */
+ /*  09/27/89  SR9892     0NSA    ADDED BILLING CTL FIELDS  JWJ     */
+ /*  12/06/89             0NSA    ADDITIONAL BILLING FIELDS JWJ     */
+ /*  08/11/97  S9600755   7NSI    CHANGE ACTIVITY DATE TO      LBS  */
+ /*                               YYYYMMDD FROM YYMMDD              */
+ /*                                                                 */
+ /*******************************************************************/
+    3 QSRCKEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 QSRCKEY1  CHAR(8),       /* LITERAL 'QSARQSRC'     001- 008*/
+       5 QSRCAREA  CHAR(2),       /* AREA - WHEN AT HUB,    009- 010*/
+                                  /* ADD 30 TO AREA NUMBER          */
+                                  /* 01-12 AREA RECORDS             */
+                                  /* 31-42 HUB RECORDS              */
+       5 QSRCACTD  CHAR(8),       /* QSAR ACTIVITY DATE     011- 018*/
+                                  /* FORMAT YYYYMMDD                */
+                                  /* DON'T CHANGE THIS WITHOUT      */
+                                  /* CHANGING AEQDBP1               */
+       5 QSRCPAD1  CHAR(13),      /* KEY PADDING (BLANKS)   019- 031*/
+    3  QSRCQSCT    FIXED BIN(31), /* # QSARS ORIGINATING    032- 035*/
+                                  /* FROM PT PROCESSED FOR          */
+                                  /* THIS ACTIVITY DATE             */
+                                  /* (CLEAN QSARS ONLY)             */
+    3  QSRCNACT    FIXED BIN(31), /* # OF NSD/C ADDITIONS   036- 039*/
+                                  /* PROCESSED FOR                  */
+                                  /* THIS ACTIVITY DATE             */
+                                  /* (CLEAN QSARS ONLY)             */
+    3  QSRCNRCT    FIXED BIN(31), /* # OF NSD/C RESUBS      040- 043*/
+                                  /* PROCESSED FOR                  */
+                                  /* THIS ACTIVITY DATE             */
+                                  /* (CLEAN QSARS ONLY)             */
+    3  QSRCNDCT    FIXED BIN(31), /* # OF NSD/C DELETES     044- 047*/
+                                  /* PROCESSED FOR                  */
+                                  /* THIS ACTIVITY DATE             */
+    3  QSRCQSHR    FIXED BIN(31), /* TOTAL ACTUAL HOURS FOR 048- 051*/
+                                  /* THIS ACTIVITY DATE -           */
+                                  /* FROM PT-ORIGINATED             */
+                                  /* QSARS                          */
+                                  /* (CLEAN QSARS ONLY)             */
+    3  QSRCPQSR    FIXED BIN(31), /* TOTAL PENDED QSARS FOR 052- 055*/
+                                  /* THIS ACTIVITY DATE -           */
+                                  /* (DATA PROBLEMS ONLY,           */
+                                  /* NOT SYSTEM ERRORS)             */
+    3  QSRCDATE    CHAR(6),       /* DATE OF LAST UPDATE    056- 061*/
+                                  /* FORMAT YYMMDD                  */
+    3  QSRCTIME    CHAR(6),       /* TIME OF LAST UPDATE    062- 067*/
+                                  /* FORMAT HHMMSS                  */
+    3  QSRCNDPTCT  FIXED BIN (31),/* NSDC DELETES SOURCED   068- 071*/
+                                  /* FROM PT - SR 0258              */
+    3  QSRCNHPTCT  FIXED BIN (31),/* QSAR'S HELD IN NSD/C   072- 075*/
+                                  /* SOURCED FROM PT -              */
+                                  /* SR 0258                        */
+    3  QSRCNRPTCT  FIXED BIN (31),/* CLEAN NSD/C RESUBMITS  076- 079*/
+                                  /* SOURCED FROM PT -              */
+                                  /* SR 0258                        */
+    3  QSRCQBIN    FIXED BIN (31),/* QSARS INTO BILLING     080- 083*/
+                                  /* PROCESSOR                      */
+                                  /* SR 9892                        */
+    3  QSRCQBX     FIXED BIN (31),/* QSARS NOT ELIGIBLE FOR 084- 087*/
+                                  /* BILL DECISION (CLASS "X")      */
+                                  /* SR 9892                        */
+    3  QSRCQBB     FIXED BIN (31),/* BILLABLE RECORDS OUT   088- 091*/
+                                  /*                                */
+    3  QSRCQBP     FIXED BIN (31),/* POTENTIALLY BILL OUT   092- 095*/
+                                  /*                                */
+    3  QSRCQBN     FIXED BIN (31),/* NOT BILLABLE     OUT   096- 099*/
+                                  /*                                */
+    3  QSRCPAD2    CHAR(32)       /* PADDING                100- 131*/
+ /*******************************************************************/
+ /*                   END OF AEQQSRC INCLUDE                        */
+ /*******************************************************************/
+

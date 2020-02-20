@@ -1,0 +1,51 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQBMSAU                               DATE:  07/31/2001 */
+ /*                                                TIME:  16:25:00   */
+ /*                                                                  */
+ /*  TITLE: BMS AUTO GENERATED ACTIVITY CODE RECORD (MSF)            */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME:                                               */
+ /*                                                                  */
+ /*  TYPE:  RECORD                                                   */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID  + CCOUNTRY + IWORKNUM +                  */
+ /*                 IACTVID + CWORKTYP + 12 PAD                      */
+ /*    KEYLENGTH: 31 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   DESCRIPTION:                   PGMR: */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*  07/31/2001 S01032  1NSP    INITIAL RELEASE                 LBS  */
+ /*  12/12/04 SR040017  5CSM    ADD COUNTRY CODE TO KEY         DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "41" 001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "S" 003- 003 */
+       5 CCOUNTRY   CHAR(3),       /* COUNTRY CODE    (KEY) 004- 006 */
+                                   /*  649 - CANADA                  */
+                                   /*  897 - US                      */
+       5 IACTVID    CHAR(6),       /* ACTIVITY_ID     (KEY) 007- 012 */
+       5 CWORKTYP   CHAR(1),       /* WORK NUMBER TYPE(KEY) 013- 013 */
+                                   /*   C = CONTRACT ACCOUNTS        */
+                                   /*   I = INTERNAL ACCOUNTS        */
+                                   /*   O = OPPORTUNITY ACCOUNTS     */
+                                   /*   T = INTERNAL TRANSFER PRICE  */
+       5 SPAD01     CHAR(23),      /* PADDING         (KEY) 011- 033 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 DACTVCLS     CHAR(08)       /* THE DATE THE          034- 041 */
+                                   /* ACTIVITY ID WAS CLOSED         */
+                                   /* FORMAT YYYYMMDD                */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQBMSAU                               */
+ /********************************************************************/
+

@@ -1,0 +1,45 @@
+      /*          DL/1 DSECTS                                        */
+
+ DCL 1 CUIB BASED(PROUIBP) BDY(WORD), /* UIB DSECT */
+         2 CUIBPCB PTR(32),  /* PCB LIST POINTER */
+         2 CUIBRC BIN(16),   /* UIB RETURN CODE */
+             3 CUIBRC1 BIN(8),  /* 1ST BYTE */
+             3 CUIBRC2 BIN(8);  /* 2ND BYTE */
+
+ /*******************************************************************/
+ /*  IF YOU ADD MORE THAN 9 PCBS TO LIST YOU MUST ALSO UPDATE       */
+ /*  RAMDLIBK BY INCREMENTING THE DO COUNT AT LABEL PCBLOOP         */
+ /*******************************************************************/
+ DCL 1 CPCBLIST BASED(CUIBPCB) BDY(WORD), /* PCB ADDRESS LIST */
+         2 CPCB1  PTR(32),  /* ADDRESS OF THE FIRST   PCB */
+         2 CPCB2  PTR(32),  /* ADDRESS OF THE SECOND   PCB */
+         2 CPCB3  PTR(32),  /* ADDRESS OF THE THIRD    PCB */
+         2 CPCB4  PTR(32),  /* ADDRESS OF THE FOURTH   PCB */
+         2 CPCB5  PTR(32),  /* ADDRESS OF THE FIFTH    PCB */
+         2 CPCB6  PTR(32),  /* ADDRESS OF THE SIXTH    PCB */
+         2 CPCB7  PTR(32),  /* ADDRESS OF THE SEVENTH  PCB */
+         2 CPCB8  PTR(32),  /* ADDRESS OF THE EIGHTH   PCB */
+         2 CPCB9  PTR(32),  /* ADDRESS OF THE NINTH    PCB */
+         2 CPCB10 PTR(32),  /* ADDRESS OF THE TENTH    PCB */
+         2 CPCB11 PTR(32);  /* ADDRESS OF THE ELEVENTH PCB */
+
+ DCL 1 CPCB BASED(PROPCBP) BDY(WORD), /* PCB DSECT */
+        2 CPCBSTEM,
+         3 CPCPDBD CHAR(8), /* DBD NAME */
+         3 CPCPSGL CHAR(2), /* SEGMENT LEVEL */
+         3 CPCBSTAT CHAR(2), /* STATUS CODE RETURNED */
+         3 CPCBPROC CHAR(4), /* PROCESSING OPTIONS */
+         3 CPCBRSVD PTR(32), /* RESERVED */
+         3 CPCBSEGN CHAR(8), /* SEGMENT NAME */
+         3 CPCBKFBL FIXED(32), /* LENGTH OF KEY FEEDBACK AREA */
+         3 CPCBNUSS FIXED(32), /* NUMBER OF SENSITIVE SEGMENTS */
+       2 CPCBKFBK CHAR(*);   /* KEY FEEDBACK AREA */
+
+ DCL 1 CSSA BASED,       /* SSA DSECT */
+         2 CSSASEG CHAR(8), /* SEGMENT NAME */
+         2 CSSAQUAL CHAR(1), /* BLANK IF UNQUAL,LEFT BANANA IF QUAL */
+         2 CSSAFLD CHAR(8), /* FIELD NAME */
+         2 CSSAOP CHAR(2),  /* RELATIONAL OPERATOR */
+         2 CSSACOMP CHAR(*); /* COMPARISON FIELD AND PAREN */
+ @EJECT;
+

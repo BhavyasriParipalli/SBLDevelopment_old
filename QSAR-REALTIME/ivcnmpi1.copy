@@ -1,0 +1,224 @@
+ /*********************************************************************/
+ /*                                                                   */
+ /* NAME: IVCNMPI1                                                    */
+ /*                                                                   */
+ /* TITLE:  MPI System Connectivity - Profile 1 (QSAR/P)              */
+ /*         copy this copy member from TSO3S and a MPIBLD.*.COPYLIB   */
+ /*         library.                                                  */
+ /*                                                                   */
+ /* IMS SEGMENT NAME:  n/a                                            */
+ /*                                                                   */
+ /* TYPE:  Record                                                     */
+ /*                                                                   */
+ /* LANGUAGE:  PL/I                                                   */
+ /*                                                                   */
+ /* DESCRIPTION:                                                      */
+ /*               ---------     NSS QSAR      ---------               */
+ /*               ---------  INVENTORY REPLY  ---------               */
+ /*               ---------      FORMAT       ---------               */
+ /*                                                                   */
+ /*        MAPPING OF MPI-TO-QSAR REPLY TO INVENTORY REQUEST.         */
+ /*                                                                   */
+ /*        THIS INCLUDE MAPS THE APPC (SNA LU 6.2) REPLY TO THE       */
+ /*        INVENTORY DATA REQUEST FROM THE NSS QSAR PROCESSING        */
+ /*        APPLICATION.  THE REPLY IS RETURNED TO PROGRAM             */
+ /*        AEQRUL2 FROM MPI PROGRAM IVCN001, WHICH RECEIVES A         */
+ /*        REQUEST FOR INVENTORY DATA IN THE FORMAT SPECIFIED         */
+ /*        BY AEQINVRQ COPY.                                          */
+ /*                                                                   */
+ /*  NOTE:  -Any level 1 declaration that includes this copy member   */
+ /*          must be "UNALIGNED".                                     */
+ /*                                                                   */
+ /*  LENGTH:  220 BYTES                                               */
+ /*                                                                   */
+ /*  CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                   */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:             PROGRAMMER:*/
+ /*  --------  ---------  ----    ------------------       -----------*/
+ /*                                                        S. Zwart   */
+ /*  03/06/89  TU 0076A   9CV8    ORIGINAL VERSION         R. JONES   */
+ /*  08/23/90  TU 0527A   1CV3    REMOVE MPI SEGMENT BITS  L. DO      */
+ /*  04/26/91  SR 0734    1CV4    ADD DEALER SOLD BIT      D. FORMAN  */
+ /*  06/01/96  SR 9600400 5CVB    ADD SDT from PEW         R. YOST    */
+ /*  04/15/97  SR 9600755 7CVD    CHANGE DATES FROM        L. SCHLOMER*/
+ /*                               CENTURIAN TO GREGORIAN              */
+ /*  09/22/97  SR 9600755 DVRE    REMOVE OLD DATE COMMENTS E. BLAIR   */
+ /*  01/07/98  DCR97126A  DVRF    ADD IR CUST              L. Do      */
+ /*  09/09/98  SR980143   DVRK    ADD COUNTRY CODE         E. BLAIR   */
+ /*  03/19/03  SR030023          ADD ICUSTBIL, ICUSTOWN    D. LEAHY   */
+ /*  08/06/03  I15334883  PDEV    ADD IR CUSTOMER FLAG     D. LEAHY   */
+ /*  03/10/05  IT055630   DVRK    ADD ZCUPSRC              D. MLINCEK */
+ /*  04/27/06  RQ057010   DVRK    ADD CRESTIND, COEMIND,   D. MLINCEK */
+ /*                               CBPACCT, CRESTCDE,                  */
+ /*                               CMKTAFFN, CRESABNM                  */
+ /*  11/15/06  RQ062419   DVRL    Add fields:              D. Mlincek */
+ /*                                   1) CENTROWN                     */
+ /*                                   2) CENTRBIL                     */
+ /*                                   3) SPAD99                       */
+ /*  06/13/07  IT042407440 DVRK   ADD CISOCTRY & CSNPRFIX  E. BLAIR   */
+ /*                                                                   */
+ /*********************************************************************/
+  3 INVENTORY,                      /*                                */
+    5 RETCODE1   FIXED BIN(15),     /* RETURN CODE FIELD     001- 002 */
+                                    /*--------------------------------*/
+                                    /*0 - ALL SEGMENTS FOUND          */
+                                    /*4 - ALL SEGMENTS WEREN'T        */
+                                    /*    FOUND                       */
+                                    /*12 - MPI ROOT SEGMENT NOT       */
+                                    /*    FOUND                       */
+                                    /*16 - ERROR IN ACCESSING DATA    */
+                                    /*    BASE                        */
+                                    /*--------------------------------*/
+    5 SEGPAD1    CHAR( 1),          /*UNUSED                 003- 003 */
+                                    /*--------------------------------*/
+    5 GJIMMOD    CHAR( 3),          /*MACHINE MODEL          004- 006 */
+    5 GJDEFFRE   CHAR( 8),          /*CHANGE EFFECTIVE DATE  007- 014 */
+                                    /* YYYYMMDD                       */
+                                    /*--------------------------------*/
+                                    /*MACHINE DESCRIPTION             */
+                                    /*--------------------------------*/
+    5 GJXXZTER,                     /*ZONE/TERRITORY DATA             */
+      7 GJFCMFEA   BIT(1),          /*COMM. FEATURE PRESENT 015- 015 1*/
+      7 GJFDCMFE   BIT(1),          /*COMM. FEATURE DELETED 015- 015 2*/
+      7 GJFSYST    BIT(1),          /*PART OF A SYSTEM      015- 015 3*/
+      7 GJXUNF01   BIT(5),          /*UNUSED                015- 015  */
+    5 GKISYSTY   CHAR( 4),          /*SYSTEM TYPE            016- 019 */
+    5 GKISYSNO   CHAR( 7),          /*SYSTEM NUMBER          020- 026 */
+    5 COUNTRY    CHAR( 3),          /*COUNTRY CODE           027- 029 */
+    5 GJCSDT     CHAR( 3),          /*SERVICE DELIVERY TYPE  030- 032 */
+    5 GJDPMLAS   CHAR( 8),          /*LAST PM DATE-YYYYMMDD  033- 040 */
+    5 GJIPMSCH   CHAR( 2),          /*PM FREQUENCY           041- 042 */
+    5 GJXXINVT,                     /*INVENTORY TYPE                  */
+      7 GJF30PCT   BIT(1),          /*30% SERVICE           043- 043 1*/
+      7 GJF40PCT   BIT(1),          /*40% SERVICE           043- 043 2*/
+      7 GJFDEMO    BIT(1),          /*DEMONSTRATOR          043- 043 3*/
+      7 GJFCELOA   BIT(1),          /*SR LOANER             043- 043 4*/
+      7 GJFMLCAU   BIT(1),          /*MLC AUTOMATIC         043- 043 5*/
+      7 GJFAUTOR   BIT(1),          /*AUTOMATIC SA          043- 043 6*/
+      7 GJFDCFTS   BIT(1),          /*DCF TYPE/SERIAL       043- 043 7*/
+      7 GJFSOLIC   BIT(1),          /*CUSTOMER SOLICATION   043- 043 8*/
+    5 GJCTYPEQ   CHAR( 1),          /*TYPE EQUIPMENT         044- 044 */
+    5 GJDTYPEQ   CHAR( 8),          /*TYPE EQUIP EFFECT DTE  045- 052 */
+                                    /* YYYYMMDD                       */
+    5 GJDMFGDT   CHAR( 8),          /*DATE OF MANUFACTURE    053- 060 */
+                                    /* YYYYMMDD                       */
+    5 GJDOINST   CHAR( 8),          /*ORIGINAL INSTALL DATE  061- 068 */
+                                    /* YYYYMMDD                       */
+    5 GJDRECON   CHAR( 8),          /*DATE OF RECON          069- 076 */
+                                    /* YYYYMMDD                       */
+                                    /*--------------------------------*/
+                                    /*MACHINE STATUS                  */
+  5 GJXXSTAT,                       /*--------------------------------*/
+    7 GJDSTEFF   CHAR( 8),          /*STATUS EFFECTIVE DATE  077- 084 */
+                                    /* YYYYMMDD                       */
+    7 GJCSTAT    CHAR( 2),          /*STATUS CODE            085- 086 */
+    7 GJDCINST   CHAR( 8),          /*CURRENT INSTALL DATE   087- 094 */
+                                    /* YYYYMMDD                       */
+    7 GJDWAREX   CHAR( 8),          /*WARRANTY EXPIRATION    095- 102 */
+                                    /* YYYYMMDD                       */
+    7 GJDDISC    CHAR( 8),          /*DATE DISC FOR CUSTOME  103- 110 */
+                                    /* YYYYMMDD                       */
+    7 PAD03      CHAR( 1),          /*UNUSED    PADDING      111- 111 */
+    7 GJCLOCAT   CHAR( 1),          /*LOCATION CODE          112- 112 */
+    7 GLCSVCPL   CHAR( 2),          /*SERVICE PLAN CODE      113- 114 */
+    7 GJCPROLE   CHAR( 1),          /*PROCESS LEVEL CODE     115- 115 */
+                                    /*--------------------------------*/
+                                    /*CUSTOMER DATA                   */
+                                    /*--------------------------------*/
+  5 GJCCUSTP     CHAR( 1),          /*TYPE CUSTOMER          116- 116 */
+  5 GJICUST    FIXED BIN(31),       /*CUSTOMER NUMBER        117- 120 */
+                                    /*--------------------------------*/
+                                    /*INTERNALLY MAINTAINED DATA      */
+  5 GJXXINTR,                       /*--------------------------------*/
+    7 GJNUSRC,                      /*SOURCE OF LAST UPDATE           */
+      9 GJFARBI    BIT(1),          /*SOURCED FROM ARBI      121- 121 */
+      9 GJFPAD04   BIT(2),          /*UNUSED                 121- 121 */
+      9 GJFIMI     BIT(1),          /*SOURCED FROM IMI       121- 121 */
+      9 GJFROPS    BIT(1),          /*SOURCED FROM ROPS      121- 121 */
+      9 GJFDSI     BIT(1),          /*SOURCED FROM DSI       121- 121 */
+      9 GJFPMD     BIT(1),          /*SOURCED FROM PM        121- 121 */
+      9 GJFBTH     BIT(1),          /*SOURCED FROM BETHESDA  121- 121 */
+      9 GJFBRV     BIT(1),          /*SOURCED FROM RV        122- 122 */
+      9 GJFBSF     BIT(1),          /*SOURCED FROM SF        122- 122 */
+      9 GJFBSO     BIT(1),          /*SOURCED FROM SO        122- 122 */
+      9 GJFPAD06   BIT(1),          /*UNUSED                 122- 122 */
+      9 GJFRT      BIT(1),          /*UPDATED BY R/T         122- 122 */
+      9 GJFNUS     BIT(3),          /*UNUSED                 122- 122 */
+    7 GJDACTV    CHAR( 8),          /*LAST ACTIVITY DATE     123- 130 */
+                                    /*                                */
+    7 GJCACTIV   CHAR( 1),          /*ACTIVITY CODE          131- 131 */
+    7 GJIMFGPL   CHAR( 2),          /*PLANT OF MANUFACTURE   132- 133 */
+                                    /*MISCELLANEOUS DATA STRUCTURE    */
+                                    /*                                */
+                                    /*MPI EXTENSION AREA              */
+  5 CGTINV3,                        /*------------------              */
+    7 CMNABBNA   CHAR(15),          /*CUSTOMER NAME          134- 148 */
+    7 CRESTIND   CHAR( 1),          /*RESTRICTED CUST IND Y|N149- 149 */
+    7 COEMIND    CHAR( 1),          /*OEM INDICATOR      Y|N 150- 150 */
+    7 CBPACCT    CHAR( 1),          /*BP ACCOUNT  D,E,P BLANK151- 151 */
+    7 CGPAD07    CHAR( 1),          /*UNUSED                 152- 152 */
+    7 Y1IRSO     CHAR( 3),          /*RSO - FROM RSO         153- 155 */
+    7 CRESTCDE   CHAR( 3),          /*RESTRICTED CUST CODE   156- 158 */
+    7 CMIBOMKT   CHAR( 3),          /*MARKETING B/O          159- 161 */
+    7 Y1CTER     CHAR( 3),          /*MACHINE TERRITORY      162- 164 */
+                                    /*--------------------------------*/
+    7 CMIZONE    PIC '9999',        /*ZONE                   165- 168 */
+                                    /* Careful!  This started out     */
+                                    /* as Fixed Dec (5) in the CMR !  */
+                                    /*--------------------------------*/
+  5 GCCMREXT,                       /*                                */
+    7 CMIESTAB   FIXED BIN(31),     /*CMR ESTABLISHMENT NO.  169- 172 */
+    7 CMIENNO    FIXED BIN(31),     /*CMR ENTERPRISE NO.     173- 176 */
+    7 CMCNAC     CHAR( 3),          /*CMR LARGE ACCOUNT COD  177- 179 */
+    7 CMCTCUS1   CHAR( 1),          /*CMR TYPE CUSTOMER 1    180- 180 */
+    7 CMCTAX1    CHAR( 3),          /*CMR TAXING CODE 1      181- 183 */
+    7 CMCTCUS2   CHAR( 1),          /*CMR TYPE CUSTOMER 2    184- 184 */
+    7 CMCTAX2    CHAR( 3),          /*CMR TAXING CODE 2      185- 187 */
+    7 CMCTCUS3   CHAR( 1),          /*CMR TYPE CUSTOMER 3    188- 188 */
+    7 CMCTAX3    CHAR( 3),          /*CMR TAXING CODE 3      189- 191 */
+    7 CMCTCD     FIXED DEC(9),      /*CMR CITY/COUNTY/STATE  192- 196 */
+                                    /*    CITY(4)/COUNTY(3)/          */
+                                    /*    STATE(2) TAX CODES          */
+    7 CGFLAGS,                      /*                                */
+      9 CMFOCL   BIT(1),            /*OUTSIDE CITY LIMITS    197- 197 */
+      9 CMFCOD   BIT(1),            /*COD BIT                197- 197 */
+      9 CMFIIC   BIT(1),            /*INTERNAL IBM CUSTOMER  197- 197 */
+      9 CGSPAD02 BIT(5),            /*PAD TO FILL BYTE       197- 197 */
+  5 ICUSTBIL     FIXED BIN(31),     /*MA/BILL TO CUSTOMER #  198- 201 */
+  5 ICUSTOWN     FIXED BIN(31),     /*OWNING CUSTOMER NUM    202- 205 */
+  5 IRCUST       CHAR( 1),          /*IR CUSTOMER FLAG       206- 206 */
+                                    /*  'Y' - MPI INSTALLED-AT CUST   */
+                                    /*    WAS AN INDUSTRY REMARKETER. */
+                                    /*    MPI INSTALLED-AT PLACED IN  */
+                                    /*    QSAR ICUSTBIL & MPI BILLING */
+                                    /*    PLACED IN QSAR GJICUST.     */
+                                    /*  'N' - MPI INSTALLED-AT CUST   */
+                                    /*    WASN'T INDUSTRY REMARKETER. */
+                                    /*    NO CUSTOMER 'SWITCHING' DONE*/
+  5 ZCUPSRC      CHAR( 2),          /*UPSTREAM SOURCE        207- 208 */
+                                    /*         FROM DSI:              */ 
+                                    /*         'L ' - LENOVO          */ 
+                                    /*         'P ' - PEW             */ 
+                                    /*         FROM MPI:              */ 
+                                    /*         'AS' - AAS ORDER       */ 
+                                    /*         'GE' - GEMS            */ 
+                                    /*         'LE' - PMINQ LOW-END   */ 
+                                    /*         'LN' - MPI LOW-END     */ 
+                                    /*         'PC' - PCWARES         */ 
+                                    /*         '1W' - INVREC          */ 
+                                    /*         '2D' - PMINQ HIGH-END  */ 
+  5 CMKTAFFN     CHAR( 7),          /*MKT AFFILIATE NUMBER  209- 215  */
+  5 CRESABNM     CHAR( 5),          /*RESTRICTED CUST       216- 220  */
+                                    /*ABBREV NAME                     */
+  5 CENTRBIL     FIXED BIN(31),     /*ENTERPRISE # FOR      221- 224  */
+                                    /*BILL TO CUSTOMER NUMBER         */
+  5 CENTROWN     FIXED BIN(31),     /*ENTERPRISE # FOR      225- 228  */
+                                    /*OWNING CUSTOMER NUMBER          */
+  5 CISOCTRY     CHAR(02),          /*ISO COUNTRY CODE      229- 230  */
+  5 CSNPRFIX     CHAR(02),          /*PLANT OF MANUFACT ID  231- 232  */
+                                    /* aka serial number prefix       */
+  5 PAD99        CHAR(18)           /*PADDING - NOT USED    233- 250  */
+                                    /*                                */
+ /*-------------------------------------------------------------------*/
+ /*                      E N D   I V C N M P I 1                      */
+ /*-------------------------------------------------------------------*/

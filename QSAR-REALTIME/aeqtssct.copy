@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQTSSCT     VERSION NR:  01           DATE:  08/26/98   */
+ /*                                                TIME:  13:13:00   */
+ /*                                                                  */
+ /*  TITLE: TSS CONTRACT RECORD                                      */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEY:                                                     */
+ /*    PRIMARY KEY: IRECID + ICONTRACT + PADDING (18)                */
+ /*                                                                  */
+ /*  DESCRIPTION: THIS IS THE TSS CONTRACT RECORD LAYOUT FOR THE     */
+ /*               QSAR MASTER SUPPORT FILE.                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  08/26/98 SR98112   8CSM    INITIAL RELEASE                 PRM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+       3 IRECLGTH   FIXED BIN(15), /* RECORD LENGTH IS "49" 001- 002 */
+       3 IRECKEY,                  /*                                */
+         5 IRECID     CHAR(01),    /* ALWAYS "Q"            003- 003 */
+         5 ICONTRACT  CHAR(12),    /* CONTRACT NUMBER (KEY) 004- 015 */
+         5 SPAD01     CHAR(18),    /* PADDING         (KEY) 016- 033 */
+                                   /*                                */
+       3 DCTROPEN   CHAR(8),       /* THE DATE THE          034- 041 */
+                                   /* CONTRACT WAS OPENED            */
+                                   /* FORMAT YYYYMMDD                */
+       3 DCTRCLOS   CHAR(8)        /* THE DATE THE          042- 049 */
+                                   /* CONTRACT WILL CLOSED           */
+                                   /* FORMAT YYYYMMDD                */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQTSSCT                               */
+ /********************************************************************/
+

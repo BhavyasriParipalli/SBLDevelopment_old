@@ -1,0 +1,70 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AETPPREC                              DATE:  10/13/2005  */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: ThinkPad Protection registration file                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: QSSUPPRT  (NSS ENVIRONMENT VERSION)            */
+ /*                                                                  */
+ /* RECORD KEY = '9' + OFFERING ID                                   */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:     REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /* --------- -------- ---- ----------------------------------- ---- */
+ /*10/13/2005 SR050053 5NSO INITIAL VERSION                      LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECLGTH   FIXED BIN(15),  /* RECORD LENGTH  100       001- 002 */
+   3 IRECKEY,                   /* RECORD KEY                        */
+     5 IRECID         CHAR(1),  /* RECORD ID "9"            003- 003 */
+     5 IOFFRID        CHAR(4),  /* OFFERING ID              004- 007 */
+     5 FILL           CHAR(26), /*                          008- 033 */
+   3 IELTRNPN         CHAR(7),  /*                          034- 040 */
+   3 IPARTNUM         CHAR(7),  /*                          041- 047 */
+   3 IGROUP           CHAR(2),  /* GROUPS                   042- 049 */
+                                /* WM=WAMO, MA=MAINT, SVC=SERICE     */
+   3 IBRAND           CHAR(3),  /* BRANDS                   050- 052 */
+                                /* MP =Mobile Products               */
+                                /* DT =Desktop Products              */
+                                /* MO =Monitors                      */
+                                /* SV =Servers                       */
+                                /* PE =Peripherals                   */
+                                /* PR =Printers                      */
+                                /* POS=Point of Sale                 */
+                                /* IS =Installation Service          */
+                                /* SL =SupportLine Service           */
+                                /* PCD=PC Direct                     */
+                                /* TPP=ThinkPad Protection           */
+                                /* RTS=Remote Technical Support      */
+                                /* ST =Storage                       */
+                                /* SS =Smooth Start                  */
+                                /* CMP=Consumer Mobile Product       */
+                                /* CDT=Consumer Desktop              */
+                                /* CMO=Consumer Monitors             */
+   3 CSTATUS          CHAR(3),  /* OFFERING STATUS          053- 055 */
+                                /* CUR=CURRENT                       */
+                                /* WD =WITHDRAWN OFFERING            */
+   3 QMONTHS          PIC'99',  /* Service months           056- 057 */
+   3 ISVCTYPE         CHAR(3),  /* Service delivery type    058- 060 */
+                                /* EZS, IOR, etc...                  */
+   3 QSVCHRS          CHAR(4),  /* Service Hours            061- 064 */
+                                /* 9x5, 24x7                         */
+   3 CSVCDEL          CHAR(1),  /* Service delivery         065- 065 */
+   3 CSVCTYPE         CHAR(1),  /* Service type code        066- 066 */
+   3 CSDF             CHAR(3),  /* Service Delivery flag    067- 069 */
+   3 ALSTPRIC   FIXED DEC(15,2),/* list price               070- 077 */
+   3 ABIDPRIC   FIXED DEC(15,2),/* bid index price          078- 085 */
+   3 DANNOUNC         CHAR(8),  /* date of announcement     086- 093 */
+                                /* yyyymmdd                          */
+   3 SPAD01           CHAR(7)   /* FILLER                   094- 100 */
+ /*------------------------------------------------------------------*/
+ /*                       END  AETPPREC                              */
+ /*------------------------------------------------------------------*/
+

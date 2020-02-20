@@ -1,0 +1,42 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQACTTB     VERSION NR:  01           DATE:  01/20/98   */
+ /*                                                TIME:  15:44:00   */
+ /*                                                                  */
+ /*  TITLE: QSAR ACTIVITY CODE/CLAIM ACTIVITY ID TMF TABLE (MSF2)    */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME:                                               */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + IACTVCD + 27 PAD                        */
+ /*    KEYLENGTH: 30 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  01/20/98 SR97219   8NSC    INITIAL RELEASE                 PRM  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS "94".001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "O" 003- 003 */
+       5 IACTVCD    CHAR(2),       /* QSAR ACTIVITY                  */
+                                   /* CODE            (KEY) 004- 005 */
+       5 SPAD01     CHAR(28),      /* PADDING         (KEY) 006- 033 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 IACTVID      CHAR(06),      /* CLAIM ACTIVITY ID     034- 039 */
+     3 TACTDSC      CHAR(55)       /* TRUER PROMPT                   */
+                                   /* DESCRIPTION           040- 094 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQACTDB                               */
+ /********************************************************************/
+

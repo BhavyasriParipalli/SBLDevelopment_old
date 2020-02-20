@@ -1,0 +1,35 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQMTMP      VERSION NR:  01           DATE:  09/03/01   */
+ /*                                                                  */
+ /* TITLE: MACHINE TYPE MODEL Lookup Parm list                       */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/X, PLI                                              */
+ /*                                                                  */
+ /* DESCRIPTION: Parameter list to be used when doing machine type   */
+ /*    model table lookups from the QSAR support table for CAD       */
+ /*    Receive Call and Electronic receive call                      */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/01/01 SR01034   1NSP   INITIAL PROMOTE               J Lehane*/
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 MTPARM         MTPARM_STG,
+       3 MTMACH       CHAR(4),                 /* MACHINE TYPE       */
+       3 MTMOD        CHAR(3),                 /* MODEL              */
+       3 MTDATA       CHAR(64),                /* CAD MTM Hold Area  */
+       3 MTDFT        CHAR(1),                 /* MT superlow read   */
+       3 MTRC         CHAR(2);                 /* RETURN CODE        */
+
+ 
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQMTMP                    */
+ /*------------------------------------------------------------------*/
+

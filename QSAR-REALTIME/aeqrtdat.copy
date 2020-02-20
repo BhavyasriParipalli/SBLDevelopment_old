@@ -1,0 +1,57 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQRTDAT    VERSION NR:  01           DATE:  10/23/91    */
+ /*                                               TIME:  11:50:47    */
+ /*                                                                  */
+ /* TITLE: PART ORDER DATA FOR REAL-TIME PARTS ORDERING              */
+ /*                                                                  */
+ /*        QSAR USES THE SAME REAL-TIME NSS QUEUING THAT DCS PARTS   */
+ /*        ORDERING DOES.  SEE NSS MODULE PA01.                      */
+ /*        NSS COPY MEMBER RTREQREC                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PLI                                                    */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS IS THE LAYOUT FOR THE QSAR REAL-TIME PARTS    */
+ /*               PARTS ORDERING.  THIS CONTAINS THE DETAILS FOR     */
+ /*               THE PARTS BEING ORDERED.                           */
+ /*                                                                  */
+ /* LENGTH: 124                                                      */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  10/23/91 SR0776   1NSM INITIAL VERSION                     LBS  */
+ /*  11/26/91 DCR0776C 1NSM ADD IFROMBO ASSIGNMENT              LBS  */
+ /*                                                                  */
+ /********************************************************************/
+   3 CORDCDE     CHAR(1),     /* EMERGENCY ORDER CODE       001- 001 */
+   3 IFROMOL     CHAR(3),     /* OUTSIDE LOCATION CHARGED   002- 004 */
+   3 QLINCNT     BIT(8),      /* LINE ITEM COUNT            005- 005 */
+   3 FBITFLDS,                /* ADDRESS FIELD BIT MASK              */
+     5 FDELPT    BIT(1),      /* DELIVERY POINT FLAG        006- 006 */
+     5 FALTBO    BIT(1),      /* ALTERNATE B/O FLAG         006- 006 */
+     5 FFROMOL   BIT(1),      /* CHARGED O/L FLAG           006- 006 */
+     5 FSHIPTO   BIT(1),      /* FREE-FORM SHIP-TO ADDRESS  006- 006 */
+     5 FSHPADDR  BIT(1),      /* ADDRESS REQUEST FLAG       006- 006 */
+     5 FSPCLIN   BIT(1),      /* SPECIAL INSTRUCT FLAG      006- 006 */
+     5 SPAD01    BIT(2),      /* UNUSED                     006- 006 */
+  3 IDELPT       CHAR(2),     /* DELIVERY POINT             007- 008 */
+  3 IALTBO       CHAR(4),     /* ALTERNATE B/O              009- 012 */
+  3 TSPCLIN      CHAR(28),    /* SPECIAL INSTRUCTIONS       013- 040 */
+  3 IFROMBO      CHAR(4),     /* FROM BRANCH OFFICE         041- 044 */
+  3 ULNITEM (4),
+    5 HTOSEQ    BIT(8),       /* SEQUENCE MASK              045- 064 */
+    5 IPARTNO   CHAR(12),     /* PART NUMBER                065- 084 */
+    5 QORDQTY   CHAR(2),      /* QUANTITY ORDERED           085- 104 */
+    5 IMACHTYP  CHAR(4),      /* MACHINE TYPE               105- 124 */
+    5 CEXCPDMD  CHAR(1)       /* EXCEPTIONAL DEMAND                  */
+ /* ---------------------------------------------------------------- */
+ /*                                  END  AEQRTDAT                   */
+ /* ---------------------------------------------------------------- */
+

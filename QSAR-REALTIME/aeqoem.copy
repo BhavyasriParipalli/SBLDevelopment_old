@@ -1,0 +1,41 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQOEM      VERSION NR:  01           DATE:  06/01/95    */
+ /*                                               TIME:  19:59:24    */
+ /*                                                                  */
+ /* TITLE: OEM-TO-IBM PART NUMBER TRANSLATION TABLE LAYOUT           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:  IMS SEGMENT                                               */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* RECORD KEYS:                                                     */
+ /*             PRIMARY KEY  : 'I' + OEM PART NUMBER                 */
+ /*             KEYLENGTH    : 31                                    */
+ /*                                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  05/26/95 S9400206 5NSE ORIGINAL PROMOTE                    LBS  */
+ /*  08/30/99 QSARPROD 9NSA CHANGE NAME FOR CPSPBP2             PRM  */
+ /*                                                                  */
+ /********************************************************************/
+    3 IRECLGTH  FIXED BIN(15),  /* RECORD LENGTH IS 80      001- 002 */
+    3 CRECID    CHAR(1),        /* RECORD ID =  I           003- 003 */
+    3 IOEMPN    CHAR(30),       /* OEM PART NUMBER          004- 033 */
+    3 SPAD01    CHAR(1),        /* BLANK FOR READABILITY    034- 034 */
+    3 IIBMPN    CHAR(8),        /* IBM PART NUMBER          035- 042 */
+    3 SPAD02    CHAR(1),        /* BLANK FOR READABILITY    043- 043 */
+    3 IMFGR     CHAR(3),        /* MANUFACTURER             044- 046 */
+    3 COWNER    CHAR(2),        /* OWNER CODE               047- 048 */
+    3 SPAD03    CHAR(32)        /* UNUSED PADDING           049- 080 */
+ /*------------------------------------------------------------------*/
+ /*                END  AEQOEM                                       */
+ /*------------------------------------------------------------------*/
+

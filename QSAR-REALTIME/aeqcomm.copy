@@ -1,0 +1,56 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCOMM     VERSION NR:  01           DATE:  06/03/88    */
+ /*                                               TIME:  14:46:08    */
+ /*                                                                  */
+ /* TITLE: QSAR/NSS REALTIME COMMAREA FORMAT                         */
+ /*                                                                  */
+ /*  DESC: MAPPING OF COMMAREA FOR NSS QSAR/P PROGRAMS               */
+ /*                                                                  */
+ /*  THIS MEMBER DEFINES A COMMUNICATIONS AREA FOR USE BY AEQXXXX    */
+ /*  MODULES.  IT INCLUDES DATA BASE SEGMENT LAYOUTS AND COMMON      */
+ /*  APPLICATION CONTROL FLAGS.                                      */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /* DATE:      REASON:   DRVR:  DESCRIPTION:             PROGRAMMER: */
+ /* ---------- --------- ----   --------------------     ----------- */
+ /* 06/03/1988 SR 9891   8NSM   ORIGINAL VERSION                 SPZ */
+ /* 07/06/1988 SR 9891   8NSM   ADD EXCEPTION REPORTING          SPZ */
+ /*                             SEGMENT                              */
+ /* 12/11/1989 SR 0702   1NSC   INCREASE LENGTH COMM AREA        LBS */
+ /*                             FROM 1076  TO  1155                  */
+ /* 12/11/1991 SR 0882   2NSA   INCREASE LENGTH COMM AREA        ABM */
+ /*                             FROM 1155  TO  1191                  */
+ /* 10/06/1992 SR 1121   2NSJ   INCREASE LENGTH COMM AREA        ABM */
+ /*            SR 1175          FROM 1191 TO 1196                    */
+ /* 10/04/1994 S9300229  4NSM   INCREASE LENGTH COMM AREA            */
+ /*            SR 1175          FROM 1196 TO 1316                DLK */
+ /* 06/01/1995 S9400206  5NSE   INCREASE LENGTH COMM AREA            */
+ /*                             FROM 1316 TO 1357. REMOVE            */
+ /*                             EXCEPTION REPORTING SEGMENT.     DLK */
+ /* 06/20/1996 S9570033  6NSG   INCREASE LENGTH COMM AREA            */
+ /*                             FROM 1357 TO 1501.               DLP */
+ /* 09/29/1997 S970133   7NSP   ADD MISCELLANEOUS SEGMENT            */
+ /*                             FROM 1697 TO 1817.               LBS */
+ /* 08/09/2001 SR01032   1NSP   increase genl from 630 to 655    LBS */
+ /*                             FROM 2000 TO 2025                    */
+ /* 08/09/2001 SR01032   1NSP   increase genl from 655 to 700    DLP */
+ /*                             increase PART from 130 to 200    DLP */
+ /*                             FROM 2025 TO 2350                    */
+ /* 01/21/2004 SR030019  4NSC   increase AEQFLAGS from 250 to 300LBS */
+ /*                                                                  */
+ /********************************************************************/
+   %INCLUDE AEQSGENL; ,          /*  700      QSAR GENERAL   SEGMENT */
+   %INCLUDE AEQSNARR; ,          /*  170      QSAR NARRATIVE SEGMENT */
+   %INCLUDE AEQSINVT; ,          /*  230      QSAR INVENTORY SEGMENT */
+   3 PARTS (4),                  /*           4 PART ARRAY           */
+   %INCLUDE AEQSPART; ,          /*  800      QSAR PARTS     SEGMENT */
+   %INCLUDE AEQSMISC; ,          /*  200      QSAR MISCELLANEOUS SEG */
+   %INCLUDE AEQFLAGS;            /*  300      QSAR FLAGS             */
+                                 /*                                  */
+                                 /* 2400                             */
+ /*------------------------------------------------------------------*/
+ /*              END OF AEQCOMM COMMAREA INCLUDE                     */
+ /*------------------------------------------------------------------*/
+

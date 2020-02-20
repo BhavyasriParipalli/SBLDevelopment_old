@@ -1,0 +1,51 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------    AUDIT/EDIT     ---------                */
+ /*             ---------   TEMP HOLDING    ---------                */
+ /*             ---------    REC FORMAT     ---------                */
+ /*                                                                  */
+ /* NAME:   AEQHLDRC    VERSION NR:  01           DATE:  11/09/88    */
+ /*                                               TIME:  09:50:06    */
+ /*                                                                  */
+ /* TITLE:  QSAR HOLDING RECORD FORMAT                               */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE:  PL1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  IF THE NSS QSAR IS UNAVAILABLE OR THE AEQHLD       */
+ /*               PSB CANNOT BE SCHEDULED THIS RECORD WILL BE PLACED */
+ /*               IN A VSAM DATASET FOR LATER PROCESSING             */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  11/09/88  SR 9891 8NSM  TEMP HOLDING RECORD IF NSS         LBS  */
+ /*                          QSAR DB IS UNAVAILABLE                  */
+ /*  04/24/90          0NSG  REDUCE THE PAD AT THE END          BLS  */
+ /*                          FROM 95 TO 65.                          */
+ /*  01/16/92  SR0882  2NSA  REDUCE THE PAD AT THE END          LBS  */
+ /*                          FROM 65 TO 29.                          */
+ /*  06/01/95 S9500206 5NSE  REMOVE EXCEPTION REPORTING.             */
+ /*                          GENL, PART, NARR SEGS INCREASE.    DLK  */
+ /*  09/30/97 S97133   7NSP  ADD MISCELLANEOUS SEGMENT          LBS  */
+ /*                                                                  */
+ /********************************************************************/
+   3 XRECKEY      FIXED DEC(15,0),       /* BASED ON SYSTEM 0001-0002*/
+                                         /* TIME                     */
+   3 FSEGFLG,                            /*                          */
+     5 FHAVENARR        BIT (1),         /*                 0003-0003*/
+     5 SNUSED01         BIT (7),         /*                          */
+   %INCLUDE AEQSGENL; ,                  /* QSAR GENERAL SEGMENT     */
+   %INCLUDE AEQSNARR; ,                  /* QSAR NARRATIVE SEGMENT   */
+   3 PARTS (4),                          /* 4 PART ARRAY             */
+   %INCLUDE AEQSPART; ,                  /* QSAR PARTS SEGMENT       */
+   %INCLUDE AEQSMISC; ,                  /* QSAR MISCELLANEOUS SEG   */
+   3 SNUSED02           CHAR(21)         /* UNUSED PAD               */
+ /*------------------------------------------------------------------*/
+ /*                     END  AEQHLDRC                                */
+ /*------------------------------------------------------------------*/

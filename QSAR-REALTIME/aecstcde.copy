@@ -1,0 +1,60 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECSTCDE    VERSION NR:  01           DATE:  01/12/2007  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: QSAR MACHINE/ACTIVITY STATUS TO COST CODE TRANSLATION     */
+ /*        TABLE - NSS ENVIRONMENT - MSF SEGMENT                     */
+ /*                                                                  */
+ /* DESC: THIS IS THE DATA LAYOUT FOR THE TRANSLATION FROM THE       */
+ /*       MACHINE/ACTIVITY STATUS TO THE COST CODE VALUE             */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  QSSUPPRT                                      */
+ /*                                                                  */
+ /* RECORD KEY = 'U' + COMBINATION OF DATA (SEE BELOW)               */
+ /*                                                                  */
+ /* TYPE:   RECORD                                                   */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*---------- -------- ---- ----------------------------------- ---- */
+ /*01/12/2007 SR060049 7NSM ORIGINAL VERSION                     LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 IRECLGTH   FIXED BIN(15),  /* RECORD LENGTH  60         001- 002 */
+  3 IRECKEY,                   /* RECORD KEY                         */
+    5 IRECID         CHAR( 1), /* RECORD ID 'U'             003- 003 */
+    5 CSTATUS        CHAR( 1), /* ACTIVITY STATUS (W/U/M/P) 001- 004 */
+                               /* W = WARRANTY                       */
+                               /* U = WARRANTY UPGRADE               */
+                               /* M = MAINT AGREEMENT                */
+                               /* P = PER CALL                       */
+    5 CSERVICE       CHAR( 2), /* SERVICE CODE              005- 006 */
+    5 CACTIVTY       CHAR( 2), /* ACTIVITY CODE             007- 008 */
+    5 CIDM           CHAR( 1), /* IDM for SC 20             009- 009 */
+    5 CBILLACT       CHAR( 1), /* BILLABLE ACTIVITY CODE    010- 010 */
+    5 ICONTYP        CHAR( 3), /* CAD CONTRACT TYPE         009- 013 */
+    5 FCSU           CHAR( 1), /* CSU (BWC)                 014- 014 */
+    5 IENTLDEL       CHAR( 3), /* ENTITLED SERVICE DELIVERY 015- 017 */
+    5 ISERVDEL       CHAR( 6), /* HOW SERVICE WAS DELIVERED 018- 023 */
+    5 FPARTUSD       CHAR( 1), /* ANY PARTS USED            024- 024 */
+    5 IMACOWNR       CHAR( 2), /* OWNER OF MACHINE          025- 026 */
+    5 IMACMFGR       CHAR( 2), /* MACHINE MANUFACTURER      027- 028 */
+    5 SPAD01         CHAR( 5), /*                           029- 033 */
+  3 CCOSTSET         CHAR( 3), /* SOURCE OF ACTIVITY COST   034- 036 */
+                               /* CODES  TBL OR BWC                  */
+  3 CCLABOR          CHAR( 2), /* LABOR COST CODE           037- 038 */
+  3 CCTRAVEL         CHAR( 2), /* TRAVEL COST CODE          039- 040 */
+  3 CCPARTS          CHAR( 2), /* PARTS COST CODE           041- 042 */
+  3 CCPRTDST         CHAR( 2), /* PARTS DISTRIBUTION COST   043- 044 */
+                               /* CODE                               */
+  3 CCRTS            CHAR( 2), /* RTS COST CODE             045- 046 */
+  3 ICATGORY         CHAR(10), /* COST CATEGORY             047- 056 */
+  3 ISEQ       FIXED BIN (31)  /* SEQUENCE NUMBER           057- 060 */
+ /*------------------------------------------------------------------*/
+ /*                       END  AECSTCDE                              */
+ /*------------------------------------------------------------------*/
