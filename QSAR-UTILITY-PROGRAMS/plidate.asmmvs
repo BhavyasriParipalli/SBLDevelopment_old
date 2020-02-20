@@ -1,0 +1,1876 @@
+PLIDATE  CSECT                                                         
+PLIDATE  AMODE 31                                                      
+PLIDATE  RMODE ANY                                                     
+***********************************************************************
+*  MAF I made it running in AMODE(31) - but I'm not going to maintain *
+*  this program - so better don't use it anymore - Mariusz            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*  I added line 626 6/14/89 per Rusnak(Bethesda) to allow this to     *
+*  run above the line.  Compiled ok.   Duane McInturf                 *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*  Note:  Line 626 is now 633 and 634.  I changed it as noted below.  *
+*  I also made a change (see lines 809 - 813, 1766, and 1774) to keep *
+*  the object code within 4K.  Bruce Ohms 9/20/89.                    *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                     *
+*    The purpose  of this  program is  to provide,  in an  highly     *
+*    efficient  form, a  comprehensive  package  of date  related     *
+*    services  from the  first  date  of the  Gregorian  Calendar     *
+*    (Friday October 15, 1582) through  December 31, 9999.  These     *
+*    programs follow the Gregorian  Calendar precisely throughout     *
+*    this  period.   It  should  be  noted;   however,  that  the     *
+*    Gregorian Calendar  itself will  not accurately  reflect the     *
+*    true year  by the early part  of the 44th century.   By that     *
+*    time,  no  doubt,  a leap year (year 4000?)  will be treated     *
+*    as a common year, and it  will be   necessary to modify this     *
+*    program.   This  package  introduces    a  new  date  format     *
+*    which  I  have  called the   "Lilian" format   in  honor  of     *
+*    Luigi  Lilio.    It was  his    revisions  to   the   Julian     *
+*    Calendar  that   were mandated   by Pope   Gregory  XIII  in     *
+*    what    is  now  referred to as   the   Gregorian  Calendar.     *
+*    This   new    format   is    a  continuous     value   date,     *
+*    representing  the  number  of days that  have  passed  since     *
+*    the   beginning  of  the   Gregorian Calendar.     Beginning     *
+*    with  one  on  10/15/1582,   it   is incremented by one  for     *
+*    every  passing  day  with   a  value   of  3,074,324   being     *
+*    reached   on   12/31/9999.   It  should  be  mentioned  that     *
+*    the   Gregorian Calendar   was  not   in general  use     by     *
+*    most   non-Catholic     countries    for     many Centuries.     *
+*    Its use   was not  adopted   by  England and   her colonies,     *
+*    including  (what  is   now)   the    contiguous   48  United     *
+*    States     until  Thursday   September 14,    1752.  It  was     *
+*    not adopted by  some  countries  (notabley Russia) until the     *
+*    time  of  the  First   World   War in   the 20th    century.     *
+*    Services provided  by this  package will include  conversion     *
+*    of  dates from   one  format to  another,  validation of the     *
+*    source date  (with error codes  that specify the  nature  of     *
+*    the  error), and the  day of  the week  for a date.              *
+*                                                                     *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  EJECT                                                                
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                     *
+*     L I S T   O F   D A T E   P R O G R A M   F U N C T I O N S     *
+*                                                                     *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                     *
+*       CLLGRG ----------> COMPACT LILIAN FROM GREGORIAN              *
+*       CLLJUL ----------> COMPACT LILIAN FROM JULIAN                 *
+*       CLLLIL ----------> COMPACT LILIAN FROM LILIAN                 *
+*       CLLSGR ----------> COMPACT LILIAN FROM SHORT GREGORIAN        *
+*       CLLSJL ----------> COMPACT LILIAN FROM SHORT JULIAN           *
+*       DAYCLL ----------> DAY OF WEEK FROM COMPACT LILIAN            *
+*       DAYGRG ----------> DAY OF WEEK FROM GREGORIAN                 *
+*       DAYJUL ----------> DAY OF WEEK FROM JULIAN                    *
+*       DAYLIL ----------> DAY OF WEEK FROM LILIAN                    *
+*       DAYSGR ----------> DAY OF WEEK FROM SHORT GREGORIAN           *
+*       DAYSJL ----------> DAY OF WEEK FROM SHORT JULIAN              *
+*       GRGCLL ----------> GREGORIAN FROM COMPACT LILIAN              *
+*       GRGGRG ----------> GREGORIAN FROM GREGORIAN                   *
+*       GRGJUL ----------> GREGORIAN FROM JULIAN                      *
+*       GRGLIL ----------> GREGORIAN FROM LILIAN                      *
+*       GRGSGR ----------> GREGORIAN FROM SHORT GREGORIAN             *
+*       GRGSJL ----------> GREGORIAN FROM SHORT JULIAN                *
+*       JULCLL ----------> JULIAN FROM COMPACT LILIAN                 *
+*       JULGRG ----------> JULIAN FROM GREGORIAN                      *
+*       JULLIL ----------> JULIAN FROM LILIAN                         *
+*       JULSGR ----------> JULIAN FROM SHORT GREGORIAN                *
+*       JULSJL ----------> JULIAN FROM SHORT JULIAN                   *
+*       LILCLL ----------> LILIAN FROM COMPACT LILIAN                 *
+*       LILGRG ----------> LILIAN FROM GREGORIAN                      *
+*       LILJUL ----------> LILIAN FROM JULIAN                         *
+*       LILSGR ----------> LILIAN FROM SHORT GREGORIAN                *
+*       LILSJL ----------> LILIAN FROM SHORT JULIAN                   *
+*       SGRCLL ----------> SHORT GREGORIAN FROM COMPACT LILIAN        *
+*       SGRGRG ----------> SHORT GREGORIAN FROM GREGORIAN             *
+*       SGRJUL ----------> SHORT GREGORIAN FROM JULIAN                *
+*       SGRLIL ----------> SHORT GREGORIAN FROM LILIAN                *
+*       SGRSGR ----------> SHORT GREGORIAN FROM SHORT GREGORIAN       *
+*       SGRSJL ----------> SHORT GREGORIAN FROM SHORT JULIAN          *
+*       SJLCLL ----------> SHORT JULIAN FROM COMPACT LILIAN           *
+*       SJLGRG ----------> SHORT JULIAN FROM GREGORIAN                *
+*       SJLJUL ----------> SHORT JULIAN FROM JULIAN                   *
+*       SJLLIL ----------> SHORT JULIAN FROM LILIAN                   *
+*       SJLSGR ----------> SHORT JULIAN FROM SHORT GREGORIAN          *
+*       VALCLL ----------> VALIDATE COMPACT LILIAN SOURCE             *
+*       VALGRG ----------> VALIDATE GREGORIAN SOURCE                  *
+*       VALJUL ----------> VALIDATE JULIAN SOURCE                     *
+*       VALLEAP----------> DETERMINE IF YEAR IS A LEAP YEAR           *
+*       VALLIL ----------> VALIDATE LILIAN SOURCE                     *
+*       VALSGR ----------> VALIDATE SHORT GREGORIAN SOURCE            *
+*       VALSJL ----------> VALIDATE SHORT JULIAN SOURCE               *
+*                                                                     *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  EJECT                                                                
+***********************************************************************
+*                                                                     *
+*  1  ALGORITHMS                                                      *
+*                                                                     *
+*  The  process of  conversion between  a Lilian  format date  and a  *
+*  Julian format  date will  be described  here.  The  algorithms to  *
+*  convert between Julian and  Gregorian format dates are considered  *
+*  common knowledge and will not  be discussed.  The algorithms used  *
+*  were simpler to  derive by choosing a virtual,  rather than using  *
+*  real, base dates.  After the calculations are made, the result is  *
+*  adjusted to reflect the real base.                                 *
+*                                                                     *
+*  1.1  Extended Julian to Lilian (1985318 Julian)                    *
+*                                                                     *
+*  o   Subtract 1501 from the Julian year (=484)                      *
+*  o   Multiply  difference by  365.25 (average  number of  days per  *
+*      year) (=176781.00)                                             *
+*  o   Truncate the result (4 full years for a leap day) (=176781)    *
+*                                                                     *
+*  This gives the number of days from virtual January 1, 1501 to the  *
+*  start of the year being converted.                                 *
+*                                                                     *
+*  o   Subtract 29872 (the number of days between virtual January 1,  *
+*      1501 and October 15, 1582) (=146909)                           *
+*  o   Add the Julian days (+318=147227)                              *
+*                                                                     *
+*  This gives  the number of  "Julian calendar" (not  Julian format)  *
+*  days from October 15, 1582 to  the date being converted.  Next we  *
+*  will make the Gregorian calendar adjustments to this value.        *
+*                                                                     *
+*  o   Subtract 1501 from the Julian year (=484)                      *
+*  o   Divide  the  difference by  100  (one  leap year  is  usually  *
+*      skipped each century) (=4.84)                                  *
+*  o   Truncate (partial leap days don't exist) (=4)                  *
+*  o   Subtract these from the "Julian calendar" days (=147223)       *
+*                                                                     *
+*  One out of every four centuries keeps all of its leap years.       *
+*                                                                     *
+*  o   Subtract 1201 from  Julian  year (1st four hundred year cycle  *
+*      began with virtual 1201 and ended with real (1600) (=784)      *
+*  o   Divide the differrence by 400. (One century leap year per 400  *
+*      years is kept (=1.96)                                          *
+*  o   Truncate (again, partial leap days don't exist) (=1)           *
+*  o   Add these leap days back  into the adjusted "Julian calendar"  *
+*      days =(147224)                                                 *
+*                                                                     *
+*  This final result  is the number of Gregorian  calendar days from  *
+*  the beginning of the Gregorian calendar (October 15, 1582) to the  *
+*  date being converted: by definition, the Lilian date.              *
+*                                                                     *
+  EJECT                                                                
+*  1.2  Lilian to Extended Julian                                     *
+*                                                                     *
+*  We first create a "Lilian" date  with a starting point of January  *
+*  1, 1201.  We will then convert this into a "Julian calendar" (not  *
+*  Julian format)  date.  Finally we  will convert the  "Julian cal-  *
+*  endar" date to a Julian format date. (147224 Lilian)               *
+*                                                                     *
+*  o   Add 139444  to Lilian date (this  is the number of  days from  *
+*      virtual January  1, 1201 (the start  of a 400 year  cycle) to  *
+*      October 15, 1582) to obtain pseudo-Lilian date (=286668)       *
+*  o   Divide pseudo-Lilian date by 36524.25 (average number of days  *
+*      per century) (=7.85)                                           *
+*  o   Truncate the result to get century leap days (=7)              *
+*  o   Add century leap days to pseudo-Lilian date (=286675)          *
+*  o   Divide century leap days by 4 (=1.75)                          *
+*  o   Truncate the result to get four-century leap days (=1)         *
+*  o   Subtract four-century leap days from pseudo-Lilian date (they  *
+*      were already there) (=286674)                                  *
+*                                                                     *
+*  This gives the number of full "Julian calendar" days from January  *
+*  1, 1201 to the date being converted.  We will now convert this to  *
+*  an extended Julian format date.                                    *
+*                                                                     *
+*  o   Divide full "Julian calendar" days by 365.25 (usually results  *
+*      in one less than the year for date being converted) (=784.87)  *
+*  o   If there was no remainder from the division subtract one from  *
+*      the quotient, otherwise truncate  the quotient to get pseudo-  *
+*      Julian prior year (=784)                                       *
+*  o   Multiply the pseudo-Julian prior  year by 365.25 to determine  *
+*      the number of annual "Julian calendar" days prior to the year  *
+*      for the date being converted (=286356.00)                      *
+*  o   Truncate annual  "Julian calendar" days to  eliminate partial  *
+*      leap days (=286356)                                            *
+*  o   Subtract truncated  annual "Julian  calendar" days  from full  *
+*      "Julian calendar" days to get  number of current "Julian cal-  *
+*      endar" days in year of date being converted (=318)             *
+*  o   Add 1201 to pseudo-Julian prior  year to get real Julian year  *
+*      (1200 for  years prior  to 1200  plus one  to get  to current  *
+*      year) (+784=1985)                                              *
+*  o   Multiply real Julian year by 1000  to put it in proper Julian  *
+*      format position (=1985000)                                     *
+*  o   Add current "Julian  calendar" days to result  to obtain com-  *
+*      pleted Julian format date from Lilian format date (=1985318)   *
+*                                                                     *
+***********************************************************************
+  EJECT                                                                
+R00      EQU 0                                                         
+R01      EQU 1                                                         
+R02      EQU 2                                                         
+R03      EQU 3                                                         
+R04      EQU 4                                                         
+R05      EQU 5                                                         
+R06      EQU 6                                                         
+R07      EQU 7                                                         
+R08      EQU 8                                                         
+R09      EQU 9                                                         
+R10      EQU 10                                                        
+R11      EQU 11                                                        
+R12      EQU 12                                                        
+R13      EQU 13                                                        
+R14      EQU 14                                                        
+R15      EQU 15                                                        
+*                                                                      
+WEEKLY   DSECT                                                         
+WEEKDAY  DS  PL1                                                       
+LILIAN   DSECT                                                         
+LILDATE  DS 0PL4                                                       
+LILNUMS  DS  XL3                                                       
+LILSIGN  DS  XL1                                                       
+JULIAN   DSECT                                                         
+JULDATE  DS 0PL4                                                       
+JULNUMS  DS 0XL3                                                       
+JULYYYY  DS  XL2                                                       
+JULDDD   DS 0PL2                                                       
+         DS  XL1                                                       
+JULSIGN  DS  XL1                                                       
+GREGORY  DSECT                                                         
+GRGDATE  DS 0CL8                                                       
+YYYY     DS  CL4                                                       
+MMDD     DS 0CL4                                                       
+MM       DS  CL2                                                       
+DD       DS  CL2                                                       
+  EJECT                                                                
+DSA      DSECT                                                         
+         DS  22F                                                       
+PL8      DS 0PL8                                                       
+PARM1    DS 0PL4                                                       
+USMMDD   DS 0CL4                                                       
+CC       DS  CL2                                                       
+SYYMMDD  DS 0CL6                                                       
+JULCC    DS 0PL2                                                       
+YY       DS  CL2                                                       
+PARM2    DS 0PL4                                                       
+SMMDD    DS 0CL4                                                       
+         DS  XL1                                                       
+SJULIAN  DS 0PL3                                                       
+         DS  XL1                                                       
+USYY     DS  CL2                                                       
+LEAPSTAT DS 0CL1                                                       
+P8       DS 0PL8                                                       
+X4       DS 0XL4                                                       
+PACKYEAR DS  PL3                                                       
+TESTYEAR DS 0PL5                                                       
+         DS  XL1                                                       
+HOLDJUL  DS 0PL4                                                       
+LOCATOR  DS 0F                                                         
+         DS  XL2                                                       
+BIGLEAP  DS 0PL2                                                       
+CENTURY  DS 0PL2                                                       
+         DS  XL1                                                       
+TESTLEAP DS  PL1                                                       
+PACK8    DS 0PL8                                                       
+PARM3    DS  PL4                                                       
+PARM4    DS 0PL4                                                       
+         DS  XL1                                                       
+SHORTJUL DS  PL3                                                       
+RNGSAVE  DS 0XL4                                                       
+RNGCENT  DS  XL2                                                       
+RNGYEAR  DS  XL2                                                       
+SRCSAVE  DS  XL8                                                       
+FRMSTAT  DS  XL1                                                       
+         DS  XL3                                                       
+         DS  XL24                                                      
+ ORG     DSA                                                           
+         DS 22F                                                        
+GJPARMS  DS  XL40                                                      
+GJDBL    DS 0D                                                         
+GJINIT   DS 0XL10                                                      
+         DS  XL6                                                       
+GJDAYS   DS 0PL4                                                       
+         DS  XL1                                                       
+GJYEAR   DS  PL3                                                       
+GJLPDAYS DS  PL2                                                       
+  EJECT                                                                
+ ORG     DSA                                                           
+         DS  22F                                                       
+JGPARMS  DS  XL40                                                      
+JGDBL    DS 0D                                                         
+JGINIT   DS 0XL10                                                      
+         DS  XL5                                                       
+         DS 0PL3                                                       
+         DS  XL1                                                       
+JGMM     DS  PL2                                                       
+JGPROD   DS 0PL6                                                       
+         DS  XL2                                                       
+JGJUL    DS 0PL4                                                       
+         DS  XL2                                                       
+JGDAYS   DS  PL2                                                       
+ ORG     DSA                                                           
+         DS  22F                                                       
+DLPARMS  DS  XL40                                                      
+DLLILIAN DS 0PL5                                                       
+         DS  XL4                                                       
+DLDAY    DS  PL1                                                       
+ ORG     DSA                                                           
+         DS  22F                                                       
+LJPARMS  DS  XL40                                                      
+LJMULTIP DS 0PL7                                                       
+LJPART   DS 0XL5                                                       
+         DS  XL3                                                       
+LJCENT   DS 0PL4                                                       
+LJLEAP   DS 0PL2                                                       
+         DS  XL1                                                       
+LJYEAR   DS  PL3                                                       
+LJYEARS  DS  PL3                                                       
+ ORG     DSA                                                           
+         DS  22F                                                       
+JLPARMS  DS  XL40                                                      
+         DS  XL2                                                       
+JLWKDAYS DS 0PL6                                                       
+JLJULYY  DS 0PL3                                                       
+         DS  XL2                                                       
+JLLILDYS DS 0PL4                                                       
+         DS  XL1                                                       
+JLWKYY   DS  PL3                                                       
+JLPROD   DS 0PL7                                                       
+JLPART   DS 0XL5                                                       
+         DS  XL3                                                       
+JLYRDYS  DS 0PL4                                                       
+JLDIVID  DS 0PL7                                                       
+JLVIRCNT DS 0PL3                                                       
+JLVIRLP  DS 0PL2                                                       
+         DS  XL7                                                       
+JLSVLIL  DS  PL4                                                       
+  EJECT                                                                
+***********************************************************************
+***********************************************************************
+PLIDATE  CSECT                         FUNCTION    TARGET    SOURCE    
+  BR     14                          ATTRIBUTES    LENGTH    LENGTH    
+         DC C' COPYRIGHT 1985 IBM '                                    
+         DS 0H                                                         
+ ENTRY   VALGRG                                                        
+         DC X'03'                          000/0    000/0      11/8    
+         DC C'VALGRG'                                                  
+         DC AL1(6)                                                     
+VALGRG   DS 0H                                                         
+  B      520(,R15)                                                     
+ ENTRY   VALJUL                                                        
+         DC X'C1'                          110/6    000/0      01/4    
+         DC C'VALJUL'                                                  
+         DC AL1(6)                                                     
+VALJUL   DS 0H                                                         
+  B      508(,R15)                                                     
+ ENTRY   VALLIL                                                        
+         DC X'C1'                          110/6    000/0      01/4    
+         DC C'VALLIL'                                                  
+         DC AL1(6)                                                     
+VALLIL   DS 0H                                                         
+  B      496(,R15)                                                     
+ ENTRY   VALSGR                                                        
+         DC X'42'                          010/2    000/0      10/6    
+         DC C'VALSGR'                                                  
+         DC AL1(6)                                                     
+VALSGR   DS 0H                                                         
+  B      484(,R15)                                                     
+ ENTRY   VALSJL                                                        
+         DC X'60'                          011/3    000/0      00/3    
+         DC C'VALSJL'                                                  
+         DC AL1(6)                                                     
+VALSJL   DS 0H                                                         
+  B      472(,R15)                                                     
+ ENTRY   CLLGRG                                                        
+         DC X'0B'                          000/0    010/3      11/8    
+         DC C'CLLGRG'                                                  
+         DC AL1(6)                                                     
+CLLGRG   DS 0H                                                         
+  B      460(,R15)                                                     
+ ENTRY   CLLJUL                                                        
+         DC X'C9'                          110/6    010/3      01/4    
+         DC C'CLLJUL'                                                  
+         DC AL1(6)                                                     
+CLLJUL   DS 0H                                                         
+  B      448(,R15)                                                     
+ ENTRY   CLLLIL                                                        
+         DC X'C9'                          110/6    010/3      01/4    
+         DC C'CLLLIL'                                                  
+         DC AL1(6)                                                     
+CLLLIL   DS 0H                                                         
+  B      436(,R15)                                                     
+ ENTRY   CLLSGR                                                        
+         DC X'4A'                          010/2    010/3      10/6    
+         DC C'CLLSGR'                                                  
+         DC AL1(6)                                                     
+CLLSGR   DS 0H                                                         
+  B      424(,R15)                                                     
+ ENTRY   CLLSJL                                                        
+         DC X'68'                          011/3    010/3      00/3    
+         DC C'CLLSJL'                                                  
+         DC AL1(6)                                                     
+CLLSJL   DS 0H                                                         
+  B      412(,R15)                                                     
+ ENTRY   DAYGRG                                                        
+         DC X'23'                          001/1    000/1      11/8    
+         DC C'DAYGRG'                                                  
+         DC AL1(6)                                                     
+DAYGRG   DS 0H                                                         
+  B      400(,R15)                                                     
+ ENTRY   GRGGRG                                                        
+         DC X'3F'                          001/1    111/8      11/8    
+         DC C'GRGGRG'                                                  
+         DC AL1(6)                                                     
+GRGGRG   DS 0H                                                         
+  B      388(,R15)                                                     
+ ENTRY   JULGRG                                                        
+         DC X'0F'                          000/0    011/4      11/8    
+         DC C'JULGRG'                                                  
+         DC AL1(6)                                                     
+JULGRG   DS 0H                                                         
+  B      376(,R15)                                                     
+ ENTRY   LILGRG                                                        
+         DC X'0F'                          000/0    011/4      11/8    
+         DC C'LILGRG'                                                  
+         DC AL1(6)                                                     
+LILGRG   DS 0H                                                         
+  B      364(,R15)                                                     
+ ENTRY   SGRGRG                                                        
+         DC X'37'                          001/1    101/6      11/8    
+         DC C'SGRGRG'                                                  
+         DC AL1(6)                                                     
+SGRGRG   DS 0H                                                         
+  B      352(,R15)                                                     
+ ENTRY   SJLGRG                                                        
+         DC X'0B'                          000/0    010/3      11/8    
+         DC C'SJLGRG'                                                  
+         DC AL1(6)                                                     
+SJLGRG   DS 0H                                                         
+  B      340(,R15)                                                     
+ ENTRY   SGRSGR                                                        
+         DC X'76'                          011/3    101/6      10/6    
+         DC C'SGRSGR'                                                  
+         DC AL1(6)                                                     
+SGRSGR   DS 0H                                                         
+  B      328(,R15)                                                     
+ ENTRY   DAYSGR                                                        
+         DC X'62'                          011/3    000/1      10/6    
+         DC C'DAYSGR'                                                  
+         DC AL1(6)                                                     
+DAYSGR   DS 0H                                                         
+  B      316(,R15)                                                     
+ ENTRY   GRGSGR                                                        
+         DC X'7E'                          011/3    111/8      10/6    
+         DC C'GRGSGR'                                                  
+         DC AL1(6)                                                     
+GRGSGR   DS 0H                                                         
+  B      304(,R15)                                                     
+ ENTRY   JULSGR                                                        
+         DC X'4E'                          010/2    011/4      10/6    
+         DC C'JULSGR'                                                  
+         DC AL1(6)                                                     
+JULSGR   DS 0H                                                         
+  B      292(,R15)                                                     
+ ENTRY   LILSGR                                                        
+         DC X'4E'                          010/2    011/4      10/6    
+         DC C'LILSGR'                                                  
+         DC AL1(6)                                                     
+LILSGR   DS 0H                                                         
+  B      280(,R15)                                                     
+ ENTRY   SJLSGR                                                        
+         DC X'4A'                          010/2    010/3      10/6    
+         DC C'SJLSGR'                                                  
+         DC AL1(6)                                                     
+SJLSGR   DS 0H                                                         
+  B      268(,R15)                                                     
+ ENTRY   DAYJUL                                                        
+         DC X'21'                          001/1    000/1      01/4    
+         DC C'DAYJUL'                                                  
+         DC AL1(6)                                                     
+DAYJUL   DS 0H                                                         
+  B      256(,R15)                                                     
+ ENTRY   GRGJUL                                                        
+         DC X'3D'                          001/1    111/8      01/4    
+         DC C'GRGJUL'                                                  
+         DC AL1(6)                                                     
+GRGJUL   DS 0H                                                         
+  B      244(,R15)                                                     
+ ENTRY   LILJUL                                                        
+         DC X'CD'                          110/6    011/4      01/4    
+         DC C'LILJUL'                                                  
+         DC AL1(6)                                                     
+LILJUL   DS 0H                                                         
+  B      232(,R15)                                                     
+ ENTRY   SGRJUL                                                        
+         DC X'35'                          001/1    101/6      01/4    
+         DC C'SGRJUL'                                                  
+         DC AL1(6)                                                     
+SGRJUL   DS 0H                                                         
+  B      220(,R15)                                                     
+ ENTRY   SJLJUL                                                        
+         DC X'C9'                          110/6    010/3      01/4    
+         DC C'SJLJUL'                                                  
+         DC AL1(6)                                                     
+SJLJUL   DS 0H                                                         
+  B      208(,R15)                                                     
+ ENTRY   DAYLIL                                                        
+         DC X'21'                          001/1    000/1      01/4    
+         DC C'DAYLIL'                                                  
+         DC AL1(6)                                                     
+DAYLIL   DS 0H                                                         
+  B      196(,R15)                                                     
+ ENTRY   GRGLIL                                                        
+         DC X'3D'                          001/1    111/8      01/4    
+         DC C'GRGLIL'                                                  
+         DC AL1(6)                                                     
+GRGLIL   DS 0H                                                         
+  B      184(,R15)                                                     
+ ENTRY   JULLIL                                                        
+         DC X'CD'                          110/6    011/4      01/4    
+         DC C'JULLIL'                                                  
+         DC AL1(6)                                                     
+JULLIL   DS 0H                                                         
+  B      172(,R15)                                                     
+ ENTRY   SGRLIL                                                        
+         DC X'35'                          001/1    101/6      01/4    
+         DC C'SGRLIL'                                                  
+         DC AL1(6)                                                     
+SGRLIL   DS 0H                                                         
+  B      160(,R15)                                                     
+ ENTRY   SJLLIL                                                        
+         DC X'C9'                          110/6    010/3      01/4    
+         DC C'SJLLIL'                                                  
+         DC AL1(6)                                                     
+SJLLIL   DS 0H                                                         
+  B      148(,R15)                                                     
+ ENTRY   DAYSJL                                                        
+         DC X'60'                          011/3    000/1      00/3    
+         DC C'DAYSJL'                                                  
+         DC AL1(6)                                                     
+DAYSJL   DS 0H                                                         
+  B      136(,R15)                                                     
+ ENTRY   GRGSJL                                                        
+         DC X'7C'                          011/3    111/8      00/3    
+         DC C'GRGSJL'                                                  
+         DC AL1(6)                                                     
+GRGSJL   DS 0H                                                         
+  B      124(,R15)                                                     
+ ENTRY   JULSJL                                                        
+         DC X'6C'                          011/3    011/4      00/3    
+         DC C'JULSJL'                                                  
+         DC AL1(6)                                                     
+JULSJL   DS 0H                                                         
+  B      112(,R15)                                                     
+ ENTRY   LILSJL                                                        
+         DC X'6C'                          011/3    011/4      00/3    
+         DC C'LILSJL'                                                  
+         DC AL1(6)                                                     
+LILSJL   DS 0H                                                         
+  B      100(,R15)                                                     
+ ENTRY   SGRSJL                                                        
+         DC X'74'                          011/3    101/6      00/3    
+         DC C'SGRSJL'                                                  
+         DC AL1(6)                                                     
+SGRSJL   DS 0H                                                         
+  B      88(,R15)                                                      
+ ENTRY   DAYCLL                                                        
+         DC X'20'                          001/1    000/1      00/3    
+         DC C'DAYCLL'                                                  
+         DC AL1(6)                                                     
+DAYCLL   DS 0H                                                         
+  B      76(,R15)                                                      
+ ENTRY   GRGCLL                                                        
+         DC X'3C'                          001/1    111/8      00/3    
+         DC C'GRGCLL'                                                  
+         DC AL1(6)                                                     
+GRGCLL   DS 0H                                                         
+  B      64(,R15)                                                      
+ ENTRY   JULCLL                                                        
+         DC X'CC'                          110/6    011/4      00/3    
+         DC C'JULCLL'                                                  
+         DC AL1(6)                                                     
+JULCLL   DS 0H                                                         
+  B      52(,R15)                                                      
+ ENTRY   LILCLL                                                        
+         DC X'CC'                          110/6    011/4      00/3    
+         DC C'LILCLL'                                                  
+         DC AL1(6)                                                     
+LILCLL   DS 0H                                                         
+  B      40(,R15)                                                      
+ ENTRY   SGRCLL                                                        
+         DC X'34'                          001/1    101/6      00/3    
+         DC C'SGRCLL'                                                  
+         DC AL1(6)                                                     
+SGRCLL   DS 0H                                                         
+  B      28(,R15)                                                      
+ ENTRY   SJLCLL                                                        
+         DC X'C8'                          110/6    010/3      00/3    
+         DC C'SJLCLL'                                                  
+         DC AL1(6)                                                     
+SJLCLL   DS 0H                                                         
+  B      16(,R15)                                                      
+ ENTRY   VALCLL                                                        
+         DC X'C0'                          110/6    000/0      00/3    
+         DC C'VALCLL'                                                  
+         DC AL1(6)                                                     
+VALCLL   DS 0H                                                         
+  B      4(,R15)                                                       
+  EJECT                                                                
+***********************************************************************
+***********************************************************************
+*  PL/I PROLOG                                                         
+***********************************************************************
+*                                                                      
+  STM    14,11,12(13)       * * * * *                                  
+  BALR   R11,R00            * PROGRAM                                  
+  USING  *,R11              * PROLOG                                   
+START    EQU *              *                                          
+  LR     R10,R01            * SAVE PARAMETER LIST ADDRESS              
+* MAF - Line below is junk - reg 8 is detroyed later                   
+* LA     R08,0(R00,R15)     * USE ENTRY POINT FOR MATH LATER           
+  LA     R00,152            * PUT REQUIRED DSA LENGTH IN REG 0         
+  L      R01,76(,R13)       * LOAD ADDR OF NEXT AVBL BYTE OF STORAGE   
+  ALR    R00,R01            * ADD ADDRESSES                            
+  CL     R00,12(,R12)       * COMPARE WITH ADDR OF LAST AVBL BYTE      
+  BNH    ENOUGH             *                                          
+  L      R15,116(,R12)      * LOAD & BRANCH TO PL/I STORAGE OVERFLOW   
+  BALR   R14,R15            * ROUTINE TO GET MORE STORAGE              
+ENOUGH   EQU                *                                          
+  ST     R00,76(,R01)       * STORE ADDR OF NEXT AVBL BYTE IN STORAGE  
+*                           *   AFTER THE NEW DSA                      
+* MAF - we need address of entry point                                 
+  L      R08,16(,R13)       * USE ENTRY POINT FOR MATH LATER           
+  ST     R13,4(,R01)        * STORE PREV DSA CHAIN-BACK ADDR           
+  MVC    72(4,R01),72(R13)  * COPY ADDR OF LIBRARY WORKSPACE           
+  LR     R13,R01            * STORE ADDR OF NEW DSA IN REG 13          
+*                           *******************************************
+* ICM    R13,8,=X'00'       * ABOVE THE LINE PER DAVID RUSNAK 6/14/89  
+* MAF - line below doesn't work for AMODE(31)                          
+* ICM    R13,8,X0L1         * SAVE A BYTE, BRUCE OHMS 9/20/89          
+*                           *******************************************
+  MVI    0(R13),X'80'       * SET FLAGS IN THE DSA                     
+  MVI    1(R13),X'00'       * TO PRESERVE THE PL/I                     
+  MVI    86(R13),X'91'      * ERROR HANDLING IN                        
+  MVI    87(R13),X'C0'      * THE ASSEMBLER ROUTINE                    
+  EJECT                                                                
+***********************************************************************
+*  PLIDATE PROLOG                                                      
+***********************************************************************
+*                           *******************************************
+*                           THE CODE BELOW HAS BEEN WRITTEN TO BE      
+*                           COMPATABLE WITH 31 BIT (XA) ADDRESSABILITY.
+*                           *******************************************
+  USING  DSA,R13              POINT TO DYNAMIC STORAGE AREA.           
+  MVC    70(2,R12),X0L2       "CALL PLIRETC(00)", PARMS VALID.         
+  MVI    FRMSTAT,C'Y'         GREGORIAN OUTPUT FORMAT DEFAULT.         
+*                           *******************************************
+*                             RELATIVE OFFSET OF REAL PROCEDURE CAN BE 
+  LH     R07,2(,R08)          DERIVED FROM 2 POSITIONS BEYOND ENTRY.   
+* MAF - left nibble has to be cleared                                  
+  N      R07,F_FFF                                                     
+  S      R07,F4               BRANCH TAKES UP 4 BYTES.                 
+  SR     R06,R06              CLEAR EVEN REGISTER FOR DIVIDE.          
+  D      R06,F3               DIVIDE BY 12, MULTIPLY BY 4.             
+*                                                                      
+*          ************************************************************
+*                             THE CODE BELOW ANALYZES THE PARAMETERS   
+*                             TO ALLOW COMPATABILITY WITH VERSION ONE, 
+*                             WHICH HAD A FIXED FORMAT OF "MDY" FOR    
+*                             GREGORIAN DATES INSTEAD OF PERMITTING    
+*                             SPECIFICATION OF "DMY", "MDY", OR "YMD"  
+*                             THROUGH INVOCATION ARGUMENT(S).          
+*          ************************************************************
+*            DURING PARAMETER ANALYSIS REGISTER FIVE IS USED AS A      
+*            UTILITY REGISTER AND WILL ULTIMATELY CONTAIN THE TARGET   
+*            ADDRESS (IF A TARGET EXISTS - CONVERSION, RATHER THAN     
+*            VALIDATION).  R01 WILL CONTAIN THE SOURCE ADDRESS.  R02   
+*            WILL CONTAIN THE RANGE ADDRESS FOR SHORT JULIAN OR SHORT  
+*            GREGORIAN SOURCE WHEN RANGE IS PASSED.  R03 WILL POINT    
+*            TO THE TARGET FORMAT AND R04 WILL POINT TO SOURCE FORMAT  
+*            WHEN THOSE VALUES ARE PASSED.  WHEN THE REGISTERS ARE     
+*            FIRST LOADED FROM THE PARAMETER LIST, THEY MAY NOT CON-   
+*            TAIN THE PROPER ADDRESSES SINCE THE PARRAMETERS PASSED    
+*            VARY ACCORDING TO INVOCATION.  AN ATTRIBUTE BYTE AFTER    
+*            THE ENTRY POINT FOR EACH SERVICE TELLS THE PROGRAM HOW    
+*            TO PUT THE PROPER ADDRESSES IN THE PROPER REGS.  BEFORE   
+*            BRACNHING TO MAINLINE CODE, SOURCE AND RANGE ARE MOVED    
+*            TO DYNAMIC STORAGE HOLDING LOCATIONS (THIS PREVENTS       
+*            POSSIBLE OVERLAY IN OUTPUT AREA).  FORMATS ARE PROCESSED, 
+*            AND TARGET ADDRESS IS COPIED INTO R01 FOR FINAL OUTPUT    
+*            ADDRESS WHEM INTERMEDIATE TARGETS ARE USED.               
+*          ************************************************************
+  EJECT                                                                
+***********************************************************************
+*  PLIDATE PROLOG (CONT.)                                              
+***********************************************************************
+*                           *******************************************
+  LA     R02,MDY              SET GREGORIAN FORMAT PARAMETER POINTERS  
+  ST     R02,PARM1            TO POINT TO THE DEFAULT VALUE ("MDY")    
+  LA     R02,PARM1            IN CASE THE PARAMETERS ARE MISSING       
+  LR     R03,R02              (IE. VERSION ONE INVOCATION).            
+  LR     R04,R03                                                       
+  LA     R09,0(,R10)          SET FOR MATH ON PARAMETER LIST ADDRESS.  
+  LA     R10,16               SET TO REGISTER ONE FOR EXEC INSTRUCTION.
+*                           *******************************************
+  C      R07,F152                                                      
+  BH     VALIDATE                                                      
+  C      R07,F0                                                        
+  BE     VALIDATE                                                      
+*                                                                      
+CONVERT  EQU *                LAST PARAMETER WILL ALWAYS BE TARGET FOR 
+  L      R05,0(R00,R09)       CONVERSION INVOCATION.  MAX OF 5 PARMS.  
+  C      R05,F0               IF HIGH ORDER BIT IS ON, THE LAST        
+  BL     ENDLIST              PARM HAS BEEN LOADED.                    
+  EX     R10,LOADREG          MOVE LOADED PARM TO PROPER REGISTER.     
+  LA     R10,16(R00,R10)      POINT TO NEXT HIGHER REGISTER.           
+  LA     R09,4(R00,R09)       POINT TO NEXT PARAMETER ADDRESS.         
+  B      CONVERT              GET NEXT PARM.                           
+VALIDATE EQU *                                                         
+  L      R05,0(R00,R09)       LOAD PARAMETER.                          
+  EX     R10,LOADREG          MOVE LOADED PARM TO PROPER REGISTER.     
+  C      R05,F0               IF HIGH ORDER BIT IS ON, THE LAST        
+  BL     ENDLIST              PARM HAS BEEN LOADED.                    
+  LA     R10,16(R00,R10)      POINT TO NEXT HIGHER REGISTER.           
+  LA     R09,4(R00,R09)       POINT TO NEXT PARAMETER ADDRESS.         
+  B      VALIDATE             GET NEXT PARM.                           
+ENDLIST  EQU *                                                         
+***********************************************************************
+***********************************************************************
+***********************************************************************
+  S      R08,F8               FUNCTION ATTRIBUTE BYTE IS 8 BYTES       
+  SR     R09,R09                                                       
+  IC     R09,0(R00,R08)       BEFORE ENTRY POINT.                      
+  SR     R08,R08                   /* NEEDED FOR XA COMPATABILITY   */ 
+  SLDL   R08,27(R00)          ISOLATE FUNCTION ATTRIBUTE (R08)         
+  SLL    R08,1(R00)           AND TARGET/SOURCE LENGTHS (R09).         
+*                           *******************************************
+*                             DAYGRG AND DAYSGR BOTH HAVE 3 DIFFERENT *
+*                             FORMATS IN THE THREE DIFFERENT VERSIONS *
+*                             (1, 2, 2.1), AND NEED SPECIAL HANDLING. *
+*                             * * * * * * * * * * * * * * * * * * * * *
+  C      R07,F104             IF FUNCTION IS DAYSGR                   *
+  BNE    TRYDYGR               & OUTPUT FORMAT WAS NOT PASSED         *
+  C      R10,F64              THEN                                    *
+  BH     ROFIF                  USE VER 2.1 PROCESS;                  *
+  LR     R06,R04              ELSE                                    *
+  LR     R04,R03                MAKE COMPATIBLE WITH                  *
+  LR     R03,R06                VER 2.1 PROCESS.                      *
+TRYDYGR  EQU *                ELSE                                    *
+  C      R07,F132               IF FUNCTION IS DAYGRG                 *
+  BNE    NORMV21              THEN                                    *
+  LR     R04,R02                PERFORM PRE-VER 2.1 PROCESS           *
+  C      R10,F64              IF VER 2.1                              *
+  BL     NOCNTLS              THEN /* DO VER 2.1 PROCESS */           *
+NORMV21  EQU *                ELSE; /* ALL DONE */                    *
+*                           *******************************************
+  C      R08,F4               CONVERT                                  
+  BL     ATTROK               ATTRIBUTE                                
+  A      R08,F6               TO USEABLE                               
+ATTROK   EQU *                OFFSET.                                  
+*                           *******************************************
+*                             FUNCTIONS HAVE THE FOLLOWING ATTRIBUTES  
+*                             "IF" = INPUT FORMAT, "OF" = OUTPUT FORMAT
+*                             "R"  = RANGE.                            
+*                                                                      
+*                             IF OF  R   ATTR  LABEL    COMMENT        
+*                              X            0  IF       INPUT FORMAT   
+*                                 X         1  OF       OUTPUT FORMAT  
+*                              X  X         1  OFIF     BOTH FORMATS   
+*                              X     X      2  IFR      "IF" AND RANGE 
+*                                    X      3  R        RANGE          
+*                                 X  X      3  ROF      RANGE AND "OF" 
+*                              X  X  X      3  ROFIF    "R"/"OF"/"IF"  
+*                                           6  NOCNTLS  NO CONTROLS    
+*          ************************************************************
+*            WHEN "ROF" OR "ROFIF" APPLIES TO ATTRIBUTE 3, ONLY RANGE  
+*            NEED BE SAVED, AS ALL REGS WILL CONTAIN PROPER ADDRESSES. 
+*          ************************************************************
+  B      *+4(R08)  *********  BRANCH TO START OF ATTRIBUTE PROCESSING. 
+IF       EQU *                "IF" ONLY (...GRE), NO RANGE;            
+  LR     R03,R02              MOVE "R" POINTER TO "OF" POINTER, THEN ..
+OF       EQU *                "OF" (GRGCLL,GRGJUL,GRGLIL,SGRCLL,...),  
+OFIF     EQU *                "IF" AND "OF" (SGRGRG,GRGGRG), NO RANGE; 
+  LR     R04,R03              MOVE "OF" POINTER TO "IF" POINTER,       
+  LR     R03,R02              AND MOVE "R" POINTER TO "OF" POINTER.    
+  B      NOCNTLS              NO RANGE TO SAVE.                        
+IFR      EQU *                "IF" AND "R" (...SGR), NO "OF";          
+  LR     R04,R03              MOVE "OF" POINTER TO "IF" POINTER, THEN .
+R        EQU *                "R" ONLY (...SJL),                       
+ROF      EQU *                OR "R" & "OF" (GRGSJL,SGRSJL),           
+ROFIF    EQU *                OR "R", "IF", & "OF" (GRGSGR,SGRSGR);    
+  MVC    RNGSAVE,0(R02)       SAVE RANGE.                              
+NOCNTLS  EQU *                (LILJUL,SJLCLL,...)                      
+  L      R03,0(R00,R03)       RESET FORMAT POINTER FROM LOCATOR TO DATA
+  L      R04,0(R00,R04)       RESET FORMAT POINTER FROM LOCATOR TO DATA
+  EJECT                                                                
+***********************************************************************
+***********************************************************************
+*  PLIDATE PROLOG (CONT.)                                              
+***********************************************************************
+*            SOURCE MUST BE SAVED PRIOR TO BEGINNING CONVERSION SO THAT
+*            CONVERSION WILL BE SUCCESSFUL WHEN TARGET OVERLAYS SOURCE.
+*            ONLY THE ACTUAL LENGTH OF THE SOURCE IS SAVED (RATHER THAN
+*            THE MAXIMUM OF EIGHT BYTES) TO PREVENT THE POSSIBILITY    
+*            OF A READ PROTECTION EXCEPTION.                           
+*          ************************************************************
+*          ************************************************************
+*          ************************************************************
+  SR     R08,R08                                                       
+  SLDL   R08,3(R00)           ISOLATE TARGET LENGTH (R08)              
+  SRL    R09,30(R00)          AND SOURCE LENGTH OFFSET (R09).          
+  LA     R06,SLEN                                                      
+  LA     R06,0(R09,R06)                                                
+  IC     R09,0(0,R06)         RETRIEVE SOURCE LENGTH.                  
+******                                                                 
+*                                                                      
+* C      R07,F24              IF SOURCE IS CHARACTER (CLL)             
+*                                                                      
+* Changed form of instruction to realign LTORG and save 4 bytes.       
+*                                                                      
+  C      R07,=F'24'           IF SOURCE IS CHARACTER (CLL)             
+*                                                                      
+******                                                                 
+  BH     NOTCHAR              THEN                                     
+  L      R01,0(R00,R01)         CHANGE POINTER FROM LOCATOR TO DATA;   
+NOTCHAR  EQU *                ELSE;                                    
+  EX     R09,SVSOURCE         SAVE SOURCE.                             
+  C      R08,F4               IF TARGET IS GREGORIAN (LONG OR SHORT)   
+  BNH    CKSRC                THEN                                     
+  CLC    MDY,0(R03)           IF FORMAT FOR TARGET IS "MDY"            
+  BNE    CKDMYTRG             THEN                                     
+  MVI    FRMSTAT,C'M'           FLAG TARGET FOR "MDY" SWAP             
+  B      CKSRC                ELSE                                     
+CKDMYTRG EQU *                                                         
+  CLC    DMY,0(R03)           IF FORMAT FOR TARGET IS "DMY"            
+  BNE    NOALTTRG             THEN                                     
+  MVI    FRMSTAT,C'D'           FLAG TARGET FOR "DMY" SWAP             
+  B      CKSRC                ELSE                                     
+NOALTTRG EQU *                IF TARGET FORMAT ARGUMENT NOT VALID      
+  CLC    YMD,0(R03)           THEN                                     
+  BNE    FLAGFORM               FLAG AS ERROR;                         
+CKSRC    EQU *                ELSE;                                    
+  CLC    YMD,0(R04)           IF SOURCE FORMAT NOT IN PROCESSABLE FORM 
+  BE     ENDFORM               & SOURCE IS GREGORIAN                   
+  C      R09,F5               THEN                                     
+  BL     ENDFORM               DO;                                     
+  CLC    MDY,0(R04)             IF SOURCE IN "MDY" FORMAT              
+  BNE    CKDMYSRC               THEN                                   
+  MVC    SRCSAVE+4(4),0(R01)      MOVE "....MMDD" TO WORKING SOURCE;   
+  B      CKLENGTH               ELSE                                   
+CKDMYSRC EQU *                  IF SOURCE IN "DMY" FORMAT              
+  CLC    DMY,0(R04)             THEN                                   
+  BNE    FLAGFORM                DO;                                   
+  MVC    SRCSAVE+4(2),2(R01)      MOVE "....MM.." TO WORKING SOURCE;   
+  MVC    SRCSAVE+6(2),0(R01)      MOVE "......DD" TO WORKING SOURCE;   
+*                                END;                                  
+CKLENGTH EQU *                  ELSE                                   
+  C      R09,F5                   FLAG AS FORMAT ERROR;                
+  BH     LONGGRG                IF SOURCE IS SHORT GREGORIAN           
+*                               THEN                                   
+  MVC    SRCSAVE(2),4(R01)       DO;                                   
+  MVC    SRCSAVE+2(4),SRCSAVE+4   POSITION "YY....";                   
+  B      ENDFORM                  POSITION "..MMDD";                   
+FLAGFORM EQU *                   END;                                  
+  MVI    FRMSTAT,C'0'             /* SET FORMAT ERROR FLAG */          
+  B      ENDFORM                ELSE                                   
+LONGGRG  EQU *                    /* SOURCE IS EXTENDED GREGORIAN */   
+  MVC    SRCSAVE(4),4(R01)        POSITION "YYYY....";                 
+ENDFORM  EQU *                 END;                                    
+  LA     R02,SRCSAVE          ELSE;                                    
+***********************************************************************
+  C      R07,F152             IF TARGET EXISTS  /* NOT VALIDATION    */
+  BH     MAINLINE             THEN                                     
+  C      R07,F0                DO;                                     
+  BE     MAINLINE                                                      
+  C      R08,F2                 IF TARGET LENGTH ¬> 3                  
+  BH     TRYPACK                THEN                                   
+  C      R07,F132               IF IT IS CHAR (CLL)                    
+  BNH    TRYPACK                THEN  /* RESET POINTER TO DATA         
+  L      R05,0(R00,R05)                  FROM LOCATOR DESCRIPTOR */    
+  MVC    0(3,R05),X0L4            SET TARGET TO CLL NULL (LOW(3));     
+  B      MAINLINE               ELSE                                   
+TRYPACK  EQU *                                                         
+  C      R08,F3                 IF TARGET LENGTH > 4                   
+  BNH    ZAPIT                  THEN  /* IT IS ZONED DECIMAL */        
+  EX     R08,ZAPZONE              SET TARGET TO ZONED DECIMAL NULL;    
+  B      MAINLINE               ELSE  /* IT IS PACKED DECIMAL */       
+ZAPIT    EQU *                    SET TARGET TO PACKED DECIMAL NULL;   
+  SLL    R08,4(R00)             SHIFT LENGTH TO ZAP TARGET POSITION    
+  EX     R08,ZAPPACK           END;                                    
+MAINLINE EQU *                ELSE;                                    
+***********************************************************************
+*          ************************************************************
+*          ************************************************************
+***********************************************************************
+  LR     R01,R05              SAVE FOR RESTORE FROM PSEUDO TARGET      
+  LA     R15,ERROR            LOAD ERROR ADDRESS REGISTER              
+  EJECT                                                                
+***********************************************************************
+*  PLIDATE PROLOG (CONT.)                                              
+***********************************************************************
+*                                                                      
+* *********************************************************************
+* SHOULD A LARGE AMOUNT OF STORAGE BE NEEDED, THE USE OF THE TRANSLATE 
+* TABLE TO VALIDATE THE PACKED DATE SIGN BYTE MAY BE ELIMINATED AND A  
+* SIMPLE LOGIC TEST USED INSTEAD (REGISTER TWO WILL HAVE TO BE LOADED  
+* WITH THE RETURN CODE IF THERE IS AN ERROR.  THIS IS NOW DONE AUTO-   
+* MATICALLY BY THE TRANSLATE INSTRUCTION.).                            
+* SHOULD THE NEED FOR ADDITIONAL STORAGE BECOME EVEN MORE CRITICAL IT  
+* IS POSSIBLE TO BUILD THE ZONED DECIMAL VALIDATION TRANSLATE TABLE IN 
+* DYNAMIC STORAGE (DSA).                                               
+* IT APPEARS THAT THE INSTRUCTION OVERHEAD FOR BUILDING THE TRANSLATE  
+* TABLE FOR VALIDATING PACKED DECIMAL NUMERIC BYTES PRECLUDES ELIMINAT-
+* ING THIS TABLE.                                                      
+* OF COURSE THE ADDITIONAL INSTRUCTION OVERHEAD NECESSARY TO SAVE      
+* STORAGE IN THIS MANNER WILL HAVE SOME IMPACT ON PERFORMANCE AND      
+* SHOULD BE DONE ONLY AS A LAST RESORT.                                
+* *********************************************************************
+  EJECT                                                                
+***********************************************************************
+*  PLIDATE PROLOG (CONT.)                                              
+***********************************************************************
+  LA     R14,RETURN           SET FINAL RETURN ADDRESS                 
+  LR     R10,R14              SAVE FINAL RETURN ADDRESS                
+  B      *+4(R07)             BRANCH TO START OF REAL PROCEDURE.       
+* *********************************************************************
+*                                                                      
+*   NOTE:  REGISTERS 7, 8, AND 9 ARE NOT USED BEYOND HERE.             
+*                                                                      
+* *********************************************************************
+  B      EVALCLL                               ,                       
+  B      ESJLCLL                               ,                       
+  B      ESGRCLL                               ,                       
+  B      ELILCLL                               ,                       
+  B      EJULCLL                               ,                       
+  B      EGRGCLL                               ,                       
+  B      EDAYCLL                               ,                       
+  B      ESGRSJL                               ,                       
+  B      ELILSJL                               ,                       
+  B      EJULSJL                               ,                       
+  B      EGRGSJL                               ,                       
+  B      EDAYSJL                               ,                       
+  B      ESJLLIL                               ,                       
+  B      ESGRLIL                               ,                       
+  B      EJULLIL                               ,                       
+  B      EGRGLIL                               ,                       
+  B      EDAYLIL                               ,                       
+  B      ESJLJUL                               ,                       
+  B      ESGRJUL                               ,                       
+  B      ELILJUL                               ,                       
+  B      EGRGJUL                               ,                       
+  B      EDAYJUL                               ,                       
+  B      ESJLSGR                               ,                       
+  B      ELILSGR                               ,                       
+  B      EJULSGR                               ,                       
+  B      EGRGSGR                               ,                       
+  B      EDAYSGR                               ,                       
+  B      ESGRSGR                               ,                       
+  B      ESJLGRG                               ,                       
+  B      ESGRGRG                               ,                       
+  B      ELILGRG                               ,                       
+  B      EJULGRG                               ,                       
+  B      EGRGGRG                               ,                       
+  B      EDAYGRG                               ,                       
+  B      ECLLSJL                               ,                       
+  B      ECLLSGR                               ,                       
+  B      ECLLLIL                               ,                       
+  B      ECLLJUL                               ,                       
+  B      ECLLGRG                               ,                       
+  B      EVALSJL                               ,                       
+  B      EVALSGR                               ,                       
+  B      EVALLIL                               ,                       
+  B      EVALJUL                               ,                       
+  B      EVALGRG                               .                       
+  EJECT                   * * * * * *                                  
+***********************************************************************
+*  ECLL... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+ECLLGRG  DS  0H  FIND COMPACT LILIAN DATE FROM GREGORIAN DATE          
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE                          
+ICLLGRG  EQU *                                                         
+  LA     R05,PARM3            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULGRG          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  LR     R02,R05              OLD TARGET BECOMES NEW SOURCE            
+  LA     R05,PARM4            POINT TO NEXT INTERMEDIATE TARGET        
+  BAL    R14,ILILJUL          CONVERT TO NEXT INTERMEDIATE VALUE.      
+  B      ICLLSJL              PUT VALUE IN TARGET IN CHARACTER FORMAT. 
+*                                                                      
+***********************************************************************
+*                                                                      
+ECLLJUL  DS  0H  FIND COMPACT LILIAN DATE FROM EXTENDED JULIAN DATE.   
+*                                                                      
+  ZAP    PACK8,P0             CLEAR WORK AREA FOR CONVERSION.          
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,ELILJUL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  B      ICLLSJL2             PUT VALUE IN TARGET IN CHARACTER FORMAT. 
+*                                                                      
+***********************************************************************
+*                                                                      
+ECLLLIL  DS  0H  FIND COMPACT LILIAN DATE FROM LILIAN DATE.            
+*                                                                      
+  BAL    R14,EVALLIL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  ZAP    PACK8,0(4,R02)       MOVE VALUE TO COMMON REFORMAT AREA.      
+  B      ICLLSJL2             PUT VALUE IN TARGET IN CHARACTER FORMAT. 
+*                                                                      
+***********************************************************************
+*                                                                      
+ECLLSGR  DS  0H  FIND COMPACT LILIAN DATE FROM SHORT GREGORIAN DATE.   
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  B      ICLLGRG              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+ECLLSJL  DS  0H  FIND COMPACT LILIAN DATE FROM SHORT JULIAN DATE.      
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,ILILJUL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+ICLLSJL  EQU *                                                         
+  MVC    PARM3,X0L4           CLEAR WORK AREA FOR REFORMATTING TARGET. 
+ICLLSJL2 EQU *                                                         
+  CVB    R14,PACK8            CONVERT PACKED DECIMAL TO BINARY FORMAT. 
+  ST     R14,PARM4            RETURN VALUE AS CHARACTER                
+  MVC    0(3,R01),SHORTJUL    LENGTH 3.                                
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG.   
+  EJECT                                                                
+***********************************************************************
+*  EDAY... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+EDAYCLL  DS  0H  FIND DAY OF WEEK FROM COMPACT LILIAN DATE.            
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+  B      IDAYLIL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EDAYGRG  DS  0H  DETERMINE DAY OF WEEK FROM GREGORIAN DATE.            
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+IDAYGRG  EQU *                                                         
+  LA     R05,PARM1            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULGRG          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  LR     R02,R05              OLD TARGET BECOMES NEW SOURCE.           
+  B      IDAYJUL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EDAYJUL  DS  0H  DETERMINE DAY OF WEEK FROM JULIAN DATE.               
+*                                                                      
+  BAL    R14,EVALJUL          VALIDATE SOURCE.                         
+IDAYJUL  EQU *                                                         
+  LA     R05,PARM1            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,ILILJUL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  LR     R02,R05              OLD TARGET BECOMES NEW SOURCE.           
+  B      IDAYLIL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EDAYLIL  DS  0H  DETERMINE DAY OF WEEK FROM LILIAN DATE.               
+*                                                                      
+  USING  LILIAN,R02                                                    
+  BAL    R14,EVALLIL          VALIDATE SOURCE.                         
+IDAYLIL  EQU *                                                         
+  ZAP    DLLILIAN,LILDATE     BASED ON FIRST LILIAN DAY BEING A FRIDAY,
+* AP     DLLILIAN,=P'3'       ADD 3 TO DATE (VIRTUAL THURSDAY) AND     
+***********************************************************************
+  LA     R05,MDY                                                       
+  CR     R03,R05                                                       
+  BE     SETDAY                                                        
+  LR     R04,R05                                                       
+  LA     R05,SUN                                                       
+CKDAYFRM EQU *                                                         
+  CR     R04,R05                                                       
+  BE     FORMERR                                                       
+  CLC    0(3,R03),0(R05)                                               
+  BE     SETDAY                                                        
+  S      R05,F4                                                        
+  B      CKDAYFRM                                                      
+SETDAY   EQU *                                                         
+  AP     DLLILIAN,3(1,R05)                                             
+***********************************************************************
+  DP     DLLILIAN,=P'7'       DIVIDE BY NUMBER OF DAYS IN A WEEK.      
+  AP     DLDAY,=P'1'          ADDING 1 TO REMAINDER WOULD GIVE FRIDAY. 
+  USING  WEEKLY,R01                                                    
+  ZAP    WEEKDAY,DLDAY        RETURN DAY OF WEEK.                      
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG.   
+*                                                                      
+***********************************************************************
+*                                                                      
+EDAYSGR  DS  0H  FIND DAY OF WEEK FOR SHORT GREGORIAN DATE.            
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  B      IDAYGRG              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EDAYSJL  DS  0H  FIND DAY OF WEEK FOR SHORT JULIAN DATE.               
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  B      IDAYJUL              XCTL TO FINISH CONVERSION.               
+  EJECT                                                                
+***********************************************************************
+*  EGRG... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+EGRGCLL  DS  0H  FIND EXTENDED GREGORIAN DATE FROM COMPACT LILIAN DATE.
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+  B      IGRGLIL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EGRGGRG  DS  0H  CONVERT BETWEEN EXTENDED GREGORIAN DATE FORMATS.      
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+IGRGGRG  EQU *                                                         
+  CLI    FRMSTAT,C'Y'         IF OUTPUT FORMAT IS "YMD"                
+  BNE    SWAPGRG              THEN                                     
+  MVC    0(8,R05),0(R02)        MOVE SOURCE TO TARGET;                 
+  BR     R10                  ELSE                                     
+SWAPGRG  EQU *                 DO;                                     
+  MVC    4(4,R05),0(R02)        REFORMAT TO "..Y"                      
+  CLI    FRMSTAT,C'M'           IF OUTPUT FORMAT IS "MDY"              
+  BNE    GGDMY                  THEN                                   
+  MVC    0(4,R05),4(R02)          MOVE MMDD TO TARGET;                 
+  BR     R10                                                           
+GGDMY    EQU *                  ELSE                                   
+  MVC    0(2,R05),6(R02)          MOVE DDMM TO TARGET;                 
+  MVC    2(2,R05),4(R02)       END;                                    
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+  EJECT                                                                
+***********************************************************************
+*  EGRG... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+EGRGJUL  DS  0H  DETERMINE GREGORIAN DATE FROM A JULIAN DATE.          
+*                                                                      
+  DROP   R02                                                           
+  USING  GREGORY,R05                                                   
+  USING  JULIAN,R02           POINT TO SOURCE.                         
+  LR     R06,R14              SAVE RETURN POINT ADDRESS                
+  BAL    R14,EVALJUL          VALIDATE SOURCE.                         
+  LR     R14,R06              RESTORE RETURN POINT ADDRESS.            
+IGRGJUL  EQU *                                                         
+  MVC    GJINIT,GJCONST   *   INITIALIZE AUTOMATIC VARIABLES           
+  LA     R06,GJLIST           POINT TO DAYS AND MONTHS TABLE.          
+  ZAP    GJDAYS,JULDDD        MOVE DAYS TO                             
+  ZAP    GJLPDAYS,GJDAYS      WORK AREA.                               
+  ZAP    PACKYEAR,P0                                                   
+  MVO    PACKYEAR,JULYYYY     ISOLATE YEAR                             
+  BAL    R04,VALLEAP          AND                                      
+GJCKLEAP EQU *                                                         
+  CLI    LEAPSTAT,C'8'        IF IT IS A LEAP YEAR,                    
+  BNE    GJNOLEAP             MAKE ADJUSTMENT.                         
+  CP     GJDAYS,=P'60'        IF LESS THAN 60 JULIAN DAYS, DATE NOT YET
+  BL     GJNOLEAP             AFFECTED BY LEAP DAY.  IF MORE THAN 60   
+  BH     GJSUBONE             DAYS, DAY ADJUSTMENT IS NECESSARY.       
+  LA     R06,2(0,R06)         IF EXACTLY 60 DAYS, MAKE MONTH           
+  B      GJMONOK              ADJUSTMENT.                              
+GJSUBONE EQU *                                                         
+  SP     GJDAYS,=P'1'         MAKE DAYS ADJUSTMENT FOR                 
+  ZAP    GJLPDAYS,GJDAYS      BOTH CALCULATION FIELDS.                 
+GJNOLEAP EQU *                                                         
+  DP     GJDAYS,=P'30'        CALCULATE AVERAGE MONTH FROM JULIAN DAYS,
+  CVB    R04,GJDBL            AND CONVERT TO                           
+  LA     R04,0(R04,R04)       OFFSET FOR                               
+  LA     R06,0(R04,R06)       TABLE ACCESS.                            
+  CP     GJLPDAYS,0(2,R06)    IF TABLE VALUE IS NOT CONSISTANT         
+  BH     GJMONOK              WITH ACTUAL VALUE,                       
+  S      R06,F2               ADJUST THE OFFSET.                       
+GJMONOK  EQU *                                                         
+  MVO    GJYEAR,JULYYYY       ISOLATE YEAR AND                         
+  SP     GJLPDAYS,0(2,R06)    CALCULATE DAY OF MONTH AND               
+  UNPK   DD,GJLPDAYS          CONVERT TO ZONED DECIMAL FORMAT.         
+  MVC    MM,26(R06)           PUT MONTH FROM TABLE INTO GREGORIAN DATE.
+  CLI    FRMSTAT,C'Y'         IF OUTPUT NOT TO BE IN YMD FORMAT        
+  BE     GRGOK                THEN                                     
+  CLI    FRMSTAT,C'M'          DO;                                     
+  BNE    GJDMY                  IF OUTPUT IN MDY FORMAT                
+*                               THEN                                   
+  MVC    YYYY,MMDD                REPOSITION MONTH                     
+  B      GJALTYR                  AND DAY;                             
+GJDMY    EQU *                  ELSE                                   
+  MVC    YYYY(2),DD               REPOSITION DAY                       
+  MVC    YYYY+2(2),MM             AND MONTH;                           
+GJALTYR  EQU *                                                         
+  UNPK   MMDD,GJYEAR            UNPACK YEAR IN LOW ORDER POSITION;     
+  B      ORGRG                 END;                                    
+GRGOK    EQU *                ELSE                                     
+  UNPK   YYYY,GJYEAR            UNPACK YEAR IN HIGH ORDER POSITION;    
+ORGRG    EQU *                                                         
+  OC     GRGDATE,ZONEMASK     CHANGE PACKED SIGN DIGITS TO ZONED VALUE.
+  BR     14              END GREJUL ;                                  
+  UNPK   MMDD,GJYEAR            REPOSITION MONTHS/DAYS;                
+  EJECT                                                                
+***********************************************************************
+*  EGRG... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+EGRGLIL  DS  0H  DETERMINE GREGORIAN DATE FROM LILIAN DATE.            
+*                                                                      
+  BAL    R14,EVALLIL          VALIDATE SOURCE.                         
+IGRGLIL  EQU *                                                         
+  LA     R05,PARM1            ESTABLISH INTERMEDIATE TARGET ADDRESS.   
+  BAL    R14,IJULLIL          CONVERT LILIAN DATE TO JULIAN DATE.      
+  LR     R02,R05              INTERMEDIATE TARGET IS NEW SOURCE.       
+  LR     R05,R01              RESTORE REAL TARGET ADDRESS.             
+  LR     R14,R10              RESTORE RETURN ADDRESS.                  
+  B      IGRGJUL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EGRGSJL  DS  0H  CONVERT SHORT JULIAN DATE TO GREGORIAN DATE.          
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  LR     R14,R10              RESET INVOKING PROCEDURE RETURN ADDRESS. 
+  B      IGRGJUL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EGRGSGR  DS  0H  CONVERT FROM SHORT TO EXTENDED GREGORIAN DATE.        
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  B      IGRGGRG              XCTL TO FINISH CONVERSION.               
+  EJECT                                                                
+***********************************************************************
+*  EJUL... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+EJULCLL  DS  0H  FIND EXTENDED JULIAN DATE FROM COMPACT LILIAN DATE.   
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+  LR     R14,R10              RESET INVOKING PROCEDURE RETURN ADDRESS. 
+  B      IJULLIL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EJULGRG  DS  0H  DETERMINE JULIAN DATE FROM GREGORIAN DATE.            
+*                                                                      
+  DROP   R02                                                           
+  DROP   R05                                                           
+  USING  JULIAN,R05                                                    
+  USING  GREGORY,R02          POINT TO SOURCE.                         
+  LR     R06,R14              SAVE RETURN POINT ADDRESS.               
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+  LR     R14,R06              RESTORE RETURN POINT ADDRESS.            
+IJULGRG  EQU *                                                         
+  MVC    JGINIT,JGCONST   *   INITIALIZE AUTOMATIC VARIABLES           
+  PACK   JGJUL,YYYY           REFORMAT YEARS AND                       
+  MP     JGPROD,P1000         PLACE PACKED YEARS IN JULIAN POSITION.   
+  PACK   JGDAYS,DD            REFORMAT DAYS                            
+  PACK   JGMM,MM              AND MONTHS.                              
+  CVB    R04,JGDBL            FIND                                     
+  LA     R06,JGLIST           DAYS IN YEAR                             
+  LA     R04,0(R04,R04)       PRIOR TO MONTH OF                        
+  LA     R06,0(R04,R06)       GREGORIAN DATE, AND                      
+  AP     JGDAYS,0(2,R06)      ADD TO GREGORIAN DAYS OF MONTH.          
+  PACK   PACKYEAR,YYYY        PREPARE FOR LEAP TEST.                   
+  BAL    R04,VALLEAP          IF THIS IS                               
+JGCKLP   EQU *                A LEAP YEAR                              
+  CLI    LEAPSTAT,C'0'        THEN                                     
+  BE     JGNOLEAP               IF DATE IS AFTER END OF FEBRUARY       
+JGLEAP   EQU *                  THEN                                   
+  CLC    MMDD,=C'0301'            ADD A LEAP DAY;                      
+  BL     JGNOLEAP               ELSE;  /* LEAP DAY HAS NOT YET       */
+  AP     JGDAYS,=P'1'             /* OCCURRED OR IS ALREADY COUNTED. */
+JGNOLEAP EQU *                ELSE;                                    
+  ZAP    JULDATE,JGJUL        RETURN(JULDATE);                         
+  BR     14                   RETURN TO INVOKING PROCEDURE.            
+  EJECT                                                                
+***********************************************************************
+*  EJUL... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+EJULLIL  DS 0H  DETERMINE EXTENDED JULIAN DATE FROM LILIAN DATE.       
+*                                                                      
+  DROP   R02                                                           
+  DROP   R05                                                           
+  USING  LILIAN,R02           POINT TO SOURCE.                         
+*                             * ADJUST FOR MISSING CENTURY LEAP DAYS. *
+  LR     R06,R14              SAVE RETURN POINT ADDRESS                
+  BAL    R14,EVALLIL          VALIDATE SOURCE.                         
+  LR     R14,R06              RESTORE RETURN POINT ADDRESS.            
+IJULLIL  EQU *                                                         
+  ZAP    JLDIVID,LILDATE      GET PARAMETER, AND ADD VIRTUAL DAYS FROM 
+  AP     JLDIVID,=P'139444'   01/01/1201(START OF FOUR CENTURY PERIOD).
+  ZAP    JLWKDAYS,JLDIVID     SAVE FOR VIRTUAL LEAP CENTURY ADJUSTMENT.
+  MP     JLDIVID,=P'100'      OFFSET FOR DECIMALS (IE. 36524.25).      
+  DP     JLDIVID,=P'3652425'  DETERMINE NUMBER OF AVERAGE CENTURIES.   
+  AP     JLWKDAYS,JLVIRCNT    ADD ONE VIRTUAL LEAP DAY PER CENTURY.    
+  DP     JLVIRCNT,=P'4'       BUT MUST NOT ADD THE REAL LEAP DAYS, ONE 
+  SP     JLWKDAYS,JLVIRLP     PER FOUR CENTURIES, ALREADY THERE.       
+  ZAP    JLSVLIL,JLLILDYS     SAVE FOR LATER.                          
+*                             * FIND EXTENDED JULIAN DATE.            *
+  MP     JLWKDAYS,=P'100'     OFFSET FOR DECIMALS (IE. 356.25).        
+  DP     JLWKDAYS,=P'36525'   DETERMINE PRIOR JULIAN YEAR.             
+  CP     JLWKYY,P0            CHECK FOR LAST DAY OF A LEAP YEAR.       
+  BNE    NORMAL               NORMALLY YEAR OBTAINED WILL BE TRUE      
+  SP     JLJULYY,=P'1'        VALUE;  BUT, IF NOT, REDUCE IT TO        
+NORMAL   EQU *                TRUE VALUE.                              
+  ZAP    JLPROD,JLJULYY       FIND NUMBER OF DAYS PRIOR TO YEAR FOR    
+  MP     JLPROD,=P'365250'    THIS DATE, AND                           
+  MVO    JLYRDYS,JLPART       TRUNCATE FRACTIONAL LEAPDAYS.            
+  SP     JLSVLIL,JLYRDYS      FIND DAYS IN YEAR BEING PROCESSED.       
+  ZAP    JLPROD,JLJULYY       ADD MISSING YEARS PRIOR TO 1201 (ALSO ONE
+  AP     JLPROD,=P'1201'      YEAR SINCE YEAR IS PRIOR TO ACTUAL YEAR) 
+  MP     JLPROD,P1000         AND PUT IN PROPER JULIAN POSITION.       
+  AP     JLYRDYS,JLSVLIL      PUT DAYS IN PROPER JULIAN POSITION       
+  USING  JULIAN,R05           POINT TO TARGET.                         
+  ZAP    JULDATE,JLYRDYS      RETURN(JULDATE);                         
+  BR     14              END JULLIL ;                                  
+*                                                                      
+***********************************************************************
+*                                                                      
+EJULSGR  DS  0H  CONVERT SHORT GREGORIAN TO JULIAN DATE.               
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  LR     R14,R10              RESET INVOKING PROCEDURE RETURN ADDRESS. 
+  B      IJULGRG              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+EJULSJL  DS  0H  CONVERT SHORT JULIAN DATE TO EXTENDED JULIAN DATE.    
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  ZAP    0(4,R05),0(4,R02)    MOVE PSEUDO-SOURCE FROM EVALSJL TO TARGET
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG.   
+  EJECT                                                                
+***********************************************************************
+*  ELIL... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+ELILCLL  DS  0H  FIND LILIAN DATE FROM COMPACT LILIAN DATE.            
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+  ZAP    0(4,R05),PARM4       MOVE PSEUDO-SOURCE FROM EVALCLL TO TARGET
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG.   
+*                                                                      
+***********************************************************************
+*                                                                      
+ELILGRG  DS  0H  DETERMINE LILIAN DATE FROM GREGORIAN DATE.            
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+ILILGRG  EQU *                                                         
+  BAL    R14,IJULGRG          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  LR     R02,R05              OLD TARGET IS ALSO NEW SOURCE.           
+  BAL    R14,ILILJUL          CONVERT TO FINAL VALUE.                  
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG.   
+*                                                                      
+***********************************************************************
+ELILJUL  DS  0H  DETERMINE LILIAN DATE FROM EXTENDED JULIAN DATE.      
+*                                                                      
+  DROP   R02                                                           
+  DROP   R05                                                           
+  USING  JULIAN,R02           POINT TO SOURCE.                         
+  LR     R06,R14              SAVE RETURN POINT ADDRESS                
+  BAL    R14,EVALJUL          VALIDATE SOURCE.                         
+  LR     R14,R06              RESTORE RETURN POINT ADDRESS.            
+ILILJUL  EQU *                                                         
+  ZAP    LJMULTIP,P0          INITIALIZE AUTOMATIC VARIABLES           
+  MVO    LJYEAR,JULYYYY       ISOLATE YEAR FROM JULIAN DATE.           
+  ZAP    LJYEARS,LJYEAR       SAVE YEARS FOR LEAP YEAR ADJUSTMENTS.    
+  SP     LJYEAR,=P'1501'      DETERMINE NO. OF DAYS RELATIVE TO VIRTUAL
+  MP     LJMULTIP,=P'365250'  JANUARY 1, 1501 TO START OF YEAR BEING   
+  MVO    LJCENT,LJPART        CONVERTED & TRUNCATE FRACTIONAL LEAPDAYS.
+  SP     LJCENT,=P'29872'     SUBTRACT DAYS PRIOR TO 10/15/1582        
+  AP     LJCENT,JULDDD        ADD DAYS FROM YEAR BEING CONVERTED       
+  USING  LILIAN,R05           POINT TO TARGET.                         
+  MVC    LILDATE,LJCENT       MOVE UNADJUSTED RESULTS TO OUTPUT AREA.  
+  ZAP    LJCENT,LJYEARS       DETERMINE NO. OF YEARS RELATIVE TO VIRT- 
+  SP     LJCENT,=P'1501'      UAL JANUARY 1, 1501 TO START OF YEAR     
+  DP     LJCENT,=P'100'       BEING CONVERTED, AND SUBTRACT ONE LEAP   
+  SP     LILDATE,LJLEAP       DAY PER CENTURY.                         
+  ZAP    LJCENT,LJYEARS       ADJUST FOR STARTING                      
+  SP     LJCENT,=P'1201'      IN THE 16TH CENTURY,                     
+  DP     LJCENT,P400          AND ADD ONE LEAP DAY                     
+  AP     LILDATE,LJLEAP       PER FOUR CENTURIES.                      
+  BR     14                   RETURN TO INVOKING PROCEDURE.            
+*                                                                      
+***********************************************************************
+*                                                                      
+ELILSGR  DS  0H  CONVERT SHORT GREGORIAN DATE TO LILIAN DATE.          
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  B      ILILGRG              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+ELILSJL  DS  0H  CONVERT SHORT JULIAN DATE TO LILIAN DATE.             
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  LR     R14,R10              RESET INVOKING PROCEDURE RETURN ADDRESS. 
+  B      ILILJUL              XCTL TO FINISH CONVERSION.               
+  EJECT                                                                
+***********************************************************************
+*  ESGR... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+ESGRCLL  DS  0H  FIND SHORT GREGORIAN DATE FROM COMPACT LILIAN DATE.   
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+ISGRCLL  EQU *                                                         
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULLIL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  LR     R02,R05              OLD TARGET BECOMES NEW SOURCE.           
+  LA     R05,PARM1            POINT TO NEXT INTERMEDIATE TARGET.       
+  BAL    R14,IGRGJUL          CONVERT TO NEXT INTERMEDIATE VALUE.      
+  B      ISGRSJL              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+ESGRGRG  DS  0H  FIND SHORT GREGORIAN DATE FROM GREGORIAN DATE.        
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+  B      ISGRSGR              XCTL TO FINISH CONVERSION.               
+*                                                                      
+***********************************************************************
+*                                                                      
+ESGRJUL  DS  0H  FIND SHORT GREGORIAN DATE FROM JULIAN DATE.           
+*                                                                      
+  LA     R05,PARM1            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,EGRGJUL          CONVERT SOURCE TO INTERMEDIATE VALUE.    
+  B      ISGRSJL              XCTL TO FINISH CONVERSION                
+*                                                                      
+***********************************************************************
+*                                                                      
+ESGRLIL  DS  0H  FIND SHORT GREGORIAN DATE FROM LILIAN DATE.           
+*                                                                      
+  BAL    R14,EVALLIL          VALIDATE SOURCE.                         
+  B      ISGRCLL              XCTL TO FINISH CONVERSION.               
+  EJECT                                                                
+***********************************************************************
+*  ESGR... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+ESGRSGR  DS  0H  FIND SHORT GREGORIAN DATE FROM GREGORIAN DATE.        
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+ISGRSGR  EQU *                                                         
+  CLI    FRMSTAT,C'Y'         IF OUTPUT FORMAT IS "YMD"                
+  BNE    FORMSGR              THEN                                     
+  MVC    2(4,R05),4(R02)        MOVE SOURCE TO TARGET                  
+  MVC    0(2,R05),2(R02)        IN "YMD" FORMAT;                       
+  BR     R10                  ELSE                                     
+FORMSGR  EQU *                 DO;                                     
+  MVC    4(2,R05),2(R02)        PLACE YEAR IN "..Y" POSITION;          
+  CLI    FRMSTAT,C'M'           IF OUTPUT FORMAT IS "MDY"              
+  BNE    SGSGDMY                THEN                                   
+  MVC    0(4,R05),4(R02)          MOVE "MD." TO TARGET                 
+  BR     R10                    ELSE                                   
+SGSGDMY  EQU *                    MOVE "DM."                           
+  MVC    0(2,R05),6(R02)          TO TARGET;                           
+  MVC    2(2,R05),4(R02)       END;                                    
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+*                                                                      
+***********************************************************************
+*                                                                      
+ESGRSJL  DS  0H  FIND SHORT GREGORIAN DATE FROM SHORT JULIAN DATE.     
+*                                                                      
+  BAL    R14,EVALSJL          VALIDATE SOURCE.                         
+  LA     R05,PARM1            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IGRGJUL          CONVERT SOURCE                           
+ISGRSJL  EQU *                                                         
+  LR     R02,R05              OLD TARGET BECOMES NEW SOURCE.           
+ISGRSJL2 EQU *                                                         
+  CLI    FRMSTAT,C'Y'         IF OUTPUT FORMAT IS "YMD"                
+  BNE    SWAPSGR              THEN                                     
+  MVC    0(6,R01),2(R02)        MOVE "YMD" TO TARGET                   
+  BR     R10                  ELSE                                     
+SWAPSGR  EQU *                 DO;                                     
+  MVC    4(2,R01),6(R02)        MOVE "..Y" TO TARGET;                  
+  MVC    0(4,R01),0(R02)        MOVE "MD."/"DM." TO TARGET;            
+*                              END;                                    
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+  EJECT                                                                
+***********************************************************************
+*  ESJL... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+ESJLCLL  DS  0H  FIND SHORT JULIAN DATE FROM COMPACT LILIAN DATE.      
+*                                                                      
+  BAL    R14,EVALCLL          VALIDATE SOURCE.                         
+  LA     R05,PARM2            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULLIL          PERFORM INTERMEDIATE CONVERSION.         
+  ZAP    0(3,R01),SJULIAN     MOVE CONVERTED VALUE TO TARGET.          
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+*                                                                      
+***********************************************************************
+*                                                                      
+ESJLGRG  DS  0H  FIND SHORT JULIAN DATE FROM GREGORIAN DATE.           
+*                                                                      
+  BAL    R14,EVALGRG          VALIDATE SOURCE.                         
+ISJLGRG  EQU *                                                         
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULGRG          PERFORM INTERMEDIATE CONVERSION.         
+  ZAP    0(3,R01),SHORTJUL    MOVE CONVERTED VALUE TO TARGET.          
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+*                                                                      
+***********************************************************************
+*                                                                      
+ESJLJUL  DS  0H  FIND SHORT JULIAN DATE FROM EXTENDED JULIAN DATE.     
+*                                                                      
+  BAL    R14,EVALJUL          VALIDATE SOURCE.                         
+ISJLJUL  EQU *                                                         
+  ZAP    0(3,R01),1(3,R02)    MOVE CONVERTED VALUE TO TARGET.          
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+*                                                                      
+***********************************************************************
+*                                                                      
+ESJLLIL  DS  0H  FIND SHORT JULIAN DATE FROM LILIAN DATE.              
+*                                                                      
+  BAL    R14,EVALLIL          VALIDATE SOURCE.                         
+ISJLLIL  EQU *                                                         
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULLIL          PERFORM INTERMEDIATE CONVERSION.         
+  ZAP    0(3,R01),SHORTJUL    MOVE CONVERTED VALUE TO TARGET.          
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+*                                                                      
+***********************************************************************
+*                                                                      
+ESJLSGR  DS  0H  FIND SHORT JULIAN DATE FROM SHORT GREGORIAN DATE.     
+*                                                                      
+  BAL    R14,EVALSGR          VALIDATE SOURCE.                         
+  LA     R05,PARM4                                                     
+  LA     R05,PARM4            POINT TO INTERMEDIATE (PSEUDO) TARGET.   
+  BAL    R14,IJULGRG          PERFORM INTERMEDIATE CONVERSION.         
+  ZAP    0(3,R01),SHORTJUL    MOVE CONVERTED VALUE TO TARGET.          
+  BR     R10                  RETURN TO INVOKING PROGRAM VIA EPILOG;   
+  EJECT                                                                
+***********************************************************************
+*  EVAL... ROUTINES                                                    
+***********************************************************************
+*                                                                      
+EVALCLL  DS  0H  VALIDATE COMPACT LILIAN SOURCE.                       
+  ZAP    PARM4,P0             CLEAR WORK AREA FOR CONVERSION.          
+  MVC    SHORTJUL,0(R02)      MOVE SOURCE TO WORK AREA.                
+  L      R06,PARM4            CONVERT SOURCE FROM BINARY               
+  CVD    R06,PACK8            TO FIXED DECIMAL.                        
+  LA     R02,PARM4            POINT TO PSEUDO SOURCE LOCATION.         
+  B      IVALLIL              XCTL TO VALIDATE PSEUDO SOURCE.          
+*                                                                      
+***********************************************************************
+*                                                                      
+EVALGRG  DS  0H  VALIDATE EXTENDED GREGORIAN DATE                      
+*                                                                      
+  DROP   R02                                                           
+  USING  GREGORY,R02                                                   
+  CLI    FRMSTAT,C'0'         IF GREGORIAN PARAMETER FORMAT ERROR      
+  BE     FORMERR              THEN ABORT;                              
+  TRT    GRGDATE,ZONETBL      CHECK FOR ALL NUMERICS.                  
+  BNZ    ERROR                IF NOT ZONED DECIMAL, ABORT              
+IVALGRG  EQU *                                                         
+  CLC    GRGDATE,=C'15821015' IF DATE LESS THAN OCTOBER 15, 1582       
+  BL     VGFROMNG             ABORT ...                                
+  CLC    MM,C01               IF MONTH NOT AT LEAST 01 (JANUARY),      
+  BL     VGMMBAD              ABORT.                                   
+  CLC    MM,C12               IF MONTH GREATER THAN 12 (DECEMBER),     
+  BH     VGMMBAD              ABORT.                                   
+  CLC    DD,C01               IF DAY NOT AT LEAST 01,                  
+  BL     VGDDBAD              ABORT.                                   
+  CLC    DD,=C'29'            IF DAY LESS THAN 29,                     
+  BL     VGRETURN             VALIDATION COMPLETE,                     
+VGCKFEB  EQU *                OTHERWISE CONTINUE VALIDATION.           
+  CLC    MM,C02               CHECK MAXIMUM DAY VALUE FOR              
+  BNE    VGCKHDD              MONTHS OTHER THAN FEBRUARY.              
+  CLC    DD,=C'29'            IF DAY GREATER THAN 29 IN FEBRUARY,      
+  BH     VGDDBAD              ABORT.                                   
+  PACK   PACKYEAR,YYYY        DETERMINE                                
+  BAL    R04,VALLEAP          LEAP YEAR STATUS.                        
+VGCKLEAP EQU *                                                         
+  CLI    LEAPSTAT,C'8'        DAY VALUE OF 29 IN FEBRUARY IS VALID IN  
+  BE     VGRETURN             A LEAP YEAR.  VALIDATION IS COMPLETE.    
+  LA     R02,04               LEAP DAY NOT VALID                       
+  BR     R15                  IN A COMMON YEAR.  ABORT.                
+VGCKHDD  EQU *                                                         
+  CLC    DD,=C'31'            IF DAY IS GREATER THAN 31 FOR ANY MONTH, 
+  BH     VGDDBAD              ABORT.                                   
+  BL     VGRETURN             IF LESS THAN 31, VALIDATION IS COMPLETE. 
+  CLC    MM,C04               FOR                                      
+  BE     VGDDBAD              APRIL,                                   
+  CLC    MM,C06               JUNE,                                    
+  BE     VGDDBAD                                                       
+  CLC    MM,C09               SEPTEMBER,                               
+  BE     VGDDBAD              AND                                      
+  CLC    MM,C11               NOVEMBER DAY MAY NOT BE GREATER THAN 30, 
+  BE     VGDDBAD              ABORT.                                   
+VGRETURN EQU *                RETURN TO INVOCATION POINT               
+  BR     R14                  VALIDATION COMPLETE.  RETURN.            
+VGFROMNG EQU *                OTHERWISE, ABORT.                        
+  LA     R02,12               START DATE TOO LOW.                      
+  BR     R15                  RETURN TO INVOCATION POINT.              
+VGMMBAD EQU *                                                          
+  LA     R02,8                MONTH NOT VALID,                         
+  BR     R15                  ABORT.                                   
+VGDDBAD EQU *                                                          
+  LA     R02,4                DAY NOT VALID,                           
+  BR     R15                  ABORT.                                   
+  EJECT                                                                
+***********************************************************************
+*  EVAL... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+EVALJUL  DS  0H  VALIDATE JULIAN DATE.                                 
+*                                                                      
+  DROP   R02                                                           
+  USING  JULIAN,R02                                                    
+  CLI    FRMSTAT,C'0'         IF GREGORIAN PARAMETER FORMAT ERROR      
+  BE     FORMERR              THEN ABORT;                              
+  TRT    JULNUMS,NUMSTBL      CHECK FOR ALL NUMERICS.                  
+  BNZ    ERROR                                                         
+  TRT    JULSIGN,SIGNTBL      CHECK FOR NUMERIC/SIGN.                  
+  BNZ    ERROR                                                         
+IVALJUL  EQU *                IF DATE IS NOT PRIOR TO BEGINNING OF     
+  CP     JULDATE,=P'1582288'  GREGORIAN CALENDAR                       
+  BL     VJFROMNG             THEN                                     
+VJFROMOK EQU *                IF JULIAN DAYS GREATER THAN 1            
+  CP     JULDDD,=P'1'          & JULIAN DAYS NOT GREATER THAN 366      
+  BL     VJDDDNG              THEN                                     
+  CP     JULDDD,=P'366'        DO;                                     
+  BL     VJRETURN               IF JULIAN DAYS LESS THAN 366           
+  BH     VJDDDNG                 | YEAR IS A LEAP YEAR                 
+  ZAP    PACKYEAR,P0            THEN                                   
+  MVO    PACKYEAR,JULYYYY         VALIDATION                           
+  BAL    R04,VALLEAP              IS COMPLETE;                         
+VJCKLEAP EQU *                  ELSE                                   
+  CLI    LEAPSTAT,C'8'            ABORT /* DAYS TOO GREAT */;          
+  BE     VJRETURN              END;                                    
+VJDDDNG EQU *                 ELSE                                     
+  LA     R02,4                  /* DAYS TOO GREAT OR TOO SMALL */      
+  BR     R15                    ABORT;                                 
+VJFROMNG EQU *                                                         
+  LA     R02,12                                                        
+  BR     R15                                                           
+VJRETURN EQU *                                                         
+  BR     R14                  RETURN TO INVOKING PROCEDURE;            
+*                                                                      
+***********************************************************************
+*                                                                      
+EVALLIL  DS  0H  VALIDATE LILIAN DATE.                                 
+*                                                                      
+  DROP   R02                                                           
+  DROP   R05                                                           
+  USING  LILIAN,R02           POINT TO SOURCE.                         
+  CLI    FRMSTAT,C'0'         IF GREGORIAN PARAMETER FORMAT ERROR      
+  BE     FORMERR              THEN ABORT;                              
+  TRT    LILNUMS,NUMSTBL      IF SOURCE NOT VALID PACKED DECIMAL       
+  BNZ    ERROR                THEN                                     
+  TRT    LILSIGN,SIGNTBL        ABORT;                                 
+  BNZ    ERROR                ELSE;                                    
+IVALLIL  EQU *                                                         
+  CP     LILDATE,=P'1'        IF DATE IS PRIOR TO BEGINNING            
+  BL     VLRNGNG                 OF GREGORIAN CALENDAR                 
+  CP     LILDATE,=P'3074325'  OR AFTER DECEMBER 31, 9999               
+  BL     VLRETURN             THEN                                     
+VLRNGNG  EQU *                  ABORT;                                 
+  LA     R02,12               ELSE;                                    
+  BR     R15                                                           
+VLRETURN EQU *                RETURN TO INVOKING PROCEDURE;            
+  BR     R14                                                           
+  EJECT                                                                
+***********************************************************************
+*  EVAL... ROUTINES (CONT.)                                            
+***********************************************************************
+*                                                                      
+EVALSGR  DS  0H  VALIDATE SHORT GREGORIAN DATE.                        
+*                                                                      
+  CLI    FRMSTAT,C'0'         IF GREGORIAN PARAMETER FORMAT ERROR      
+  BE     FORMERR              THEN ABORT;                              
+  TRT    0(6,R02),ZONETBL     IF SOURCE IS NOT ZONED DECIMAL,          
+  BNZ    ERROR                ABORT ...                                
+  MVC    SMMDD,2(R02)         MOVE DAYS AND MONTHS TO WORK AREA.       
+  MVC    YY,0(R02)            MOVE YEARS TO WORK AREA.                 
+  TRT    RNGSAVE,ZONETBL      IF START YEAR IS ZONED DECIMAL,          
+  BZ     VSGSTROK             CONTINUE ...                             
+  LA     R02,20               START YEAR NOT ZONED                     
+  BR     R15                  DECIMAL, ABORT.                          
+VSGSTROK EQU *                                                         
+  MVC    CC,RNGCENT           CENTURY EXPECTED TO BE ADJUSTED.         
+  CLC    YY,RNGYEAR           IF SOURCE YEAR LESS THAN START YEAR,     
+  BNL    VSGCCOK              THEN ADJUST CENTURY                      
+  PACK   CENTURY,RNGCENT      ADJUST                                   
+  AP     CENTURY,=P'1'        CENTURY                                  
+  UNPK   CC,CENTURY           REFORMAT CENTURY                         
+  OC     CC,YEARMASK          TO ZONED FORMAT.                         
+VSGCCOK  EQU *                ELSE, IT WAS OK.                         
+  LA     R02,PARM1            FIND ADDRESS OF PSEUDO SOURCE.           
+  B      IVALGRG              VALGRE TO GO TO CALLER.                  
+*                                                                      
+***********************************************************************
+*                                                                      
+EVALSJL  DS  0H  VALIDATE SHORT JULIAN DATE.                           
+*                                                                      
+  CLI    FRMSTAT,C'0'         IF GREGORIAN PARAMETER FORMAT ERROR      
+  BE     FORMERR              THEN ABORT;                              
+  TRT    0(2,R02),NUMSTBL     IF SOURCE NOT PACKED DECIMAL,            
+  BNZ    ERROR                ABORT ...                                
+  TRT    2(1,R02),SIGNTBL     IF SOURCE NOT PACKED DECIMAL,            
+  BNZ    ERROR                ABORT ...                                
+  ZAP    PARM3,0(3,R02)       SAVE REAL SOURCE.                        
+  TRT    RNGSAVE,ZONETBL      IF START YEAR IS ZONED DECIMAL,          
+  BZ     VSJSTROK             CONTINUE ...                             
+  LA     R02,20               START YEAR NOT ZONED                     
+  BR     R15                  DECIMAL, ABORT.                          
+VSJSTROK EQU *                                                         
+  PACK   TESTYEAR,RNGCENT     PREPARE TO CONCATENATE CENTURY.          
+  PACK   JULCC,RNGYEAR                                                 
+  SRP    JULCC,1,0                                                     
+  CLC    0(1,R02),JULCC       IF SOURCE YEAR LESS THAN START YEAR,     
+  BNL    VSJCCOK              THEN                                     
+  AP     CENTURY,=P'1'        ADJUST CENTURY.                          
+VSJCCOK  EQU *                ELSE, IT WAS OK.                         
+  SRP    TESTYEAR,5,0         PUT CENTURY IN PROPER POSITION.          
+  AP     PARM3,HOLDJUL        CONCATENATE.                             
+  LA     R02,PARM3            POINT TO PSEUDO SOURCE.                  
+  B      IVALJUL              VALJUL TO GO TO CALLER.                  
+  EJECT                   * * * * * *                                  
+***********************************************************************
+*  VALLEAP INTERNAL ROUTINE                                            
+***********************************************************************
+*  DETERMINE IF YEAR IS A LEAP YEAR (INTERNAL PROCEDURE ONLY)          
+***********************************************************************
+*                                                                      
+VALLEAP  DS  0H                                                        
+*                                                                      
+  ZAP    TESTYEAR,PACKYEAR    PREPARE FOR TEST.                        
+  DP     TESTYEAR,=P'4'       TEST FOR POTENTIAL                       
+  CP     TESTLEAP,P0          LEAP YEAR.                               
+  BNE    NOLEAP               IT'S NOT.                                
+  ZAP    TESTYEAR,PACKYEAR    IF NOT A CENTURY YEAR,                   
+  DP     TESTYEAR,=P'100'     IT IS                                    
+  CP     BIGLEAP,P0           DEFINITELY                               
+  BNE    LEAP                 A LEAP YEAR.                             
+  ZAP    TESTYEAR,PACKYEAR    ONLY IF CENTURY YEAR IS                  
+  DP     TESTYEAR,P400        DIVISABLE BY 400,                        
+  CP     BIGLEAP,P0           IS IT A                                  
+  BNE    NOLEAP               LEAP YEAR.                               
+LEAP     EQU *                                                         
+  MVI    LEAPSTAT,C'8'        SET STATUS TO LEAP YEAR,                 
+  BR     R04                  AND RETURN.                              
+NOLEAP   EQU *                                                         
+  MVI    LEAPSTAT,C'0'        SET STATUS TO NOT LEAP YEAR,             
+  BR     R04                  AND RETURN.                              
+  EJECT                                                                
+***********************************************************************
+*  EPILOG                                                              
+***********************************************************************
+*                                                                      
+FORMERR  EQU *             *  * * * *                                  
+  LA     R02,24            *  GREGORIAN FORMAT ARGUMENT(S) NOT VALID   
+ERROR    EQU *             *                                           
+  STC    R02,71(R00,R12)   *  "CALL PLIRETC(R02)"                      
+RETURN   EQU *             *                                           
+  L      13,4(,13)         *  PROGRAM                                  
+  LM     14,11,12(13)      *  EPILOG                                   
+  BR     14                *  * * * *                                  
+LOADREG  EQU *                                                         
+  LR     R00,R05                                                       
+SVSOURCE EQU *                                                         
+  MVC    SRCSAVE(1),0(R01)                                             
+ZAPPACK  EQU *                                                         
+  ZAP    0(1,R05),P0                                                   
+ZAPZONE  EQU *                                                         
+  MVC    0(1,R05),ZONEMASK                                             
+*                        END PLIDATE;                                  
+  EJECT                                                                
+F152     DC  F'152'                                                    
+F132     DC  F'132'                                                    
+F104     DC  F'104'                                                    
+F64      DC  F'64'                                                     
+*F24      DC  F'24'   Made literal to realign LTORG & save 4 bytes.    
+F8       DC  F'8'                                                      
+F6       DC  F'6'                                                      
+F5       DC  F'5'                                                      
+F4       DC  F'4'                                                      
+F3       DC  F'3'                                                      
+F2       DC  F'2'                                                      
+F_FFF    DC  X'00000FFF'                                               
+F0       DS 0F                                                         
+X0L1     DS 0XL1     Added variable to minimize load module size.      
+X0L2     DS 0XL2                                                       
+X0L4     DS 0XL4                                                       
+JGCONST  DS 0XL10                                                      
+GJCONST  DS 0XL10                                                      
+NUMSTBL  EQU *                                                         
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000101010101010'                           
+  DC     X'00000000000000000000'                                       
+ZONETBL  EQU *                                                         
+  DC     240X'10'                                                      
+  DC     10X'00'                                                       
+SIGNTBL  EQU *                                                         
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     X'10101010101010101010000000000000'                           
+  DC     96X'10'                                                       
+DMY      DS 0CL3                                                       
+         DC  C'DM'                                                     
+YMD      DS 0CL3                                                       
+         DC  C'Y'                                                      
+MDY      DC  C'MDY'                                                    
+         DC  PL1'3'                                                    
+MON      DC  C'MON'                                                    
+         DC  PL1'3'                                                    
+TUE      DC  C'TUE'                                                    
+         DC  PL1'2'                                                    
+WED      DC  C'WED'                                                    
+         DC  PL1'1'                                                    
+THU      DC  C'THU'                                                    
+         DC  PL1'0'                                                    
+FRI      DC  C'FRI'                                                    
+         DC  PL1'6'                                                    
+SAT      DC  C'SAT'                                                    
+         DC  PL1'5'                                                    
+SUN      DC  C'SUN'                                                    
+         DC  PL1'4'                                                    
+YEARMASK DS 0CL2                                                       
+ZONEMASK DC  C'00000000'                                               
+P1000    DS 0PL3                                                       
+         DC  X'01'                                                     
+JGLIST   DS 0PL2                                                       
+         DC  X'00'                                                     
+P0       DC  PL1'0'                                                    
+X000C    DS 0XL2                                                       
+GJLIST   DC  PL2'0'                                                    
+         DC  PL2'31'                                                   
+         DC  PL2'59'                                                   
+         DC  PL2'90'                                                   
+         DC  PL2'120'                                                  
+         DC  PL2'151'                                                  
+         DC  PL2'181'                                                  
+         DC  PL2'212'                                                  
+         DC  PL2'243'                                                  
+         DC  PL2'273'                                                  
+         DC  PL2'304'                                                  
+         DC  PL2'334'                                                  
+P400     DC  PL2'400'                                                  
+C0       DS 0CL1                                                       
+C01      DC  CL2'01'                                                   
+C02      DC  CL2'02'                                                   
+C03      DC  CL2'03'                                                   
+C04      DC  CL2'04'                                                   
+C05      DC  CL2'05'                                                   
+C06      DC  CL2'06'                                                   
+C07      DC  CL2'07'                                                   
+C08      DC  CL2'08'                                                   
+C09      DC  CL2'09'                                                   
+C10      DC  CL2'10'                                                   
+C11      DC  CL2'11'                                                   
+C12      DC  CL2'12'                                                   
+SLEN     DC  XL1'02'                                                   
+         DC  XL1'03'                                                   
+         DC  XL1'05'                                                   
+         DC  XL1'07'                                                   
+         LTORG                                                         
+END      EQU *                                                         
+         END                                                           
