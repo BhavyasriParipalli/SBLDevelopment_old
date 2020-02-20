@@ -1,0 +1,48 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ------- QSAR OFFLOAD CONTROL  -------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: CNQTRLR                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR ACTIVITY CONTROL RECORD FORMAT           */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE STATISTICS RECORD MAINTAINED FROM   */
+ /*  THE QSAR REGION.  THE RECORD CONTAINS INFO RELATING TO THE     */
+ /*  QUANTITY OF QSARS AND NUMBER OF ACTUAL HOURS PROCESSED.        */
+ /*                                                                 */
+ /*  P                                                              */
+ /*  R                                                              */
+ /*  E                                                              */
+ /*  F                                                              */
+ /*  I                                                              */
+ /*  X                                                              */
+ /*                                                                 */
+ /*  CANDTRLR                         POSITIONS 09 THROUGH 31 ARE   */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE QSAR CICS REGION.              */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/22/89  SR 0038    9NSK    ORIGINAL VERSION          HAS     */
+ /*                                                                 */
+ /*******************************************************************/
+    3 TRLRKEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 TRLRKEY1  CHAR(8),       /* LITERAL 'CANDTRLR'     001- 008*/
+       5 TRLRPAD1  CHAR(23),      /* KEY PADDING (BLANKS)   009- 031*/
+    3  TRLRCNT     PIC '999999999',  /* NUMBER OF RECORDS   032- 040*/
+    3  PAD01       CHAR(01),      /* SET TO '|'             041- 041*/
+    3  TRLRSEQ     PIC '999999',  /* TRAILER SEQUENCE       042- 047*/
+    3  PAD02       CHAR(01),      /* SET TO '|'             048- 048*/
+    3  TRLRDATE    CHAR(10),      /* DATE OF PROCESSING     049- 058*/
+    3  PAD03       CHAR(73)       /* PADDING                059- 131*/
+ /*******************************************************************/
+ /*                   END OF CNQTRLR INCLUDE                        */
+ /*******************************************************************/

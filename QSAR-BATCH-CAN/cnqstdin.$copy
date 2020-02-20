@@ -1,0 +1,87 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQSTDIN    VERSION NR:  01           DATE:  03/04/2002  */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: CANADA QSAR COMMON DATA LAYOUT INBOUND                    */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE STD INBOUND COMMON DATA LAYOUT OF DATA        */
+ /*     LOADED TO THE QSAR DATABASE                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------  ----- */
+ /*  03/06/02 SR01063  2NSG NEW COPY MEMBER CREATED             DLP  */
+ /*                                                                  */
+ /********************************************************************/
+      3 QSRKEY,                 /* KEY FIELD                         */
+       5 CRECTYP  CHAR( 1),     /* RECORD TYPE              001- 001 */
+                                /* R = ROOT RECORD                   */
+                                /* P = PART RECORD                   */
+       5 IDOCNUMB CHAR( 9),     /* DOCUMENT NUMBER          002- 010 */
+       5 IUNIQUE  CHAR(15),     /* UNIQUENESS IDENTIFIER    011- 025 */
+       5 IAPPLIC  CHAR( 2),     /* APPLICATION              026- 027 */
+                                /* IR, PT, PO                        */
+       5 IEMPSER  CHAR( 6),     /* EMPLOYEE SERIAL          028- 033 */
+     3 DCALCOMP   CHAR( 8),     /* DATE (YYYYMMDD)          034- 041 */
+     3 CAPILVL    CHAR( 3),     /* TABLE LVL FOR LAYOUT CHG 042- 044 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR COMMON DATA                                                 */
+ /* ---------------------------------------------------------------- */
+     3 HSTOP      CHAR( 3),     /* STOP TIME (HHT)          045- 047 */
+     3 QSEQ       CHAR( 3),     /* SEQUENCE/CALL NUMBER     048- 050 */
+     3 CSERVICE   CHAR( 2),     /* SERVICE CODE             051- 052 */
+     3 CACTIVTY   CHAR( 2),     /* ACTIVITY PERFORMED       053- 054 */
+     3 HACTUAL    CHAR( 3),     /* ACTUAL HOURS (HHT)       055- 057 */
+     3 HTRAVEL    CHAR( 3),     /* TRAVEL HOURS (HHT)       058- 060 */
+     3 HOVRTIME   CHAR( 1),     /* OVERTIME INDICATOR       061- 061 */
+     3 IMACHTYP   CHAR( 4),     /* MACHINE TYPE             062- 065 */
+     3 IMACHSER   CHAR( 7),     /* MACHINE SERIAL           066- 072 */
+     3 CCOMPLET   CHAR( 1),     /* COMPLETION CODE (KOC)    073- 073 */
+     3 IPROBNUM   CHAR(11),     /* CE ENTERED PROB NUMBER   074- 084 */
+     3 CBILLACT   CHAR( 1),     /* BILLABLE ACTIVITY CODE   085- 085 */
+     3 IOTHRBOW   CHAR( 3),     /* OTHER BO CHARGED         086- 088 */
+     3 CBILL      CHAR( 3),     /* BILL CODE                089- 091 */
+     3 IBRUSE     CHAR( 5),     /* BRANCH USE               092- 096 */
+     3 NCONNAME   CHAR(19),     /* CONTACT NAME             097- 115 */
+     3 ICONPHNE   CHAR(10),     /* CONTACT PHONE NUMBER     116- 125 */
+     3 CPARTSRC   CHAR( 1),     /* PARTS SOURCE             126- 126 */
+     3 IREQEMP    CHAR( 6),     /* REQUESTING EMPLOYEE      127- 132 */
+     3 SPAD01     CHAR(25),     /* PAD, UNUSED              133- 157 */
+ /* ---------------------------------------------------------------- */
+     3 QMETER     CHAR( 9),     /* METER READING            158- 166 */
+     3 ICONTRCT   CHAR( 8),     /* CONTRACT NUMBER          167- 174 */
+     3 CMES       CHAR( 6),     /* MES NUMBER               175- 180 */
+     3 CECA       CHAR( 3),     /* ECA NUMBER               181- 183 */
+     3 FACTPLWK   CHAR( 1),     /* ACTION PLAN WORK (Y/N)   184- 184 */
+     3 CACTRSN    CHAR( 1),     /* ACTION PLAN FAIL REASON  185- 185 */
+     3 TAPLNCMT   CHAR(60),     /* ACTION PLAN COMMENTS     186- 245 */
+     3 IWORKNUM   CHAR( 6),     /* WORK NUMBER ACTIVITY ID  246- 251 */
+     3 ICCSTNAM   CHAR(15),     /* CUSTOMER NAME            253- 266 */
+     3 ICCSTADD   CHAR(18),     /* CUSTOMER ADDRESS         267- 284 */
+     3 ICUSTREF   CHAR(12),     /* CUSTOMER REFERENCE       285- 296 */
+     3 ICRCODE    CHAR( 5),     /* COURSE CODE              297- 301 */
+     3 HPARTACQ   CHAR( 3),     /* PART ACQ TIME (HHT)      302- 304 */
+     3 TCOMMENT   CHAR(50),     /* COMMENTS                 305- 354 */
+     3 SPAD02     CHAR(25),     /* PAD UNUSED               355- 379 */
+                                /* POSSIBLE EXPANSION OF             */
+                                /* COMMENTS IN THE FUTURE            */
+ /* ---------------------------------------------------------------- */
+ /* QSAR MISC DATA                                                   */
+ /* ---------------------------------------------------------------- */
+     3 CSOURCE    CHAR( 3),     /* EXTERNAL SOURCE INDICATOR380- 382 */
+     3 QNUMPRTS   CHAR( 2),     /* NUMBER OF PART RECORDS   383- 384 */
+     3 IWAYBILL   CHAR(16),     /* PART WAYBILL NUMBER      385- 400 */
+     3 SPAD03     CHAR(25)      /* PAD                      401- 425 */
+
+ /********************************************************************/
+ /*                   END OF CNQSTDIN INCLUDE                        */
+ /********************************************************************/

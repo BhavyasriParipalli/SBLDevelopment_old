@@ -1,0 +1,44 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQSTDHT    VERSION NR:  01           DATE:  12/08/97    */
+ /*                                                                  */
+ /* TITLE: CNQSTDHT CANADIAN QSAR STANDARD HEADER/TRAILER LAYOUT     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THE HEADER RECORD WILL CONTAIN THE IDTYPE, SEQ NUM,*/
+ /*               CREATION DATE.                                     */
+ /*               THE TRAILER RECORD WILL CONTAIN THE IDTYPE, SEQ    */
+ /*               NUM, CREATION DATE AND DATA RECORD COUNT           */
+ /*               (COUNT EXCLUDING THE HEADER AND TRAILER RECORD ).  */
+ /*               THE HEADER AND TRAILER RECORD WILL BE PADDED OUT   */
+ /*               TO THE DATA RECORD LENGTH IN THE PROGRAM.          */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:     REASON:  DRVR: DESCRIPTION:                      PGMR:*/
+ /*  --------- -------- ---- ------------------------------------ ---*/
+ /* 12/31/2004 SR040017 5NSM INITIAL PROMOTE                      LBS*/
+ /*                                                                  */
+ /********************************************************************/
+                                      /*                             */
+   3 IDTYPE       CHAR(1),            /* LOW(1) FOR HEADER  001- 001 */
+                                      /* HEX ZEROES                  */
+                                      /* HIGH(1) FOR TRAILER         */
+                                      /* HEX 'FF'                    */
+   3 SPAD1        CHAR(1),            /* BLANK              002- 002 */
+   3 XSEQNUM      PIC '(6)9',         /*INTERFACE SEQUENCE  003- 008 */
+                                      /*NUMBER (EX. 000098)          */
+   3 SPAD2        CHAR(1),            /*BLANK               009- 009 */
+   3 DCREATE      CHAR(10),           /*CREATION DATE       010- 019 */
+                                      /*FORMAT MM/DD/YYYY            */
+   3 SPAD3        CHAR(1),            /*BLANK               020- 020 */
+   3 QUANTITY     PIC'(7)9',          /*NUMBER OF DATA RECS 021- 027 */
+   3 SPAD4        CHAR(13)            /*BLANK               028- 040 */
+                                      /*                             */
+ /*------------------------------------------------------------------*/
+ /*                    END  CPSTDHT                                  */
+ /*------------------------------------------------------------------*/

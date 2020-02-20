@@ -1,0 +1,153 @@
+7 /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNPENDRC    VERSION NR:  01           DATE:  10/13/2004  */
+ /*                                                                  */
+ /* TITLE: CANADA QSAR PENDED RECORD                                 */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS DATA DESCRIBES THE SPECIFIC DATA RELATING TO  */
+ /*               QSAR PENDED DATA EXTRACTED FROM THE QSAR DATA BASE */
+ /*               AND SENT TO CANADA QBIS                            */
+ /*                                                                  */
+ /*                                                                  */
+ /* RECORD KEY:  N/A                                                 */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /* DATE:      REASON:  DRVR:DESCRIPTION:                      PGMR: */
+ /* ---------- -------- ---- --------------------------------- ----- */
+ /* 10/13/2004 SR030051 5CSM INITIAL CREATION                    LBS */
+ /*                                                                  */
+ /********************************************************************/
+                                /*                                   */
+   3 IDOCNUM          CHAR(9),  /* QSAR DOCUMENT NUMBER      001-009 */
+   3 IEMPSER          CHAR(6),  /* Employee Serial Number    010-015 */
+                                /* Associated with this              */
+                                /* activity                          */
+   3 ISSRBO           CHAR(4),  /* SSR branch office         016-019 */
+   3 ISSRTERR         CHAR(3),  /* SSR territory             020-022 */
+   3 IENTRYSER        CHAR(6),  /* serial number of          023-028 */
+                                /* that last touched the record      */
+   3 INSSAREA         CHAR(2),  /* NSS AREA                  029-030 */
+   3 IMACHTYP         CHAR(4),  /* Machine Type              031-034 */
+   3 IMACHSER         CHAR(7),  /* Machine Serial            035-041 */
+                                /* left zero filled                  */
+   3 DACTVTY          CHAR(10), /* Activity Date             042-051 */
+                                /* YYYY-MM-DD                        */
+   3 FACTYNULL        CHAR(1),  /* activity date null        052-052 */
+                                /* indicator '?'=NULL,' '=data       */
+   3 DAUDIT           CHAR(10), /* record audit date         053-062 */
+                                /* YYYY-MM-DD                        */
+   3 FDATENULL        CHAR(1),  /* audit date null indicator 063-063 */
+                                /* '?'=NULL,' '=data                 */
+   3 HAUDIT           CHAR(8),  /* record audit time         064-071 */
+                                /* HH.MM.SS                          */
+   3 FTIMENULL        CHAR(1),  /* audit time null indicator 072-072 */
+                                /* '?'=NULL,' '=data                 */
+   3 DPROCESS         CHAR(10), /* date processed            073-082 */
+                                /* YYYY-MM-DD                        */
+   3 FPROCNULL        CHAR(1),  /* process date null         083-083 */
+                                /* indicator '?'=NULL,' '=data       */
+   3 DPENDDATE        CHAR(10), /* original pend date        084-093 */
+                                /* YYYY-MM-DD                        */
+   3 FPENDNULL         CHAR(1), /* original pend date null   094-094 */
+                                /* indicator '?'=NULL,' '=data       */
+   3 HACTLHRS   FIXED DEC(3,1), /* actual hours HH.T         095-096 */
+   3 HTRAVLHRS  FIXED DEC(3,1), /* travel hours HH.T         097-098 */
+   3 HSTPTIME   FIXED DEC(3,1), /* activity stop time HH.T   099-100 */
+   3 FOVRTIME         CHAR(1),  /* Y|N, whether the actual   101-101 */
+                                /* and travel hours are              */
+                                /* overtime hours, Y=yes, N=no       */
+   3 CCOMPSTAT        CHAR(1),  /* 1 = complete              102-102 */ 
+                                /* 2 = incomplete                    */
+                                /* 3 = diagnostic assistance         */
+                                /* 4 = other assistance              */
+                                /* 5 = suspend                       */
+                                /* 6 = post-activity                 */
+   3 CSVC             CHAR(2),  /* Service Code              103-104 */
+   3 CACTVTY          CHAR(2),  /* Activity Code             105-106 */
+   3 SPAD01           CHAR(4),  /* future pad for problem    107-110 */
+                                /* number                            */
+   3 IPROBNUM         CHAR(7),  /* CAD problem number        111-117 */
+   3 ICONTRACT        CHAR(8),  /* Contract/Work Number      118-125 */
+                                /* left justify, assign left 8 chars */
+   3 IOTHOFF          CHAR(4),  /* Other Office worked       126-129 */
+                                /* prefix with '0'+ branch office    */
+   3 FPARTTLR         CHAR(1),  /* part trailer indicator    130-130 */
+                                /* ' ' = not part trailer            */
+                                /* '1' = part trailer                */
+   3 FDOWNLVL         CHAR(1),  /* downlevel table indicator 131-131 */
+                                /* 'N' = not downlevel               */
+                                /* 'Y' = downlevel table used        */
+   3 FMSGSENT         CHAR(1),  /* pend message sent to SSR  132-132 */
+   3 FSRCDPET         CHAR(1),  /* QSAR sourced from PET     133-133 */
+                                /* Y | N                             */
+   3 FSRCDQAR         CHAR(1),  /* QSAR sourced from QAR     134-134 */
+                                /* Y | N                             */
+   3 FPSAR            CHAR(1),  /* is this a PSAR record?    135-135 */
+                                /* Y | N                             */
+   3 FRESUB           CHAR(1),  /* was this record resubed   136-136 */
+                                /* Y | N                             */
+   3 FRECYCLD         CHAR(1),  /* was this record recycled? 137-137 */
+                                /* Y | N                             */
+   3 FRECTYPE         CHAR(1),  /* I incident data only      138-138 */
+                                /* B incident + part data            */
+                                /* P part only record                */
+   3 IREQEMPL         CHAR(6),  /* requesting employee       139-144 */ 
+   3 QMETER     FIXED BIN(31),  /* meter reading             145-148 */ 
+   3 IECANUM          CHAR(3),  /* ECA number                149-151 */
+   3 FMESNUM          CHAR(6),  /* MES number                152-157 */
+   3 FACTPLAN         CHAR(1),  /* was there an ACTION PLAN  158-158 */
+                                /* Y/N                               */
+   3 FACTWORK         CHAR(1),  /* Did the action plan work? 159-159 */
+                                /* Y/N                               */
+   3 CACTFAIL         CHAR(1),  /* Action Plan fail reason   160-160 */
+   3 QPENDCNT   FIXED BIN(15),  /* number of times pended    161-162 */
+   3 ERRARRAY (5),              /* error array               163-182 */
+     5 CERRSEV        CHAR(1),  /* error severity            163-163 */
+                                /* blank = no error                  */
+                                /* 1 = warning                       */
+                                /* 3 = error                         */
+     5 CERRMSG        CHAR(3),  /* error message number that 164-166 */ 
+                                /* that caught the error             */ 
+   3 TCOMMENTS        CHAR(50), /* SSR comments              183-232 */ 
+                                /* (aka narrative)                   */ 
+   3 ISENDBO          CHAR(4),  /* Sending branch office     233-236 */
+                                /*(aka from branch office, from BO)  */
+                                /* prefixed with '0' + branch office */
+   3 ISENDOL          CHAR(3),  /* Sending outside location  237-239 */
+                                /*(aka from outside locatio, from OL)*/
+   3 UPARTS (4),                /* part array structure      240-359 */
+     5 IPARTNUM       CHAR(8),  /* part number               240-247 */ 
+     5 CFUNC          CHAR(2),  /* part function code        248-249 */ 
+                                /* (aka part activity)               */ 
+     5 QPARTQTY FIXED DEC(3,0), /* part quantity             250-251 */ 
+                                /* usage quantity for:               */
+                                /* -------------------               */
+                                /* 01 - O/L transfer                 */
+                                /* 02 - part usage                   */
+                                /* 05 - part receipt                 */
+                                /* 09 - not my part                  */
+                                /* 10 - part not received            */
+                                /* 21 - disburse & usage             */
+                                /* order/return quantity for:        */
+                                /* --------------------------        */
+                                /* 03 - part order                   */
+                                /* 04 - new return                   */
+                                /* 99 - new defective part           */
+     5 IRECBO         CHAR(4),  /* receiving branch office   252-255 */
+                                /* (aka to branch office, TO BO)     */
+                                /* prefixed with '0'+ branch office  */
+     5 IRECOL         CHAR(3),  /* receiving outside location 256-258*/
+                                /* (aka to outside location, TO OL)  */
+     5 SPAD02         CHAR(11), /* part pad                  259-269 */
+   3 SPAD03           CHAR(41)  /* future use padding        360-400 */
+ /********************************************************************/
+ /*      END  OF  COPY  MEMBER  CNPENDRC                             */
+ /********************************************************************/

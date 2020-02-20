@@ -1,0 +1,55 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQPRTIN    VERSION NR:  01           DATE:  03/06/02    */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: PART   QSAR DATA LAYOUT INBOUND                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE STD INBOUND PART DATA WHICH IS LOADED TO      */
+ /*     THE QSAR DATABASE                                            */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------  ----- */
+ /*  03/06/02 S010063  2NSG NEW COPY MEMBER CREATED             DLP  */
+ /*                                                                  */
+ /********************************************************************/
+      3 QSRKEY,                 /* KEY FIELD                         */
+       5 CRECTYP  CHAR(1),      /* RECORD TYPE              001- 001 */
+                                /* R = ROOT RECORD                   */
+                                /* P = PART RECORD                   */
+       5 IDOCNUMB CHAR(9),      /* DOCUMENT NUMBER          002- 010 */
+       5 IINDOCNM CHAR(15),     /* UNIQUENESS IDENTIFIER    011- 025 */
+       5 IAPPLIC  CHAR(2),      /* APPLICATION              026- 027 */
+                                /* IR, PT, PO                        */
+       5 IEMPSER  CHAR(6),      /* EMPLOYEE SERIAL          028- 033 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR PART SEGMENT                                                */
+ /* ---------------------------------------------------------------- */
+     3 IPARTNUM   CHAR(8),      /* PART NUMBER              034- 041 */
+     3 CFUNC      CHAR(2),      /* FUNCTION CODE            042- 043 */
+     3 ISENDBO    CHAR(3),      /* FROM BRANCH OFFICE       044- 046 */
+     3 ISENDOL    CHAR(3),      /* FROM OUTSIDE LOCATION    047- 049 */
+     3 IRECBO     CHAR(3),      /* RECEIVING(TO)BRANCH OFF  050- 052 */
+     3 IRECOL     CHAR(3),      /* RECEIVING(TO)OUTSIDE LOC 053- 055 */
+     3 QUSAGE     CHAR(2),      /* USAGE QUANTITY           056- 057 */
+     3 QDISBRSE   CHAR(2),      /* DISBURSEMENT QUANTITY    058- 059 */
+     3 QREORDER   CHAR(2),      /* ORDER QUANTITY           060- 061 */
+     3 QRETURN    CHAR(2),      /* RETURN QUANTITY          062- 063 */
+     3 IBINLOC    CHAR(6),      /* BIN LOCATION             064- 069 */
+     3 IALTSBO    CHAR(3),      /* ALTERNATE SHIP           070- 072 */
+     3 CDELVPT    CHAR(2),      /* DELIVERY POINT           073- 074 */
+     3 IPRTMACH   CHAR(4),      /* REORDER M/T (PART ONLY)  075- 078 */
+     3 ITINNUM    CHAR(25),     /* TIN NUMBER               079- 103 */
+     3 SPAD01     CHAR(322)     /* PAD                      104- 425 */
+ /********************************************************************/
+ /*                   END OF CNQPRTIN INCLUDE                        */
+ /********************************************************************/
+
