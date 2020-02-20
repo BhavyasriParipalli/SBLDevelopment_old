@@ -1,0 +1,76 @@
+ /** -PROLOG- ********************************************************/
+ /*                                                                  */
+ /* MAPPING OF THE CAD ANKOR BLOCK                                   */
+ /*                                                                  */
+ /* 04/20/83 - HLV - CHANGED HCALLQN AND HCALLDBN FROM 7 CHARACTERS  */
+ /*                  TO 8 TO ACCOMMODATE THE DOS TO MVS CONVERSION   */
+ /*                                                                  */
+ /* 09/01/83 - CD  - RQM                                             */
+ /* 04/12/88 - DYADICS1 - REMOVE FIELDS THAT ARE NO LONGER USED      */
+ /*                                                                  */
+ /* 04/04/96 - S9600013 6NSG Remove fields/routines no longer needed */
+ /*                     Added MSGUPFLG to keep status of CADUPMSR.   */
+ /*                                                            - DVC */
+ /** -ENDPRO- ********************************************************/
+ DCL 1 ANCHRBLK BASED(CWAAPTR(APPLCAD)), /* CAD COMMUNICATION BLOCK  */
+       2 CMDTADR  PTR(31),               /* CAD COMMAND TABLE  PTR   */
+       2 *        PTR(31),               /* UNUSED                   */
+       2 *        PTR(31),               /* UNUSED                   */
+       2 *        PTR(31),               /* UNUSED                   */
+       2 BOTBLPTR PTR(31),               /* START OF BOTABLE         */
+       2 UPDTFLG  CHAR(1),               /* 'FF' IF UPDATE IS RUNNING*/
+       2 CPRGACTF CHAR(1),               /* 'EE' IF PRGE IS RUNNING  */
+       2 MSGUPFLG CHAR(1),               /* 'FF' CADUPMSR is running */
+       2 *        BIT(8),
+         3 *        BIT(2),
+         3 CDBIXINI BIT(1),              /* CADIXINI running         */
+         3 *        BIT(5),
+       2 UPDTQCNT(20) FIXED(32),         /* CADUPDTE QEL COUNTERS    */
+       2 *         CHAR(258),            /* Unused        - S9600013 */
+       2 QUNIQCHR  CHAR(1),              /* QUEUE UNIQUENESS NUMBER  */
+         3 QUNIQNUM FIXED(8),            /*  FOR RC TEMP STORAGE     */
+       2 ACTVQFLG  BIT(8),               /*INDICATES WHICH LIST QUEUE
+                                           (LISTQ1 OR LISTQ2) IS THE
+                                           ACTIVE LIST QUEUE FOR LIST
+                                           OF QUEUE NAMES OF ALL TEMP
+                                           STOR CURRENTLY ALLOCATED
+                                           FOR IIPS                  */
+         3 ACTIVQ  BIT(1),               /* ON= LISTQ1 IS ACTIVE,
+                                            OFF= LISTQ2 IS ACTIVE    */
+         3 *       BIT(7),               /* UNUSED                   */
+       2 *         CHAR(4),              /* UNUSED                   */
+       2 ANKBRCH,
+         /************************************************************/
+         /* ANKRBRCH CONTAINS A LIST OF POINTERS TO BRANCH ENTERED   */
+         /* ROUTINES.                                                */
+         /************************************************************/
+         3 *        PTR(32),          /* unused was ANKCALL1 S960013 */
+         3 *        PTR(32),          /* unused was ANKCALL2 S960013 */
+         3 ANKCELST PTR(32),          /* CE ALPHABETIC LIST          */
+         3 ANKCKID  PTR(32),          /*                             */
+         3 ANKCULST PTR(32),          /* CUSTOMER ALPHABETIC LIST    */
+         3 ANKWRQE  PTR(32),          /* CAD WRITE QELEMNT ROUTINE   */
+         3 ANKCK01  PTR(32),          /* CADCK01, CADDI02, CADCKID   */
+         3 ANKDLI   PTR(32),          /* DLIERMSG ROUTINE            */
+         3 ANKERR   PTR(32),          /* CADERMSG ROUTINE            */
+         3 ANKCIDA  PTR(32),          /* CID ALLOCATE ROUTINE        */
+         3 ANKDLIE  PTR(32),          /* NEW DLIERMSG ROUTINE        */
+         3 *        PTR(32),          /* Unused was ANKIX   S9600013 */
+         3 ANKUMDT  PTR(32),          /* CADUMDT                     */
+         3 *        CHAR(12),         /* Unused                      */
+       2 *          CHAR(16);         /* UNUSED                      */
+ /********************************************************************/
+ /* DECLARE THE BRANCH ENTERED ROUTINES                              */
+ /********************************************************************/
+ DCL CADCELST ENTRY BASED(ANKCELST) VALRG(*);/*ACTUAL PGM IS CADCELSX*/
+ DCL CADCKID  ENTRY BASED(ANKCKID)  VALRG(*);/*ACTUAL PGM IS CADCKIDX*/
+ DCL CADCULST ENTRY BASED(ANKCULST) VALRG(*);/*ACTUAL PGM IS CADCULSX*/
+ DCL CADWRQE  ENTRY BASED(ANKWRQE)  VALRG(*);/*ACTUAL PGM IS CADWRQEX*/
+ DCL DLIERMSG ENTRY BASED(ANKDLI)   VALRG(*);/*ACTUAL PGM IS DLIERMSX*/
+ DCL CADERMSG ENTRY BASED(ANKERR)   VALRG(*);/*ACTUAL PGM IS CADERMSX*/
+ DCL CADCK01  ENTRY BASED(ANKCK01)  VALRG(*);/*ACTUAL PGM IS CADCK01X*/
+ DCL CADCIDA  ENTRY BASED(ANKCIDA)  VALRG(*);/*ACTUAL PGM IS CADCIDAX*/
+ DCL CADDLIE  ENTRY BASED(ANKDLIE)  VALRG(*);/*ACTUAL PGM IS CADDLIEX*/
+ DCL CADUMDT  ENTRY BASED(ANKUMDT)  VALRG(*);/*ACTUAL PGM IS CADUMDTX*/
+ @EJECT;
+

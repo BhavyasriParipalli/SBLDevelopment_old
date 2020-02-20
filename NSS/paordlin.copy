@@ -1,0 +1,125 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   PAORDLIN    VERSION NR:  01           DATE:  03/06/97    */
+ /*                                               TIME:  08:45:51    */
+ /*                                                                  */
+ /* TITLE: Parts Order and Line Item Copy Member                     */
+ /*                                                                  */
+ /* DB2 TABLES: NSTPAORD and NSTPALIN Combine                        */
+ /*                                                                  */
+ /* LANGUAGE: PL/I and PL/AS                                         */
+ /*                                                                  */
+ /* DESCRIPTION: This copy member is used to hold the Parts Order    */
+ /*    table elements and the Parts Line Item table elements while   */
+ /*    sending information for update or receiving information from  */
+ /*    the read.                                                     */
+ /*                                                                  */
+ /*    There is always 1 Parts Order element and 1 to 8 Parts Line   */
+ /*    Item elements.                                                */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  03/06/97 S9600744 7NSG TSS Scheduler - New         K. Mesmer    */
+ /*                                                                  */
+ /*  08/18/97 457707   7NSI Added var LIST_ORDER_NUM    lqchung      */
+ /*                                                                  */
+ /*  08/26/97 S9700133 7NSP Added rest of RTS data.     K. Fugette   */
+ /*                                                                  */
+ /* SR9700252 8NSE 02/23/98 Parts Pre-Load                 Gyula   PP*/
+ /*                                                                  */
+ /* SR9900115 0NSC 01/20/00 Part Launch                    Gyula   PL*/
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 PAORDLIN PAORDLIN_STG,
+       2 PAKEY,
+         5 KEY_REGION          CHAR(3),
+         5 KEY_FUNCTION        CHAR(1),
+         5 KEY_EMP_NUM         CHAR(6),
+         %IF LANG='PLI' %THEN %GOTO PASKIP2;
+         5 KEY_TRANS_ID        BIN FIXED(31) BDY(BYTE),
+         %GOTO PASKIP3;
+         %PASKIP2:;
+         5 KEY_TRANS_ID        BIN FIXED(31),
+         %PASKIP3:;
+       2 PAORD,
+         5 ORD_ORDER_NUM       CHAR(6),
+         5 ORD_CALLID          CHAR(11),
+         5 ORD_OWNING_EMP_NUM  CHAR(6),
+         5 ORD_OUT_LOC         CHAR(3),
+         5 ORD_BOSR            CHAR(4),
+         5 ORD_INSTRUCTIONS    CHAR(32),
+         5 ORD_ORDER_TIMESTAMP CHAR(26),           /* rename   PL*/
+         5 ORD_DIV             CHAR(2),
+         5 ORD_BO_ASSIGNED     CHAR(4),
+         5 ORD_ALT_BO          CHAR(4),
+         5 ORD_RECEIVING_BO    CHAR(4),
+         5 ORD_PART_SENT       CHAR(1),                     /* PP*/
+         5 ORD_ECI_ID          CHAR(10),           /* new      PL*/
+         5 ORD_SOURCE          CHAR(2),            /* new      PL*/
+         5 ORD_ERROR           CHAR(3),            /* new     PL-B*/
+
+       /* 2 PALIN(PART_ARRAY_SIZE),*/
+       2 PALIN(8),
+         5 LIN_ITEM_NUM        CHAR(2),
+         5 LIN_ORIG_ITEM_NUM   CHAR(2),      /* original seq num PL*/
+         5 LIN_PART_NUM        CHAR(12),
+         5 LIN_MACH_TYPE       CHAR(4),
+         5 LIN_PART_DESC       CHAR(21),
+         5 LIN_FNF             CHAR(1),
+         5 LIN_ATTRIBUTE       CHAR(1),
+         5 LIN_ACKCNCL         CHAR(1),
+         5 LIN_QTY             CHAR(2),
+         5 LIN_EXCP_DEMAND     CHAR(1),
+         5 LIN_CR_CODE         CHAR(1),
+         5 LIN_SUBSTITUTE_PN   CHAR(1),
+         5 LIN_HAZARD          CHAR(1),
+         5 LIN_SENSITIVE       CHAR(1),
+         5 LIN_USEDPART_RETURN CHAR(1),
+         5 LIN_CRITICAL        CHAR(1),
+         5 LIN_RED_GREEN       CHAR(1),
+         5 LIN_CLASS_CODE      CHAR(2),
+         5 LIN_ORIG_PART_NUM   CHAR(12),
+         5 LIN_AE_IGNORE_CANCEL CHAR(1),
+         5 LIN_SHIP_TO_ADDR    CHAR(128),    /*    move to line PL*/
+         5 LIN_ORDER_CODE      CHAR(1),      /*    move to line PL*/
+         5 LIN_CANCEL_MSG      CHAR(48),     /*    move to line PL*/
+         5 LIN_CARRIER_NAME    CHAR(24),     /*    move to line PL*/
+         5 LIN_WAYBILL         CHAR(16),     /*    move to line PL*/
+         5 LIN_FLT_DEST        CHAR(17),     /* PP move to line PL*/
+         5 LIN_ETA             CHAR(16),     /*    move to line PL*/
+         5 LIN_SHIPPING_BO     CHAR(4);      /*    move to line PL*/
+
+ %IF NEED_MIN_TRANS^='YES' %THEN %GOTO SKIP_MIN_TRANS;
+ /* PA_MIN_TRANS is a structure to pass to CADDB2R to retrieve the
+  * minimum transaction number used for the specified employee. This
+  * is needed so we can calculate the next available transaction#.
+  * PA_MIN_TRANS_STG is a macro variable that must be set to how the
+  * storage is allocated (based or local).                           */
+ DCL 1 PA_MIN_TRANS PA_MIN_TRANS_STG,
+       2 PM_MIN_TRANS       BIN FIXED(31),
+       2 PM_EMP_NUM         CHAR(6);
+ %SKIP_MIN_TRANS:;
+
+ %IF NEED_ORD_LIST^='YES' %THEN %GOTO SKIP_ORD_LIST;
+ /* PA_ORDER_LIST is a structure to pass to CADDB2R to retrieve a
+  * list of part order number for the specified employee or specified
+  * callid.
+  * PA_ORD_LIST_STG is a macro variable that must be set to how the
+  * storage is allocated (based or local).                           */
+ DCL 1 PA_ORDER_LIST PA_ORD_LIST_STG,
+       2 LIST_QUEUE         CHAR(8),
+       2 LIST_EMP_NUM       CHAR(6),
+       2 LIST_CALLID        CHAR(11),
+       2 LIST_ORDER_NUM     CHAR(6),                  /* 457707 */
+       %IF LANG='PLI' %THEN %GOTO PASKIP6;
+       2 LIST_ORD_COUNT     BIN FIXED(31) BDY(BYTE);
+       %GOTO PASKIP7;
+       %PASKIP6:;
+       2 LIST_ORD_COUNT     BIN FIXED(31);
+       %PASKIP7:;
+ %SKIP_ORD_LIST:;
+
+ /*------------------------------------------------------------------*/
+ /*                                  END  PAORDLIN                   */
+ /*------------------------------------------------------------------*/

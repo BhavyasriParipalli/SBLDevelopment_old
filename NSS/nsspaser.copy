@@ -1,0 +1,41 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   NSSPASER    VERSION NR:  01           DATE:  09/19/97    */
+ /*                                               TIME:  12:39:09    */
+ /*                                                                  */
+ /* TITLE: Parts Ordering Expense Serial Table                       */
+ /*                                                                  */
+ /* DB2 DCL GEN: NSSPASER                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/I, PL/X                                             */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*   THIS COPY MEMBER IS CREATED BY TAKING THE PLI GENERATED        */
+ /*   DECLARES FROM THE DB2 DCLGEN.                                  */
+ /*                                                                  */
+ /*   THIS MODULE IS USED BY THE DATABSE INTERFACE MODULES. CADDB2R  */
+ /*   READS THE DATABASES AND CADDB2U WRITES TO THE DATABASES.       */
+ /*   SEE THESE MODULES FOR MORE INFORMATION.                        */
+ /*                                                                  */
+ /* NOTE: IT IS THE RESPOSIBILITY OF THE INCLUDING PROGRAM TO DECLARE*/
+ /*       THE LEVEL 1 NAME.                                          */
+ /*     EX:                                                          */
+ /*        DCL 1 NSSPASER,                                           */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/19/97 S9700133 7NSP New                         Fugette      */
+ /*                                                                  */
+ /********************************************************************/
+
+      5 BRANCH_OFFICE  CHAR(3),       /* B/O Assigned to order       */
+      5 SERIAL   CHAR(6);             /* Serial Number for order     */
+ /********************************************************************/
+ /* THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 2         */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /*                                 END  NSSPASER                    */
+ /*------------------------------------------------------------------*/

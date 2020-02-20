@@ -1,0 +1,18 @@
+        /* THESE REGISTER DECLARATIONS ARE USED BY DCS MACROS */
+  DCL M0  REG(0)  FIXED(31),             /*  GENERAL REG 0          */
+      M1  REG(1)  POINTER(31),           /*  GENERAL REG 1          */
+      M2  REG(2)  POINTER(31),           /*  GENERAL REG 2          */
+      M3  REG(3)  POINTER(31),           /*  GENERAL REG 3          */
+      M4  REG(4)  POINTER(31),           /*  GENERAL REG 4          */
+      M5  REG(5)  POINTER(31),           /*  GENERAL REG 5          */
+      M6  REG(6)  POINTER(31),           /*  GENERAL REG 6          */
+      M7  REG(7)  POINTER(31),           /*  GENERAL REG 7          */
+      M8  REG(8)  POINTER(31),           /*  GENERAL REG 8          */
+      M9  REG(9)  POINTER(31),           /*  GENERAL REG 9          */
+      M10 REG(10) POINTER(31),           /*  GENERAL REG 10         */
+      M11 REG(11) POINTER(31),           /*  GENERAL REG 11         */
+      M12 REG(12) POINTER(31),           /*  COMMAREA POINTER       */
+      M13 REG(13) POINTER(31),           /*  GENERAL REG 13         */
+      M14 REG(14) POINTER(31),           /*  GENERAL REG 14         */
+      M15 REG(15) POINTER(31);           /*  RC REG (REG 15)        */
+

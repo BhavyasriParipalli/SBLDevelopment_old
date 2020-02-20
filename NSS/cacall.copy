@@ -1,0 +1,256 @@
+ /*********************************************************************/
+ /*                                                                   */
+ /* NAME:   CACALL      VERSION NR:  01           DATE:  01/11/88     */
+ /*                                               TIME:  11:36:11     */
+ /*                                                                   */
+ /* TITLE: CALL DATA                                                  */
+ /*                                                                   */
+ /* IMS SEGMENT NAME: CACALL                                          */
+ /*                                                                   */
+ /* TYPE:                                                             */
+ /*                                                                   */
+ /* LANGUAGE: PLS,PLI                                                 */
+ /*                                                                   */
+ /* DESCRIPTION: CALL DATA USED TO DECIDE WHICH CALL TO DISPLAY AND   */
+ /*              THE DATA TO DISPLAY ON THE FIRST SET OF SCREENS      */
+ /*                                                                   */
+ /*                                                                   */
+ /* CHRONOLOGICAL UPDATE LOG:                                         */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:   */
+ /*  -------- -------- ---- --------------------------- ------------  */
+ /*  01/11/88 DYADICS1 8NSF CALL DATABASE CONVERSION    T. MCCONNELL  */
+ /*                                                                   */
+ /*  08/05/88 SR9890   8NSJ NEW DIMENSIONS RELEASE 2.0  HUNKELE       */
+ /*                                                                   */
+ /*  08/17/89 SR9951   9NSI ADDED ZIPGMT FLAG           TRUDY         */
+ /*                                                                   */
+ /*  11/23/90 SR0644   0NSL ADDED EXTUSER FIELD         M.A.FUS       */
+ /*                                                                   */
+ /*  08/09/91 SR0879   1NSN ADD SERVICE BROKER FLAG     T.BROWN       */
+ /*                         ADD EXTERNAL POS FLAG                     */
+ /*                         REMOVE EXTERNAL USER                      */
+ /*                                                                   */
+ /*  08/16/93 H0078974 ADDED ON_SITE_FLAG.              BDL           */
+ /*                                                                   */
+ /*  11/30/94 S9400205 5NS1  TSSC External Customer Support   Lehane  */
+ /*                                                                   */
+ /*  04/01/96 S9600013 6NSG  Capacity Relief                  Fugette */
+ /*                          (added CHAR fields for search            */
+ /*                           field values based on BIT fields)       */
+ /*                                                                   */
+ /*  07/28/97 S9700133 7NSP  Service Re-engineering           Fugette */
+ /*                                                                   */
+ /*  03/05/98 S9600603 8NSG  Year 2000 Project - Y2K          Eva/FF  */
+ /*                                                                   */
+ /*  05/04/01 SR00090  1NSI  Call ACtivity               Gyula     118*/
+ /*  03/24/02 SRXXXXX 2NSC-3 Montana Vendor support      Lehane       */
+ /*                                                                   */  
+ /*  04/30/02 SR02005 2NSG-2 Identify Non-Break/Fix Calls  Fugette    */  
+ /*                                                                   */  
+ /*  06/23/03 SR020066 3NSO  New RC ECI id search field    Frank      */  
+ /*                                                                   */  
+ /*  07/06/04 S040021  4NSG Added OEM product ID fields    Fugette    */
+ /*                         and expanded serial number                */
+ /*                         and stored Common SR ID from RETAIN       */
+ /*  01/31/08 SR060033 8NSG Added Custr machine serial field Fugette  */
+ /*                                                                   */
+ /*********************************************************************/
+ %IF LANG = 'PLI' %THEN %GOTO CALLSKIP;
+ DCL                               /*                                 */
+ 1 CACALL             BASED,       /* 600 CALL DATA                   */
+ %CALLSKIP:;
+ %IF LANG = 'PLI' %THEN %GOTO CALLPLI0;
+   2 ICALLID,                      /* 000 CALL IDENTIFICATION         */
+     3 ICALLORG       FIXED(8),    /* CALL ORIGIN IDENTIFIER          */
+     3 ICALLUNQ       FIXED(24),   /* CALL UNIQUENESS #               */
+ %GOTO CALLCOM;
+ %CALLPLI0:;
+   2 ICALLID,                      /* 000 CALL IDENTIFICATION         */
+     3 ICALLORG       CHAR(1),     /* CALL ORIGIN IDENTIFIER          */
+     3 ICALLUNQ       CHAR(3),     /* CALL UNIQUENESS #               */
+ %CALLCOM:;
+   2 ICALLST          CHAR(2),     /* 004 CURRENT CALL STATUS         */
+   2 FCALL,                        /* CALL FLAGS                      */
+     3 FCALL_1,                    /* 006 Call Flag Byte 1            */
+       4 FACKREQ        BIT(1),    /* ACK REQUIRED                    */
+       4 FVICNMSG       BIT(1),    /* VICINITY MESSAGE                */
+       4 FREMMSG        BIT(1),    /* REMOTE GEN MESSAGE              */
+       4 FCSCMSG        BIT(1),    /* CSC GENERATED MESSAGE           */
+       4 FSYSMSG        BIT(1),    /* SYSTEM GEN MESSAGE              */
+       4 FCALLRAD       BIT(1),    /* CALL WAS RADIOED                */
+       4 FCALLACK       BIT(1),    /* CALL WAS ACKNOWLEDGED           */
+       4 FMSGACK        BIT(1),    /* MESSAGE WAS ACKNOWLEDGED        */
+     3 FCALL_2,                    /* Call Flag Byte 2                */
+       4 FCALLOPN       BIT(1),    /* CALL IS OPEN NO TAKEN           */
+       4 FCALLCL        BIT(1),    /* CALL WAS CLEARED                */
+       4 FTATRECALC     BIT(1),    /* Target time was recalculated    */
+       4 FCALLIDA       BIT(1),    /* IDA TYPE CALL                   */
+       4 FCALLSRC       BIT(1),    /* SRC CALL                        */
+       4 FCALLDEF       BIT(1),    /* CALL WAS DEFERED                */
+       4 FTAOTHER       BIT(1),    /* TAKEN BY OTHER CE               */
+       4 FRCOTHER       BIT(1),    /* RECEIVED BY OTHER CE            */
+     3 FCALL_3,                    /* Call Flag Byte 3                */
+       4 FTAOTHBO       BIT(1),    /* TAKEN BY CE OTHER B/O           */
+       4 FTAOTHTR       BIT(1),    /* TAKEN BY CE OTHER TERR          */
+       4 FALERT1        BIT(1),    /* LEVEL 1 ALERT                   */
+       4 FALERT2        BIT(1),    /* LEVEL 2 ALERT                   */
+       4 FALERT3        BIT(1),    /* LEVEL 3 ALERT                   */
+       4 FALERT4        BIT(1),    /* LEVEL 4 ALERT                   */
+       4 FALERT5        BIT(1),    /* LEVEL 5 ALERT                   */
+       4 FBLNKCAL       BIT(1),    /* BLINK CALL FLAG                 */
+     3 FCALL_4,                    /* Call Flag Byte 4                */
+       4 FPTEN          BIT(1),    /* PT ENABLED                      */
+       4 FSUSPEND       BIT(1),    /* SUSPEND INDICATOR AT RC TIME    */
+       4 FRSSOPRD       BIT(1),    /* PRODUCT IS RSSO SUPPORTED SR9890*/
+       4 FREFEDCA       BIT(1),    /* CALL IS CURRENTLY REFERREDSR9890*/
+       4 FTATCALC       BIT(1),    /* TARGET TIME WAS CALCULATED  9890*/
+       4 FREFSEG        BIT(1),    /* CALL HAS REFERRAL SEGMENT SR9890*/
+       4 FACTCOM        BIT(1),    /* Call has Comments Activities 118*/
+       4 FPSREASGN      BIT(1),    /* PS needs to reassign call       */
+     3 FPURGE,                     /* PURGE FLAGS                     */
+       4 ON_SITE_FLAG BIT(1),      /* CE HAS PUT AN 'OS' ON THE CALL  */
+       4 CALL_SCRN    BIT(1),      /* Call Screening Indicator S970133*/
+       4 ACTION_PLAN  BIT(1),      /* Action Plan Indicator    S970133*/
+       4 KNOWN2RETAIN BIT(1),      /* Call is known to Retain  S970133*/
+       4 SCRN_TIMOUT  BIT(1),      /* Call pulled back from screening */
+                                   /*   due to timer           S98021 */
+       4 FCALLNBF     BIT(1),      /* Non-Break/Fix Call Ind.  S02005 */
+       4 SPAD02       BIT(2),      /*                                 */
+     3 FRSC,                       /* RSC FLAGS                       */
+       4 FRSCPROD     BIT(1),      /* RSC PRODUCT TYPE                */
+       4 FRSCINVL     BIT(1),      /* RSC HAS BEEN INVOLVED           */
+       4 FRSCRESP     BIT(1),      /* RSC RESPONSIBLE CALL            */
+       4 FPROBFIX     BIT(1),      /* SR 0879 - RECEIVED PROBLEM FIX  */
+                                   /*   FOR VENDOR CALLS              */
+       4 FQSAR_AUTO   BIT(1),      /* Auto Generate QSAR for selected */
+                                   /* Vendor Calls                    */
+       4 SPAD03       BIT(3),      /*                                 */
+     3 FRSCCRIT       CHAR(1),     /* RSC CRITICAL INDICATOR          */
+ %IF LANG = 'PLI' %THEN %GOTO CALLPLI1;
+     3 HWRKLOAD       CHAR(3),     /* Average fix time - HHT in
+                                      packed decimal format           */
+ %GOTO CALLCOM1;
+ %CALLPLI1:;
+     3 HWRKLOAD       FIXED DEC(5,1),     /* Average fix time - HHT   */
+ %CALLCOM1:;
+     3 F_ALLIANCE     CHAR(1),     /* Alliance Call           S9500114*/
+     3 FRESP_IND      CHAR(1),     /* Responsibility Indicator 960013 */
+                                   /*    R - Retain repsonsible       */
+     3 FCLEARED       CHAR(1),     /* Cleared char for IMS    S960013 */
+                                   /*    Y means cleared              */
+                                   /*    '00'x means not cleared      */
+     3 FIDACALL       CHAR(1),     /* Char flag value for IMS S960013 */
+                                   /*    Y means IDA Call             */
+     3 SPAD04         CHAR(1),     /* RESERVED FOR EXPANSION          */
+   2 I_EXT_CUST       CHAR(7),     /* TSSC Master contract no.        */
+   2 IRETRBO          CHAR(3),     /* RETRIEVE B/O                    */
+   2 IRETRTER         CHAR(3),     /* RETRIEVE TERRITORY              */
+   2 DRETRIEV         CHAR(8),     /* RETRIEVE DATE - YYYYMMDD Y2K    */
+   2 HRETRIEV,                     /* RETRIEVE TIME                   */
+     3 HRETHOUR       CHAR(2),     /* RETRIEVE TIME HOUR              */
+     3 HRETMIN        CHAR(2),     /* RETRIEVE TIME MINUTE            */
+   2 IRECBO           CHAR(3),     /* RECEIVE  B/O                    */
+   2 IRECTERR         CHAR(3),     /* RECEIVE  TERRITORY              */
+   2 DRECEIVE         CHAR(6),     /* RECEIVE  DATE - MMDDYY          */
+   2 HRECEIVE,                     /* RECEIVE  TIME                   */
+     3 HRECHOUR       CHAR(2),     /* RECEIVE  HOUR                   */
+     3 HRECMIN        CHAR(2),     /* RECEIVE  MINUTE                 */
+     3 HRECSEC        CHAR(3),     /* RECEIVE  SECOND                 */
+   2 SPAD05           CHAR(2),     /* UNUSED                S9400157  */
+   2 ICADGEN#,                     /* CAD GENERATED NUMBER            */
+     3 ICADBOSD       CHAR(1),     /* B/O SEED FOR CAD GEN #          */
+     3 ICADPROB       CHAR(4),     /* 0000-9999 CAD PROBLEM #         */
+   2 DRADIO           CHAR(6),     /* RADIO DATE - MMDDYY             */
+   2 HRADIO,                       /* RADIO TIME                      */
+     3 HRADHOUR       CHAR(2),     /* RADIO HOUR                      */
+     3 HRADMIN        CHAR(2),     /* RADIO MINUTE                    */
+   2 DACK             CHAR(6),     /* ACKNOWLEDGED DATE - MMDDYY      */
+   2 HACK             CHAR(4),     /* ACKNOWLEDGED TIME               */
+   2 DTAKE            CHAR(6),     /* TAKEN DATE - MMDDYY             */
+   2 HTAKE            CHAR(4),     /* TAKEN TIME                      */
+   2 DCLEARED         CHAR(8),     /* CLEARED DATE - YYYYMMDD  Y2K    */
+   2 HCLEARED         CHAR(4),     /* CLEARED TIME                    */
+   2 ISYSTEM          CHAR(12),    /* SYSTEM TYPE (CPU MODEL)         */
+   2 UPRODUCT,                     /*                                 */
+     3 IPRDROLM,                   /* PRODUCT STRUCTURE         SR9890*/
+       4 IPRODUCT     CHAR(4),     /* PRODUCT TYPE (BYTES 1:4)  SR9890*/
+       4 IPRODUC2     CHAR(7),     /* PRODUCT TYPE (BYTES 5:11) SR9890*/
+   2 IBILL_STAT       CHAR(1),     /* Billable Status Code      SR1153*/
+   2 USPECBID,                     /* SPEC BID STRUCTURE        SR9890*/
+     3 ISPECBID       CHAR(5),     /* SPECIAL BID NUMBER        SR9890*/
+     3 ISPECBD2       CHAR(3),     /* SPECIAL BID NUMBER        SR9890*/
+   2 UECCONBR         CHAR(7),     /* ECCO NUMBER               SR9890*/
+   2 USERIAL,                      /* SERIAL STRUCTURE          SR9890*/
+     3 ISERIAL        CHAR(7),     /* PRODUCT SERIAL            SR9890*/
+     3 ISERIAL2       CHAR(4),     /* PRODUCT SERIAL            SR9890*/
+     3 ISERIALX       CHAR(11),    /* Extended serial or OEM  SR040021*/
+   2 UCUSDATA,                     /* CUSTOMER DATA                   */
+     3 ICUSTPHN,                   /* CUST PHONE NUMBER               */
+       4 ICUSCODE     CHAR(3),     /* CUST PHONE AREA CODE            */
+       4 ICUSEXC      CHAR(3),     /* CUST PHONE EXCHANGE             */
+       4 ICUSPNUM     CHAR(4),     /* CUST PHONE NUMBER               */
+       4 ICUSEXT      CHAR(5),     /* CUST PHONE EXTENSION            */
+     3 ICUSLOC        CHAR(8),     /* CUST TELEPHONE LOCATION         */
+     3 NCUST          CHAR(17),    /* CUST NAME                       */
+     3 ICUSTADR       CHAR(17),    /* CUST STREET ADDR                */
+     3 ICUSTCTY       CHAR(8),     /* CUST CITY                       */
+     3 ICUSST         CHAR(2),     /* CUST STATE                      */
+     3 ICUSTZIP       CHAR(9),     /* CUST ZIP CODE                   */
+     3 ICUSZONE       CHAR(7),     /* CUST ZONE FOR CALL              */
+     3 ICUSNUM        CHAR(7),     /* CUST NUMBER                     */
+     3 NCONTACT       CHAR(22),    /* CUST CONTACT NAME               */
+     3 ICONPHON       CHAR(15),    /* CUST CONTACT PHONE, EXT         */
+   2 ISHIFT           CHAR(1),     /* CALL OR MESSAGE SHIFT           */
+   2 IREFCURR         CHAR(4),     /* CURRENTLY ASSIGNED REF          */
+   2 ITAKETER         CHAR(3),     /* TAKE TERRITORY                  */
+   2 ITAKEBO          CHAR(3),     /* TAKE B/O                        */
+   2 TCOMMENT         CHAR(230),   /* CALL COMMENTS                   */
+   2 ICALLSEQ         CHAR(2),     /* CALL SEQUENCE NUMBER            */
+   2 ECI_BROKER_ID    CHAR(10),    /* ECI Broker ID                   */
+   2 ECI_TRANS_CODE   CHAR(1),     /* ECI Transfer Reason Code        */
+   2 SPAD06           CHAR(4),     /* Unused                          */
+   2 DHIST            CHAR(8),     /* DATE MOVED TO HISTORY YYYYMMDD  */
+                                                               /* Y2K */
+   2 HHIST            CHAR(4),     /* TIME MOVED TO HISTORY - HHMM    */
+   2 ITBLCODE         CHAR(2),     /* TROUBLE CODE              SR9890*/
+   2 ECI_VENDOR_ID    CHAR(10),    /* ECI Vendor ID             SR0879*/
+   2 ISCALNBR         CHAR(7),     /* SERVICE CALL NUMBER       SR9890*/
+   2 IREFLAST         CHAR(4),     /* LAST ASSIGNED REF         SR9890*/
+   2 HGMTOFFS         CHAR(8),     /* CUSTOMER OFFSET FROM GMT IN
+                                      MILLISECONDS (PACKED DECIMAL
+                                      FORMAT)                   SR9890*/
+   2 ZIPGMT           BIT(1),      /* ZIP CODE DETERMINED GMT   SR9951*/
+   2 FTRAIN_BO        BIT(1),      /* Logged to a training branch     */
+   2 FPMS_SW          BIT(1),      /* RETAIN PMS Software CallS9300167*/
+   2 FTPNS_MSG        BIT(1),      /* ORIGINS message         S9300142*/
+   2 FPARTS           BIT(1),      /* Parts associated w/call  SR99115*/
+   2 SPAD07           BIT(3),      /* PADDING                   SR9890*/
+   2 NON_CE_VENDOR    CHAR(1),     /* Vendor or Vendor CE?    S9600535*/
+   2 CUST_OVERRIDE_FLAGS,          /* External data override  S970133 */
+     3 ICUSTNAME_EXT  BIT(1),      /* Override name           S970133 */
+     3 ICUSTADR_EXT   BIT(1),      /* Override address        S970133 */
+     3 ICUSTCITY_EXT  BIT(1),      /* Override city           S970133 */
+     3 ICUSST_EXT     BIT(1),      /* Override state          S970133 */
+     3 ICUSTZIP_EXT   BIT(1),      /* Override zip code       S970133 */
+     3 SPAD08         BIT(3),      /* Padding                 S970133 */
+   2 RCECI_ID         CHAR(10),    /* RC ECI id               S020066 */
+   2 MFR_NAME         CHAR(30),    /* Manufacturer Name      SR040021 */
+   2 MFR_MODEL        CHAR(30),    /* Manufacturer Model     SR040021 */ 
+   2 FCOM_SRID        CHAR(11),    /* Common SR ID           SR040050 */
+   2 MFR_ID           CHAR(5),     /* Manufacturer ID        SR040021 */
+   2 USER_SERIAL      CHAR(20),    /* Customer Entered Mach  SR060033 */
+                                   /* Serial                          */
+   2 SPAD09           CHAR(55),    /* PADDING                 S020066 */
+ /*-------------------------------------------------------------------*/
+ /* The following field is RESERVED for use by downstream systems     */
+ /* that get extracts of the history call data base. It does not      */
+ /* contain any value on the Active or History Call data base         */
+ /* but will be updated with an NSS Driver number as the history call */
+ /* segment is extracted for transmission to NDRS.                    */
+ /* The NSS Driver designation will be the LAST one that updated any  */
+ /* call data base segments.                                          */
+ /*-------------------------------------------------------------------*/
+   2 SPAD_RESERVED    CHAR(4); /* RESERVED for CALL HISTORY EXTRACT   */
+ /*-------------------------------------------------------------------*/
+ /*                                   END  CACALL                     */
+ /*-------------------------------------------------------------------*/

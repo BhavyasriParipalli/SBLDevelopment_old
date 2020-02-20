@@ -1,0 +1,33 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CADQSARP    VERSION NR:  01           DATE:  03/24/02    */
+ /*                                                                  */
+ /* TITLE: Parameter list for Automated QSAR                         */
+ /*                                                                  */
+ /* TYPE: COPY                                                       */
+ /*                                                                  */
+ /* LANGUAGE:    PLI/PLX                                             */
+ /*                                                                  */
+ /* DESCRIPTION: Parameters passed to CADQSARC module for Automated  */
+ /*              QSAR.                                               */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*------------------------------------------------------------------*/
+ /*  DATE:    REASON:   DRVR:  DESCRIPTION:            PROGRAMMER:   */
+ /*  -------- --------  ----   -------------------------- -----------*/
+ /*                                                                  */
+ /*  03/24/02 Montana   2NSC   New - Parameter list    Lehane        */
+ /*                            Passed to CADQSARC                    */
+ /*                            module.                               */
+ /********************************************************************/
+ 
+  DCL 1 CADQSARP  CADQSARP_STG,
+ 
+        3 QSAR_CID      CHAR(7),   /* Call id                        */
+        3 QSAR_CALLID   CHAR(4),   /* Call id (4 byte form)          */
+        3 QSAR_CMNTS    CHAR(230), /* Comments                       */
+        3 QSAR_STATUS   CHAR(2);   /* Status CX or CA                */
+ /*------------------------------------------------------------------*/
+ /*                                  END  CADQSARP COPY              */
+ /*------------------------------------------------------------------*/

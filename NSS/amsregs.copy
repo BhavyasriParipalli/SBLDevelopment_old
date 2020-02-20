@@ -1,0 +1,60 @@
+*%GO TO AMSREG01;                 /* BRANCH AROUND ASSEMBLER MACRO
+         MACRO
+         AMSREGS
+.**********************************************************************
+.*                                                                    *
+.*       AMS 3270 SCREEN SUPPORT PROGRAM REGISTER EQUATE MACRO        *
+.*                                                                    *
+.**********************************************************************
+         SPACE 1
+*        AMS3270 PROGRAMS REGISTER ASSIGNMENTS
+         SPACE 2
+R0       EQU   0
+R1       EQU   1
+R2       EQU   2
+R3       EQU   3
+R4       EQU   4
+R5       EQU   5
+R6       EQU   6
+R7       EQU   7
+R8       EQU   8
+R9       EQU   9
+R10      EQU   10
+R11      EQU   11
+R12      EQU   12
+R13      EQU   13                      BRANCH TABLE POINTER
+R14      EQU   14
+R15      EQU   15
+         SPACE 2
+RX       EQU   12                      AMS3270 BASE REGISTER
+RRET     EQU   14                      AMS3270 RETURN POINTER
+RCAL     EQU   15                      AMS3270 CALL POINTER
+&SYSECT  CSECT
+         MEND  ,                  END OF PLS COMMENT AROUND MACRO CODE*/
+*%AMSREG01:;
+*%AMSREGS: MACRO ;
+*   IF MACLABEL^='' THEN
+*     ANS(MACLABEL) SKIP;
+*   ELSE;
+*   ANS('/* '||MACNAME||' '||MACLIST||' '||MACKEYS||' */') SKIP;
+*   ANS('DCL      /* AMS APPLICATION REGS   */') PAGE COL(2) NORESCAN;
+*   ANS('R0 REG(0) FIXED(31),      /*REG 0*/') COL(4) NORESCAN;
+*   ANS('R1 REG(1) PTR(31),        /*PARMLIST PTR*/') COL(4) NORESCAN;
+*   ANS('R2 REG(2) PTR(31),        /*REG 2*/') COL(4) NORESCAN;
+*   ANS('R3 REG(3) PTR(31) RSTD,   /*EIB POINTER*/') COL(4) NORESCAN;
+*   ANS('R4 REG(4) PTR(31),        /*REG 4*/') COL(4) NORESCAN;
+*   ANS('R5 REG(5) PTR(31),        /*REG 5*/') COL(4) NORESCAN;
+*   ANS('R6 REG(6) PTR(31) RSTD,   /*PROFILE 1 PTR*/') COL(4) NORESCAN;
+*   ANS('R7 REG(7) PTR(31) RSTD,   /*PROFILE 2 PTR*/') COL(4) NORESCAN;
+*   ANS('R8 REG(8) PTR(31),        /*REG 8*/') COL(4) NORESCAN;
+*   ANS('R9 REG(9) PTR(31),        /*REG 9*/') COL(4) NORESCAN;
+*   ANS('R10 REG(10) PTR(31) RSTD, /*BASE REG 3*/') COL(4) NORESCAN;
+*   ANS('R11 REG(11) PTR(31) RSTD, /*BASE REG 2*/') COL(4) NORESCAN;
+*   ANS('R12 REG(12) PTR(31) RSTD, /*BASE REG 1*/') COL(4) NORESCAN;
+*   ANS('R13 REG(13) PTR(31) RSTD, /*REG SAVE AND DYNAMIC '
+*                       ||'STORAGE PTR*/') COL(4) NORESCAN;
+*   ANS('R14 REG(14) PTR(31),      /*REG 14*/') COL(4) NORESCAN;
+*   ANS('R15 REG(15) PTR(31);      /*REG 15*/') COL(4) NORESCAN;
+*   RETURN CODE(0);
+*%END AMSREGS;
+

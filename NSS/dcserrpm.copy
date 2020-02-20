@@ -1,0 +1,73 @@
+ %DCSERRPM: MACRO KEYS (GENDCL,NAME,LENGTH,LEVEL);
+ /********************************************************************/
+ /*                                                                  */
+ /* THIS IS THE INPUT PARAMETER DSECT USED BY DBSEREC                */
+ /* WHEN IT IS LINKED TO.                                            */
+ /*                                                                  */
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/
+ /*                         brand new                                */
+ /*                                                                  */
+ /********************************************************************/
+ /***********************************************************/
+ /*                                                         */
+ /* THE NEXT SECTION ALLOWS THE MACRO INVOCATION TO BE      */
+ /* PRINTED AS A COMMENT ON THE SOURCE LISTING.             */
+ /*                                                         */
+ /***********************************************************/
+ DCL MACINV CHAR;  /* PROVIDES AREA FOR SYNTAX OF MACRO INVOC. */
+ MACINV=MACLABEL||MACNAME||MACLIST||' '||MACKEYS;
+ ANS('/* ?'||MACINV||'  VERSION 0 PS*/') COL(7) NORESCAN;
+ DCL LEM CHAR;
+ DCL GLEVEL CHAR;
+ IF LENGTH(1) = ''
+  THEN LEM = '256';
+  ELSE LEM = LENGTH(1);
+ IF LEVEL(1) = ''
+  THEN GLEVEL = '2';
+  ELSE GLEVEL = LEVEL(1);
+ IF GENDCL(1) = 'Y'
+   THEN
+    DO;
+  ANS('DCL 1 DCSERRPM BASED,') COL(2) NORESCAN;
+  ANS('2 ERRHDR,      /* PARM LIST Header for DBSEREC     */')
+            COL(3) NORESCAN;
+   ANS('3 ERRTLEN   FIXED(16), /* total length of data */') COL(4)
+            NORESCAN;
+   ANS('3 ERRCWANODE CHAR(3),  /* region no. (DCSEREC use) */') COL(4)
+            NORESCAN;
+   ANS('3 ERRDATE CHAR(6),     /* date (DCSEREC use) */') COL(4)
+            NORESCAN;
+   ANS('3 ERRTIME CHAR(6),     /* time (DCSEREC use) */') COL(4)
+            NORESCAN;
+   ANS('4 ERRRGSV CHAR(4),     /* save register      */') COL(5)
+            NORESCAN;
+   ANS('3 ERRPROG  CHAR(8),   /* program name            */') COL(4)
+            NORESCAN;
+   ANS('3 ERRSEG   CHAR(8),  /* segment name            */') COL(4)
+            NORESCAN;
+   ANS('3 ERRECODE CHAR(4),   /* error code              */') COL(4)
+            NORESCAN;
+   ANS('3 ERRSYSID CHAR(4),   /* sysid of cor (AOR use)  */') COL(4)
+            NORESCAN;
+   ANS('3 *        CHAR(2),   /* spare                   */') COL(4)
+            NORESCAN;
+   IF GENDCL(2) ^= QUOTE('H')
+    THEN
+      ANS('2 ERR_TEXT CHAR(*);   /* message area */') COL(3) NORESCAN;
+    END;
+   ELSE
+  IF NAME(2) = QUOTE('H')
+   THEN
+    ANS(GLEVEL||' '||NAME(1)||' CHAR(LENGTH(ERRHDR))'||
+     ' ! DCSEREC Header ')
+     COL(3) RESCAN;
+   ELSE
+    DO;
+  ANS(GLEVEL||' '||NAME(1)||'_E CHAR(LENGTH(ERRHDR)),'||
+     ' ! DCSEREC Header PS')
+     COL(3) RESCAN;
+  ANS(GLEVEL||' '||NAME(1)||' CHAR('||LEM||')  ! Message text area ')
+     COL(3) RESCAN;
+    END;
+ %END;
+

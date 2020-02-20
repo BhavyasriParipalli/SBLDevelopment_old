@@ -1,0 +1,25 @@
+ /* ******************************************************************
+ *                                                                   *
+ *         SPOOL REQUEST RECORD  FOR RRI                             *
+ *                                                                   *
+ * ********************************************************** D874  */
+    DCL RRICONST CHAR(3) CONSTANT('RRI');
+    DCL 1 RRIRQREC BASED,
+          2 RRICON   CHAR(3),  /* "RRI" FOR RAMBSPL   */
+          2 RRIRC    CHAR(1),  /* RETURN CODE
+                                  0 - GOOD RETURN
+                                  4 - LENGTH ERROR
+                                  8 - INVALID DESTINATION
+                                 12 - SPOOL CLOSED
+                                 16 - UNEXPECTED ERROR
+                                                                     */
+          2 RRIADDR  PTR(31),  /* ADDRESS OF RECORD TO SEND  */
+          2 RRIEIBP  PTR(31),  /* EIB POINTER FOR RAMBSPL    */
+          2 RRILNG   BIN(16),  /* LENGTH OF RECORD TO SEND  */
+          2 RRIDEST  CHAR(8),  /* TARGET DESTINATION  */
+          2 RRISRCE  CHAR(8),  /* SOURCE I.D.  */
+          2 RRITRNID CHAR(8),  /* TRANSACTION TO PROCESS THIS RECORD */
+          2 RRIPRI   BIN(8),   /* PRIORITY  */
+          2 RRIFLG1  BIN(8),   /* FLAG BYTE  */
+            4 RRIRREG BIT(1);  /* SEND TO REAL REGION (NOT BACKUP) */
+

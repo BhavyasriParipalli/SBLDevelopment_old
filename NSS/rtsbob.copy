@@ -1,0 +1,37 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   RTSBOB      VERSION NR:  01           DATE:  05/07/97    */
+ /*                                               TIME:  11:16:46    */
+ /*                                                                  */
+ /* TITLE:  BOB RTS Employee Numbers                                 */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE:                                                        */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /*   This member maps the assigned branches to their RTS serial     */
+ /*   for BoB parts ordering.                                        */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  05/07/97  Ixxxxx  7NSG Created.                    Fugette      */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL 1 BOB_RTS_EMPL(14) STATIC,
+       3 BOB_ASGN_BO   CHAR(3)         /* ASSIGNED BRANCH OFFICE     */
+                       INIT('K2O','K2Q','K2R','K2S','K2T','K2V','K2D',
+                            'K2G','K2H','K2I','K2J','K2K','K2L','K2M'),
+       3 BOB_SERIAL    CHAR(6)         /* SERIAL NUMBER FOR BRANCH   */
+                       INIT('326549','326609','326634','326791',
+                            '326805','326812','326814','326815',
+                            '326816','326822','326823','326836',
+                            '326838','261786');
+
+ /*------------------------------------------------------------------*/
+ /*                                  END  RTSBOB                     */
+ /*------------------------------------------------------------------*/
+

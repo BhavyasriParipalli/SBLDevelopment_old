@@ -1,0 +1,47 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CADDB2T    VERSION NR:  01           DATE:  02/01/97     */
+ /*                                              TIME:  10:01:10     */
+ /*                                                                  */
+ /* TITLE: NSS DB2 TABLE READS/UPDATES                               */
+ /*                                                                  */
+ /* LANGUAGE: PL/I - PL/AS                                           */
+ /*                                                                  */
+ /* DESCRIPTION:  THIS COPY MEMBER IS USED FOR THE DATABASE INTERFACE*/
+ /*    PROGRAMS CADDBUP (UPDATES THE DATABASES).                     */
+ /*                                                                  */
+ /*    THE CALLING PROGRAMS NEED TO DO THE FOLLOWING FOR CADDBUP:    */
+ /*      1) ALLOCATE THE SPACE FOR THE TABLE AND SET THE DB2_DATA_PTR*/
+ /*      2) SET DB2_CALL_PROG TO ITS NAME IN CASE OF ERROR           */
+ /*      3) SET DB2_MIRR FLAG IF UPDATE TO BE MIRRORED               */
+ /*      4) SET THE DB2_READ_TYPE FOR THE TABLE TO BE READ           */
+ /*         A) PAORDADD - ADDS ROW TO PART ORDER HISTORY TABLE       */
+ /*         B) PALINADD - ADDS ROW TO PART ORDER LINE ITEM HISTORY   */
+ /*         C) RTERRADD - ADDS ROW TO ROUTING ERROR TABLE            */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  02/01/97 9600744  7NSG TSS Scheduler (new)         K. Mesmer    */
+ /********************************************************************/
+         2 DB2_DATA_PTR   PTR,         /* POINTER TO DATA  AREA      */
+                                       /* THIS MUST BE ALLOCATED BY  */
+                                       /* THE CALLING PROGRAM        */
+         2 DB2_RETURN_CODE  FIXED BIN(15),/* RETURN CODE             */
+                                       /* FOR ALL READ_TYPES         */
+                                       /*  RC=0  GOOD RETURN         */
+                                       /*  RC=4 RECORD NOT FOUND     */
+                                       /*  RC=8 DUPLICAT RECORD INSRT*/
+                                       /*  RC=12 ERROR - I/O OR PLI  */
+         2 DB2_READ_TYPE    CHAR(8),   /* TYPE OF READ/UPDATE REQUEST*/
+         2 DB2_CALL_PROG    CHAR(8),   /* CALLING MODULE NAME        */
+                                       /* FOR ERROR REPORTING        */
+         2 DB2_FLAGS,
+           4 DB2_MIRR          BIT(1), /* MIRROR THIS UPDATE         */
+           4 DB2_INSRT         BIT(1), /* Display -803 messages      */
+           4 DB2_REST          BIT(6),
+         2 DB2_PAD1          CHAR(1);  /* PAD FOR ALIGNMENT          */
+
+ /*------------------------------------------------------------------*/
+ /*                                  END  CADDB2T                    */
+

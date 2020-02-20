@@ -1,0 +1,67 @@
+        /* THIS IS A MAPPING OF THE RECORD FORMAT OF DATA ON THE ASYNC
+           SCHEDULING QUEUE.  */
+ DCL
+   1 FILEPARM BDY(DWORD) BASED, /* INPUT PARMS AND WORK AREA */
+    2 FILESTEM,
+     3 FILEDATE CHAR(8) BDY(DWORD),   /* INPUT GREG.  DATE OR REL DAYS*/
+       4 FILEYY CHAR(4) BDY(DWORD),    /* YEAR OF REQUEST TO BE DISP. */
+       4 FILEMMDD CHAR(4),             /* MMDD OF REQUEST TO BE DISP. */
+     3 FILETIME CHAR(4),               /* TIME REQUEST SHOULD BE DISP.
+                                          TIME IS IN EBCIDIC          */
+       4 FILEHH CHAR(2),               /* FIRST TWO BYTES ARE HOUR WITH
+                                          24 EQUAL TO MIDNIGHT AND 00
+                                          EQUAL TO THE FIRST HOUR AFTER
+                                          MIDNIGHT.  IF 24 IS SPECIFIED
+                                          THEN FILEMM MUST BE 00 */
+       4 FILEMM CHAR(2),               /* MINUTES TO BE DISPATCHED */
+     2 FILESEQ FIXED(8),               /* GENERATED SEQUENCE NUMBER
+                                          PROVIDING THIS REQUEST A
+                                          UNIQUE KEY.  THIS IS ZERO WHEN
+                                          REQUESTING AN ADD TO THE Q.
+                                          UPON RETURN FROM THE ADD THIS
+                                          FIELD WILL BE SET TO THE
+                                          ASSIGNED VALUE FOR THE REQUEST
+                                          FOR A CANCEL REQUEST THE USER
+                                          MUST SUPPLY THE VALUE RETURNED
+                                          BY THE ADD REQUEST.  */
+     2 FILEFLG1 BIT(8),                /* FLAG BYTE FROM PARAMETERS */
+       3 *        BIT(5),              /* FIRST 5 BYTES UNREFERENCED */
+       3 FILERSTD BIT(1),              /* IF A 0 THE
+                                          TASK MAY BE RESTARTED IF
+                                          SYSTEM GOES DOWN AFTER BEING
+                                          STARTED.  THIS DOES NOT
+                                          INCLUDE ABENDS THAT OCCUR
+                                          WITHIN THE DISPATCHED
+                                          FUNCTION */
+       3 FILEPURG BIT(1),              /* IF A 1 THIS REQUEST WILL BE
+                                          PURGED IF THE TIME EXPIRES
+                                          DURING A SYSTEM DOWN
+                                          INCIDENT */
+       3 FILEIMMD BIT(1),              /* THIS IS AN IMMEDIATE REQUEST*/
+     2 FILEFLG2 BIT(8),                /* DISPATCH FLAG BYTE  */
+       3 FILEDISP BIT(1),              /* THIS ENTRY HAS BEEN DISPATCH*/
+       3 FILECANC BIT(1),              /* THIS ENTRY HAS BEEN CANCELED*/
+       3 FILEDSP2 BIT(1),              /* THIS IS SECOND DISPATCH FOR */
+                                       /* THIS ELEMENT. FILERSTD IS   */
+                                       /* OFF AND THE SYSTEM WENT DOWN*/
+                                       /* DURING FIRST DISPATCH. NOTE */
+                                       /* IF THE SYSTEM GOES DOWN     */
+                                       /* DURING THE SECOND DISPATCH  */
+                                       /* THE ENTRY WILL BE DELETED   */
+                                       /* AND JOURNALED TO THE CICS   */
+                                       /* SYSTEM JOURNAL.             */
+       3 FILEPRGE BIT(1),              /* ENTRY HAS BEEN PURGED ACROSS*/
+                                       /* A SYSTEM DOWN. EITHER       */
+                                       /* FILEPURG OR FILEDSP2 ARE ON.*/
+       3 FILEABND BIT(1),              /* ROUTINE TERMINATED WITH AN  */
+                                       /* ABEND.                      */
+       3 FILEBPGM BIT(1),              /* LINK TO PGMID IN FILELPGM
+                                          FAILED */
+       3 * BIT(2),                     /* UNUSED */
+     2 FILEUNUS CHAR(1),               /* UNUSED, NEEDED FOR ALIGNMENT*/
+     2 FILELPGM CHAR(8),               /* NAME OF PROGRAM TO LINK TO  */
+     2 FILEFPGM CHAR(8),               /* NAME OF REQUESTING PROGRAM  */
+     2 FILEUSER CHAR(6),               /* USERID CAUSING THE SCHEDULE */
+     2 FILEDATA CHAR(66);              /* PARMS FOR ASYNC PGM         */
+ @EJECT;
+

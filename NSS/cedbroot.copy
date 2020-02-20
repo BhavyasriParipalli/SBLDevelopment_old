@@ -1,0 +1,90 @@
+ /*********************************************************************/
+ /* NAME: CEDBROOT                                                    */
+ /*                                                                   */
+ /* FUNCTION: ROOT TABLE DECLARES                                     */
+ /*                                                                   */
+ /*                                                                   */
+ /* CHRONOLOGICAL UPDATE LOG:                                         */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:   */
+ /*  -------- -------- ---- --------------------------- ------------  */
+ /*  01/15/98 9700117  8NSC Release 3.0 Support         EVAP          */
+ /*********************************************************************/
+ /*********************************************************************/
+ /* DCLGEN TABLE(COMMON.NSVCEDB_ROOT)                                 */
+ /*        LIBRARY(NSS.DBA.D8NSC.DDLLIB(DCLROOT))                     */
+ /*        ACTION(REPLACE)                                            */
+ /*        LANGUAGE(PLI)                                              */
+ /*        APOST                                                      */
+ /*        LABEL(YES)                                                 */
+ /* ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS      */
+ /*********************************************************************/
+ EXEC SQL DECLARE NSVCEDB_ROOT TABLE
+           ( GENKEY                         INTEGER NOT NULL,
+             IKMTYP                         CHAR(4) NOT NULL,
+             IKMSERL                        CHAR(7) NOT NULL,
+             ICORIGIN                       CHAR(2) NOT NULL,
+             ICMOD                          CHAR(3) NOT NULL,
+             CBLTTMOD                       CHAR(3) NOT NULL,
+             CQCUOHVP                       DECIMAL(5,0) NOT NULL,
+             CCPUTYPE                       CHAR(4) NOT NULL,
+             CICUSANO                       CHAR(3) NOT NULL,
+             CCEFLAG                        CHAR(1) NOT NULL,
+             CMKINSDAT                      DATE,
+             CMKSCREMD                      DATE,
+             CMKTG                          CHAR(1) NOT NULL,
+             CMKBIN                         CHAR(3) NOT NULL,
+             CMKBINX                        CHAR(4) NOT NULL,
+             CORDREF                        CHAR(6) NOT NULL,
+             CTPAGR                         CHAR(1) NOT NULL,
+             CDPSYSNO                       CHAR(7) NOT NULL,
+             WARR_END_DATE                  DATE,
+             CDPIS                          CHAR(1) NOT NULL,
+             CFDTEUEX                       CHAR(1) NOT NULL,
+             CUDTEUEX                       DATE,
+             CFDTECUF                       CHAR(1) NOT NULL,
+             CUDTECUF                       CHAR(10) NOT NULL,
+             CWARSVCTP                      CHAR(3) NOT NULL,
+             CDEALER                        CHAR(8) NOT NULL,
+             FHISLIND                       CHAR(1) NOT NULL,
+             FFUSLIND                       CHAR(1) NOT NULL,
+             FSLCHIND                       CHAR(1) NOT NULL,
+             COUNTRY_CODE                   CHAR(3) NOT NULL
+           ) ;
+ /*********************************************************************/
+ /* PLI DECLARATION FOR TABLE COMMON.NSVCEDB_ROOT                     */
+ /*********************************************************************/
+ DCL 1 DCLNSVCEDB_ROOT,
+      5 GENKEY   BIN FIXED(31),  /* PRIMARY KEY                       */
+      5 IKMTYP   CHAR(4),        /* MACHINE TYPE                      */
+      5 IKMSERL  CHAR(7),        /* MACHINE SERIAL                    */
+      5 ICORIGIN CHAR(2),        /* MACHINE MANUFACTURER CODE         */
+      5 ICMOD    CHAR(3),        /* MACHINE MODEL                     */
+      5 CBLTTMOD CHAR(3),        /* MACHINE MODEL AFTER MODEL UPGRADE */
+      5 CQCUOHVP DEC FIXED(5,0), /* HVP QUANTITY                      */
+      5 CCPUTYPE CHAR(4),        /* CPU MACHINE TYPE                  */
+      5 CICUSANO CHAR(3),        /* CUSTOMER ADDRESS NUMBER           */
+      5 CCEFLAG  CHAR(1),        /* CE ENTERED INVENTORY FLAG         */
+      5 CMKINSDAT  CHAR(10),     /* MARKETING INSTALLATION DATE       */
+      5 CMKSCREMD  CHAR(10),     /* MKTG SCHEDULED REMOVAL DATE       */
+      5 CMKTG    CHAR(1),        /* MKTG RESPONSIBILITY CODE          */
+      5 CMKBIN   CHAR(3),        /* MKTG BO INST & SUPP               */
+      5 CMKBINX  CHAR(4),        /* MKTG BO INST & SUPP PREFIX        */
+      5 CORDREF  CHAR(6),        /* MKTG BO INST & SUPP SUFFIX        */
+      5 CTPAGR   CHAR(1),        /* ORDER REFERENCE NUMBER            */
+      5 CDPSYSNO CHAR(7),        /* TYPE OF AGREEMENT                 */
+      5 WARR_END_DATE  CHAR(10), /* DB SYSTEM NUMBER                  */
+      5 CDPIS    CHAR(1),        /* WARRANTY EXPIRY DATE              */
+      5 CFDTEUEX CHAR(1),        /* MARKETING INVENTORY STATUS        */
+      5 CUDTEUEX CHAR(10),       /* USER EXIT DATA CHANGE FLAG        */
+      5 CFDTECUF CHAR(1),        /* USER EXIT DATA                    */
+      5 CUDTECUF CHAR(10),       /* COUNTRY USE FIELD CHANGE FLAG     */
+      5 CWARSVCTP  CHAR(3),      /* SERVICE TYPE FOR WARRANTY         */
+      5 CDEALER  CHAR(8),        /* IBM CUSTOMER NUMBER OF DEALER     */
+      5 FHISLIND CHAR(1),        /* HISTORY SLOT INDICATOR            */
+      5 FFUSLIND CHAR(1),        /* FUTURE SLOT INDICATOR             */
+      5 FSLCHIND CHAR(1),        /* SLOT CHANGE INDICATOR             */
+      5 COUNTRY_CODE CHAR(3);    /* INVENTORY COUNTRY CODE            */
+ /*********************************************************************/
+ /* THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 29         */
+ /*********************************************************************/
+

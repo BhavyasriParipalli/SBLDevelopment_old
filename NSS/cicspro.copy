@@ -1,0 +1,64 @@
+ /* ----------------------------------------------------------------
+    An example of a proper invocation of this macro is below.
+    If the BASEREG option is not specified, the base register will
+    default to register 3.  The NAME option is required.  The DATAREG
+    option will normally not be specified.  Note that the parameters
+    are NOT positional.                                  -mjb
+
+    ?CICSPRO NAME(CADRF) BASEREG(3,2,10) DATAREG(13,...) XA DLI;
+
+    ----------------------------------------------------------------*/
+
+ %CICSPRO: MACRO KEYS(NAME,BASEREG,DATAREG,EIBREG,DLI,XA);
+
+ DCL (PROGRAM,OPTIONS,DREGOPT,EREGOPT) CHAR;
+
+ OPTIONS = 'CICS,NOEPILOG';        /* Standard translator options    */
+ IF DLI ^= '' THEN                 /* DLI option requested?          */
+   OPTIONS = 'DLI,'||OPTIONS;
+
+ PROGRAM = NAME(1);
+ IF LENGTH(PROGRAM) < 8 THEN
+   PROGRAM = PROGRAM||REPEAT(' ',7-LENGTH(PROGRAM));
+
+ ANS('GENERATE;') COL(2);
+ ANS('*ASM     XOPTS('||OPTIONS||')') COL(MACGLMAR);
+
+
+ DREGOPT = '';
+ IF DATAREG ^= '' THEN
+   DREGOPT = ',DATAREG='||DATAREG;
+
+ EREGOPT = '';
+ IF EIBREG ^= '' THEN
+   DO;
+     EREGOPT = ',EIBREG=';
+     IF LENGTH(EIBREG)=3 THEN
+       EREGOPT = EREGOPT||EIBREG(2:2);
+     ELSE
+       EREGOPT = EREGOPT||EIBREG(2:3);
+   END;
+
+ IF BASEREG ^= '' THEN
+   ANS(PROGRAM||' DFHEIENT CODEREG='||BASEREG||DREGOPT||EREGOPT)
+   COL(MACGLMAR);
+
+ IF BASEREG = ''  THEN
+   ANS(PROGRAM||' DFHEIENT CODEREG=(3)'||DREGOPT||EREGOPT)
+   COL(MACGLMAR);
+
+
+ ANS('         B     AROUNDID') COL(1);
+ ANS('         DC    C'''||PROGRAM||' &SYSDATE &SYSTIME''') COL(1);
+ ANS('AROUNDID DS    0H') COL(1);
+
+ IF XA ^= '' THEN                  /* XA option requested?           */
+   DO;
+     ANS(PROGRAM||' AMODE 31')  COL(1);
+     ANS(PROGRAM||' RMODE ANY') COL(1);
+   END;
+
+ ANS('@ENDGEN;') COL(2);
+
+ %END CICSPRO;
+

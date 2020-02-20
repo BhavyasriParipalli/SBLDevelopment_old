@@ -1,0 +1,273 @@
+ % RAMDLI: MACRO KEYS(OP,IOAREA,SSA,LOG,HUB,NHUB,SYNC);
+
+ DCL (DLISAC,DLITOP,DLIBL1,DLIBLK) CHAR;
+ DCL (DLIWKA,DLIWKB,DLIWKC) CHAR;
+ DCL (DLIOPL,DLINDX,DLIL1) FIXED;
+
+ DLIBLK='    ';
+ DLIL1=0;
+ ANS('/* (RAMDLI) Data Base Macro Version 5.0, */') SKIP;
+ IF OP(1)='' THEN
+   ANS('/* Input Parms=  Schedule the PSB */') SKIP;
+ ELSE
+   ANS('/* Input Parms= '||MACKEYS||'     */') SKIP;
+ ANS('RFY (DLIR1,DLIR14) RSTD;') SKIP NORESCAN;
+
+ IF MACLABEL^='' THEN
+   ANS(MACLABEL) SKIP;
+ ELSE;
+
+ ANS('DO;') SKIP NORESCAN;
+ ANS('@LIST OFF;') SKIP NORESCAN;
+ ANS('DLIR14=ADDR(DFHEISA)+8;') SKIP NORESCAN;
+ ANS('DLIPRMS=DLIR13;         /* Set Reg 13 Ptr Area      */')
+      SKIP NORESCAN;
+ ANS('DLIR14=ADDR(DFHEIPL)+4; /* Point to DL/I Parmlist+4 */')
+      SKIP NORESCAN;
+ ANS('DLIR1=DLIR14;           /* Point to start of list   */')
+      SKIP NORESCAN;
+
+ IF OP(1)='''TERM''' THEN
+   DO;
+    ANS('DFHEIPL(1:4)=''TERM'';    /* Indicate TERM           */') SKIP;
+    ANS('DLIPRMS=ADDR(DFHEIPL);  /* Point to  TERM          */')   SKIP;
+    ANS('DLIPEND=DLIPEND|''80''X;  /* Set End of list bit     */') SKIP;
+    ANS('RFY DLIR14 UNRSTD;');
+    ANS('@LIST ON;') SKIP NORESCAN;
+    ANS('CALL ASMTDLI;           /* Link to DL/I code       */')   SKIP;
+   END;
+ ELSE  /* Not terminating */
+   IF OP(1)='' THEN          /* It must be a schedule */
+     DO;
+       ANS('DFHEIPL(1:4)=''PCB '';') SKIP;
+       ANS('DLIPRMS=ADDR(DFHEIPL);') SKIP;
+       ANS('DLIR14=DLIR14+4;        /* Point to next parm word */')
+            SKIP;
+       ANS('DLIPRMS=ADDR(PROPSBN);  /* Set PSB Name ptr        */')
+            SKIP;
+       ANS('DLIR14=DLIR14+4;        /* Point to next parm word */')
+            SKIP;
+       ANS('DLIPRMS=ADDR(PROUIBP);  /* Set UIB addr ptr        */')
+            SKIP;
+       ANS('DLIPEND=DLIPEND|''80''X;  /* Set End of list bit     */')
+            SKIP;
+       ANS('RFY DLIR14 UNRSTD;')
+            SKIP;
+       ANS('@LIST ON;') SKIP NORESCAN;
+       ANS('CALL ASMTDLI;           /* Link to DL/I code       */')
+            SKIP;
+     END;
+   ELSE  /* Not schedule.  Decide if we should journal records? */
+     DO;
+       IF OP(1,1:1)='''' THEN
+         DO;
+           DLITOP='    ';
+           DLIOPL=LENGTH(OP(1))-1;
+           DLITOP=OP(1,2:DLIOPL);
+           DLIL1=DLIOPL-1;
+           DLIL1=4-DLIL1;
+           IF DLIL1^=0 THEN
+             DLIBL1=DLIBLK(1:DLIL1);
+           ELSE;
+
+           ANS('DFHEIPL(1:4)='''||DLITOP||DLIBL1
+                ||''';    /* DL/I OP                 */')
+                SKIP NORESCAN;
+           ANS('DLIPRMS=ADDR(DFHEIPL);  /* Point to DL/I OP        */')
+                SKIP NORESCAN;
+         END;
+       ELSE
+         DO;
+           DLIOPL=LENGTH(OP(1));
+           IF OP(1,DLIOPL:DLIOPL)=')' THEN
+             DO;
+               DO DLIL1=1 TO DLIOPL WHILE(OP(1,DLIL1:DLIL1)^='(');
+               END;
+               DLIWKA=OP(1,1:DLIL1-1);
+               DLIWKB=OP(1,DLIL1+1:DLIOPL-1);
+               IF DLIWKA='0' THEN
+                   ANS('DLIPRMS='||DLIWKB
+                        ||';   /* DL/I OP                */')
+                        SKIP NORESCAN;
+               ELSE
+                   ANS('DLIPRMS=ADDR('||DLIWKA
+                        ||');  /* Point to OP           */')
+                        SKIP NORESCAN;
+             END;
+           ELSE
+             ANS('DLIPRMS=ADDR('||OP(1)
+                  ||');  /* Point to OP           */')
+                  SKIP NORESCAN;
+         END;
+       ANS('DLIR14=DLIR14+4;        /* Point to next Parm word */')
+           SKIP;
+       ANS('DLIPRMS=PROPCBP;        /* Set PCB ptr             */')
+           SKIP;
+       ANS('DLIPEND=DLIPEND&''7F''X;  /* Set High order bit=0    */')
+           SKIP;
+       IF IOAREA^='' THEN
+         DO;
+           ANS('DLIR14=DLIR14+4;        /* Point to next parm      */')
+                SKIP;
+           DLIOPL=LENGTH(IOAREA(1));
+           IF IOAREA(1,DLIOPL:DLIOPL)=')' THEN
+             DO;
+               DO DLIL1=1 TO DLIOPL WHILE(IOAREA(1,DLIL1:DLIL1)^='(');
+               END;
+               DLIWKA=IOAREA(1,1:DLIL1-1);
+               DLIWKB=IOAREA(1,DLIL1+1:DLIOPL-1);
+               IF DLIWKA='0' THEN
+                   ANS('DLIPRMS='||DLIWKB
+                        ||';  /* Set I/O Area ptr     */')
+                        SKIP NORESCAN;
+               ELSE
+                   ANS('DLIPRMS=ADDR('||DLIWKA
+                        ||');  /* I/O area ptr        */')
+                        SKIP NORESCAN;
+             END;
+           ELSE
+             ANS('DLIPRMS=ADDR('||IOAREA(1)
+                  ||');  /* I/O area ptr        */')
+                  SKIP NORESCAN;
+         END;
+       ELSE;
+       IF SSA(1)^='' THEN
+         DO;
+           DO DLINDX = 1 TO NUMBER(SSA) WHILE(DLINDX^>15);
+            ANS('DLIR14=DLIR14+4;        /* Point to next Parm      */')
+                  SKIP;
+             DLISAC=SSA(DLINDX);
+             DLIOPL=LENGTH(SSA(DLINDX));
+             IF SSA(DLINDX,DLIOPL:DLIOPL)=')' THEN
+              DO;
+               DO DLIL1=1 TO DLIOPL WHILE(SSA(DLINDX,DLIL1:DLIL1)^='(');
+               END;
+               DLIWKA=SSA(DLINDX,1:DLIL1-1);
+               DLIWKB=SSA(DLINDX,DLIL1+1:DLIOPL-1);
+               IF DLIWKA='0' THEN
+                   ANS('DLIPRMS='||DLIWKB
+                        ||';  /* Set SSA ptr         */')
+                        SKIP NORESCAN;
+               ELSE
+                   ANS('DLIPRMS=ADDR('||DLIWKA
+                        ||');  /* Set SSA ptr         */')
+                        SKIP NORESCAN;
+              END;
+             ELSE
+               ANS('DLIPRMS=ADDR('||DLISAC
+                    ||');  /* Set SSA Ptr         */')
+                    SKIP;
+           END;
+         END;
+       ELSE;
+       IF NHUB(1)='' | NHUB(1)='''N''' THEN
+         DO;
+           DLIWKC='N';
+         END;
+       ELSE
+         DO;
+           IF NHUB(1)='''Y''' THEN
+             DO;
+               DLIWKC='Y';
+             END;
+         END;
+       IF HUB(1)='' | HUB(1)='''Y''' | DLIWKC='Y' THEN
+         DO;
+           IF OP(1,1:2)^='''G' THEN
+             DO;
+               ANS('DLIPEND=DLIPEND|''80''X; /* Set End of list bit*/')
+                    SKIP;
+               ANS('DLIR14=DLIR14+4;   /* Point to next parm word  */')
+                    SKIP;
+               ANS('DLIPRMS=PROUIBP;   /* Set UIB address          */')
+                    SKIP;
+               ANS('DLIR14=DLIR14+4;   /* Point to next parm word  */')
+                    SKIP;
+               ANS('DLIPRMS=ADDR(PROPSBN); /*Set PSB name ptr      */')
+                    SKIP;
+               ANS('DLIPEND=DLIPEND|''80''X; /* Set End of list bit*/')
+                    SKIP;
+               IF SYNC(1)='''Y''' THEN
+                DO;
+                 ANS('DLIR14=DLIR14+4; /* Point to next parm word  */')
+                    SKIP;
+                 ANS('DLIPRMS=''SYNC'';/* IMMD/SYNC mirror  SR1022 */')
+                    SKIP;
+                END;
+               ANS('RFY DLIR14 UNRSTD;')
+                    SKIP;
+               ANS('@LIST ON;') SKIP NORESCAN;
+               ANS('CALL ASMTDLI;           /* Link to DL/I Code   */')
+                    SKIP;
+               ANS('CALL RAMDL1BK;     /* Link to DL/I backup code */')
+                    SKIP;
+             END;
+           ELSE
+             DO;
+               ANS('DLIPEND=DLIPEND|''80''X; /* Set End of list bit*/')
+                    SKIP;
+               ANS('RFY DLIR14 UNRSTD;')
+                    SKIP;
+               ANS('@LIST ON;') SKIP NORESCAN;
+               ANS('CALL ASMTDLI;           /* Link to DL/I Code   */')
+                    SKIP;
+             END;
+         END;
+       ELSE
+         IF HUB(1)='''N''' THEN
+           DO;
+             ANS('DLIPEND=DLIPEND|''80''X; /* Set End of list bit*/')
+                  SKIP;
+             ANS('RFY DLIR14 UNRSTD;')
+                  SKIP;
+             ANS('@LIST ON;') SKIP NORESCAN;
+             ANS('CALL ASMTDLI;           /* Link to DL/I code   */')
+                  SKIP;
+           END;
+         ELSE
+           DO;
+             IF OP(1,1:2)^='''G' THEN
+               DO;
+                 ANS('DLIPEND=DLIPEND|''80''X;/* End of list bit */')
+                      SKIP;
+                 ANS('DLIR14=DLIR14+4; /* Point to next parm word  */')
+                      SKIP;
+                 ANS('DLIPRMS=PROUIBP; /* Set UIB address          */')
+                      SKIP;
+                 ANS('DLIR14=DLIR14+4; /* Point to next parm word  */')
+                      SKIP;
+                 ANS('DLIPRMS=ADDR(PROPSBN); /* Set PSB name ptr   */')
+                      SKIP;
+                 ANS('DLIPEND=DLIPEND|''80''X;/* End of list bit */')
+                      SKIP;
+                 IF SYNC(1)='''Y''' THEN
+                  DO;
+                   ANS('DLIR14=DLIR14+4; /* Point to next parm word*/')
+                      SKIP;
+                   ANS('DLIPRMS=''SYNC'';/* IMMD/SYNC mirror SR1022*/')
+                      SKIP;
+                  END;
+                 ANS('RFY DLIR14 UNRSTD;')
+                      SKIP;
+                 ANS('@LIST ON;') SKIP NORESCAN;
+                 ANS('CALL ASMTDLI;           /* Link to DL/I code */')
+                      SKIP;
+                 ANS('CALL RAMDL1BK;   /* Link to DL/I backup code */')
+                      SKIP;
+               END;
+             ELSE
+               DO;
+                 ANS('DLIPEND=DLIPEND|''80''X;/* Set End of list bit*/')
+                      SKIP;
+                 ANS('RFY DLIR14 UNRSTD;')
+                      SKIP;
+                 ANS('@LIST ON;') SKIP NORESCAN;
+                 ANS('CALL ASMTDLI;           /* Link to DL/I code */')
+                      SKIP;
+               END;
+           END;
+     END;
+ ANS('RFY DLIR1 UNRSTD;') SKIP;
+ ANS('END;') SKIP;
+ % END RAMDLI;
+

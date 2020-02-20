@@ -1,0 +1,29 @@
+ /*-------------------------------------------------------------------*\
+ |                                                                     |
+ |                                                                     |
+ | Name        - NSSAOR   COPY                                         |
+ |                                                                     |
+ | Title       - Information passed to the AOR from the COR            |
+ |               (Beginning part of the old DBSTWA)                    |
+ |                                                                     |
+ | Description -                                                       |
+ |                                                                     |
+ | Parameters  -                                                       |
+ |                                                                     |
+ | Language    - PLX                                                   |
+ |                                                                     |
+ | Notes       -                                                       |
+ |                                                                     |
+ |                                                                     |
+ | Change Activity                                                     |
+ |    SR     DRVR  Date    Description                      Programmer |
+ | --------  ---- -------- -------------------------------- ---------- |
+ | S9600755  7NSI 05/05/97 Parallel NSS Phase 1             Gyula      |
+ |                                                                     |
+ \*-------------------------------------------------------------------*/
+ %ACT TWASET;
+ %ACT TWAPTR;
+ %TWASET = 'AOR';
+ %TWAPTR = 'DFHEICAP';
+ %INCLUDE SYSLIB(DBSTWA);
+

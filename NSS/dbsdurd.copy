@@ -1,0 +1,119 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* COPYRIGHT IBM CORP                                              */
+ /*    CREATED - 12/29/82                                           */
+ /*                    LIST OF CHANGES -                            */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /* DESCRIPTION -                                                   */
+ /*                                                                 */
+ /*   THE DURD IS A DCS USER RECORD. THE DURD QUALIFIER IS          */
+ /*   REPLACED WITH THE PROPER QUALIFIER UPON INCLUSION IN A        */
+ /*   MODULE.                                                       */
+ /*                                                                 */
+ /*   THE DURD IS A MINI-PROFILE, AND ALLOWS BASE SERVICES ACCESS   */
+ /*   TO ANYTHING THAT IS NEEDED TO COMMUNICATE WITH A PT.          */
+ /*                                                                 */
+ /* ADDRESSABILITY - INCLUDED BY DBSPROF, DBSAPMSG, DBSTWA          */
+ /*                                                                 */
+ /* I143193  2NSJ 09/30/92 DCS PERFORMANCE IMPROVEMENT      NRCEL   */
+ /*                                                                 */
+ /* S9400052 4NSM 06/10/94 Expand PT ID from 2 to 4 Bytes   MELODY  */
+ /*                                                                 */
+ /* S9500126 6NSA 10/12/95 MULTI PET  (MPET)                GYULA   */
+ /*                                                                 */
+ /* S9600211 6NSF  5/02/96 Pager                            GYULA   */
+ /*                                                                 */
+ /* S9600624 6NSN 10/08/96 KDT-800 Duplicate Message Removal Gyula  */
+ /*                                                                 */
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1    Gyula   PS*/
+ /*                                                                 */
+ /* SR9700252 8NSG 01/29/98 Parts Pre-Load                Gyula  PPL*/
+ /*                                                                 */
+ /*           8NSN 04/23/99 Remove TELCO                  Gyula     */
+ /*                                                                 */
+ /* SR00090   1NSI 04/24/01 Activity Comments             Gyula  118*/
+ /*                                                                 */
+ /* SR020036  2NSO 09/06/02 MIG 2nd phase                 Gyula     */
+ /*                                                                 */
+ /* SR01064   3NSG 01/24/03 CICS Upgrade                   Gyula  up*/
+ /*                                                                 */
+ /*******************************************************************/
+        4 DURD%%DPRF,                   /* HIGH LEVEL FOR DPROF     */
+          5 DURD%%NDX PTR (31),         /* POINTER TO INDEX ENTRY   */
+          5 DURD%%QTIM CHAR(3),         /* TIME MSG IN THE POINTER  */
+          5 DURD%%LINF CHAR(1),         /* INBOUND LONG MSG COUNT   */
+          5 DURD%%UID CHAR (6),         /* USER ID                  */
+          5 DURD%%BOTR CHAR (6),        /* BO/TERR                  */
+             6 DURD%%BO   CHAR (3),     /* BO                       */
+             6 DURD%%TR   CHAR (3),     /* TERR                     */
+          5 DURD%%PT CHAR (4),          /* PT address 4 byte        */
+          5 DURD%%QSAR CHAR(2),         /* QSAR Version          118*/
+          5 DURD%%DISP BIN(8),          /* WHAT DISPATCHER (1-256)  */
+          5 DURD%%OMC BIN (8),          /* OUTBOUND MSG SEQUENCE #  */
+          5 DURD%%FLGS CHAR (1),        /* FLAGS                    */
+             6 DURD%%TMOF BIT(1),       /* 1=OUTSIDE,0=MAY BE IN    */
+             6 DURD%%SON BIT(1),        /* USER SIGNED ON 1=ON      */
+             6 DURD%%NNAK BIT(1),       /* LAST MESSAGE WAS NAKKED  */
+                                        /* NON DELIVERED, HOST MUST */
+                                        /* RESET SEQ # NEXT OUTBND  */
+             6 DURD%%TSSCE BIT(1),      /* Is this a TSS ce? rjb    */
+             6 DURD%%PAGER BIT(1),      /* 1=CE has Pager    9600211*/
+             6 DURD%%WNW  BIT(1),       /* 1=WORKING,0=NOT WORKING  */
+             6 DURD%%LOST BIT(1),       /* LOST/STOLEN PT           */
+             6 DURD%%MIG  BIT(1),       /* on MIG                MIG*/
+          5 DURD%%PML BIT (8),          /* PENDING MESSAGE LIST  118*/
+                                        /* MASKED IN DBSDCST        */
+          5 DURD%%OSVER CHAR(3),     /* Operating System Version 118*/
+          5 DURD%%LOGON BIT(8),         /* logon flags            up*/
+            6 * BIT(7),                 /* PML like portion       up*/
+            6 DURD%%LOGONCOMQ BIT(1),   /* run logon comq         up*/                         
+          5 DURD%%CODE CHAR (4),        /* ENCRYPTION KEY           */
+          5 DURD%%FORC CHAR (2),        /* FORCE OFF TIME MIN OF DAY*/
+          5 DURD%%STRT CHAR (2),        /* START TIME MINUTES OF DAY*/
+          5 DURD%%BEEP CHAR (2),        /* WHEN BEEP SEQUENCE BEGAN */
+          5 DURD%%STAT CHAR(8) BDY(WORD),   /* STATISTICS FOR USER  */
+            6 DURD%%SENT FIXED(16),     /* NUMBER OF MESSAGES SENT  */
+            6 DURD%%RCVD FIXED(16),     /* NUMBER OF MESSAGES RCVD  */
+            6 DURD%%NAK FIXED(16),      /* NUMBER OF NAKS RCVD      */
+            6 DURD%%BUF FIXED(16),      /* NUMBER OF BUFFER FULLS   */
+          5 DURD%%TMSL CHAR(3),         /* TIMESLICE START.         */
+                                        /* THIS FIELD ALSO INDICATES*/
+                                        /* THE TIME THE USER SIGNED */
+                                        /* ON TELCO, IF THIS IS A   */
+                                        /* TELCO USER.              */
+                                        /* TMSL AND LNSL ARE BOTH   */
+                                        /* IN SECONDS OF THE DAY    */
+          5 DURD%%LNSL CHAR(3),         /* TIME SLICE DURATION      */
+                                        /* TIME SLICE START IS IN   */
+                                        /* SECONDS OF THE DAY       */
+                                        /* RELATIVE TO MIDNIGHT.    */
+                                        /* DURATION IS ALSO IN      */
+                                        /* SECONDS.                 */
+          5 DURD%%RADVER1 CHAR(1),     /* Radio Code Version 1/2 118*/
+          5 DURD%%TCTR FIXED(8),        /* GCC TCT EB NUMBER        */
+          5 DURD%%PETLVL CHAR(2),       /* PET Version Level     118*/
+          5 DURD%%RADVER2  CHAR(1),    /* Radio Code Version 2/2 118*/
+          5 DURD%%CNT  FIXED(8),        /* USED BY SIGNON           */
+          5 DURD%%FLG2 CHAR (1),        /* FLAGS SECONDARY FIELD    */
+             6 DURD%%BGON BIT(1),       /* USER IN PROCESS LOG OFF  */
+             6 DURD%%SORF BIT(1),       /* USER IS SIGNED ON RF     */
+             6 DURD%%EXT  BIT(1),       /* USER IS IN EXT SIGN ON   */
+             6 DURD%%COMQ BIT(1),       /* USER HAS MSG IN COM QUEUE*/
+             6 DURD%%INLS BIT(1),       /* INBOUND LONG MESSAGE     */
+             6 DURD%%TYP  BIT(1),       /* 1 - USER WANTS CAD ADDR  */
+             6 DURD%%TIB  BIT(1),       /* 1 - USER WANTS TIB DATA  */
+             6 DURD%%SC5  BIT(1),       /* SC05 NEEDS TO SEND TIB   */
+          5 DURD%%FLG3 CHAR (1),        /* FLAGS SECONDARY FIELD    */
+             6 DURD%%CMT  BIT(1),       /* SC05 NEEDS TO SEND CMNTS */
+             6 DURD%%TRACE BIT(1),      /* TRACE BIT              PS*/
+             6 DURD%%TRPT  BIT(1),      /* TRACE by PTID          PS*/
+             6 DURD%%TRUS  BIT(1),      /* TRACE by USERID        PS*/
+             6 DURD%%TRB   BIT(1),      /* TRACE by Branch        PS*/
+             6 DURD%%TRBT  BIT(1),      /* TRACE by Branch/Terr   PS*/
+             6 *           BIT(2),      /* reserverd             118*/
+          5 DURD%%PETVR CHAR(1),        /* PET VERSION          MPET*/
+          5 DURD%%LAST_IN_REQ_TYPE CHAR(1),  /* Last inbound request
+                                       function, sub-fuction 9600624*/
+ @EJECT;

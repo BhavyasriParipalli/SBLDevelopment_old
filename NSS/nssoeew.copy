@@ -1,0 +1,51 @@
+ /*-------------------------------------------------------------------*\     
+ |                                                                     |     
+ |                                                                     |     
+ | Name        - NSSOEEW COPY                                          |
+ |                                                                     |
+ | Title       - Parameter list to NSSOEE for Warranty Liability       |
+ |                                                                     |
+ | Description -                                                       |
+ |                                                                     |
+ | Parameters  -                                                       |
+ |                                                                     |
+ | Language    - PLX                                                   |
+ |                                                                     |
+ | Notes       -                                                       |
+ |                                                                     |
+ |                                                                     |
+ | Change Activity                                                     |
+ |    SR     DRVR  Date    Description                      Programmer |
+ | --------  ---- -------- -------------------------------- ---------- |
+ | SR050022  5NSC 03/04/05 Lenevo                           Gyula      |
+ |                                                                     |
+ \*-------------------------------------------------------------------*/
+ %IF LANG = 'PLI' %THEN %GOTO OEEW_PLI_1;                            
+ DCL 1 NSSOEEW BDY(WORD) NSSOEEWS,  
+ %OEEW_PLI_1:;
+   /* Request parameters                                              */
+      2 OEE_REQUEST, 
+       3 OEE_RECD_ID     CHAR(4),   /* Record Identifier             */
+       3 OEE_RECD_LVL    CHAR(2),   /* Record Identifier Level       */
+       3 OEE_PRODUCT     CHAR(4),   /* Product Type                  */
+       3 OEE_SERIAL      CHAR(25),  /* Serial Number of Machine      */
+       3 OEE_COUNTRY_ISO CHAR(2),   /* ISO country code              */
+  /* response parameters                                             */
+      2 OEE_NSS_RC CHAR(2),              /* NSSOEE module return code */
+      2 OEE_RC     CHAR(1),             /* OEE return code           
+                                           '0' - results returned
+                                           '4' - input error
+                                           '6' - not on file
+                                           '8' - OEE processing error */ 
+      
+      
+      
+      2 OEE_RESPONSE,
+       3 OEE_MGD_ID    CHAR(5),      /* OEE assigned Manufacturer ID  */
+       3 OEE_WARR_LIAB    CHAR(1),    /* Warranty Liability
+                                        'L' - Lenovo
+                                        'I' - IBM                     */     
+       3 OEE_WARR_START_DATE CHAR(8),/* Warranty start date for the
+                                        machine. format - YYYYMMDD    */
+       3 OEE_WARR_END_DATE CHAR(8);  /* Warranty end date for the
+                                        machine. format - YYYYMMDD    */

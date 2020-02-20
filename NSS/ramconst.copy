@@ -1,0 +1,333 @@
+ /*******************************************************************/
+ /*  COPYRIGHT - IBM CORP                                           */
+ /*                                                                 */
+ /*  DATE CREATED - 10/20/80                                        */
+ /*  DATE CHANGED - 05/03/82                                        */
+ /*                                                                 */
+ /*             RAMS CONSTANTS AND MACRO VARIABLES                  */
+ /*                                                                 */
+ /*               CHANGES - 2/7/81 - DELETED CONSTANT SSUSP         */
+ /*                                  SUSPEND COMMANDS HAVE          */
+ /*                                  BEEN ELIMINATED.  DGS          */
+ /*               CHANGES - 2/10/81- ADDITIONAL BMS MAP DEFINITIONS */
+ /*                                  SEE STATEMENTS UNDER BMS MAP   */
+ /*                                  NOTES: 3279 ATTRIBUTE BYTE     */
+ /*                                  DEFINITIONS.         RBS       */
+ /*                                                                 */
+ /*                         3/31/81- ADDED INDEX DEFINITIONS FOR    */
+ /*                                        APPLFMT                  */
+ /*                                        APPLEMF                  */
+ /*                                        APPLOTA                  */
+ /*                                        APPLTAE                  */
+ /*                                        APPLUPR    DGS           */
+ /*                                                                 */
+ /*                         6/2/81 - ADDED DECLARES FOR RAMDLI      */
+ /*                                  MACRO.    DGS                  */
+ /*                                                                 */
+ /*                         6/24/81- ADDED DECLARE FOR ASMTDLI USED */
+ /*                                  BY RAMDLI MACRO     DGS        */
+ /*                                                                 */
+ /*                         7/28/81-ADDED BRACH ENTRY NAMES FOR     */
+ /*                                 REAL TIME BATCH SPOOL  DGS      */
+ /*                         7/30/81-REMOVED DECLARES ADDED ON 7/28  */
+ /*                                 AND PLACED IN CWA MAP.  DGS     */
+ /*                                                                 */
+ /*                         9/21/81-ADDED NATIONAL HUB CONSTANT     */
+ /*                                 DECLARATIONS        DGS         */
+ /*                                                                 */
+ /*                         2/10/82-ADDED PFS INDEX FOR APPLICATION.*/
+ /*                         5/03/82-ADDED QST AND DBM FOR APPLS.    */
+ /*                         5/20/83-ADDED DCS TO THE APPLICATION    */
+ /*                                 ARRAY.                       JJ */
+ /*                         6/3/83 -FIXED DCS DECLARE (DC) @RQSRDC1 */
+ /*                       10/22/83- ADDED QSAR COMMAND     @RQARDC1 */
+ /*                       05/14/85- REMOVED NATHUB SYSID NSS        */
+ /*                       08/28/86- ADDED IIPS COMMAND     @IIPSJB1 */
+ /*                       03/12/91- SPLIT ASYNC CONSTANTS  DVC      */
+ /*                       10/29/97- CAE                    R. SUN   */
+ /*                                                                 */
+ /*******************************************************************/
+ /*                                                                 */
+ /*  MACRO VARIABLES USED IN PLS MAPS AND WHERE THEY ARE            */
+ /*  REQUIRED.  VARIABLES OF THIS TYPE ARE-                         */
+ /*                                                                 */
+ /*             VARIABLE NAME     MAP WHERE USED                    */
+ /*            1. PROMAXMP         PROFILE   - DEFINES MAX NUM OF   */
+ /*                                            MAPS ALLOWED IN OUT  */
+ /*                                            BUFFER               */
+ /*            2. PRE              PROFILE AND CMDTBL               */
+ /*                                                                 */
+ /*                                                                 */
+ /*            3. CWAMAXAP         CWA       - MAX NUM OF APPLS     */
+ /*                                            THAT HAVE SPACE RESVD*/
+ /*            4. MSGMAXIX         N/A       - MAXIMUM NUMBER OF    */
+ /*                                            CANNED MESSAGES IN   */
+ /*                                            RAMTMSG MODULE.      */
+ /*                                            SEE MESSAGES SECTION */
+ /*                                            LATER IN THIS MEMBER.*/
+ /*                                                                 */
+ /*******************************************************************/
+ @EJECT;
+ /*******************************************************************/
+ /*                                                                 */
+ /*  MESSAGES -                                                     */
+ /*                                                                 */
+ /*                                                                 */
+ /*   THE FOLLOWING LIST IDENTIFIES THE CANNED MESSAGES PROVIDED    */
+ /*   BY THE SYSTEM TRAILER ROUTINE.  TO REQUEST SELECT A MESSAGE   */
+ /*   CODE A CANMSG MACRO AS -                                      */
+ /*                                                                 */
+ /*                 ?CANMSG (VERIFY) (WITH A SEMI COLON).           */
+ /*      SEE THE FOLLOWING LIST FOR VALID PARMS.                    */
+ /*                                                                 */
+ /*   IN THIS EXAMPLE THE VERIFY MESSAGE WILL BE PLACED IN THE      */
+ /*   RAMTLR PARAMETER LIST OF THE PROFILE DURING TRAILER EXECUTION */
+ /*                                                                 */
+ /*   THIS MACRO WILL SET THE PROTMSGLN AND PROTCMSG FIELDS OF THE  */
+ /*   PROFILE.  THE MACRO ASSUMES YOU HAVE ADDRESSABILITY TO THE    */
+ /*   PROFILE.                                                      */
+ /*                                                                 */
+ /*   NOTE- THIS MACRO MERELY SETS A MESSAGE INDEX IN THE PROTMSGLN */
+ /*         FIELD.  DURING EXECTION THE TRAILER ROUTINE WILL FIND   */
+ /*         THE ACTUAL MESSAGE AND PLACE THE MESSAGE IN THE         */
+ /*         TRAILER MAP.                                            */
+ /*                                                                 */
+ /*******************************************************************/
+ ?CANMSG (LIST);
+ @EJECT;
+ /*******************************************************************/
+ /*                                                                 */
+ /*   MACRO VARIABLES THE REQUESTOR MUST SET BEFORE INCLUDING       */
+ /*   SPECIFIC MACROS.                                              */
+ /*                                                                 */
+ /*    VARIABLE          INCLUDE        FUNCTION                    */
+ /*     PROPTR           PROFILE        BASED ATTRIBUTE FOR PROFILE */
+ /*     PROPTRB          PROFILE        BASED ATTRIBUTE FOR PROFILE */
+ /*                                     OUTPUT SCREEN BUFFER        */
+ /*     CWAPTR           CWA            BASED ATTRIBUTE FOR CWA     */
+ /*     BOPTR            BOTBL          BASED ATTRIBUTE FOR         */
+ /*                                     BRANCH OFFICE TABLE.        */
+ /*     CMDPTR           CMDTBL         BASE ATTRIBUTE FOR COMMAND  */
+ /*                                     TABLE                       */
+ /*     TWAPTR           TWA            BASE ATTRIBUTE FOR TWA      */
+ /*                                                                 */
+ /*     AABPTR           AAB            BASE TO APPLICATION ANCHOR  */
+ /*                                     BLOCK                       */
+ /*     TODPTR           TODPARM        RAMTOD PARAMETER LIST       */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*  ALL THE VARIABLES THAT ARE USED AS BASE ATTRIBUTES MUST BE SET */
+ /*  WITH THE PARENTHESIS AROUND THE VARIABLE NAME.                 */
+ /*                                                                 */
+ /*    E.G.     % PROPTR = '(R2)'    WITH A SEMICOLON               */
+ /*                                                                 */
+ /*******************************************************************/
+ /*                                                                 */
+ /*  MACRO VARIABLES ARE USED TO ASSIGN  EACH RAMS                  */
+ /*  APPLICATION WITH A UNIQUE INDEX.  THESE INDEXES ARE USED BY    */
+ /*  APPLICATION CODE WHEN THE REFERENCE RAMS AREAS THAT HAVE ARRAYS*/
+ /*  DEFINED AND EACH APPLICATION HAS ONE ELEMENT IN THE ARRAY.     */
+ /*                                                                 */
+ /*  AN EXAMPLE OF THIS USE IS IN THE CWA.  THERE IS AN APPLICATION */
+ /*  ARRAY THAT IS USED TO POINT TO THE UNIQUE APPLICATION ANCHOR   */
+ /*  BLOCK (CWALISTA).  EACH APPLICATION WILL REFERENCE THIS ARRAY  */
+ /*  USING THE INDEX ASSIGNED BY THE FOLLOWING CONSTANTS.           */
+ /*                                                                 */
+ /*  CURRENT INDEXES ASSIGNED ARE -                                 */
+ /*            APPLPM     -  PROFILE APPLICATION                    */
+ /*            APPLCAD    -  CAD APPLICATION                        */
+ /*            APPLEMF    -  EMPLOYEE MASTER FILE APPLICATION       */
+ /*            APPLOTA    -  OVERTIME                               */
+ /*            APPLTAE    -  TIME AND EXPENSE                       */
+ /*            APPLUPR    -  USED PARTS RETURN                      */
+ /*            APPLPFS    -  PROBLEM FORCASTING SYSTEM              */
+ /*            APPLDBM    -  AMS DATA BASE MANAGEMENT               */
+ /*            APPLQSR    -  QSTAR                         @RQSRDC1 */
+ /*            APPLQAR    -  QSAR                          @RQARDC1 */
+ /*            APPLIPS    -  IIPS                          @IIPSJB1 */
+ /*                                                                 */
+ /*******************************************************************/
+ % DCL APPLPM CHAR;
+ % DCL APPLCAD CHAR;
+ % DCL APPLEMF CHAR;
+ % DCL APPLOTA CHAR;
+ % DCL APPLTAE CHAR;
+ % DCL APPLUPR CHAR;
+ % DCL APPLDBM CHAR;
+ % DCL APPLPFS CHAR;
+ % DCL APPLQSR CHAR;                    /*                 @RQSRDC1 */
+ % DCL APPLDCS CHAR;
+ % DCL APPLQAR CHAR;                    /* QSAR            @RQARDC1 */
+ % DCL APPLPAR CHAR;                    /* PARTS                    */
+ % DCL APPLIPS CHAR;                    /* IIPS            @IIPSJB1 */
+ % APPLPM = '1';                        /* PROFILE APPLICATION      */
+ % APPLCAD ='2';                        /* CAD APPLICATION          */
+ % APPLEMF ='3';                        /* EMPLOYEE MASTER FILE     */
+ % APPLOTA ='4';                        /* OVERTIME ANALYSIS        */
+ % APPLTAE ='5';                        /* TIME AND EXPENSE         */
+ % APPLUPR ='6';                        /* USED PARTS RETURN        */
+ % APPLDBM ='7';                        /* DATA BASE MANAGEMENT     */
+ % APPLPFS ='8';                        /* PFS                      */
+ % APPLQSR ='9';                        /* QSTAR           @RQSRDC1 */
+ % APPLDCS ='10';                       /* DCS APPLICATION ... NEW
+                                           NAME            @RQSRDC1 */
+ % APPLQAR ='11';                       /* QSAR            @RQARDC1 */
+ % APPLPAR ='12';                       /* DCS/PARTS      D874      */
+ % APPLIPS ='13';                       /* IIPS            @IIPSJB1 */
+ % APPLCAE ='14';                       /* CAE            R. SUN    */
+ /*******************************************************************/
+ /*                                                                 */
+ /*  THE FOLLOWING CONSTANTS ARE GENERAL CONSTANTS.                 */
+ /*                                                                 */
+ /*******************************************************************/
+ /*******************************************************************/
+ /*                                                                 */
+ /*  THE FOLLOWING CONSTANTS ARE USED TO SET THE CLASSIFICATION IN  */
+ /*  OUTPUT SCREEN HEADER.  THESE VALUES ARE USED TO SET VARIABLE   */
+ /*  PROHDRC IN THE HEADER PARAMETER LIST CONTAINED WITHIN THE      */
+ /*  PROFILE.                                                       */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL IBMCONF CHAR(1) CONSTANT ('C'),    /* CODE IBM CONFIDENTIAL    */
+     IBMUNCL CHAR(1) CONSTANT ('U'),    /* UNCLASSIFIED             */
+     IBMINT  CHAR(1) CONSTANT ('I'),    /* INTERNAL USE ONLY        */
+     IBMREST CHAR(1) CONSTANT ('R');    /* CONFIDENTIAL RESTRICTED  */
+ /*******************************************************************/
+ /*******************************************************************/
+ /*                                                                 */
+ /*   THE FOLLOWINGH CONSTANT IDENTIFIES THE NATIONAL HUB SYSID     */
+ /*   REQUIRED TO COMMUNICATE WITH  THE NATIONAL HUB.               */
+ /*                                                                 */
+ /*                                                                 */
+ /*  DCL NATLHUB CHAR(4) CONSTANT('ER0 ')                           */
+ /*******************************************************************/
+ /*                                                                 */
+ /*  THE FOLLOWING CONSTANTS ARE USED TO SET INTERROGATE THE        */
+ /*  USERS AUTHORIZATION MASKS.  THESE MASKS ARE LOCATED IN THE     */
+ /*  PROFILE IN THREE AREAS - PROCCOD                               */
+ /*                           PROAUTH                               */
+ /*                           PROAAUTH                              */
+ /*  THEY ARE ALSO LOCATED IN THE COMMAND TABLE.  WHICH IS SET UP   */
+ /*  BY THE VARIOUS APPLICATION INITIALIZATION ROUTINES.            */
+ /*                                                                 */
+ /*  THE BIT BREAKDOWN FOR THESE FIELDS ARE-                        */
+ /*                                                                 */
+ /*        BIT AND MEANING             APPLICABLE CONSTANT(S)       */
+ /*    BIT 0 - USER AUTHORIZATION     - USERAUTH                    */
+ /*        1 - SYSTEM OR APPLICATION  - SYSCMD                      */
+ /*            TYPE COMMAND                                         */
+ /*                                                                 */
+ /*    BIT 2&3  WITH BIT 1 NOT        - ABRANCH                     */
+ /*             EQUAL TO SYSCMD         ACALL                       */
+ /*                                     ALINK                       */
+ /*                                     AXCTL                       */
+ /*                                                                 */
+ /*             WITH BIT 1 EQUAL      - SAPPLEX                     */
+ /*             TO SYSCMD               STERM                       */
+ /*                                     RAMAPPL                     */
+ /*                                                                 */
+ /*   BITS 4-7  ACCESS AUTHORITY      - ACONTROL                    */
+ /*             BY COMMAND              ADELADD                     */
+ /*                                     ACHANGE                     */
+ /*                                     AREAD                       */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL USERAUTH BIT(1) CONSTANT ('1'B),   /* TESTS USERS AUTHORIZATION*/
+     SYSCMD   BIT(1) CONSTANT ('1'B),   /* TESTS IF SYSTEM COMMAND  */
+     ABRANCH  BIT(2) CONSTANT ('00'B),  /* APPLICATION BRANCHES CMD */
+     ACALL    BIT(2) CONSTANT ('01'B),  /* APPL CALLS CMD ROUTINE   */
+     ALINK    BIT(2) CONSTANT ('10'B),  /* APPL LINKS TO COMMAND    */
+     AXCTL    BIT(2) CONSTANT ('11'B),  /* APPL XCTLS TO COMMAND    */
+     SAPPLEX  BIT(2) CONSTANT ('00'B),  /* SYSTEM DEFINED COMMAND   */
+                                        /* BUT APPL EXECUTES IT     */
+     STERM    BIT(2) CONSTANT ('01'B),  /* COMMAND IS TERMINATE TYPE*/
+     RAMAPPL  BIT(2) CONSTANT ('11'B),  /* CMD IS AN NEW APPL SELECT*/
+     ACONTROL BIT(4) CONSTANT ('1000'B), /* LEVEL OF AUTHORITY      */
+                                         /* IS CONTROL              */
+     ADELADD  BIT(4) CONSTANT ('0100'B), /* ADD AND DELETE AUTHORITY*/
+     ACHANGE  BIT(4) CONSTANT ('0010'B), /* CHANGE AUTHORITY        */
+     AREAD    BIT(4) CONSTANT ('0001'B); /* READ ONLY AUTHORITY     */
+ /*******************************************************************/
+ /*                                                                 */
+ /*  THE FOLLOWING CONSTANTS ARE USED INTERROGATE THE TYPE OF       */
+ /*  BRANCH OFFICE THAT IS DESCRIBED IN THE BO TABLE AND IN THE     */
+ /*  PROFILE.  THE FIELDS THAT ARE REFERENCED ARE-                  */
+ /*           IN THE PROFILE  - PROBOTYP                            */
+ /*           IN THE BO TABLE - BOTYP                               */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL FEBO     CHAR(1) CONSTANT('1'),    /* FE BRANCH OFFICE         */
+     FEGDEPT  CHAR(1) CONSTANT('2'),    /* FE DEPT GENERAL          */
+     FERDEPT  CHAR(1) CONSTANT('3'),    /* FE DEPT REGION           */
+     FESDEPT  CHAR(1) CONSTANT('4'),    /* FE DEPT FIELD SUPPORT    */
+     FEADEPT  CHAR(1) CONSTANT('5'),    /* FE DEPT ADMINISTRATION   */
+     IBMOTHER CHAR(1) CONSTANT('X');    /* OTHER IBM DIVISION       */
+ @EJECT;
+ /*******************************************************************/
+ /*                                                                 */
+ /*                       BMS MAP NOTES                             */
+ /*                                                                 */
+ /*  THE FOLLOWING CONSTANTS ARE USED TO SET THE ATTRIBUTES FOR THE */
+ /*  3279 OUTPUT FIELDS.                                            */
+ /*                                                                 */
+ /*******************************************************************/
+ @SPACE ;
+ /*******************************************************************/
+ /*                          COLOR                                  */
+ /*******************************************************************/
+ /*  THIS SET OF CONSTANTS CAN BE USED IN BMS GENERATED FIELDS      */
+ /*  WHOSE LABEL ENDS WITH A 'C': THE COLOR ATTRIBUTE FIELD         */
+ /*******************************************************************/
+ DCL DEFAULT   BIT(8) CONSTANT ('00'X),   /* USE DEFAULT COLOR      */
+                                          /* FROM BMS MAPSET        */
+     BLUE      BIT(8) CONSTANT ('F1'X),   /* BLUE COLOR FIELD       */
+     RED       BIT(8) CONSTANT ('F2'X),   /* RED                    */
+     PINK      BIT(8) CONSTANT ('F3'X),   /* PINK                   */
+     GREEN     BIT(8) CONSTANT ('F4'X),   /* GREEN                  */
+     TURQUOIS  BIT(8) CONSTANT ('F5'X),   /* TURQUOISE              */
+     YELLOW    BIT(8) CONSTANT ('F6'X),   /* YELLOW                 */
+     NEUTRAL   BIT(8) CONSTANT ('F7'X),   /* A FUNNY NAME FOR WHITE */
+     WHITE     BIT(8) CONSTANT ('F7'X);   /* AND REALLY WHITE       */
+ @SPACE (2) ;
+ /*******************************************************************/
+ /*                       HILIGHTING                                */
+ /*******************************************************************/
+ /*  THIS SET OF CONSTANTS CAN BE USED IN BMS GENERATED FIELDS      */
+ /*  WHOSE LABEL ENDS WITH A 'H': THE EXTENDED HILIGHT FIELD.       */
+ /*  THESE FIELDS ARE IGNORED IF 'NONDISPLAY' IS SET.               */
+ /*******************************************************************/
+ DCL BLINK     BIT(8) CONSTANT ('F1'X),   /* TURN ON BLINKING       */
+     REVERSE   BIT(8) CONSTANT ('F2'X),   /* REVERSE VIDEO          */
+     UNDERSCO  BIT(8) CONSTANT ('F4'X);   /* UNDERSCORE THE FIELD   */
+ @SPACE (2);
+ /*******************************************************************/
+ /*                     FIELD ATTRIBUTES                            */
+ /*******************************************************************/
+ /*  THIS SET OF CONSTANTS CAN BE USED IN BMS GENERATED FIELDS      */
+ /*  WHOSE LABEL ENDS WITH AN 'A': THE FIELD ATTRIBUTE FIELD        */
+ /*******************************************************************/
+ DCL MDT       BIT(8) CONSTANT ('01'X),   /* SET ON MODIFIED DATA   */
+                                          /* TAG                    */
+     PROT      BIT(8) CONSTANT ('20'X),   /* THIS FIELD IS PROTECTED*/
+     SKIP      BIT(8) CONSTANT ('30'X),   /* SKIP THIS FIELD        */
+     NONDISP   BIT(8) CONSTANT ('0C'X),   /* NON-DISPLAY, NON-PRINT */
+     NODSKIP   BIT(8) CONSTANT ('7C'X);   /* NO DISPLAY & SKIP      */
+ @SPACE (2) ;
+ /*******************************************************************/
+ /*  THE BMS GENERATED FIELD ENDING WITH A 'P': PROGRAM SYMBOLS,    */
+ /*  IS FOR THE DEFINITION OF MULTIPLE COLORS WITHIN A SINGLE       */
+ /*  CHARACTER DISPLAY.  REFER TO 3270 PRINCIPLES OF OPERATIONS.    */
+ /*******************************************************************/
+ @SPACE (2) ;
+ DCL INSRTCUR  BIT(16) CONSTANT ('FFFF'X); /* USED FOR SYMBOLIC CURSOR
+                                             POSITIONING             */
+ @SPACE (2) ;
+ /*******************************************************************/
+ /*  THE FOLLOWING DECLARES ARE PROVIDED FOR USE BY THE RAMDLI AND  */
+ /*  RAMQMGR EXECUTABLE MACROS.                                     */
+ /*******************************************************************/
+ @SPACE (2) ;
+ %INCLUDE SYSLIB(ASYNCONS);                                /* SR0528 */
+ @EJECT;
+

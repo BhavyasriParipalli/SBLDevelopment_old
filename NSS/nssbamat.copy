@@ -1,0 +1,36 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:  NSSBAMAT     VERSION NR:  01           DATE:  04/28/97    */
+ /*                                               TIME:  02:30:48    */
+ /*                                                                  */
+ /* TITLE: NSS B/O-AREA MATCH SEGMENT RECORD                         */
+ /*                                                                  */
+ /* DB2 DCL GEN: NSVBAMAT (SHOULD MATCH NSSBAMAT)                    */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PLI/PLAS                                               */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*   THIS COPY MEMBER IS CREATED BY TAKING THE PLI GENERATED        */
+ /*   DECLARES FROM THE DB2 DCLGEN.                                  */
+ /*                                                                  */
+ /*   THIS MODULE IS USED BY THE DATABSE INTERFACE MODULES. CADDB2R  */
+ /*   READS THE DATABASES AND CADDB2U WRITES TO THE DATABASES.       */
+ /*   SEE THESE MODULES FOR MORE INFORMATION.                        */
+ /*                                                                  */
+ /* NOTE: IT IS THE RESPOSIBILITY OF THE INCLUDING PROGRAM TO DECLARE*/
+ /*       THE LEVEL 1 NAME.                                          */
+ /*     EX:                                                          */
+ /*        DCL 1 NSSBAMAT,                                           */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  04/28/97 9600755  7NSI NSS Parallel Phase 1        K. Mesmer    */
+ /********************************************************************/
+      5 BRANCH_OFFICE      CHAR(3),
+      5 INTERNAL_AREA      CHAR(2),
+      5 EXTERNAL_AREA      CHAR(2);
+
+

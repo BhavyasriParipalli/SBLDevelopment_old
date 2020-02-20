@@ -1,0 +1,54 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   NSVZIPCD    VERSION NR:  01           DATE:  03/10/97    */
+ /*                                               TIME:  13:49:32    */
+ /*                                                                  */
+ /* TITLE:  DCLGEN FOR NSVZIPCD TABLE                                */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:   COPY MEMBER                                              */
+ /*                                                                  */
+ /* LANGUAGE:  PLI                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:  DCLGEN FOR NSVZIPCD TABLE                          */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  3/10/97  S960744  7NSG    DCLGEN FOR NSVZIPDE      KMURPHY      */
+ /*  8/13/07  SR040014 7NSR REMOVE ZIP_RESP_ROC         Fugette      */
+ /*                         ADD ZIP_COUNTY, ZIP_USERID               */  
+ /*                                                                  */
+ /********************************************************************/
+ %SKIP;
+
+ /********************************************************************/
+ /* DCLGEN TABLE(DUA6.NSVZIPCD)                                      */
+ /*        LIBRARY(NSSTES.DBA.DB2DUA6.DDLLIB(DCLZP))                 */
+ /*        LANGUAGE(PLI)                                             */
+ /*        STRUCTURE(NSTZIPCD)                                       */
+ /*        APOST                                                     */
+ /*        LABEL(YES)                                                */
+ /* ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS     */
+ /********************************************************************/
+ EXEC SQL DECLARE NSVZIPCD TABLE
+           ( ZIP_CODE            CHAR(5) NOT NULL WITH DEFAULT,
+             ZIP_RESP_AREA       CHAR(2) NOT NULL WITH DEFAULT,
+             ZIP_GMT_OFFSET      CHAR(4) NOT NULL WITH DEFAULT,
+             ZIP_DST             CHAR(1) NOT NULL WITH DEFAULT,
+             ZIP_STATE           CHAR(2) NOT NULL WITH DEFAULT,
+             ZIP_CITY            CHAR(13) NOT NULL WITH DEFAULT,
+             ZIP_LAT             DECIMAL(7,4) NOT NULL WITH DEFAULT,
+             ZIP_LONG            DECIMAL(7,4) NOT NULL WITH DEFAULT,
+             ZIP_TIME_STAMP      TIMESTAMP NOT NULL WITH DEFAULT,
+             ZIP_COUNTY          CHAR(30) NOT NULL WITH DEFAULT,
+             ZIP_USERID          CHAR(6) NOT NULL WITH DEFAULT
+           ) ;
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /*                                  END  NSVZIPCD                   */
+ /*------------------------------------------------------------------*/
+

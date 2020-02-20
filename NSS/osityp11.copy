@@ -1,0 +1,42 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   OSITYP11    VERSION NR:  01           DATE:  01/20/97    */
+ /*                                               TIME:  13:36:13    */
+ /*                                                                  */
+ /* TITLE: OSI Type 11 - RTS Inventory Update                        */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/X                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: Data layout for parts data sent to TSS Scheduler    */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  01/20/97 S9600744 7NSG INITIAL PROMOTE-SCHEDULER          FRANK */
+ /*  03/26/97 S970056  7NSG RESTRUCTURE LAYOUT                   LBS */
+ /*                         PLACE OUTSIDE LOCATION IN UPITEMS        */
+ /*                         ADD QUANTITY USED                        */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL 1 OSITYP11      DEF(OSI_DATA),
+       3 CALLID                 CHAR(7), /* CAD problem number       */
+       3 TRANSACTION_NUMBER     CHAR(4), /* BoB generated trans nbr   */
+       3 PARTORDN               CHAR(6), /* RTS order number         */
+       3 TIME                   CHAR(12),/* update time YYYYMMDDHHMM */
+       3 UPITEMS(4),                     /* Inventory update struct  */
+         5 PARTNUMB             CHAR(12),/*   Part number            */
+         5 OUTSIDE_LOC          CHAR(3), /*   Outside location       */
+         5 QTY_USED             CHAR(2), /*   Quantity used          */
+         5 TRANS_TYPE           CHAR(1); /*   Transaction type       */
+
+ /*------------------------------------------------------------------*/
+ /*                   END  OSITYP11                                  */
+ /*------------------------------------------------------------------*/
+

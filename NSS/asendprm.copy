@@ -1,0 +1,133 @@
+ %ASENDPRM: MACRO KEYS (GENDCL,NAME,LENGTH,LEVEL);                              
+ /********************************************************************/         
+ /*                                                                  */ 
+ /*  copied from CMVC component NSS - QSAR version                   */        
+ /* THIS IS THE INPUT PARAMETER DSECT USED BY DBSASEND               */         
+ /* WHEN IT IS LINKED TO.                                            */         
+ /*                                                                  */         
+ /* SR9400052 4NSM 06/09/94 EXPAND PTID FROM 2 TO 4 BYTES  GYULA   4B*/         
+ /*                                                                  */         
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/         
+ /*                                                                  */
+ /*                03/17/05 Remove direct-connect support  Gyula     */
+ /*                         add assender field                       */
+ /*                                                                  */
+ /*                                                                  */              
+ /********************************************************************/         
+ /***********************************************************/                  
+ /*                                                         */                  
+ /* THE NEXT SECTION ALLOWS THE MACRO INVOCATION TO BE      */                  
+ /* PRINTED AS A COMMENT ON THE SOURCE LISTING.             */                  
+ /*                                                         */                  
+ /***********************************************************/                  
+ DCL MACINV CHAR;  /* PROVIDES AREA FOR SYNTAX OF MACRO INVOC. */               
+ MACINV=MACLABEL||MACNAME||MACLIST||' '||MACKEYS;                               
+ ANS('/* ?'||MACINV||'  VERSION 0 PS*/') COL(7) NORESCAN;                       
+ DCL LEM CHAR;                                                                  
+ DCL GLEVEL CHAR;                                                               
+ IF LENGTH(1) = ''                                                              
+  THEN LEM = '240';                                                             
+  ELSE LEM = LENGTH(1);                                                         
+ IF LEVEL(1) = ''                                                               
+  THEN GLEVEL = '2';                                                            
+  ELSE GLEVEL = LEVEL(1);                                                       
+ IF GENDCL(1) = 'Y'                                                             
+   THEN                                                                         
+    DO;                                                                         
+  ANS('DCL 1 ASENDPRM BASED,') COL(2) NORESCAN;                                 
+  ANS('2 ASENDHDR,      /* PARM LIST Header for DBSASEND    PS*/')              
+            COL(3) NORESCAN;                                                    
+   ANS('3 ASRC FIXED(31),     /* RETURN CODE FROM DBSASEND */') COL(4)          
+            NORESCAN;                                                           
+   ANS('3 *        CHAR(2), ') COL(5)                 
+            NORESCAN;                                                           
+   ANS('3 ASTLEN   FIXED(15), /* total length - hdr + msg */') COL(5)               
+            NORESCAN;                                                           
+   ANS('3 ASSAVEREG FIXED(32),  /* register save area   */') COL(4)             
+            NORESCAN;                                                           
+   ANS('3 ASMSGADDR PTR(32), /* message address (COR only) */') COL(4)          
+            NORESCAN;                                                           
+   ANS('4 ASSYSID   CHAR(4), /* SYSID of COR  (AOR only) */') COL(5)            
+            NORESCAN;                                                           
+   ANS('3 ASLEN    FIXED(15), /* message length          */') COL(4)            
+            NORESCAN;                                                           
+   ANS('3 ASUSRSV  CHAR(10),  /* user save bytes area    */') COL(4)            
+            NORESCAN;                                                           
+   ANS('3 ASPTBOU  CHAR(6),   /* PT id or BO/TER or  UID */') COL(4)            
+            NORESCAN;                                                           
+   ANS('4 ASBO     CHAR(3),   /* BO                      */') COL(5)            
+            NORESCAN;                                                           
+   ANS('4 ASTERR   CHAR(3),   /* BO                      */') COL(5)            
+            NORESCAN;                                                           
+   ANS('3 ASAPPLID CHAR(2),   /* APPLICATION ID          */') COL(4)            
+            NORESCAN;                                                           
+   ANS('3 ASFUNID BIT(8),     /* FUNCTION ID             */') COL(4)            
+            NORESCAN;                                                           
+   ANS('3 ASFLAGS BIT(16),    /* ASEND FLAGS             */') COL(4)            
+            NORESCAN;                                                           
+    ANS('4 ASACK  BIT,       /* ASEND ACK     */') COL(5)                       
+             NORESCAN;                                                          
+    ANS('4 ASNACK BIT,       /* ASEND NACK    */') COL(5)                       
+             NORESCAN;                                                          
+    ANS('4 ASPML  BIT,       /* ASEND PML     */') COL(5)                       
+             NORESCAN;                                                          
+    ANS('4 ASBEEP BIT,       /* ASEND BEEP    */') COL(5)                       
+             NORESCAN;                                                          
+    ANS('4 ASENC  BIT,       /* ASEND ENCRYPT */') COL(5)                       
+             NORESCAN;                                                          
+    ANS('4 ASBCST BIT,       /* ASEND BROADCAST MSG TYPE  */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASDIAG BIT,       /* ASEND DIAGNOSTIC MSG TYPE */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASREG  BIT,       /* ASEND REGULAR MSG TYPE    */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASUID  BIT,       /* UID SPECIFIED (REG MSG)   */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASBOT  BIT,       /* BO/TERR SPECIFIED (REG MSG) */') COL(5)         
+             NORESCAN;                                                          
+    ANS('4 ASPT   BIT,       /* PT SPECIFIED  (REG MSG)   */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASRTRY BIT,       /* RETRY SPECIF. (REG MSG)   */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASBKUP BIT,       /* BKUP SPECIF.  (REG MSG)   */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASPUR  BIT,       /* PURGE SPECIF. (REG MSG)   */') COL(5)           
+             NORESCAN;                                                          
+    ANS('4 ASSPCOR BIT, /* if on, ASMSGADDR points to msg (COR only)*/')        
+             COL(5) NORESCAN;                                                   
+    ANS('4 *      BIT(1),    /* spare                     */') COL(5)           
+             NORESCAN;                                                          
+   ANS('3 ASGCCID CHAR(1),  /* SPECIFIC GCC ID 4B*/') COL(5) NORESCAN;          
+  ANS('3 ASPDATE  CHAR(5),  /* PURGE DATE - YYDDD */') COL(4) NORESCAN;         
+  ANS('3 ASWRIT   CHAR(1),   /* REWRIT  B.S. ONLY */') COL(4) NORESCAN;         
+  ANS('3 ASSEQ    CHAR(4),   /* REWRIT  B.S. ONLY */') COL(4) NORESCAN;         
+  ANS('3 ASTIME   CHAR(4),   /* REWRIT  B.S. ONLY */') COL(4) NORESCAN;         
+  ANS('3 ASWORK   CHAR(1),   /* work area    4B*/') COL(4) NORESCAN;            
+   IF GENDCL(2) = QUOTE('H')                                                    
+    THEN 
+     DO;                                                                       
+      ANS('3 *        CHAR(1);   /* spare        4B*/') COL(4) NORESCAN;
+      ANS('3 ASSENDER CHAR(8);   /* asend sender   */') COL(4) NORESCAN;
+     END;          
+    ELSE                                                                        
+     DO;                                                                        
+      ANS('3 *        CHAR(1),   /* spare        4B*/') COL(4) NORESCAN;
+      ANS('3 ASSENDER CHAR(8),   /* asend sender   */') COL(4) NORESCAN;        
+      ANS('2 ASENDTEXT CHAR(*);   /* message area */') COL(3) NORESCAN;         
+     END;                                                                       
+    END;                                                                        
+   ELSE                                                                         
+  IF NAME(2) = QUOTE('H')                                                       
+   THEN                                                                         
+    ANS(GLEVEL||' '||NAME(1)||' CHAR(LENGTH(ASENDHDR))'||                       
+     ' ! DBSASEND Header PS')                                                   
+     COL(3) RESCAN;                                                             
+   ELSE                                                                         
+    DO;                                                                         
+  ANS(GLEVEL||' '||NAME(1)||'_P CHAR(LENGTH(ASENDHDR)),'||                      
+     ' ! DBSASEND Header PS')                                                   
+     COL(3) RESCAN;                                                             
+  ANS(GLEVEL||' '||NAME(1)||' CHAR('||LEM||')  ! Message text area ')           
+     COL(3) RESCAN;                                                             
+    END;                                                                        
+ %END;                                                                          

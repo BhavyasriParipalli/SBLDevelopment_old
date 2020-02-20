@@ -1,0 +1,75 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* COPYRIGHT IBM CORP                                              */
+ /*    CREATED - 12/29/82                                           */
+ /*                    LIST OF CHANGES -                            */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /* DESCRIPTION -                                                   */
+ /*                                                                 */
+ /*   THE DCS CONTROL TABLE IS A CONTROL BLOCK POINTED TO BY THE    */
+ /*   DCSTB THAT TELLS USERS WHICH APPLICATIONS ARE AVAILABLE, AND  */
+ /*   ALSO LETS THE SYSTME KNOW WHICH APPLICATIONS THE USER IS      */
+ /*   AUTHORIZED FOR AT SIGNON TIME. THIS TABLE IS BUILT BY THE     */
+ /*   APPLICATIONS AND THE SYSTEM DURING INITIALIZATION. INCLUDED   */
+ /*   WITHIN IT IS A POINTER TO ANOTHER TABLE (DACT) WHICH LETS     */
+ /*   THE ROUTING MECHANISM KNOW WHICH FUNCTIONS ARE ALLOWED        */
+ /*   WITHIN THE APPLICATION, AND WHICH APPLICATION PROGRAM IS TO   */
+ /*   GET CONTROL UPON ENTERING THAT APPLICATION AND FUNCTION.      */
+ /*                                                                 */
+ /*   EACH APPLICATION HAS ITS OWN DCST. THEY ARE CONTIGUOUS IN     */
+ /*   STORAGE, AND AN APPLICATION MUST IDENTIFY ITS OWN ID BY       */
+ /*   SEARCHING THE DCST AREA WHICH IS POINTED TO BY THE DCSDCSP.   */
+ /*   THE NUMBER OF APPLICATIONS FOR WHICH DCST STORAGE IS INITIAL- */
+ /*   IZED IS INDICATED ON THE APPLCNT JCL CARD READ IN BY DCSINIT. */
+ /*                                                                 */
+ /* ADDRESSABILITY -                                                */
+ /*                                                                 */
+ /*   SET VIA DCSTBL                                                */
+ /*                                                                 */
+ /*    ADDED APPLICATION STATISTICS 01/11/85 - TWS                  */
+ /*                                                                 */
+ /* SR00090  1NSI  04/30/01  PML 40 to 8 bit              Gyula  118*/
+ /*                                                                 */
+ /*******************************************************************/
+   DCL 1 DSTTDCST  DCSTPTR,
+          2 DSTTITEM,
+             3 DSTTEBID CHAR (2),       /* APPLICATION ID (EBCDIC)  */
+             3 DSTTASID CHAR (2),       /* APPLICATION ID (ASCII)   */
+             3 DSTTPMLM BIT (8),        /* PML MASK              118*/
+             3 *        CHAR (7),       /* RESERVED              118*/
+             3 DSTTNDX   FIXED (8),     /* INDEX INTO AUTH MATRIX   */
+             3 DSTTFLGS CHAR (3),       /* FLAGS                    */
+                4 DSTTNOK  BIT(1),      /* ON=NOT ALLOWED           */
+                4 *       BIT(23),      /* FOR GROWTH               */
+             3 DSTTLGXT CHAR(4),        /* LOGON EXIT ROUTINE       */
+             3 DSTTFRXT CHAR(4),        /* LOG OFF EXIT ROUTINE     */
+             3 DSTTIAMH CHAR(4),        /* 'I AM HERE' ROUTINE      */
+             3 DSTTDACT PTR (32),       /* POINTER TO DACT          */
+             3 DSTTSTAP PTR (32),       /* POINTER TO PREVIOUS STATS*/
+                                        /* TABLE                    */
+             3 DSTTSTAC PTR (32),       /* POINTER TO CURRENT STATS */
+                                        /* TABLE                    */
+             3 DSTTPGXT CHAR(4),        /* COMMQ PURGE EXIT         */
+             3 DSTTTBL1 CHAR(LENGTH(DSTTSTAT)), /* STATS            */
+             3 DSTTTBL2 CHAR(LENGTH(DSTTSTAT)); /* STATS            */
+   DCL 1 DSTTSTAT  BASED(DSTTSTAC),     /* STATS BY APPLICATION */
+             3 DSTTSNT FIXED(16),       /* # OF MESSAGES SENT        */
+             3 DSTTRCV FIXED(16),       /* # OF MESSAGES RECEIVED    */
+             3 DSTTNAK FIXED(16),       /* # OF NAKS RECEIVED        */
+             3 DSTTNUM FIXED(16),       /* TOTAL NUMBER FOR DSTTCUM  */
+             3 DSTTCUM FIXED(31),       /* LINK TIME (CUMM)          */
+             3 DSTTCUT FIXED(31),       /* LINK TIME (CUMM) > .5 SECS*/
+             3 DSTTNUT FIXED(16),       /* TOTAL NUMBER FOR DSTTCUT  */
+             3 *       FIXED(16),       /* TELCO MSGS REC       8nsn */
+             3 *       FIXED(16),       /* TELCO MSGS SENT      8nsn */
+             3 DSTTLNGO FIXED(16),      /* NUM OF LONG MSGS SENT     */
+             3 DSTTLNGI FIXED(16),      /* NUM OF LONG MSGS RCVD     */
+             3 DSTTLGSI FIXED(16),      /* NUM OF LONG MSG SEGS IN   */
+             3 DSTTLGSO FIXED(16),      /* NUM OF LONG MSG SEGS OUT  */
+             3 DSTTCMQR FIXED(16),      /* NUM OF COMM QUEUE RETRIES */
+             3 DSTTFCMQ FIXED(16),      /* APPL. PLACED MSG ON COMQ  */
+             3 * CHAR(6);               /* UNUSED                    */
+
+ @EJECT;

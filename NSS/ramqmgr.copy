@@ -1,0 +1,175 @@
+ % RAMQMGR: MACRO KEYS(OP,FILENME,QUENME,RCCODE,IOAREA,RCDLTH,RRNBR);
+ DCL (DLISAC,DLITOP,DLIBL1,DLIBLK) CHAR;
+ DCL (DLIWKA,DLIWKB,DLIWKC) CHAR;
+ DCL (DLIOPL,DLINDX,DLIL1) FIXED;
+ DLIBLK='    ';
+ DLIL1=0;
+ ANS('/*(RAMQMGR) QUEUE MANAGER MACRO VERSION 2.0,*/') SKIP;
+ ANS('/*INPUT PARMS= '||MACKEYS||'  */') SKIP;
+ ANS('RFY (DLIR1,DLIR14) RSTD;') SKIP NORESCAN;
+ IF MACLABEL^='' THEN
+   ANS(MACLABEL) SKIP;
+ ELSE;
+ ANS('DO;') SKIP NORESCAN;
+ ANS('DLIR14=ADDR(DFHEISA)+8;') SKIP NORESCAN;
+ ANS('DLIPRMS=DLIR13; /*SET REG 13 PTR AREA*/') SKIP NORESCAN;
+ ANS('DLIR14=ADDR(DFHEIPL);  /*SET PTR TO PARMLIST*/') SKIP
+                   NORESCAN;
+ ANS('DLIR1=DLIR14; /*SET PARM REG TO START OF LIST*/') SKIP NORESCAN;
+ IF OP(1,1:1)='''' THEN
+   DO;
+     DLITOP='    ';
+     DLIOPL=LENGTH(OP(1))-1;
+     DLITOP=OP(1,2:DLIOPL);
+     DLIL1=DLIOPL-1;
+     DLIL1=4-DLIL1;
+     IF DLIL1^=0 THEN
+       DLIBL1=DLIBLK(1:DLIL1);
+     ELSE;
+     ANS('DLIPRMS=ADDR('''||DLITOP||DLIBL1||
+         '''); /*SET PTR TO OPCODE*/') SKIP NORESCAN;
+   END;
+ ELSE
+   DO;
+     DLIOPL=LENGTH(OP(1));
+     IF OP(1,DLIOPL:DLIOPL)=')' THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(OP(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=OP(1,1:DLIL1-1);
+         DLIWKB=OP(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET PTR TO OPCODE*/') SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET PTR TO OPCODE*/') SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||OP(1)||'); /*SET PTR TO OPCODE*/') SKIP;
+   END;
+ IF FILENME^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(FILENME(1));
+     IF FILENME(1,DLIOPL:DLIOPL)=')' THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(FILENME(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=FILENME(1,1:DLIL1-1);
+         DLIWKB=FILENME(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET FILENME PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET FILENME PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||FILENME(1)||'); /*SET FILENME PTR*/')SKIP;
+   END;
+ IF QUENME^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(QUENME(1));
+     IF QUENME(1,DLIOPL:DLIOPL)=')'  THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(QUENME(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=QUENME(1,1:DLIL1-1);
+         DLIWKB=QUENME(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET QUENME PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET QUENME PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||QUENME(1)||'); /*SET QUENME PTR*/')SKIP;
+   END;
+ IF RCCODE^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(RCCODE(1));
+     IF RCCODE(1,DLIOPL:DLIOPL)=')'  THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(RCCODE(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=RCCODE(1,1:DLIL1-1);
+         DLIWKB=RCCODE(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET RCCODE PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET RCCODE PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||RCCODE(1)||'); /*SET RCCODE PTR*/')SKIP;
+   END;
+ IF IOAREA^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(IOAREA(1));
+     IF IOAREA(1,DLIOPL:DLIOPL)=')' THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(IOAREA(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=IOAREA(1,1:DLIL1-1);
+         DLIWKB=IOAREA(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET I/O AREA PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET I/O AREA PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||IOAREA(1)||'); /*SET I/O AREA PTR*/') SKIP;
+   END;
+ IF RCDLTH^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(RCDLTH(1));
+     IF RCDLTH(1,DLIOPL:DLIOPL)=')' THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(RCDLTH(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=RCDLTH(1,1:DLIL1-1);
+         DLIWKB=RCDLTH(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET RCDLTH PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET RCDLTH PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||RCDLTH(1)||'); /*SET RCDLTH PTR*/') SKIP;
+   END;
+ IF RRNBR^='' THEN
+   DO;
+     ANS('DLIR14=DLIR14+4; /*POINT TO NEXT PARM WORD*/') SKIP;
+     DLIOPL=LENGTH(RRNBR(1));
+     IF RRNBR(1,DLIOPL:DLIOPL)=')' THEN
+       DO;
+         DO DLIL1=1 TO DLIOPL WHILE(RRNBR(1,DLIL1:DLIL1)^='(');
+         END;
+         DLIWKA=RRNBR(1,1:DLIL1-1);
+         DLIWKB=RRNBR(1,DLIL1+1:DLIOPL-1);
+         IF DLIWKA='0' THEN
+           ANS('DLIPRMS='||DLIWKB||'; /*SET RRNBR PTR*/')
+                             SKIP;
+         ELSE
+           ANS('DLIPRMS=ADDR('||DLIWKA||');/*SET RRNBR PTR*/')
+                             SKIP;
+       END;
+     ELSE
+       ANS('DLIPRMS=ADDR('||RRNBR(1)||'); /*SET RRNBR PTR*/') SKIP;
+   END;
+ ANS('DLIPEND=DLIPEND|''80''X;  /*SET END OF LIST BIT*/') SKIP;
+ ANS('RFY DLIR14 UNRSTD;') SKIP;
+ ANS('CALL RAMSQMGR; /*LINK TO THE QUEUE MANAGER*/') SKIP;
+ ANS('RFY DLIR1 UNRSTD;') SKIP;
+ ANS('END;') SKIP;
+ % END RAMQMGR;
+

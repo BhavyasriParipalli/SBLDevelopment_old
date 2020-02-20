@@ -1,0 +1,23 @@
+ /*******************************************************************/  
+ /*  COPYRIGHT - IBM CORP                                           */  
+ /*                                                                 */  
+ /*  DATE CREATED - 06/15/83                                        */  
+ /*                                                                 */  
+ /*             INITIALIZATION CONSTANTS FOR INITIALIZING           */  
+ /*             THE PML FIELD OF THE DCST (DSSTPML)                 */  
+ /*                                                                 */  
+ /*             INCLUDE DBSDCST DSECT AND THIS INCLUDE MEMBER       */  
+ /*             AND HAVE THE APPLICATION DCST INITIALIZATION        */  
+ /*             ROUTINE INITIALIZE DSSTPML. (E.G. DSSTPML=CADPML)   */  
+ /*                                                                 */
+ /* SR00090  7NSI  04/30/01 PML 40 to 8 bit               Gyula  118*/  
+ /*******************************************************************/  
+ DCL CADPML BIT (8) CONSTANT                                           
+     ('10000000'B);                     
+ DCL QSARPML BIT (8) CONSTANT                                          
+     ('01000000'B);                     
+ DCL PARTPML BIT (8) CONSTANT                                          
+     ('00100000'B);                     
+ DCL XCPML BIT (8) CONSTANT                                            
+     ('00010000'B);                     
+ @EJECT;                                                                

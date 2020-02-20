@@ -1,0 +1,143 @@
+ /***  -PROLOG ***************************************************** */
+ /*                                                                  */
+ /*   DSECT NAME       - EMPROOT                                     */
+ /*                                                                  */
+ /*   DESCRIPTIVE NAME - EMPLOYEE DB PHYSICAL PARENT                 */
+ /*                                                                  */
+ /*   NOTES            - ANY SPECIAL NOTES GO HERE                   */
+ /*                                                                  */
+ /*   SPECIAL                                                        */
+ /*   DEPENDENCIES     - LIST ANY UNIQUE LKED OR MODULE INTERACTIONS */
+ /*                                                                  */
+ /*   RESTRICTIONS     - IDENTIFY ANY SPECIAL RESTRICTIONS (I.E      */
+ /*                      MODULE IS SCP DEPENDENT ETC.)               */
+ /*                                                                  */
+ /*   CHANGE ACTIVITY  - LIST TR NUMBERS AND DATE INCLUDED.          */
+ /*                                                                  */
+ /*    SAS               ADDED ACKNOWLEGEMENT REQUIRED FLAG          */
+ /*                                                                  */
+ /*    COMMON  01/24/85  CHANGED EDSSND AND EDCSRCV TO UNUSED        */
+ /*                      DEFINED LAST 10 BYTES AS UNUSED             */
+ /*                                                                  */
+ /*    SR    DRVR   DATE   DESCRIPTION                    PROGRAMMER */
+ /*                                                                  */
+ /* SR0528   1NSG 10/30/90 CU/EMP DB REDESIGN             JOINER     */
+ /*          1NSN 08/19/91 ECI 1.2 - ADD ECI ID FIELD     KMESMER    */
+ /*                                                                  */
+ /* SR 0865  2NSB 03/11/92 Half day availability and      McConnell  */
+ /*                        the elimination of CADAVUP.               */
+ /*                                                                  */
+ /* SR1078   2NSD 04/29/92 Remove Service Cell            MELODY     */
+ /*                        Change overtime fields to                 */
+ /*                        Callout fields                            */
+ /*                                                                  */
+ /* DCR1078C 2NSD 05/29/92 Add EEMPPG to replace          MELODY     */
+ /*                        Service Cell                              */
+ /*                                                                  */
+ /* SR930205 3NSP 10/20/93 Increased employee comments by 79 bytes.  */
+ /*                        Moved callout zip to msc segment.  Added  */
+ /*                        25 pad characters.       -rjb             */
+ /* I291618  4NSK 10/27/94 CARES change - Maintain Call ID(ICECID)   */
+ /*                        in emproot when CE is on call.            */
+ /*                                                                  */
+ /* SR9600211 6NSF 4/30/96 Pager                          GYULA      */
+ /*                                                                  */
+ /* SR9600535 6NSL 9/10/96 BOB 1.0 support                GYULA      */
+ /*                        Non-CE flag moved from CAEMPMSC           */
+ /*                                                                  */
+ /* SR020036  2NSO 9/10/02 MIG 2nd phase (PAGING)         Gyula      */
+ /*                                                                  */
+ /***  -ENDPROL **************************************************** */
+ %IF LANG = 'PLI' %THEN %GOTO EMPROOT_NOBASE;
+ DCL 1 EMPROOT CHAR(460) BASED,        /* EMPROOT SEGMENT     */
+ %EMPROOT_NOBASE:;
+       2 EEMPNO  CHAR(8),     /* REGION # + EMPLOYEE NUMBER   */
+       2 EEMPNME CHAR(15),    /* EMPLOYEE   NAME              */
+       2 EEMPNIK CHAR(8),     /* EMPLOYEE   NICK NAME         */
+       2 EEMPCTY CHAR(8),     /* EMPLOYEE   CITY              */
+       2 EEMPST  CHAR(2),     /* EMPLOYEE   STATE             */
+       2 EEMPOL  CHAR(4),     /* Employee parts expense o/l   */
+       2 EEMPPAD4 CHAR(5),    /* Unused                       */
+       2 EEMPINT CHAR(2),     /* EMPLOYEE   INITIALS          */
+       2 EEMPBO  CHAR(3),     /* EMPLOYEE   BRANCH OFFICE NBR */
+       2 EEMPTER CHAR(3),     /* EMPLOYEE   TERRITORY NUMBER  */
+       2 EEMPRAD CHAR(3),     /* EMPLOYEE   RADIO NUMBER      */
+       2 EEMPPG  CHAR(3),     /* Pager Number                 */
+       2 ERADTYP CHAR(1),     /* RADIO TYPE                   */
+       2 ERADAVL CHAR(1),     /* RADIO AVAILABLE (Y OR N)     */
+       2 FCELTCH  CHAR(4),       /* LOCATION TIME CHANGE      */
+       2 FCELTCH_DOW   CHAR(1),  /* LOCATION TIME CHANGE Day of week */
+ /*-------------------------------------------------------------------*/
+ /* The following field is a control character that defines the       */
+ /* 'level' of the empl database. When the empl database is changed   */
+ /* in any way, the value of this field will change (e.g. 01->02).    */
+ /* This field is initialized by an IMS exit routine when the segment */
+ /* is originally inserted. It would subsequently be changed during a */
+ /* database conversion ... to the new database level designation.    */
+ /*                                                                   */
+ /* NOTE: Any change to the position of this field in the segment     */
+ /*       must be coordinated with DataBase Administration!!          */
+ /*-------------------------------------------------------------------*/
+       2 EMPL_LVL CHAR(1),    /* Database level (binary value)       */
+       2 EPHON1  CHAR(10),    /* CE HOME PHONE #1                    */
+       2 EPHON2  CHAR(10),    /* CE HOME PHONE #2                    */
+       2 EPHON3  CHAR(10),    /* CE HOME PHONE #3                    */
+       2 ECEAVCO CHAR(1),     /* CE AVAILABLE FOR CALLOUT (Y OR N)   */
+       2 EANTREF CHAR(3),     /* CE DEFAULT ANTENNA REFERENCE        */
+       2 ERDUNO  CHAR(10),    /* DEFAULT RDU PHONE NUMBER            */
+       2 EIDCEMD CHAR(8),     /* ID OF WHO LAST MOD. CE DATA         */
+       2 EDTCEMD CHAR(6),     /* LAST DATE CE DATA WAS MOD.          */
+       2 EPERMSO CHAR(17),    /* CE PERMANENT SIGN OUT LOC.          */
+       2 EPERMPH CHAR(15),    /* PHONE NUMBER AT PERM. LOC.          */
+       2 EPLOCAN CHAR(3),     /* PERMANENT LOCATION ANT REF.         */
+             /* Reason code override applied date and time.  */
+             /* Pertinent to the CO, OT, and SO reason codes */
+             /* only. This will allow:                       */
+             /* - 2 reason codes to exist at the same time   */
+             /* - The automatic resetting of a CE's          */
+             /*   availability for the CO, OT, and SO codes  */
+       2 RCODE_OVER_D CHAR(6),                      /* date - YYMMDD */
+       2 RCODE_OVER_T CHAR(4),                      /* time - HHMM   */
+       2 ECOMNTS CHAR(150),   /* COMMENTS SR930205 increase len to 79*/
+       2 EEFLAGS,             /* EMPLOYEE FLAGS                      */
+         3 FCEONOT  BIT(1),   /* CE IS ON OVERTIME                   */
+         3 FCEONCL  BIT(1),   /* CE CURRENTLY ON A CALL              */
+         3 FCERADN  BIT(1),   /* CE RADIO NOT AVAILABLE              */
+         3 FCERADS  BIT(1),   /* CE IS AT RADIO DEAD SPOT            */
+         3 EEMPPAD1 BIT(1),   /* UNUSED                              */
+         3 EEMPPAD3 BIT(1),   /* Unused                              */
+         3 EEMPPAD2 BIT(1),   /* UNUSED                              */
+         3 EEAKRQ   BIT(1),   /* EMPLOYEE ACKREQ - DUP FCEAKRQ       */
+       2 FCELOC   CHAR(17),   /* CURRENT LOCATION                    */
+       2 RCODE_OVER CHAR(5),  /* CE reason code override.            */
+                             /* - For CO,OT, and SO this override is */
+                             /* only valid up to the CE's next start */
+                             /* time. After that it wiil be ignored. */
+                             /* The date and time the override was   */
+                             /* applied is also saved.               */
+                             /* - For every other reason code this   */
+                             /* override is valid until it is        */
+                             /* changed.                             */
+       2 FCELPHO  CHAR(15),   /* LOCATION PHONE NUMBER        */
+       2 FCEAREF  CHAR(3),    /* LOCATION ANT REFERENCE       */
+       2 FCERDU   CHAR(10),   /* LOCATION RDU PHONE NO.       */
+       2 FCEPROD  CHAR(4),    /* PRODUCT HE IS WORKING ON     */
+       2 EEMPVTRC CHAR(1),    /* ECI Transfer Reason Validation*/
+       2 EEMPPAD  CHAR(1),    /* unused                       */
+       2 FCECONW  CHAR(1),    /* CALLOUT NEXT WEEK FLAG       */
+       2 FCECOPS  CHAR(1),    /* CALLOUT PERMANENT SCHED      */
+       2 EEMPSEQ  CHAR(2),    /* CALL SEQUENCE # - CANADA     */
+       2 EEMPECI  CHAR(10),   /* SR0879 - ECI 1.2 - ECI ID    */
+       2 ICECID   CHAR(4),    /* Call ID(CACALL key) when CE  */
+                              /* takes a call (FCEONCL = ON)  */
+       2 EMPACNONCE CHAR(1), /* non-ce                        9600535*/
+       2 EEMPOL_INV CHAR(3),  /* Empl parts inventory O/L   NSSCARES */                       
+       2 PAGER,                    /* PAGER INFORMATION       9600211*/
+         3 EMP_PAGER_NAME CHAR(22), /* Pager Company Name 9600211 MIG*/
+         3 EMP_PAGER_PIN  CHAR(10), /* Pager Pin Number   9600211 MIG*/
+         3 EMP_PAGER_TYPE CHAR(1), /* Pager Type: N-Numeric,
+                                      A-Alphanumeric          9600211*/
+       2 EMP_PADDING CHAR(23);  /* future expansion               MIG*/
+    /* when changing length of emproot, update emproot length   */
+    /* in module NSDBTB1                                        */     
+   

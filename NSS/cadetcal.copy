@@ -1,0 +1,212 @@
+ /*********************************************************************/
+ /*                                                                   */
+ /* NAME:   CADETCAL    VERSION NR:  01           DATE:  01/11/88     */
+ /*                                               TIME:  11:38:43     */
+ /*                                                                   */
+ /* TITLE: CALL DETAIL DATA                                           */
+ /*                                                                   */
+ /* IMS SEGMENT NAME: CADETCAL                                        */
+ /*                                                                   */
+ /* TYPE:                                                             */
+ /*                                                                   */
+ /* LANGUAGE: PLS,PLI                                                 */
+ /*                                                                   */
+ /* DESCRIPTION: DETAILED DATA FOR THE CALL                           */
+ /*                                                                   */
+ /*                                                                   */
+ /* CHRONOLOGICAL UPDATE LOG:                                         */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:   */
+ /*  -------- -------- ---- --------------------------- ------------  */
+ /*  01/11/88 DYADICS1 8NSF CALL DATABASE CONVERSION    T. MCCONNELL  */
+ /*  09/07/88 SR9890   ADD CUSTOMER PROBLEM NUMBER      C. OLIVER     */
+ /*  08/17/90 SR0365   0NSK NSS GENERIC INTERFACE       SCARBO        */
+ /*  08/09/91 SR0879   1NSN ADD POS PROBLEM NUMBER      T.BROWN       */
+ /*                    REMOVE GENIFLG                                 */
+ /*  11/30/94 S9400205 5NS1  TSSC EXTERNAL CUSTOMER SUPPORT   LEHANE  */
+ /*  10/05/95 S950182  5NSM Add Broker Problem Number   Fugette       */
+ /*  07/25/96 S9600463 6NSL Enhanced Entitlement        Frank         */
+ /*                         Added Service Delivery code               */
+ /*                         which is only filled in if the type/serial*/
+ /*                         on NEDB indicates a split warranty servdel*/
+ /*  11/07/99 S99103   9NSC Dell Alliance Contract      Lehane        */
+ /*                         Reuse existing Alliance flds for Dell defs*/
+ /*  03/08/01 s00107   1NSA Added credit card number    Fugette       */
+ /*  03/24/02 SRXXXXX 2NSC-3 Montana Vendor support      Lehane       */
+ /*  05/10/02 SR01047 2NSJ-2 NEDB entitlement mods       Lehane       */
+ /*  06/20/02 S02014   2NSJ Increase Credit Card         Frank        */
+ /*  07/06/04 S040050  4NSG Added purchase order number  Fugette      */
+ /*  07/25/06 S060028 6NSF2 Replaced IPART_STATUS with   Fugette      */
+ /*                            IESA_CODES and padding                 */
+ /*  07/30/07 SR060056 7NSR Global Warranty Service      Gyula        */
+ /*********************************************************************/
+ %IF LANG = 'PLI' %THEN %GOTO DETCSKIP;
+ DCL                               /*                                 */
+ 1 CADETCAL           BASED,       /* 400 CALL DETAIL DATA            */
+ %DETCSKIP:;
+ %IF LANG = 'PLI' %THEN %GOTO DETCPLI0;
+   2 QCALBACK         FIXED(8),    /* CALL BACK COUNTER               */
+ %GOTO DETCCOM;
+ %DETCPLI0:;
+   2 QCALBACK         CHAR(1),     /* CALL BACK COUNTER               */
+ %DETCCOM:;
+   2 FCALLDET,                     /* CALL DETAIL FLAGS               */
+     3 FOVERTME       BIT(1),      /* OVERTIME FLAG                   */
+     3 FNOHIT         BIT(1),      /* CALL WAS A NO HIT               */
+     3 FMODCUST       BIT(1),      /* MODIFIED CUSTOMER DATA          */
+     3 FRCNOHIT       BIT(1),      /* RECEIVED CALL WAS A NO HIT,     */
+                                   /* CUSTOMER ADDED                  */
+     3 FALSTOP        BIT(1),      /* ALERT STOP                      */
+     3 FPTRADIO       BIT(1),      /* CALL RADIOED TO A PT            */
+     3 FTDMSG         BIT(1),      /* TRANSACTION DATA MSG            */
+     3 FSPECBID       BIT(1),      /* SPECIAL BID CALL                */
+     3 FPFSEXCP       BIT(1),      /* CALL IS PFS EXCEPTION           */
+     3 FWHSTAT        BIT(1),      /* CALL IS 'WH' STATUS             */
+     3 FARSTAT        BIT(1),      /* CALL IS 'AR' STATUS             */
+     3 FRLSTAT        BIT(1),      /* CALL IS 'RL' STATUS             */
+     3 FSLSTAT        BIT(1),      /* CALL IS 'SL' STATUS             */
+                                   /* URSF FLAGS                      */
+     3 FURSFGEN       BIT(1),      /* CALL ORIGIN WAS URSF            */
+     3 FTIBDATA       BIT(1),      /* CALL HAS TIB DATA               */
+     3 SPAD26         BIT(2),      /* Unused                          */
+                                   /* ECCO FLAGS                      */
+     3 FECCOCAL       BIT(1),      /* THIS IS A ECCO CALL             */
+     3 SPAD27         BIT(2),      /* Unused                          */
+                                   /* IIPS CALL FLAGS                 */
+     3 FENTITLE       BIT(1),      /* ENTITLEMENT CONFLICT            */
+                                   /* FLAG, CUSTOMER OVERRIDES        */
+                                   /* SERVICE PLAN                    */
+     3 FTELCO         BIT(1),      /* INVOLVEMENT BY TELCO USR        */
+     3 FRTSORD        BIT(1),      /* ORDER SENT TO RTS               */
+     3 FRTSRPLY       BIT(1),      /* REPLY RECEIVED FROM RTS         */
+     3 FCALLCK        BIT(1),      /* CALL CHANGED FROM CHECK SCREEN  */
+                                   /*---------------------------------*/
+     3 FAUTORA        BIT(1),      /* CALL AUTORADIO FLAG I99981      */
+                                   /* ADDED 6-29-90 - AGS - CONT09    */
+                                   /*---------------------------------*/
+     3 SPAD20         BIT(6),      /* PADDING                         */
+   2 ICOVCSR          CHAR(3),     /* COVERED (PRIM) CSR              */
+   2 SPAD24           CHAR(3),     /* UNUSED                          */
+   2 SPAD25           CHAR(3),     /* UNUSED                          */
+   2 DDEFER           CHAR(6),     /* DEFER OR IDA DATE               */
+   2 HDEFER           CHAR(4),     /* DEFER OR IDA TIME               */
+   2 TSPECMSG         CHAR(70),    /* SPECIAL SITUATION MSG           */
+   2 IFEBO            CHAR(3),     /* FE BRANCH OFFICE                */
+   2 IFMTERR          CHAR(3),     /* FE FIELD MNGR TERRITORY         */
+   2 NFMGR            CHAR(15),    /* ACCOUNT FIELD MGR NAME          */
+   2 ICUSNPHN         CHAR(15),    /* CUSTOMER NIGHT PHONE #          */
+   2 IDPBO            CHAR(3),     /* DP BRANCH OFFICE                */
+   2 IANTREF          CHAR(3),     /* ANTENNA REFERENCE               */
+   2 IANTPHON         CHAR(10),    /* REMOTE ANTENNA OR RDU PHONE #   */
+   2 ILUSERID         CHAR(6),     /* LAST RESPONSIBLE CSR FOR SSQ OR
+                                      CSC SERIAL THAT RECEIVED CALL   */
+   2 IRETKEY,                      /* RETAIN PROBLEM NUMB KEY         */
+     3 IRETBO         CHAR(3),     /* B/O ASSOCIATED WITH PROB        */
+     3 IRETPROB       CHAR(8),     /* RETAIN PROBLEM NUMBER           */
+   2 ICADIPAR         CHAR(5),     /* IPAR NUMBER                     */
+   2 ICADPRBO         CHAR(3),     /* CAD PROBLEM NUMBER B/O          */
+   2 IPRODORG         CHAR(2),     /* PRODUCT PLANT OF ORIGIN         */
+   2 ICALLREC         CHAR(1),     /* TYPE OF CALL RECORD             */
+   2 ICUSCPU          CHAR(1),     /* CUST CPU IDENTIFICATION         */
+   2 ICUSAPPL         CHAR(1),     /* CUST APPLICATION CODE           */
+   2 IMACHINE         CHAR(2),     /* MACHINE GROUP CODE              */
+   2 ICCUSOFF         CHAR(7),     /* CENTRAL CUSTOMER OFFICE         */
+   2 FBLTMOD          CHAR(1),     /* Y = Built to Model Override     */
+   2 FCNTRY_EXCP      CHAR(1),     /* Y = Other Country Code-Exception*/
+                                   /*     Used default entitlement    */
+   2 ISERVCDE         CHAR(2),     /* SERVICE CODE FROM IPAR          */
+   2 ICALORIG         CHAR(1),     /* ORIGIN OF CALL INDICATOR        */
+   2 IECCOBO          CHAR(3),     /* ECCO BRANCH OFFICE              */
+   2 IECCOTER         CHAR(3),     /* ECCO TERRITORY NUMBER           */
+   2 IMODEL           CHAR(3),     /* MODEL CODE                      */
+   2 IERROR           CHAR(16),    /* ERROR CODE                      */
+   2 I2SERVDEL        CHAR(3),     /* Prev Service Delivery Code      */
+                                   /*   If type/serial has split warr */
+   2 ISERVPLN         CHAR(7),     /* SERVICE PLAN     (SERVICE CTRT  */
+   2 ISERVREN         CHAR(7),     /* SERVICE RENDERED (ALTERNATE CTRT*/
+   2 IRETAINR         CHAR(12),    /* RETAIN ROUTING ID               */
+   2 NCELAST          CHAR(15),    /* CE LAST NAME                    */
+   2 NCEINIT          CHAR(2),     /* CE INITIALS                     */
+   2 NCENICK          CHAR(8),     /* CE NICKNAME                     */
+   2 IRSAS,                        /* KEY OF RSAS ELEMENT             */
+     3 URSAS,                      /* RSAS DATE AND TIME              */
+       4 DRSAS        CHAR(5),     /* RSAS DATE YYDDD                 */
+       4 HRSAS        CHAR(4),     /* RSAS TIME HHMM                  */
+     3 QRSAS          CHAR(1),     /* SEQUENCE NUMBER                 */
+                                   /* AFE-JAPAN USER FIELDS           */
+   2 IUSRFLD1         CHAR(3),     /* USER DEFINED FIELD1             */
+   2 IUSRFLD2         CHAR(4),     /* USER DEFINED FIELD2             */
+   2 ICUSPRBN         CHAR(10),    /* CUSTOMER PROBLEM NUMBER   SR9890*/
+   2 IPARTNBR         CHAR(8),     /* PART NUMBER               SR9890*/
+   2 ITRUNKID         CHAR(10),    /* TRUNK/EXTENSION ID        SR9890*/
+   2 IRESPACC         CHAR(3),     /* RESPONSIBLE ACC           SR9890*/
+   2 LTIBSEQ          CHAR(1),     /* LAST TIB SEQUENCE NUMBER USED   */
+   2 IPOSPRBN         CHAR(10),    /* POS PROBLEM NUMBER        SR0879*/
+   2 ISWCOMPID        CHAR(12),    /* SOFTWARE COMPONENT ID           */
+   2 TSSC_EXT_FIELDS,              /* TSSC CONTRACT D/B FIELDS        */
+     3 INV_SERL_EXT   CHAR(20),    /* MACHINE SERIAL - EXTENDED       */
+     3 EXT_PROD_ID     CHAR(7),    /* TSSC REF. NUMBER
+                                      MFGID(3) PROD REF(2) PROD DEF(2)*/
+     /* Dell Fld Reuse - Dell Class Code char(5)- Machine identifier  */
+     3 EXT_PROD_ADDER  CHAR(10),   /* MACH FEATURES 10-1 CHAR FLDS    */
+     /* Dell Fld Reuse - Dell INSTALL Qty Total char(3)               */
+   2 ISBPRBNM         CHAR(10),    /* Service Broker Prob#    SR950182*/
+   2 IPROB_PRIO CHAR(2),         /* Problem Priority         S9600744 */
+   2 ICUST_SAT  CHAR(1),         /* Customer Satisfied Y/N   S9600744 */
+   2 IPENALTY   CHAR(1),         /* Late Penalty Y/N         S9600744 */
+   2 ISPEC_PARTS CHAR(1),        /* Special Parts Flag Y/N   S9600744 */
+   2 ITYPE_CALL,                 /* Type of Call             S9600744 */
+     3 IREQ_TYPE  CHAR(2),       /* Call Request Type Code            */
+     3 ISERV_TYPE CHAR(2),       /* Call Service Type Code            */
+   2 IONSITE_PD CHAR(1),         /* Onsite PD Required Y/N   S9600744 */
+   2 IXPECT_DUR CHAR(4),         /* Expected Duration        S9600744 */
+   2 ITRAINING(2),               /* Training Data from EIRS  S9600744 */
+     3 ISKILL   CHAR(10),        /* Skill Type               S9600744 */
+     3 IPFORM   CHAR(10),        /* Platorm Type             S9600744 */
+     3 ITVENDOR CHAR(10),        /* Vendor                   S9600744 */
+     3 ISPROD   CHAR(20),        /* Specific Product         S9600744 */
+     3 ICERT    CHAR(10),        /* Certification            S9600744 */
+   2 ICUST_ENV  CHAR(12),        /* Customer Environment     S9600744 */
+     /* Dell Fld Reuse - Dell SKU char(8) - Contract identifier       */
+   2 IPART_ARRAY(4),             /* Parts needed from TSS    S9600744 */
+     3 IPART_NUM CHAR(12),       /* Part Number              S9600744 */
+     3 IPART_FIX CHAR(3),        /* Part Fix Probability     S9600744 */
+     /* Dell Fld Reuse - Dell Part Qty Total char(3)                  */
+   2 ICUST_AVAL CHAR(9),         /* Cust Avail/Not Avail     S9600744 */
+                                 /* DHHMMHHMM                         */
+                                 /* day of week|start time|stop time  */
+   2 ICUST_AV_IND CHAR(1),       /* 0 or 1 (0 avail,1 ^not)  S9600744 */
+   2 IBUS_SEG   CHAR(6),         /* TSS Business Segment     S9600744 */
+   2 IENT_SOURCE CHAR(1),        /* Source of Service Entitlement     */
+   2 IENT_CONTRACT_IN CHAR(12),  /* User Provided Contract Number     */
+   2 IENT_CONTRACT_TYPE CHAR(10),/* CEDS/CHIS COntract Type           */
+  /* IPART_STATUS was used for ELISA and hasn't been used for years,  *
+   * we are removing it to make room for other fields but not changing*
+   * any offsets of fields after it.                         6NSF2    *
+   * IPART_STATUS(4)  CHAR(8),    * Part Number status       NSSCARES *  
+   *                              * 'O' - Ordered                     * 
+   *                              * 'A' - Allocated                   */
+   2 IESA_CODES       CHAR(10),  /* Special Entl Code (5x2)  SR060028 */
+   2 XENT_COUNTRY_CODE CHAR(3),  /* Entitlement Country Code  SR060056*/
+   2 XMTM_WARRANTY     CHAR(1),  /* MTM Warranty              SR060056*/
+   2 SPAD16            CHAR(18),  /* Unused                   SR060056*/
+   2 ECI_IPARTY_ID    CHAR(10),  /* ECI Interested Party ID     S98181*/
+   2 ICREDIT_CARD     CHAR(14),  /* Credit Card Auth for HSI    S00107*/
+   2 IIPSCNTL,                  /* Prescreen Controlled Field  Montana*/
+     3 IIPS_VENDOR_ID CHAR(1), /* 1-1 Vendor Identifier(M-Montana)    */
+     3 IIPS_RET_INV   CHAR(1), /* 2-2 Y = Customer Return inventory   */
+     3 IIPS_PRT_ORD   CHAR(1), /* 3-3 Y = PT Part Order is restricted */
+     3 IIPS_HOLIDAY_COV CHAR(1), /* Y/N = Holiday Coverage    S030076 */
+     3 IIPS_CX_COM    CHAR(1), /* 5-5 Y =closing comments required PSD*/
+     3 IIPS_EXT_ENTITLE CHAR(1),/* 6-6 Y=Ext. System entitled call PSD*/
+   2 IPONUM           CHAR(25),  /* Purchase Order Number    SR040050 */
+   2 ILIABILITY       CHAR(6), /* Liability Indicator         Lenovo */ 
+                               /* Pos 1 - Base warranty              */
+                               /*     2 - Warranty upgrade           */
+                               /*     3 - Maintenance                */
+                               /*     4 - ITS HSI                    */
+                               /*     5 - Special approval billing   */
+                               /*     6 - Future                     */
+   2 SPAD15           CHAR(4);  /* PADDING                           */
+ /*-------------------------------------------------------------------*/
+ /*                                  END  CADETCAL                    */
+ /*-------------------------------------------------------------------*/

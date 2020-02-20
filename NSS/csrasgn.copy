@@ -1,0 +1,87 @@
+ /***************************************************************/
+ /* This copy member maps the parameters that are passed when   */
+ /* calling the LINKed to routine CADCKCP.  The Checkscreen     */
+ /* as well as Receive Call call CADCKCP.  The interface should */
+ /* also be the same too.   -mjb                                */
+ /***************************************************************/
+
+ DCL
+ 1 CADCKCPP          BASED BDY(WORD),
+  2 CKCP_INPUTS,                  /* ------ CADCKCP INPUTS ---------- */
+   3 CKCP_PKEY,                   /* Prod segment key                 */
+     4 CKCP_PROD     CHAR(11),    /* Product                          */
+     4 CKCP_SERIAL   CHAR(11),    /* Serial number                    */
+   3 CKCP_PHONE      CHAR(15),    /* Customer phone number            */
+   3 CKCP_BROKER     CHAR(10),    /* Service Broker ECI ID            */
+   3 CKCP_IN_FLAGS,               /*                                  */
+    4 CKCP_ALT       BIT(1),      /* Find first available alternate   */
+    4 CKCP_PRODGRP   BIT(1),      /* Search for product group         */
+    4 CKCP_CUSTPROD  BIT(1),      /* Search for *CUSTOMER product     */
+    4 CKCP_IOE       BIT(1),      /* IOE in alternate contract field  */
+    4 CKCP_ROLM      BIT(1),      /* Rolm product                     */
+    4 CKCP_ROLM_CHK  BIT(1),      /* CADCKCP must check to see if the */
+                                  /*  product is ROLM.                */
+    4 *              BIT(2),      /*                                  */
+  2 CKCP_OUTPUTS,                 /* ------ CADCKCP OUTPUTS --------- */
+   3 CKCP_CE_BO      CHAR(3),     /* Assigned CE's branch office      */
+   3 CKCP_CE_TER     CHAR(3),     /* Assigned CE's territory          */
+   3 CKCP_CE_RT      CHAR(1),     /* Assigned CE's radio/territory    */
+   3 CKCP_CE_NAME    CHAR(17),    /* Assigned CE's name               */
+   3 CKCP_WKGRP      CHAR(4),     /* Assigned CE's workgroup          */
+   3 *               CHAR(6),     /* UNUSED               S9400157    */
+   3 CKCP_PRI_TER    CHAR(3),     /* Primary CE for the product       */
+   3 CKCP_RESP_BO    CHAR(3),     /* The branch office of:            */
+                                  /*  - the primary CE for the        */
+                                  /*    product                       */
+                                  /*  - the first trained CE for the  */
+                                  /*    product group                 */
+                                  /*  - the first trained CE for the  */
+                                  /*    *CUSTOMER product             */
+                                  /*  The CE does not have to be      */
+                                  /*  available.                      */
+   3 CKCP_RESP_FM    CHAR(3),     /* The field manager of:            */
+                                  /*  - the primary CE for the        */
+                                  /*    product                       */
+                                  /*  - the first trained CE for the  */
+                                  /*    product group                 */
+                                  /*  - the first trained CE for the  */
+                                  /*    *CUSTOMER product             */
+                                  /*  The CE does not have to be      */
+                                  /*  available.                      */
+   3 CKCP_CE_RAD     CHAR(3),     /* Trained CE's radio. Only         */
+                                  /*  returned when searching for     */
+                                  /*  the product group or the        */
+                                  /*  *CUSTOMER product. Displayed on */
+                                  /*  the CAD/RC product map.         */
+   3 CKCP_CE_AVAIL   CHAR(5),     /* Trained CE's availability. Only  */
+                                  /*  returned when searching for     */
+                                  /*  the product group or the        */
+                                  /*  *CUSTOMER product. Displayed on */
+                                  /*  the CAD/RC product map.         */
+   3 CKCP_PROD_GROUP CHAR(11),    /* Product group                    */
+   3 CKCP_OUT_FLAGS,              /*                                  */
+    4 CKCP_ERROR     BIT(1),      /* CADCKCP error flag               */
+    4 CKCP_PRIMSAME  BIT(1),      /*                                  */
+    4 CKCP_TRAINED   BIT(1),      /* Trained CE found. Only           */
+                                  /*  returned when searching for     */
+                                  /*  product group or *CUSTOMER.     */
+    4 CKCP_SPEC_MSG  BIT(1),      /* Special message flag on product  */
+    4 CKCP_USE_MZIP  BIT(1),      /* USE MASTER ZIP FLAG ON CUSTROOT  */
+    4 *              BIT(3),      /*                                  */
+   3 CKCP_RC         CHAR(1),     /* CADCKCP return code:             */
+                                  /*   0 - Product not found          */
+                                  /*   1 - CE is available            */
+                                  /*   2 - CE is unavailable          */
+                                  /*   4 - No assignment possible     */
+                                  /*   5 - Product not found in       */
+                                  /*       equipment group            */
+                                  /*   6 - Product not found in       */
+                                  /*       product group              */
+                                  /*   7 - CE is not trained          */
+                                  /*   8 - CADCKCP error              */
+                                  /*   9 - Customer not found         */
+                                  /*   B - No matching product/serial */
+   3 CKCP_CCFEBO1    CHAR(3),     /* CCFEBO1 from Customer Root       */
+   3 CKCP_CCFMTER    CHAR(3),     /* CCFMTER from Customer Root       */
+   3 *               CHAR(4);     /* Unused                           */
+

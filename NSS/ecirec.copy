@@ -1,0 +1,1193 @@
+ /*==================================================================*/
+ /*                                                                  */
+ /* NAME:   ECIREC                                                   */
+ /*                                                                  */
+ /* TITLE:  ECI INTERNAL RECORD LAYOUT                               */
+ /*                                                                  */
+ /* LANGUAGE:  PL/AS & PL/I                                          */
+ /*                                                                  */
+ /* DESCRIPTION:  DEFINITION OF ECI INTERNAL RECORD HEADER AND       */
+ /*               DATA FIELDS                                        */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ /*------------------------------------------------------------------*/
+ /* NOTE: This copy member exists on both the NSS and ECI driver     */
+ /*       systems. Any changes to it under either driver must be     */
+ /*       replicated on the other to keep the two in sync.           */
+ /*------------------------------------------------------------------*/
+ /*------------------------------------------------------------------*/
+ /*                                                                  */
+ /* NOTE: IF THE ECIRECDCL IS MODIFIED THE TABLES IN                 */
+ /*       ECITYPE COPY MUST BE MODIFIED.  THE ECFADDR TABLE          */
+ /*       CONTAINS INFORMATION ABOUT THE OFFSET OF THE               */
+ /*       FIELDS IN AND THE ECFMLEN CONTAINS INFORMATION ABOUT       */
+ /*       THE MAXIMUM LENGTH OF THE FIELDS IN ECIREC. THE TYPE       */
+ /*       TABLES ARE USED FOR FORMATTING THE INPUT ECI               */
+ /*       RECORDS INTO THE INTERNAL RECORD FORMAT (ECIREC).          */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:               PROGRAMMER:*/
+ /*  -------- -------- ---- ----------------------------- -----------*/
+ /*  05/10/90 SR0365   0NSK NEW                           LISAMH     */
+ /*  10/26/90 DCR0365B 0NSK ADDED CUSTOMER CONTACT NAME   LISAMH     */
+ /*  11/29/90 SR0644   0NSL ADDED CALL ID AND AREA NUM    LISAMH     */
+ /*  03/03/91 SR0731   1NSB ADDED EXTURNAL USER ID        LISAMH     */
+ /*  03/21/91 I112537  1NSB ADDED ERROR MAILBOX SUPPORT   LISAMH     */
+ /*  08/26/91 SR0879   1NSN CONVERT TO ECI 1.2            T.BROWN    */
+ /*  10/31/91 IXXXXXX  1NSN STOP TIME, ACTUAL HOURS,      T.BROWN    */
+ /*                         AND TRAVEL HOURS WRONG LENGTH            */
+ /*  04/05/92 SR0981   2ECD ADDED FIELD TYPES 3D - 40     LISAMH     */
+ /*                         ALSO NEW HDR2 FLAGS                      */
+ /*  04/09/92 SR0981   2ECD CONVERT TO PLI COMPATIBLE     ANGELAH    */
+ /*  04/27/92 SR0981   2ECD ADDED RECORD TO/FROM FIELDS   S.TERRELL  */
+ /*  08/11/92 I154110  2ECD ADD NSS CALLID FROM EC3LOGN   T.BROWN    */
+ /*  07/30/93 XXXXXXX  3ECN                               K. MESMER  */
+ /*  03/28/94 SR940038 4ECC ADD TIB & MSG FIELDS          KMURPHY    */
+ /*  05/12/94 I240250  4ECE REFRESH OVERHAUL - ADDED 3    DBOYD      */
+ /*                         NEW FIELDS                               */
+ /*  07/20/94 SR940066 4ECI NEW MESSAGE FIELDS            FRR        */
+ /*  11/29/94 SR940205 5EC1 ADDED FIELD TYPES 4B-4E       DBOYD      */
+ /*  02/23/95 SR940157 5ECC ECI REDESIGN PHASE 2          KMESMER    */
+ /*                         - REMOVE 'TO' & 'FROM' BITS              */
+ /*                         - REMOVE UNUSED ECCO BITS                */
+ /*                         - ADD BROKER & VENDOR ID IN HDR          */
+ /*  10/12/95 SR950183 5NSM GE Service Broker             R. Postell */
+ /*  11/11/96 S9600368 7NSA AT and TIB Duplicate Removal  Gyula      */
+ /*  01/07/97 I527265  7NSA ECTBOR 10 Char                Gyula      */
+ /*  01/20/97 SR960744 7NSG Added Fields 102 thru 131.    RJB        */
+ /*                          Expanded pad by 50 characters           */
+ /*                          for future expansion.                   */
+ /*  05/07/97          7NSP Fixed field definitions:      R. Postell */
+ /*                           39 - Service Plan                      */
+ /*                           75 - Contract Number                   */
+ /*                          130 - Service Rendered                  */
+ /*  08/02/97 SR97137  7NSP ADD FIELDS 132 AND 133        KMURPHY    */
+ /*                          ADDED PAD OF 200 BYTES                  */
+ /*  11/07/99 S99103   9NSC Dell Alliance Contract        Lehane     */
+ /*                         Reuse existing ECI fields                */
+ /*                         for Dell Data defs                       */
+ /*                          - 33  = IBM Billing Code                */
+ /*                          - 77  = Dell Class Type                 */
+ /*                          - 78  = Dell Install Qty                */
+ /*                          - 119 = Dell SKU(Billing number)        */
+ /*                          - 124,125,126,127 - Dell Part Qty       */
+ /*  02/29/00 S99115   0NSC Part Launch                   Gyula      */
+ /*  10/09/02 S02040   2NSO Customer Phone route flag     Lehane     */
+ /*==================================================================*/
+  %IF LANG = 'PLI' %THEN %GOTO ECIRECSK;
+  DCL 1 ECIREC BASED,
+  %ECIRECSK:;
+      /*---------------------------------------------------------*/
+      /* ECI HEADER FIELDS                                       */
+      /*---------------------------------------------------------*/
+      2 ECRTYPE CHAR(2),  /* ECI RECORD TYPES                    */
+                                /* POSSIBLE RECORD TYPE VALUES:  */
+                                /* NOTE:  SEE ECIRTYPE COPY FOR A*/
+                                /* COMPLETE LIST OF RECORD TYPES */
+                                /* '0001'X  - CALL CREATE        */
+                                /* '0002'X  - STATUS             */
+                                /* '0003'X  - PROBLEM FIX        */
+                                /* '270F'X (9999) XREF UPDATE    */
+                                /* '270E'X (9998) XREF UPDATE    */
+                                /* '270D'X (9997) XREF UPDATE    */
+                                /* '270C'X (9996) XREF UPDATE    */
+      2 ECCDATE CHAR(8),  /* DATE REC CREATED BY SENDER          */
+      2 ECCTIME CHAR(6),  /* TIME REC CREATED BY SENDER          */
+      2 ECSUBID CHAR(10), /* ECI ID                              */
+      2 ECGNERR CHAR(2),  /* ERROR CODE FIELD                    */
+      2 ECUN1    CHAR(3), /* UNUSED - SR0918                     */
+      2 ECATIME  CHAR(8), /* ABSTIME FOR REC IDENT               */
+     %IF LANG = 'PLI' %THEN %GOTO ECIRECSK1;
+      2 ECBITS  CHAR(1),  /* BITS                                */
+     %GOTO ECIRECSK2;
+     %ECIRECSK1:;
+      2 ECBITS,
+     %ECIRECSK2:;
+        4 EC2NDHD BIT(1), /* USED IN THE UNFORMATTED RECORD      */
+                          /* ALWAYS ON IN ECIREC                 */
+        4 ECXREFP BIT(1), /* XREF ALREADY CREATED FOR CALL CREATE*/
+        4 ECCALLIDP BIT(1),/* CALLID PRESENT          I154110     */
+        4 ECFLRES BIT(5),  /* USED IN THE UNFORMATTED RECORD      */
+      2 ECUN2    CHAR(2),  /* Unused                              */
+      2 ECCLLID  CHAR(4),  /* I154110 - CALLID FROM EC3LOGN       */
+      2 F0       CHAR(35),/* UNUSED                              */
+      /* ECI TO NSS HEADER FROM/TO ECIHDR2                       */
+      %IF LANG = 'PLI' %THEN %GOTO ECIRECSK3;
+      2 ECNSS CHAR(80) BDY(BYTE),
+      %GOTO ECIRECSK4;
+      %ECIRECSK3:;
+      2 ECNSS,
+      %ECIRECSK4:;
+        4 ECNSSCAL CHAR(4),  /* NSS CALL ID                 SR 0879 */
+        %IF LANG = 'PLI' %THEN %GOTO ECIRECSK5;
+        4 ECFLAGS CHAR(1),   /* ECI FLAGS                 SR 0879   */
+        %GOTO ECIRECSK6;
+        %ECIRECSK5:;
+        4 ECFLAGS,
+        %ECIRECSK6:;
+          6 ECCUSPHN  BIT(1),/* Cust phone used to route  S020040   */  
+          6 ECRS00    BIT(1),/* UNUSED                    S9400157  */
+          6 ECLOGCO   BIT(1),/* LOG CARRY OVER ALLOWED              */
+          6 ECTATOV   BIT(1),/* TAT OVERRIDE ALLOWED                */
+          6 ECRS01    BIT(3),/* UNUSED                    S9400157  */
+          6 ECRSEND   BIT(1),/* RETURN TO SENDER FLAG               */
+        %IF LANG = 'PLI' %THEN %GOTO ECIRECSK7;
+        4 ECFLAGS2 CHAR(1),  /* ECI FLAGS                 SR 0918   */
+        %GOTO ECIRECSK8;
+        %ECIRECSK7:;
+        4 ECFLAGS2,
+        %ECIRECSK8:;
+          6 ECRDIST   BIT(1),/* RETURN FOR DISTRIBUTION             */
+          6 ECVENDO   BIT(1),/* SEND TO VENDOR ONLY                 */
+          6 ECMIRROR  BIT(1),/* Mirror to NSS from ECI flag         */
+          6 ECFILE    BIT(1),/* I240250 - DIVERT TO A FILE FLAG     */
+          6 ECCOUNT   BIT(1),/* I240250 - COUNT RECORDS FLAG        */
+          6 ECINTPO   BIT(1),/* Send to Interested Party Only       */
+          6 ECRS1     BIT(2),/* UNUSED BITS                         */
+        %IF LANG = 'PLI' %THEN %GOTO ECIRECSK9;
+        4 ECECCOFL CHAR(1),  /* ECI ECCO 1.4 SUPPORT FLAGS SR 0918  */
+        %GOTO ECIRECSK10;
+        %ECIRECSK9:;
+        4 ECECCOFL,
+        %ECIRECSK10:;
+          6 ECERSC    BIT(1),/* ECCO RSC FLAG                       */
+          6 ECRS2     BIT(7),/* UNUSED BITS                         */
+        4 ECAREAFR CHAR(2),  /* EC RECORD AREA-FROM                 */
+        4 ECAREATO CHAR(2),  /* EC RECORD AREA-TO                   */
+        4 ECDIST   CHAR(7),  /* LIMITED SERVICE BROKER DIST LIST    */
+        4 ECGMT    CHAR(8),  /* CUSTOMER GMT OFFSET                 */
+        4 ECHDPHN  CHAR(15), /* LSB HELP DESK PHONE NUMBER          */
+      %IF LANG = 'PLI' %THEN %GOTO ECIRECSK30;
+        4 ECRECCNT FIXED BIN(31) BDY(BYTE),/* I240250 - RECORD COUNT */
+      %GOTO ECIRECSK40;
+      %ECIRECSK30:;
+        4 ECRECCNT FIXED BIN(31),          /* I240250 - RECORD COUNT */
+      %ECIRECSK40:;
+        4 ECVENDID CHAR(10), /* ECI VENDOR ID             S9400157  */
+        4 ECSVCBID CHAR(10), /* ECI BROKER ID             S9400157  */
+        4 ECINTPID CHAR(10), /* ECI INTERESTED PARTY ID   S99050    */
+        4 F1       CHAR(5),  /* PADDING FOR FUTURE USE              */
+
+      /*---------------------------------------------------------*/
+      /* ECI DATA FIELDS                                         */
+      /*---------------------------------------------------------*/
+      2 ECDATA,
+          3 ECCUPH     CHAR(10), /* '0001'X CUSTOMER PHONE NUMBER     */
+          3 ECCUPHER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUPHP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F2         BIT (6),  /*       FILLER                      */
+          3 ECCUNAM    CHAR(17), /* '0002'X CUSTOMER NAME             */
+          3 ECCUNAMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUNAMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F3         BIT (6),  /*       FILLER                      */
+          3 ECCUADR    CHAR(17), /* '0003'X CUSTOMER ADDRESS          */
+          3 ECCUADRER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUADRP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F4         BIT (6),  /*       FILLER                      */
+          3 ECCUCI     CHAR(8),  /* '0004'X CUSTOMER CITY             */
+          3 ECCUCIER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUCIP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F5         BIT (6),  /*       FILLER                      */
+          3 ECCUST     CHAR(2),  /* '0005'X CUSTOMER STATE            */
+          3 ECCUSTER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUSTP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F6         BIT (6),  /*       FILLER                      */
+          3 ECCUZIP    CHAR(9),  /* '0006'X CUSTOMER ZIP CODE         */
+          3 ECCUZIPER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUZIPP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F7         BIT (6),  /*       FILLER                      */
+          3 ECCUCN     CHAR(10), /* '0007'X CUSTOMER CALL NUMBER      */
+          3 ECCUCNER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUCNP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F8         BIT (6),  /*       FILLER                      */
+          3 ECCNPH     CHAR(10), /* '0008'X CONTACT LOCATION PH NUM   */
+          3 ECCNPHER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCNPHP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F9         BIT (6),  /*       FILLER                      */
+          3 ECMATYP    CHAR(11), /* '0009'X MACHINE TYPE              */
+          3 ECMATYPER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECMATYPP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F10        BIT (6),  /*       FILLER                      */
+          3 ECCUPHE    CHAR(5),  /* '000A'X CUSTOMER PHONE NUM EXT.   */
+          3 ECCUPHEER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUPHEP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F11        BIT (6),  /*       FILLER                      */
+          3 ECCNPHE    CHAR(5),  /* '000B'X CONTACT LOC PHONE NUM EXT */
+          3 ECCNPHEER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCNPHEP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F12        BIT (6),  /*       FILLER                      */
+          3 ECCOM      CHAR(230),/* '000C'X COMMENTS                  */
+          3 ECCOMER    BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCOMP     BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F13        BIT (6),  /*       FILLER                      */
+          3 ECDATE     CHAR(8),  /* '000D'X DATE SENDER RECEIVED CALL */
+          3 ECDATEER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECDATEP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F14        BIT (6),  /*       FILLER                      */
+          3 ECTIME     CHAR(6),  /* '000E'X TIME SENDER RECEIVED CALL */
+          3 ECTIMEER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTIMEP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F15        BIT (6),  /*       FILLER                      */
+          3 ECCNLOC    CHAR(20), /* '000F'X CONTACT LOCATION          */
+          3 ECCNLOCER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCNLOCP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F16        BIT (6),  /*       FILLER                      */
+          3 ECCONUM    CHAR(8),  /* '0010'X CONTRACT/SPECIAL BID NUM  */
+          3 ECCONUMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCONUMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F17        BIT (6),  /*       FILLER                      */
+          3 ECBO       CHAR(3),  /* '0011'X BRANCH OFFICE             */
+          3 ECBOER     BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECBOP      BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F18        BIT (6),  /*       FILLER                      */
+          3 ECTERR     CHAR(3),  /* '0012'X TERRITORY                 */
+          3 ECTERRER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTERRP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F19        BIT (6),  /*       FILLER                      */
+          3 ECSTATC    CHAR(2),  /* '0013'X STATUS / ACTIVITY CODE    */
+          3 ECSTATCER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSTATCP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F20        BIT (6),  /*       FILLER                      */
+          3 ECSNUM     CHAR(11), /* '0014'X SERIAL NUMBER             */
+          3 ECSNUMER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSNUMP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F21        BIT (6),  /*       FILLER                      */
+          3 ECSYTYP    CHAR(16), /* '0015'X SYSTEM TYPE               */
+          3 ECSYTYPER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSYTYPP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F22        BIT (6),  /*       FILLER                      */
+          3 ECSCTYP    CHAR(1),  /* '0016'X SERVICE CALL TYPE         */
+          3 ECSCTYPER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSCTYPP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F23        BIT (6),  /*       FILLER                      */
+          3 ECDFDAT    CHAR(8),  /* '0017'X DEFERRED CALL DATE        */
+          3 ECDFDATER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECDFDATP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F24        BIT (6),  /*       FILLER                      */
+          3 ECDFTIM    CHAR(6),  /* '0018'X DEFERRED CALL TIME        */
+          3 ECDFTIMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECDFTIMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F25        BIT (6),  /*       FILLER                      */
+          3 ECSEV      CHAR(1),  /* '0019'X SEVERITY        SR 0879   */
+          3 ECSEVER    BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSEVP     BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F26        BIT (6),  /*       FILLER                      */
+          3 ECCUSNM    CHAR(7),  /* '001A'X CUSTOMER NUMBER           */
+          3 ECCUSNMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUSNMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F27        BIT (6),  /*       FILLER                      */
+          3 ECNTRNM    CHAR(10), /* '001B'X ENTERPRISE NUMBER         */
+          3 ECNTRNMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECNTRNMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F28        BIT (6),  /*       FILLER                      */
+          3 ECSR       CHAR(15), /* '001C'X SR NAME          SR 0879  */
+          3 ECSRER     BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSRP      BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F29        BIT (6),  /*       FILLER                      */
+          3 ECESTBL    CHAR(7),  /* '001D'X ESTABLISHMENT NUMBER      */
+          3 ECESTBLER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECESTBLP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F30        BIT (6),  /*       FILLER                      */
+          3 ECCONTR    CHAR(6),  /* '001E'X CONTRACT TYPE             */
+          3 ECCONTRER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCONTRP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F31        BIT (6),  /*       FILLER                      */
+          3 ECTRGHR    CHAR(4),  /* '001F'X TARGET HOURS (HHMM)       */
+          3 ECTRGHRER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTRGHRP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F32        BIT (6),  /*       FILLER                      */
+          3 ECPART     CHAR(8),  /* '0020'X PART NUMBER               */
+          3 ECPARTER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPARTP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F33        BIT (6),  /*       FILLER                      */
+          3 ECPRDER    CHAR(16), /* '0021'X PRODUCT ERROR CODE        */
+          3 ECPRDERER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPRDERP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F34        BIT (6),  /*       FILLER                      */
+          3 ECFAIL     CHAR(3),  /* '0022'X FAILING ELEMENT           */
+          3 ECFAILER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECFAILP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F35        BIT (6),  /*       FILLER                      */
+          3 ECMODEL    CHAR(3) , /* '0023'X MODEL                     */
+          3 ECMODELER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECMODELP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F36        BIT (6),  /*       FILLER                      */
+          3 ECCNNM     CHAR(17), /* '0024'X CUSTOMER CONTACT NAME     */
+          3 ECCNNMER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCNNMP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F37        BIT (6),  /*       FILLER                      */
+          3 ECPOSPN    CHAR(10), /* '0025'X POS PROBLEM NUMBER SR 0879*/
+          3 ECPOSPNER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPOSPNP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F38        BIT (6),  /*       FILLER                      */
+          3 ECAREA     CHAR(2),  /* '0026'X NSS AREA NUMBER           */
+          3 ECAREAER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECAREAP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F39        BIT (6),  /*       FILLER                      */
+   /* SR 0879 - FOLLOWING FIELDS ADDED OR CHANGED                     */
+          3 ECCONNUM   CHAR(7),  /* '0027'X Service Plan      I?????? */
+          3 ECCONNUMER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCONNUMP  BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F40        BIT (6),  /*       FILLER                      */
+          3 ECOSYSID   CHAR(10), /* '0028'X ORIG SYSTEM UNIQUE ID     */
+          3 ECOSYSIDER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECOSYSIDP  BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F41        BIT (6),  /*       FILLER                      */
+          3 ECOCODE    CHAR(2),  /* '0029'X ORIGINATION CODE          */
+          3 ECOCODEER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECOCODEP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F42        BIT (6),  /*       FILLER                      */
+          3 ECERRTX    CHAR(80), /* '002A'X ERROR TEXT                */
+          3 ECERRTXER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECERRTXP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F43        BIT (6),  /*       FILLER                      */
+          3 ECPBDES    CHAR(70), /* '002B'X PROBLEM RESOLUTION DESCR  */
+          3 ECPBDESER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPBDESP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F44        BIT (6),  /*       FILLER                      */
+          3 ECPNUM1    CHAR(8),  /* '002C'X PR - PART NUMBER 1        */
+          3 ECPNUM1ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPNUM1P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F45        BIT (6),  /*       FILLER                      */
+          3 ECPQTY1    CHAR(2),  /* '002D'X PR - PART QUANTITY 1      */
+          3 ECPQTY1ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPQTY1P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F46        BIT (6),  /*       FILLER                      */
+          3 ECPNUM2    CHAR(8),  /* '002E'X PR - PART NUMBER 2        */
+          3 ECPNUM2ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPNUM2P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F47        BIT (6),  /*       FILLER                      */
+          3 ECPQTY2    CHAR(2),  /* '002F'X PR - PART QUANTITY 2      */
+          3 ECPQTY2ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPQTY2P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F48        BIT (6),  /*       FILLER                      */
+          3 ECPNUM3    CHAR(8),  /* '0030'X PR - PART NUMBER 3        */
+          3 ECPNUM3ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPNUM3P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F49        BIT (6),  /*       FILLER                      */
+          3 ECPQTY3    CHAR(2),  /* '0031'X PR - PART QUANTITY 3      */
+          3 ECPQTY3ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPQTY3P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F50        BIT (6),  /*       FILLER                      */
+          3 ECPNUM4    CHAR(8),  /* '0032'X PR - PART NUMBER 4        */
+          3 ECPNUM4ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPNUM4P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F51        BIT (6),  /*       FILLER                      */
+          3 ECPQTY4    CHAR(2),  /* '0033'X PR - PART QUANTITY 4      */
+          3 ECPQTY4ER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPQTY4P   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F52        BIT (6),  /*       FILLER                      */
+          3 ECACTHR    CHAR(3),  /* '0034'X PR - ACTUAL HOURS SPENT   */
+          3 ECACTHRER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECACTHRP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F53        BIT (6),  /*       FILLER                      */
+          3 ECTRVHR    CHAR(3),  /* '0035'X PR - TRAVEL HOURS         */
+          3 ECTRVHRER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTRVHRP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F54        BIT (6),  /*       FILLER                      */
+          3 ECBILLC    CHAR(1),  /* '0036'X PR - BILLABLE CODE        */
+          3 ECBILLCER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECBILLCP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F55        BIT (6),  /*       FILLER                      */
+          3 ECSTPTM    CHAR(3),  /* '0037'X PR - STOP TIME            */
+          3 ECSTPTMER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSTPTMP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F56        BIT (6),  /*       FILLER                      */
+          3 ECCMPLC    CHAR(1),  /* '0038'X PR - COMPLETION CODE      */
+          3 ECCMPLCER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCMPLCP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F57        BIT (6),  /*       FILLER                      */
+          3 ECPRDCD    CHAR(3),  /* '0039'X PR - PRODUCT CODE         */
+          3 ECPRDCDER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECPRDCDP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F58        BIT (6),  /*       FILLER                      */
+          3 ECFAILC    CHAR(3),  /* '003A'X PR - FAILURE/ACTION CODE  */
+          3 ECFAILCER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECFAILCP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F59        BIT (6),  /*       FILLER                      */
+          3 ECCUREF    CHAR(15), /* '003B'X PR - REFERENCE/AUTH CODE  */
+          3 ECCUREFER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUREFP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F60        BIT (6),  /*       FILLER                      */
+          3 ECCADPB    CHAR(7),  /* '003C'X CAD PROBLEM NUMBER        */
+          3 ECCADPBER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCADPBP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F61        BIT (6),  /*       FILLER                      */
+          3 ECCRECT    CHAR(1),  /* '003D'X CUST RECORD TYPE          */
+          3 ECCRECTER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCRECTP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F62        BIT (6),  /*       FILLER                      */
+          3 ECTZONE    CHAR(1),  /* '003E'X TIME ZONE                 */
+          3 ECTZONEER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTZONEP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F63        BIT (6),  /*       FILLER                      */
+          3 ECCSPHN    CHAR(15), /* '003F'X CUST SERVICE PHONE NUM    */
+          3 ECCSPHNER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCSPHNP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F64        BIT (6),  /*       FILLER                      */
+          3 ECCUUPD    CHAR(1),  /* '0040'X CUSTOMER INFO UPD REQ     */
+          3 ECCUUPDER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECCUUPDP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F65        BIT (6),  /*       FILLER                      */
+        /********************ADDED FOR 930211  ************************/
+          3 ECRFREQ    CHAR(1),  /* '0041'X REFRESH REQUEST TYPE      */
+          3 ECRFREQER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECRFREQP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F66        BIT (6),  /*       FILLER                      */
+          3 ECRFIDS    CHAR(1000), /* '0042'X REFRESH CALLIDS         */
+          3 ECRFIDSER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECRFIDSP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F67        BIT (6),  /*       FILLER                      */
+          3 ECTRCOD    CHAR(1),  /* '0043'X TRANSFER REASON CODE      */
+          3 ECTRCODER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTRCODP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F68        BIT (6),  /*       FILLER                      */
+          3 ECTRFID    CHAR(10), /* '0044'X TRANSFER TO ID            */
+          3 ECTRFIDER  BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTRFIDP   BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F69        BIT (6),  /*       FILLER                      */
+        /********************ADDED FOR 9400038 ************************/
+          3 ECTIBDATA  CHAR(512),/* '0045'X TIB FIELD                 */
+          3 ECTIBER    BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTIBP     BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F70        BIT (6),  /*       FILLER                      */
+          3 ECMSGUNQ   CHAR(7),  /* '0046'X MSG UNIQUENESS NUMBER(SC#)*/
+          3 ECMSGUNQER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECMSGUNQP  BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F71        BIT (6),  /*       FILLER                      */
+          3 ECTIBTYPE  CHAR(1),  /* '0047'X TIB TYPE FIELD            */
+          3 ECTIBTYPER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECTIBTYPEP BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F72        BIT (6),  /*       FILLER                      */
+        /********************ADDED FOR 940066 *************************/
+          3 ECUSERID   CHAR(8),  /* '0048'X UNIQUE USER IDENTIFIER    */
+          3 ECUSERER   BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECUSERP    BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F73        BIT (6),  /*       FILLER                      */
+          3 ECMSGTYPE  CHAR(1),  /* '0049'X MSG TYPE 1 IMM,2 QU, 3 ER */
+          3 ECMSGTYPER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECMSGTYPEP BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F74        BIT (6),  /*       FILLER                      */
+          3 ECSENDER   CHAR(10), /* '004A'X ID OF MESSAGE SENDER      */
+          3 ECSENDERER BIT (1),  /*       ERROR CODE FIELD            */
+          3 ECSENDERP  BIT (1),  /*       FIELD PRESENT FLAG          */
+          3 F75        BIT (6),  /*       FILLER                      */
+        /******************* ADDED FOR 9400205 ************************/
+          3 ECEXTCCNM  CHAR(11), /* '004B'X Contract Number   I?????? */
+          3 ECEXTCCER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECEXTCCP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F76        BIT(6),   /*       FILLER                      */
+          3 ECEXTISNM  CHAR(20), /* '004C'X EXTNDED INVENTORY SERIAL# */
+          3 ECEXTISER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECEXTISP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F77        BIT(6),   /*       FILLER                      */
+          3 ECEXTPRDG  CHAR(7),  /* '004D'X PRODUCT GROUP             */
+          3 ECEXTPRER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECEXTPRP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F78        BIT(6),   /*       FILLER                      */
+          3 ECEXTADDC  CHAR(10), /* '004E'X ADDER CODES               */
+          3 ECEXTADER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECEXTADP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F79        BIT(6),   /*       FILLER                      */
+          /*==========================================================*/
+          /* FIELDS ADDED FOR SR950183                                */
+          /*==========================================================*/
+          3 ECACHMF    CHAR(08), /* '004F'X WEEKDAY ACCESS HOURS      */
+          3 ECACHMFER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECACHMFP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F80        BIT(6),   /*       FILLER                      */
+          3 ECACHSA    CHAR(08), /* '0050'X SATURDAY ACCESS HOURS     */
+          3 ECACHSAER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECACHSAP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F81        BIT(6),   /*       FILLER                      */
+          3 ECACHSU    CHAR(08), /* '0051'X SUNDAY   ACCESS HOURS     */
+          3 ECACHSUER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECACHSUP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F82        BIT(6),   /*       FILLER                      */
+          3 ECCOHMF    CHAR(08), /* '0052'X WEEKDAY CONTRACT HOURS    */
+          3 ECCOHMFER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECCOHMFP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F83        BIT(6),   /*       FILLER                      */
+          3 ECCOHSA    CHAR(08), /* '0053'X SATURDAY CONTRACT HOURS   */
+          3 ECCOHSAER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECCOHSAP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F84        BIT(6),   /*       FILLER                      */
+          3 ECCOHSU    CHAR(08), /* '0054'X SUNDAY   CONTRACT HOURS   */
+          3 ECCOHSUER  BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECCOHSUP   BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F85        BIT(6),   /*       FILLER                      */
+          3 ECSERV     CHAR(02), /* '0055'X SERVICE CODE              */
+          3 ECSERVER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECSERVP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F86        BIT(6),   /*       FILLER                      */
+          3 ECACTV     CHAR(02), /* '0056'X ACTIVITY CODE             */
+          3 ECACTVER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECACTVP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F87        BIT(6),   /*       FILLER                      */
+          3 ECFUN1     CHAR(02), /* '0057'X FUNCTION CODE 1           */
+          3 ECFUN1ER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECFUN1P    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F88        BIT(6),   /*       FILLER                      */
+          3 ECFUN2     CHAR(02), /* '0058'X FUNCTION CODE 2           */
+          3 ECFUN2ER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECFUN2P    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F89        BIT(6),   /*       FILLER                      */
+          3 ECFUN3     CHAR(02), /* '0059'X FUNCTION CODE 3           */
+          3 ECFUN3ER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECFUN3P    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F90        BIT(6),   /*       FILLER                      */
+          3 ECFUN4     CHAR(02), /* '005A'X FUNCTION CODE 4           */
+          3 ECFUN4ER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECFUN4P    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F91        BIT(6),   /*       FILLER                      */
+          3 ECAUTH     CHAR(20), /* '005B'X AUTHORIZATION CODE        */
+          3 ECAUTHER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECAUTHP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F92        BIT(6),   /*       FILLER                      */
+          3 ECMILE     CHAR(03), /* '005C'X MILEAGE                   */
+          3 ECMILEER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECMILEP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F93        BIT(6),   /*       FILLER                      */
+          3 ECEXP      CHAR(07), /* '005D'X EXPENSES      $$$$$››     */
+          3 ECEXPER    BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECEXPP     BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F94        BIT(6),   /*       FILLER                      */
+          3 ECDOCN     CHAR(09), /* '005E'X DOCUMENT NUMBER           */
+          3 ECDOCNER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECDOCNP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F95        BIT(6),   /*       FILLER                      */
+          3 ECVNAM     CHAR(19), /* '005F'X VERIFIED BY NAME          */
+          3 ECVNAMER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECVNAMP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F96        BIT(6),   /*       FILLER                      */
+          3 ECVPHN     CHAR(10), /* '0060'X VERIFIED BY PHONE NUMBER  */
+          3 ECVPHNER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECVPHNP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F97        BIT(6),   /*       FILLER                      */
+          3 ECMDES     CHAR(19), /* '0061'X MFG/MODEL DESCRIPTION     */
+          3 ECMDESER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECMDESP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F98        BIT(6),   /*       FILLER                      */
+          3 ECMRDG     CHAR(09), /* '0062'X METER READING             */
+          3 ECMRDGER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECMRDGP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F99        BIT(6),   /*       FILLER                      */
+          3 ECFLCD     CHAR(06), /* '0063'X Failure Code (PT)         */
+          3 ECFLCDER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECFLCDP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F100       BIT(6),   /*       FILLER                      */
+          3 ECOTHR     CHAR(03), /* '0064'X Overtime Hours HHT        */
+          3 ECOTHRER   BIT(1),   /*       ERROR CODE FIELD            */
+          3 ECOTHRP    BIT(1),   /*       FIELD PRESENT FLAG          */
+          3 F101       BIT(6),   /*       FILLER                      */
+          3 ECTBOR     CHAR(10), /* '0065'X TIB ORIGINATION    9600368
+                                                                527265*/
+          3 ECTBORER   BIT(1),   /*       ERROR CODE FIELD     9600368*/
+          3 ECTBORP    BIT(1),   /*       FIELD PRESENT FLAG   9600368*/
+          3 F102       BIT(6),   /*       FILLER               9600368*/
+
+          /************************************************************/
+          /* Following Fields Added For NSS/BOB/ECI   Rickey Brackett */
+          /************************************************************/
+
+          3 PRIORITY    CHAR(2), /* '0066'X Problem Priority Code     */
+          3 PRIORITYER  BIT(1),  /*        Error Code Field           */
+          3 PRIORITYP   BIT(1),  /*        Field Present Flag         */
+          3 PAD_NO_102  BIT(6),  /*        Filler For Bits            */
+                                 /*-----------------------------------*/
+          3 CUSTSAT     CHAR(1), /* '0067'X Customer Happy? (future)  */
+          3 CUSTSATER   BIT(1),  /*        Error Code Field           */
+          3 CUSTSATP    BIT(1),  /*        Field Present Flag         */
+          3 PAD_NO_103  BIT(6),  /*        Filler For Bits            */
+                                 /*-----------------------------------*/
+          3 PENALTY     CHAR(1), /* '0068'X Penalty Flag    (future)  */
+          3 PENALTYER   BIT(1) , /*        Error Code Field           */
+          3 PENALTYP    BIT(1) , /*        Field Present Flag         */
+          3 PAD_NO_104  BIT(6) , /*        Filler For Bits            */
+                                 /*-----------------------------------*/
+          3 SPECIAL_PART  CHAR(1),/*'0069'X Special Parts Flag(future)*/
+          3 SPECIAL_PARTER BIT(1),              /* Error Code Field   */
+          3 SPECIAL_PARTP  BIT(1),            /* Field Present Flag   */
+          3 PAD_NO_105     BIT(6),                /* Filler For Bits  */
+                                 /*-----------------------------------*/
+          3 CALL_TYPE      CHAR(4), /*'006A'X Call Type               */
+          3 CALL_TYPEER    BIT(1),         /* Error Code Field        */
+          3 CALL_TYPEP     BIT(1),       /* Field Present Flag        */
+          3 PAD_NO_106     BIT(6),         /* Filler For Bits         */
+                                 /*-----------------------------------*/
+          3 OSPDFLAG   CHAR(1),/* '006B'X  Y/N - On Site Paid Required*/
+          3 OSPDFLAGER    BIT(1),                 /* Error Code Field */
+          3 OSPDFLAGP     BIT(1),               /* Field Present Flag */
+          3 PAD_NO_107     BIT(6),                 /* Filler For Bits */
+                                 /*-----------------------------------*/
+          3 EXPECTED_DUR   CHAR(4), /* '006C'X  Expected Duration hhmm*/
+          3 EXPECTED_DURER  BIT(1),           /* Error Code Field     */
+          3 EXPECTED_DURP   BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_108      BIT(6),          /* Filler For Bits       */
+                                 /*-----------------------------------*/
+          3 SKILLTYPE1      CHAR(10),/*'006D'X  Skill Type #1         */
+          3 SKILLTYPE1ER    BIT(1),          /* Error Code Field      */
+          3 SKILLTYPE1P     BIT(1),          /* Field Present Flag    */
+          3 PAD_NO_109      BIT(6),          /* Filler For Bits       */
+                                   /*---------------------------------*/
+          3 SKILLTYPE2      CHAR(10),/*'006E'X Skill Type #2          */
+          3 SKILLTYPE2ER    BIT(1),           /* Error Code Field     */
+          3 SKILLTYPE2P     BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_110      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PRODTYPE1       CHAR(10),/*'006F'X  Platform Type #1      */
+          3 PRODTYPE1ER     BIT(1),           /* Error Code Field     */
+          3 PRODTYPE1P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_111      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PRODTYPE2       CHAR(10),/*'0070'X    Platform Type #2    */
+          3 PRODTYPE2ER     BIT(1),           /* Error Code Field     */
+          3 PRODTYPE2P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_112      BIT(6),           /* Align Bits           */
+                                  /*----------------------------------*/
+          3 VENDORTYPE1  CHAR(10),/*'0071'X       Vendor # 1          */
+          3 VENDORTYPE1ER BIT(1),           /* Error Code Field       */
+          3 VENDORTYPE1P  BIT(1),           /* Field Present Flag     */
+          3 PAD_NO_113     BIT(6),                   /* Alignemt      */
+                                 /*-----------------------------------*/
+          3 VENDORTYPE2    CHAR(10),/*'0072'X   VENDOR # 2            */
+          3 VENDORTYPE2ER  BIT(1),            /* Error Code Field     */
+          3 VENDORTYPE2P   BIT(1),            /* Field Present Flag   */
+          3 PAD_NO_114     BIT(6),           /* Filler For Bits       */
+                                  /*----------------------------------*/
+          3 SPEC_PROD1     CHAR(20), /* '0073'X  Product Line 1       */
+          3 SPEC_PROD1ER     BIT(1),        /* Error Code Field       */
+          3 SPEC_PROD1P      BIT(1),        /* Field Present Flag     */
+          3 PAD_NO_115       BIT(6),        /* Filler For Bits        */
+                                  /*----------------------------------*/
+          3 SPEC_PROD2     CHAR(20), /* '0074'X  Product Line 2       */
+          3 SPEC_PROD2ER   BIT(1),           /* Error Code Field      */
+          3 SPEC_PROD2P    BIT(1),           /* Field Present Flag    */
+          3 PAD_NO_116     BIT(6),           /* Filler For Bits       */
+                                    /*--------------------------------*/
+          3 CERTIFICATION1 CHAR(10),/* '0075'X  Certification 1 (EIRS)*/
+          3 CERTIFICATION1ER BIT(1),          /* Error Code Field     */
+          3 CERTIFICATION1P BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_117      BIT(6),           /* Filler For Bits      */
+                                    /*--------------------------------*/
+          3 CERTIFICATION2 CHAR(10),/* '0076'X  Certification 2 (EIRS)*/
+          3 CERTIFICATION2ER BIT(1),            /* Error Code Field   */
+          3 CERTIFICATION2P BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_118      BIT(6),           /* Filler For Bits      */
+                                    /*--------------------------------*/
+          3 CUST_ENV       CHAR(12),/* '0077'X Cust environment train */
+          3 CUST_ENVER       BIT(1),            /* Error Code Field   */
+          3 CUST_ENVP        BIT(1),          /* Field Present Flag   */
+          3 PAD_NO_119       BIT(6),          /* Filler For Bits      */
+                                          /*--------------------------*/
+          3 PARTNUMB1      CHAR(12),/* '0078'X  Part Number 1         */
+          3 PARTNUMB1ER      BIT(1),             /* Error Code Field  */
+          3 PARTNUMB1P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_120      BIT(6),           /* Filler For Bits      */
+                                    /*--------------------------------*/
+          3 PARTNUMB2      CHAR(12),/* '0079'X  Part Number 2         */
+          3 PARTNUMB2ER      BIT(1),            /* Error Code Field   */
+          3 PARTNUMB2P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_121      BIT(6),           /* Filler For Bits      */
+                                    /*--------------------------------*/
+          3 PARTNUMB3      CHAR(12),/* '007A'X  Part Number 3         */
+          3 PARTNUMB3ER      BIT(1),           /* Error Code Field    */
+          3 PARTNUMB3P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_122      BIT(6),           /* Filler For Bits      */
+                                     /*-------------------------------*/
+          3 PARTNUMB4      CHAR(12), /* '007B'X  Part Number 4        */
+          3 PARTNUMB4ER      BIT(1),           /* Error Code Field    */
+          3 PARTNUMB4P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_123      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PROB_FIX1      CHAR(3),/*'007C'X Probabile Fix PARTNUMB1  */
+          3 PROB_FIX1ER      BIT(1),           /* Error Code Field    */
+          3 PROB_FIX1P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_124      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PROB_FIX2      CHAR(3),/*'007D'X Probabile Fix PARTNUMB2  */
+          3 PROB_FIX2ER      BIT(1),           /* Error Code Field    */
+          3 PROB_FIX2P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_125      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PROB_FIX3      CHAR(3),/*'007E'X Probabile Fix PARTNUMB3  */
+          3 PROB_FIX3ER      BIT(1),           /* Error Code Field    */
+          3 PROB_FIX3P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_126      BIT(6),           /* Filler For Bits      */
+                                   /*---------------------------------*/
+          3 PROB_FIX4      CHAR(3),/*'007F'X Probabile Fix PARTNUMB4  */
+          3 PROB_FIX4ER      BIT(1),           /* Error Code Field    */
+          3 PROB_FIX4P      BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_127      BIT(6),           /* Filler For Bits      */
+                               /*-------------------------------------*/
+          3 CUST_AVAIL CHAR(9),/*'0080'X CustAv (0-6)day and HHMMHHMM */
+          3 CUST_AVAILER     BIT(1),           /* Error Code Field    */
+          3 CUST_AVAILP     BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_128      BIT(6),           /* Filler For Bits      */
+                                /*------------------------------------*/
+          3 CUST_AVAILF CHAR(1),/*'0081'X 0 or 1  0=cust_avail 1=unav */
+          3 CUST_AVAILFER    BIT(1),           /* Error Code Field    */
+          3 CUST_AVAILFP    BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_129      BIT(6),           /* Filler For Bits      */
+                                /*------------------------------------*/
+          3 BUS_SEGMENT CHAR(6),/*'0082'X TSS business segment(future)*/
+          3 BUS_SEGMENTER    BIT(1),           /* Error Code Field    */
+          3 BUS_SEGMENTP    BIT(1),           /* Field Present Flag   */
+          3 PAD_NO_130      BIT(6),           /* Filler For Bits      */
+                                /*------------------------------------*/
+          3 CUST_CLAIM  CHAR(6),/*'0083'X Service Rendered    I?????? */
+          3 CUST_CLAIMER    BIT(1),              /* Error Code Field  */
+          3 CUST_CLAIMP    BIT(1),            /* Field Present Flag   */
+          3 PAD_NO_131      BIT(6),           /* Filler For Bits      */
+                                       /*-----------------------------*/
+          3 EMP_DIV      CHAR(2),/*'0084'X EMPLOYEE DIVISION  SR97137 */
+          3 EMP_DIVER    BIT(1),                 /* ERROR CODE FIELD  */
+          3 EMP_DIVP     BIT(1),              /* FIELD PRESENT FLAG   */
+          3 PAD_NO_132   BIT(6),              /* FILLER FOR BITS      */
+                                       /*-----------------------------*/
+          3 EMAIL_ADDR CHAR(128), /*'0085'X EMAIL ADDRESS     SR97137 */
+          3 EMAIL_ADDRER  BIT(1),                /* ERROR CODE FIELD  */
+          3 EMAIL_ADDERP  BIT(1),             /* FIELD PRESENT FLAG   */
+          3 PAD_NO_133    BIT(6),             /* FILLER FOR BITS      */
+ /*------------------------------------------------------------------*/
+ /* Fields added as place-holders for ACM                    SR99115 */
+ /*------------------------------------------------------------------*/
+                                  /*----------------------------------*/
+          3 OEM_BRNAME   CHAR(30),/*'0134'  OEM BRAND NAME     SR98141*/
+          3 OEM_BRNAMEER   BIT(1),/*        ERROR CODE FIELD          */
+          3 OEM_BRNAMEP    BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F134           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 OEM_BRDESC   CHAR(30),/*'0135'  OEM BRAND DESCRIPTION     */
+                                  /*                           SR98141*/
+          3 OEM_BRDESCER   BIT(1),/*        ERROR CODE FIELD          */
+          3 OEM_BRDESCP    BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F135           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 ACCT_PRFINDX CHAR(30),/*'0136'  ACCOUNT PROFILE INDEX     */
+          3 acct_prfindxer BIT(1),/*        ERROR CODE FIELD          */
+          3 acc5_prfindxp  BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F136           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE1    CHAR(200),/*'0137'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE1ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE1P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F137           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE2    CHAR(200),/*'0138'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE2ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE2P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F138           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE3    CHAR(200),/*'0139'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE3ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE3P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F139           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE4    CHAR(200),/*'0140'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE4ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE4P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F140           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE5    CHAR(200),/*'0141'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE5ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE5P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F141           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE6    CHAR(200),/*'0142'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE6ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE6P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F142           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE7    CHAR(200),/*'0143'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE7ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE7P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F143           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE8    CHAR(200),/*'0144'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE8ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE8P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F144           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 GEN_USE9    CHAR(200),/*'0145'  GENERAL USE FIELD  SR98141*/
+          3 GEN_USE9ER     BIT(1),/*        ERROR CODE FIELD          */
+          3 GEN_USE9P      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F145           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 WWPROBNO     CHAR(11),/*'0146'  Common Problem Number     */
+          3 WWPROBNOER     BIT(1),/*        ERROR CODE FIELD          */
+          3 WWPROBNOP      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F146           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+          3 WWSTATUS     CHAR(03),/*'0147'  WW Status                 */
+          3 WWSTATUSER     BIT(1),/*        ERROR CODE FIELD          */
+          3 WWSTATUSP      BIT(1),/*        FIELD PRESENT FLAG        */
+          3 F147           BIT(6),/*        FILLER FOR BITS           */
+                                  /*----------------------------------*/
+                                       /*----------------------------*/
+                                       /* Parts Auto Launch   SR99115*/
+                                       /*----------------------------*/
+                                       /*-----------------------------*/
+          3 Order_Code char(1),        /* '0094'x part order code     */
+          3 Order_CodeR  BIT(1),       /* 0148      ERROR CODE FIELD  */
+          3 Order_CodeP  BIT(1),       /* FIELD PRESENT FLAG          */
+          3 PAD_NO_148   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Outside_location char(3),  /* '0095'x outside location    */
+          3 Outside_locationR  BIT(1), /* 0149      ERROR CODE FIELD  */
+          3 Outside_locationP  BIT(1), /* FIELD PRESENT FLAG          */
+          3 PAD_NO_149   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Servicing_BO char(4),      /* '0096'x servicing bo        */
+          3 Servicing_BOR  BIT(1),     /* 0150      ERROR CODE FIELD  */
+          3 Servicing_BOP  BIT(1),     /* FIELD PRESENT FLAG          */
+          3 PAD_NO_150   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Delivery_Point char(2),    /* '0097'x delivery point      */
+          3 Delivery_PointR  BIT(1),   /* 0151      ERROR CODE FIELD  */
+          3 Delivery_PointP  BIT(1),   /* FIELD PRESENT FLAG          */
+          3 PAD_NO_151   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Alternate_BO char(4),      /* '0098'x Alternate_BO        */
+          3 Alternate_BOR  BIT(1),     /* 0152      ERROR CODE FIELD  */
+          3 Alternate_BOP  BIT(1),     /* FIELD PRESENT FLAG          */
+          3 PAD_NO_152   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Special_Instructions       /* '0099'x special instruct    */
+                             char(32), /*                             */
+          3 Special_InstructionsR      /* 0153  ERROR CODE FIELD      */
+                             BIT(1),   /*                             */
+          3 Special_InstructionsP      /* FIELD PRESENT FLAG          */
+                             BIT(1),   /*                             */
+          3 PAD_NO_153   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Ship_to_ADDR char(128),    /* '009A'x ship to address     */
+          3 Ship_to_ADDRR BIT(1),      /* 0154  ERROR CODE FIELD      */
+          3 Ship_to_ADDRP  BIT(1),     /* FIELD PRESENT FLAG          */
+          3 PAD_NO_154   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum5 char(12),         /* '009B'x part number 5       */
+          3 PartNum5R BIT(1),          /* 0155  ERROR CODE FIELD      */
+          3 PartNum5P  BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_155   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum5_QTY char(2),      /* '009C'x part number 5 qty   */
+          3 PartNum5_QTYR BIT(1),      /* 0156  ERROR CODE FIELD      */
+          3 PartNum5_QTYP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_156    BIT(6),      /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum6 char(12),         /* '009D'x part number 6       */
+          3 PartNum6R BIT(1),          /* 0157  ERROR CODE FIELD      */
+          3 PartNum6P  BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_157   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum6_QTY char(2),      /* '009E'x part number 6 qty   */
+          3 PartNum6_QTYR BIT(1),      /* 0158  ERROR CODE FIELD      */
+          3 PartNum6_QTYP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_158    BIT(6),      /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum7 char(12),         /* '009F'x part number 7       */
+          3 PartNum7R BIT(1),          /* 0159  ERROR CODE FIELD      */
+          3 PartNum7P  BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_159   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum7_QTY char(2),      /* '00A0'x part number 7 qty   */
+          3 PartNum7_QTYR BIT(1),      /* 0160  ERROR CODE FIELD      */
+          3 PartNum7_QTYP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_160    BIT(6),      /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum8 char(12),         /* '00A1'x part number 8       */
+          3 PartNum8R BIT(1),          /* 0161  ERROR CODE FIELD      */
+          3 PartNum8P  BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_161   BIT(6),       /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartNum8_QTY char(2),      /* '00A2'x part number 8 qty   */
+          3 PartNum8_QTYR BIT(1),      /* 0162  ERROR CODE FIELD      */
+          3 PartNum8_QTYP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_162    BIT(6),      /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc1 char(21),        /* '00A3'x part 1 description  */
+          3 PartDesc1R BIT(1),         /* 0163  ERROR CODE FIELD      */
+          3 PartDesc1P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_163 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc2 char(21),        /* '00A4'x part 2 description  */
+          3 PartDesc2R BIT(1),         /* 0164  ERROR CODE FIELD      */
+          3 PartDesc2P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_164 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc3 char(21),        /* '00A5'x part 3 description  */
+          3 PartDesc3R BIT(1),         /* 0165  ERROR CODE FIELD      */
+          3 PartDesc3P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_165 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc4 char(21),        /* '00A6'x part 4 description  */
+          3 PartDesc4R BIT(1),         /* 0166  ERROR CODE FIELD      */
+          3 PartDesc4P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_166 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc5 char(21),        /* '00A7'x part 5 description  */
+          3 PartDesc5R BIT(1),         /* 0167  ERROR CODE FIELD      */
+          3 PartDesc5P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_167 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc6 char(21),        /* '00A8'x part 6 description  */
+          3 PartDesc6R BIT(1),         /* 0168  ERROR CODE FIELD      */
+          3 PartDesc6P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_168 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc7 char(21),        /* '00A9'x part 7 description  */
+          3 PartDesc7R BIT(1),         /* 0169  ERROR CODE FIELD      */
+          3 PartDesc7P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_169 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 PartDesc8 char(21),        /* '00AA'x part 8 description  */
+          3 PartDesc8R BIT(1),         /* 0170  ERROR CODE FIELD      */
+          3 PartDesc8P BIT(1),         /* FIELD PRESENT FLAG          */
+          3 PAD_NO_170 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode1 char(1),          /* '00AB'x part 1 FNF Code     */
+          3 FNFCode1R BIT(1),          /* 0171  ERROR CODE FIELD      */
+          3 FNFCode1P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_171 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode2 char(1),          /* '00AC'x part 2 FNF Code     */
+          3 FNFCode2R BIT(1),          /* 0172  ERROR CODE FIELD      */
+          3 FNFCode2P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_172 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode3 char(1),          /* '00AD'x part 3 FNF Code     */
+          3 FNFCode3R BIT(1),          /* 0173  ERROR CODE FIELD      */
+          3 FNFCode3P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_173 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode4 char(1),          /* '00AE'x part 4 FNFCode      */
+          3 FNFCode4R BIT(1),          /* 0174  ERROR CODE FIELD      */
+          3 FNFCode4P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_174 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode5 char(1),          /* '00AF'x part 5 FNFCode      */
+          3 FNFCode5R BIT(1),          /* 0175  ERROR CODE FIELD      */
+          3 FNFCode5P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_175 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode6 char(1),          /* '00B0'x part 6 FNFCode      */
+          3 FNFCode6R BIT(1),          /* 0176  ERROR CODE FIELD      */
+          3 FNFCode6P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_176 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode7 char(1),          /* '00B1'x part 7 FNF Code     */
+          3 FNFCode7R BIT(1),          /* 0177  ERROR CODE FIELD      */
+          3 FNFCode7P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_177 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FNFCode8 char(1),          /* '00B2'x part 8 FNFCode      */
+          3 FNFCode8R BIT(1),          /* 0178  ERROR CODE FIELD      */
+          3 FNFCode8P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_178 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode1 char(1),           /* '00B3'x part 1 CR Code      */
+          3 CRCode1R BIT(1),           /* 0179  ERROR CODE FIELD      */
+          3 CRCode1P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_179 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode2 char(1),           /* '00B4'x part 2 CR Code      */
+          3 CRCode2R BIT(1),           /* 0180  ERROR CODE FIELD      */
+          3 CRCode2P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_180 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode3 char(1),           /* '00B5'x part 3 CR Code      */
+          3 CRCode3R BIT(1),           /* 0181  ERROR CODE FIELD      */
+          3 CRCode3P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_181 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode4 char(1),           /* '00B6'x part 4 CRCode       */
+          3 CRCode4R BIT(1),           /* 0182  ERROR CODE FIELD      */
+          3 CRCode4P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_182 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode5 char(1),           /* '00B7'x part 5 CRCode       */
+          3 CRCode5R BIT(1),           /* 0183  ERROR CODE FIELD      */
+          3 CRCode5P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_183 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode6 char(1),           /* '00B8'x part 6 CRCode       */
+          3 CRCode6R BIT(1),           /* 0184  ERROR CODE FIELD      */
+          3 CRCode6P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_184 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode7 char(1),           /* '00B9'x part 7 CR Code      */
+          3 CRCode7R BIT(1),           /* 0185  ERROR CODE FIELD      */
+          3 CRCode7P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_185 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CRCode8 char(1),           /* '00BA'x part 8 CRCode       */
+          3 CRCode8R BIT(1),           /* 0186  ERROR CODE FIELD      */
+          3 CRCode8P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_186 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode1 char(2),           /* '00BB'x part 1 CA Code      */
+          3 CACode1R BIT(1),           /* 0187  ERROR CODE FIELD      */
+          3 CACode1P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_187 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode2 char(2),           /* '00BC'x part 2 Ca Code      */
+          3 CACode2R BIT(1),           /* 0188  ERROR CODE FIELD      */
+          3 CACode2P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_188 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode3 char(2),           /* '00BD'x part 3 Ca Code      */
+          3 CACode3R BIT(1),           /* 0189  ERROR CODE FIELD      */
+          3 CACode3P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_189 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode4 char(2),           /* '00BE'x part 4 CaCode       */
+          3 CACode4R BIT(1),           /* 0190  ERROR CODE FIELD      */
+          3 CACode4P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_190 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode5 char(2),           /* '00BF'x part 5 CaCode       */
+          3 CACode5R BIT(1),           /* 0191  ERROR CODE FIELD      */
+          3 CACode5P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_191 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode6 char(2),           /* '00C0'x part 6 CACode       */
+          3 CACode6R BIT(1),           /* 0192  ERROR CODE FIELD      */
+          3 CACode6P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_192 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode7 char(2),           /* '00C1'x part 7 CA Code      */
+          3 CACode7R BIT(1),           /* 0193  ERROR CODE FIELD      */
+          3 CACode7P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_193 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 CACode8 char(2),           /* '00C2'x part 8 CACode       */
+          3 CACode8R BIT(1),           /* 0194  ERROR CODE FIELD      */
+          3 CACode8P BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_194 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute1 char(8),        /* '00c3'x part 1 Attribute    */
+          3 Attribute1R BIT(1),        /* 0195  ERROR CODE FIELD      */
+          3 Attribute1P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_195 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute2 char(8),        /* '00c4'x part 2 Attribute    */
+          3 Attribute2R BIT(1),        /* 0196  ERROR CODE FIELD      */
+          3 Attribute2P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_196 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute3 char(8),        /* '00c5'x part 3 Attribute    */
+          3 Attribute3R BIT(1),        /* 0197  ERROR CODE FIELD      */
+          3 Attribute3P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_197 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute4 char(8),        /* '00c6'x part 4 Attribute    */
+          3 Attribute4R BIT(1),        /* 0198  ERROR CODE FIELD      */
+          3 Attribute4P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_198 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute5 char(8),        /* '00c7'x part 5 Attribute    */
+          3 Attribute5R BIT(1),        /* 0199  ERROR CODE FIELD      */
+          3 Attribute5P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_199 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute6 char(8),        /* '00c8'x part 6 Attribute    */
+          3 Attribute6R BIT(1),        /* 0200  ERROR CODE FIELD      */
+          3 Attribute6P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_200 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute7 char(8),        /* '00c9'x part 7 Attribute    */
+          3 Attribute7R BIT(1),        /* 0201  ERROR CODE FIELD      */
+          3 Attribute7P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_201 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Attribute8 char(8),        /* '00CA'x part 8 Attribute    */
+          3 Attribute8R BIT(1),        /* 0202  ERROR CODE FIELD      */
+          3 Attribute8P BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_202 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL1 char(1),          /* '00CB'x part 1 AK_CNCL      */
+          3 AK_CNCL1R BIT(1),          /* 0203  ERROR CODE FIELD      */
+          3 AK_CNCL1P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_203 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL2 char(1),          /* '00CC'x part 2 AK_CNCL      */
+          3 AK_CNCL2R BIT(1),          /* 0204  ERROR CODE FIELD      */
+          3 AK_CNCL2P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_204 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL3 char(1),          /* '00CD'x part 3 AK_CNCL      */
+          3 AK_CNCL3R BIT(1),          /* 0205  ERROR CODE FIELD      */
+          3 AK_CNCL3P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_205 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL4 char(1),          /* '00CE'x part 4 AK_CNCL      */
+          3 AK_CNCL4R BIT(1),          /* 0206  ERROR CODE FIELD      */
+          3 AK_CNCL4P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_206 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL5 char(1),          /* '00CF'x part 5 AK_CNCL      */
+          3 AK_CNCL5R BIT(1),          /* 0207  ERROR CODE FIELD      */
+          3 AK_CNCL5P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_207 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL6 char(1),          /* '00D0'x part 6 AK_CNCL      */
+          3 AK_CNCL6R BIT(1),          /* 0208  ERROR CODE FIELD      */
+          3 AK_CNCL6P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_208 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL7 char(1),          /* '00D1'x part 7 AK_CNCL      */
+          3 AK_CNCL7R BIT(1),          /* 0209  ERROR CODE FIELD      */
+          3 AK_CNCL7P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_209 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 AK_CNCL8 char(1),          /* '00D2'x part 8 AK_CNCL      */
+          3 AK_CNCL8R BIT(1),          /* 0210  ERROR CODE FIELD      */
+          3 AK_CNCL8P BIT(1),          /* FIELD PRESENT FLAG          */
+          3 PAD_NO_210 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Receiving_BO char(3),      /* '00D3'x receiving BO        */
+          3 Receiving_BOR BIT(1),      /* 0211  ERROR CODE FIELD      */
+          3 Receiving_BOP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_211 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Carrier_Name char(24),     /* '00D4'x Carrier_Name        */
+          3 Carrier_NameR BIT(1),      /* 0212  ERROR CODE FIELD      */
+          3 Carrier_NameP BIT(1),      /* FIELD PRESENT FLAG          */
+          3 PAD_NO_212 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Flight_Dest char(17),      /* '00D5'x Flight_Dest         */
+          3 Flight_DestR BIT(1),       /* 0213  ERROR CODE FIELD      */
+          3 Flight_DestP BIT(1),       /* FIELD PRESENT FLAG          */
+          3 PAD_NO_213 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Waybill char(16),          /* '00D6'x Waybill             */
+          3 WaybillR BIT(1),           /* 0214  ERROR CODE FIELD      */
+          3 WaybillP BIT(1),           /* FIELD PRESENT FLAG          */
+          3 PAD_NO_214 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 ETA char(16),              /* '00D7'x eta                 */
+          3 ETAR BIT(1),               /* 0215  ERROR CODE FIELD      */
+          3 ETAP BIT(1),               /* FIELD PRESENT FLAG          */
+          3 PAD_NO_215 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Order_Info char(48),       /* '00D8'x Order information   */
+          3 Order_InfoR BIT(1),        /* 0216  ERROR CODE FIELD      */
+          3 Order_InfoP BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_216 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Shipping_BO char(4),       /* '00D9'x Shipping BO         */
+          3 Shipping_BOR BIT(1),       /* 0217  ERROR CODE FIELD      */
+          3 Shipping_BOP BIT(1),       /* FIELD PRESENT FLAG          */
+          3 PAD_NO_217 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 Cancel_MSG char(48),       /* '00DA'x Cancel_MSG          */
+          3 Cancel_MSGR BIT(1),        /* 0218  ERROR CODE FIELD      */
+          3 Cancel_MSGP BIT(1),        /* FIELD PRESENT FLAG          */
+          3 PAD_NO_218 BIT(6),         /* FILLER FOR BITS             */
+                                       /*-----------------------------*/
+          3 FUTURE_PADDING CHAR(500);  /* FUTURE EXPANSION OF ECI REC */
+
+ /*-------------------------------------------------------------------*/
+ /*                        END  ECIREC                                */
+ /*-------------------------------------------------------------------*/

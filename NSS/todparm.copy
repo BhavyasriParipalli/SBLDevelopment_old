@@ -1,0 +1,80 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   TODPARM     VERSION NR:  01                              */
+ /*                                                                  */
+ /* TITLE: TODAY PARAMETER LIST FOR RAMTOD MODULE                    */
+ /*                                                                  */
+ /* LANGUAGE: PL/X                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*   THIS IS A MAPPING OF THE INPUT PARAMETER LIST REQUIRED TO      */
+ /*   INVOKE THE RAMTOD BRANCH ENTERED ROUTINE.  THE INTERFACE       */
+ /*   TO THE ROUTINE WILL HAVE REGISTER 1 ADDRESSING THE             */
+ /*   PARAMETER LIST AND REGISTER 13 POINTS TO A REG SAVE AREA.      */
+ /*   NOTE THAT THE PARAMETER LIST MUST BE IN DYNAMIC STORAGE        */
+ /*   BECAUSE THE RAMTOD ROUTINE WILL ALTER THE PARAMETER LIST.      */
+ /*   IN EFFECT THE PARMLIST WILL CONTAIN THE REQUEST ON INPUT       */
+ /*   TO RAMTOD AND IT WILL CONTAIN THE ANSWER UPON RETURN.          */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  02/23/98 S9600603 8NSG    Year 2000 Compliance     lqchung      */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL
+   1 TODPARM BDY(WORD) BASED(TODPTR), /* INPUT PARMS AND WORK AREA    */
+    2 TODTYPE FIXED(31),        /* SERVICE REQUEST CODE
+                                   00 - GET TODAYS DATE AND TIME
+                                   04 - JULIAN TO GREGORIAN
+                                        2 character year
+                                   05 - JULIAN TO GREGORIAN
+                                        4 character year            Y2K
+                                   08 - GREGORIAN TO JULIAN
+                                        WITH THE GREGORIAN DATE IN
+                                        FIELD TODGREGO.
+                                        THIS FIELD CONTAINS DAY OF
+                                        WEEK IN BINARY UPON RETURN
+                                        EXCEPT FOR TYPE=0C.
+                                        2 character year
+                                   09 - GREGORIAN TO JULIAN
+                                        WITH THE GREGORIAN DATE IN
+                                        FIELD TODGREGO.
+                                        4 character year            Y2K
+                                   0C - GET CURRENT GMT.  NOTE - THIS
+                                        REQUEST PROVIDES ONLY HHMMSS IN
+                                        TODTIMEC(1-6) AND JULIAN DATE IN
+                                        TODJULIA(1-5) ALL OTHER FIELDS
+                                        ARE INSIGNIFICANT UPON RETURN.
+                                   0B - CONVERT LOCAL GREGORIAN DATE AND
+                                        TIME TO GMT DATE AND TIME
+                                   0D - CONVERT LOCAL JULIAN DATE AND
+                                        TIME TO GMT DATE AND TIME
+                                   0E - CONVERT GMT GREGORIAN DATE AND
+                                        TIME TO LOCAL DATE AND TIME
+                                   0F - CONVERT GMT JULIAN DATE AND TIME
+                                        TO LOCAL DATE AND TIME
+                                        FOR OPTIONS 0B, 0D, 0E, 0F
+                                        RESULTING DATE WILL BE IN JULIAN
+                                        AS WELL AS GREGORIAN FORM.
+                                        OPTIONS 0B, 0D, 0E AND 0F ARE
+                                        ADDED TO SUPPORT CAD APPL.    */
+    2 TODPACK CHAR(4) BDY(WORD), /* ALSO RETURNS RAW TIME FROM SYSTEM */
+      3 TODBINWD FIXED(32) BDY(WORD), /* TIME IS IN BINARY FORMAT IN  */
+                                      /*  THREE HUNDRTHS OF A SECOND  */
+    2 Y2KJULIA CHAR(7),               /* JULIAN DATE AS YYYYDDD       */
+    2 *        CHAR(1),               /* UNUSED CHAR                  */
+    2 Y2KGREGO CHAR(8),               /* GREGORIAN DATE AS YYYYMMDD   */
+    2 TODTIMEC  CHAR(8),              /* TIME OF DAY AS HHMMSST       */
+    2 TODMMDDY CHAR(8),               /* GREGORIAN DATE AS MM/DD/YY   */
+    2 TODDATE CHAR(8) BDY(WORD),
+    2 TODBPACK CHAR(8) BDY(WORD),
+    2 TODOFFSET@ PTR(32),             /* POINTER TO TIME OFFSET TABLE */
+    2 TODCML CHAR(1);
+
+ DCL TODJULIA DEFINED(Y2KJULIA) POSITION(3) CHAR(5); /* DATE AS YYDDD */
+ DCL TODGREGO DEFINED(Y2KGREGO) POSITION(3) CHAR(6); /* DATE AS YYMMDD*/
+
+ @EJECT;
+

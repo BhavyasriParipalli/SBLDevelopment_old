@@ -1,0 +1,29 @@
+               /******************************************************/
+               /* COPYRIGHT IBM CORP                                 */
+               /*  DATE CREATED - 10/23/80                           */
+               /*  DATE CHANGED - N/A                                */
+               /*                                                    */
+               /*  THE FOLLOWING BIT DEFINITIONS ARE CONTAINED IN A  */
+               /*  MACRO CALLED AUTHBITS.  THESE BITS DEFINE THE     */
+               /*  AUTHORIZATION BITS USED IN THE USERS COMMAND      */
+               /*  AUTHORIZATION BYTES IN THE SYSTEM COMMAND MASKS   */
+               /*  AND THE APPLICATION COMMAND MASKS.                */
+               /*                                                    */
+               /*  THIS MAP IS AUTOMATICALLY INCLUDED IN THE PROFILE */
+               /*  MACRO IN THREE PLACES AND IN THE COMMAND TABLE    */
+               /*  MAP IN ONE PLACE.                                 */
+               /*                                                    */
+               /*  RESTRICTIONS -  THE MACRO VARIABLE "PRE" IS SET   */
+               /*                  BY THE INCLUDING MAP. AND IS      */
+               /*                  DEACTIVATED.  IF THE USING APPL   */
+               /*                  HAS DEFINED A MACRO VARIABLE BY   */
+               /*                  THE SAME NAME IT MUST BE RESET.   */
+               /*                                                    */
+               /******************************************************/
+               PRE%%AUT     BIT(1),      /* A 1 IF USER IS AUTHORIZED*/
+               PRE%%OWN     BIT(1),      /* A 1 IF SYSTEM COMMAND    */
+               PRE%%ACC     BIT(2),      /* COMMAND ACCESS CODE      */
+               ?AUTHSETS (PRE);
+               PRE%%UAL     BIT(4),      /* USER AUTHORITY LEVEL     */
+               ?AUTHSETS (AUTH,PRE);
+

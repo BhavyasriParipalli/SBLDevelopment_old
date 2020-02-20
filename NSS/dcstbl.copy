@@ -1,0 +1,192 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* COPYRIGHT IBM CORP                                               */
+ /*                                                                  */
+ /* DATE CREATED  - 04/27/83                                         */
+ /*                                                                  */
+ /*    THE DCS CONTROL TABLE IS POINTED TO BY THE CWA.  THIS TABLE   */
+ /*    IS CREATED AT SYSTEM INITIALIZATION BY THE DCSINIT ROUTINE.   */
+ /*                                                                  */
+ /*    THIS BLOCK IS USED TO CONTAIN GLOBAL TYPE DATA.  THAT IS      */
+ /*    DATA THAT IS REQUIRED BEYOND THE LIFE OF A TRANSACTION        */
+ /*    OR AN INDIVIDUALS USER SESSION.  THERE IS ONLY ONE DCSTBL     */
+ /*    IN THE SYSTEM.                                                */
+ /*                                                                  */
+ /* Change Activity                                                  */
+ /*                                                                  */
+ /* Reason Driver Date     Description                      Who      */
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /* SR0672 1NSE   02/21/90 Added DCS4XTBL, DCS4XCNF        ZWART     */
+ /*                        fields                                    */
+ /* I143193  2NSJ 09/30/92 DCS PERFORMANCE IMPROVEMENT    NRCEL      */
+ /*SR9400051 4NSK 07/28/94 Add DCSARDTR trace flag        ZWART      */
+ /*          8NSN 04/20/99 TELCO removed                  Gyula      */
+ /* SR01066  2NSJ 04/12/02 Add DCSMIGTR trace flag        Gyula      */
+ /* SR020036 2NSO 10/10/02 MIG 2nd phase                  Gyula      */
+ /*                        added counts for MIG syncpoints           */
+ /* SR030049 4NSA 09/22/03 Packet sizes                   Gyula   max*/
+ /* SR030051 4NSB-2 4/29/04 PRISM phase 1 - Bell Mobility Gyula  bell*/
+ /* SR040049 5NSC 12/08/04 Client version control             Gyula  */
+ /*          6NSF 03/07/06 CICS upgrage                       Gyula  */
+ /*                                                                  */
+ /* SR070007 7NSR 07/23/07 AWI support                        Gyula  */
+ /* SR070007 8NSM 05/06/08 AWI phase 2 - MIG removal          Gyula  */
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 DCSTBL BDY(WORD) BASED (CWADCSTB), /* ADDRESSABILITY */
+       2 DCSAREA BDY(WORD),
+        3 DCSAREAH,
+          4 DCSID    CHAR(4),           /* SET TO DCS AT INIT TIME   */
+          4 DCSCWAP    PTR(32),         /* PTR TO CWA                */
+          4 DCSTFPT    PTR(32),         /* PTR TO FIRST DCST         */
+          4 DCSRFTUA   PTR(32),         /* PTR TO FIRST RF TCTUA     */
+                                        /* OUTBOUND                  */
+          4 DCSINDEX   PTR(32),         /* PTR TO PROFILE INDEX      */
+          4 DCSBOST@   PTR(32),         /* PTR to B/O Statistics     */
+          4 DCSSTATC   PTR(32),         /* PTR TO CURRENT DCS STATS  */
+          4 DCSSTATP   PTR(32),         /* PTR TO PREVIOUS DCS STATS */
+          4 DCSTREBA   CHAR(256),       /* EBCDIC/ASCII              */
+                                        /* TRANSLATION TABLE         */
+          4 DCSTRAEB   CHAR(256),       /* ASCII/EBCDIC              */
+                                        /* TRANSLATION TABLE         */
+          4 DCSHXTBL   CHAR(16),        /* BIN TO EBCDIC XLATE       */
+                                        /* USED IN DBSTELCO ET AL    */
+          4 DCSPGCTR   FIXED(16),       /* PAGE COUNTER FOR TRACE    */
+          4 *          FIXED(16),       /* Unused                    */
+          4 *          CHAR(4),         /* unused               8NSM */
+          4 DCSFLGS    FIXED(32),       /* DCS FLAGS                 */
+            5 DCSCSDAC  BIT(1),         /* 1 - CSD TEST ACTIVE       */
+            5 DCSTRACT  BIT(1),         /* 1 - TRACE ACTIVE          */
+            5 DCSAWITR  BIT(1),         /* 1 - trace AWI         AWI */
+            5 DCSAWI    BIT(1),        /* 1 - AWUP already issued AWI */
+                            
+            5 *         BIT(1),         /* unsed                8NSM */
+            5 DCSEXPRUN BIT(1),         /* 1 - DBSEXP running   MIG2 */
+            5 DCS_DBSPURG BIT(1),       /* was run              6NSF */
+            5 *        BIT(25),         /* UNUSED              ACMr1 */
+          4 DCSAPPLC   FIXED(16),       /* NUMBER OF APPLICATIONS    */
+          4 DCSMMSGS   FIXED(16),       /* THRESHOLD FOR MSGS SENT   */
+          4 *          FIXED(16),       /* unused              ACMr1 */
+          4 DCSMTIME   FIXED(8),        /* MINIMUM TIME SLICE VALUE  */
+                                        /* BITS 01 23 4567           */
+                                        /*      |  |  |              */
+                                        /*      |  |  |-BASE VALUE   */
+                                        /*      |  |                 */
+                                        /*      |  |-DELTA VALUE     */
+                                        /*      |                    */
+                                        /*      |-USER SELECTED      */
+          4 *          CHAR(3),         /* UNUSED OR SOMETHIN HERE   */
+          4 *          FIXED (16),      /* UNUSED                    */
+          4 DCSSTAT1 CHAR(LENGTH(DCSSTATS)), /* STAT TABLE           */
+          4 DCSSTAT2 CHAR(LENGTH(DCSSTATS)), /* STAT TABLE           */
+          4 *        PTR (31),          /* unused                    */
+          4 DCS_QNAME CHAR(6),          /* area queue name       AWI */
+          4 DCS_AWI_LAN_LEN FIXED(16),      /* max size for LAN  AWI */
+          4 DCS_AWI_BELL_LEN FIXED(16), /* max size Bell Moblity AWI */
+          4 DCS_AWI_ATT_LEN FIXED(16),  /* max size for ATT      AWI */
+          4 *               FIXED(16),  /* unused               8NSM */
+          4 DCS_AWI_VER_LEN FIXED(16),  /* max size for VER      AWI */
+          4 DCSTCPTR PTR   (31),        /* PTR TO EXTENDED DCS STATS */
+          4 DCSMAXGC FIXED(31),         /* MAX NUMBER OF GCC'S       */
+          4 DCSDISPT PTR(31),           /* POINTER TO DISP ENTRY     */
+          4 *        FIXED(16),         /* Unused                    */
+          4 *        FIXED(16),         /* Unused                    */
+          4 DCS4XTBL PTR(31),           /* PTR to 4xGCC storage area */
+          4 *        CHAR(8),           /* Unused               8NSM */
+          4 DCSAWIIN FIXED(16),         /* AWI inbound syncpoint  AWI*/
+          4 DCSAWIOUT FIXED(16),        /* AWI outbound syncpoint AWI*/
+          4 DCS_DISP_FIX   CHAR(11),    /* moved from DBSINDEX  8NSM */
+            5 DCS_DISP0 CHAR(1),        /* DISPATCHER 0          AWI */
+              6 * BIT(2),
+              6 DCS_D1RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+            5 DCS_DISP1 CHAR(1),        /* DISPATCHER 1              */
+              6 * BIT(2),
+              6 DCS_D1RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+            5 DCS_DISP2 CHAR(1),        /* DISPATCHER 2              */
+              6 * BIT(2),
+              6 DCS_D2RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+            5 DCS_DISP3 CHAR(1),        /* DISPATCHER 3              */
+              6 * BIT(2),
+              6 DCS_D3RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP4 CHAR(1),         /* DISPATCHER 4              */
+              6 * BIT(2),
+              6 DCS_D4RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP5 CHAR(1),         /* DISPATCHER 5              */
+              6 * BIT(2),
+              6 DCS_D5RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP6 CHAR(1),         /* DISPATCHER 6              */
+              6 * BIT(2),
+              6 DCS_D6RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP7 CHAR(1),         /* DISPATCHER 7              */
+              6 * BIT(2),
+              6 DCS_D7RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP8 CHAR(1),         /* DISPATCHER 8              */
+              6 * BIT(2),
+              6 DCS_D8RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISP9 CHAR(1),         /* DISPATCHER 9              */
+              6 * BIT(2),
+              6 DCS_D9RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+           5 DCS_DISPA CHAR(1),         /* DISPATCHER A - AWI        */
+              6 * BIT(2),
+              6 DCS_D1RE BIT(1),        /* Dispatcher restart     up */
+              6 * BIT(5),               /* UNUSED                    */
+          4 * CHAR(1),                  /* UNUSED              8NSM  */
+          4 DCSGSTAT  PTR(31),          /* GCC STAT TABLE(S)         */
+          4 DCSGSLEN  PTR(31),          /* LENGTH OF 1 GCC STAT TBL  */
+          4 DCS_TBL_CLIENT_VERSION(4),                   /* SR040049 */
+            6 DCS_COMM_LEVEL      FIXED(8),/* Communication level    */
+ 
+            6 DCS_CURRENT_RF      CHAR(2), /* RF Current Version     */
+            6 DCS_FUTURE_RF       CHAR(2), /* RF Future Version      */
+            6 DCS_FUTURE_RF_DATE  CHAR(6), /* RF Future Date- mmddyy */
+
+            6 DCS_CURRENT_LAN     CHAR(2), /* LAN Current Version    */
+            6 DCS_FUTURE_LAN      CHAR(2), /* LAN Future Version     */
+            6 DCS_FUTURE_LAN_DATE CHAR(6), /* LAN Future Date-mmddyy */
+
+         3 DCSGCCST(*),                 /* PREV AND CURR GCC STATS   */
+           4 DCSGCCSH,                  /* Added for LENGTH(DCSGCCST)*/
+             5 DCSGCCID CHAR(3),        /* GCC ID                    */
+             5 DCSSWTYPE CHAR(1),       /* switch type A - Ardis     */
+                                        /*             W - WB PS     */
+             5 DCSGCCCM PTR(31),        /* CURRENT GCC STAT TABLE    */
+             5 DCSGCCPM PTR(31);        /* PREVIOUS GCC STAT TABLE   */
+
+  DCL 1 DCSSTATS BASED(DCSSTATC),       /* STAT TABLE DEFINITION     */
+        2 *       FIXED(16),            /* UNUSED                    */
+        2 DCSGIO  FIXED(16),            /* GPROF I/O COUNT           */
+        2 DCSPIO  FIXED(16),            /* PPROF I/O COUNT           */
+        2 DCSINQNM FIXED(16),           /* TOTAL OF DCSINQCM         */
+        2 DCSINQCM FIXED(31),           /* MSG IN INBOUND Q (CUMM)   */
+        2 DCSINQCT FIXED(31),           /* MSG IN INBOUND Q > .5 SECS*/
+        2 DCSINQNT FIXED(16),           /* TOTAL OF DCSINQCT         */
+        2 * CHAR(10);                    /* UNUSED              8NSM */
+          /* TEMPORARY STAT DEFINITIONS */
+  DCL 1 DEXTSTAT BASED(DCSTCPTR),        /* STAT TABLE DEFINITION    */
+        2 DSTAPGR1 FIXED(16),            /* TOT. 1ST PG RESPONSES    */
+        2 DSTAPGR2 FIXED(16),            /* TOT. 2ND PG RESPONSES    */
+        2 DSTAPGR3 FIXED(16),            /* TOT. 3RD PG RESPONSES    */
+        2 DSTAPGR4 FIXED(16),            /* TOT. 4TH PG RESPONSES    */
+        2 DSTAPGR5 FIXED(16),            /* TOT. 5TH PG RESPONSES    */
+        2 DSTAPGR6 FIXED(16),            /* TOT. 6TH PG RESPONSES    */
+        2 DSTAPGR7 FIXED(16),            /* TOT. 7TH PG RESPONSES    */
+        2 DSTAPGR8 FIXED(16),            /* TOT. 8TH PG RESPONSES    */
+        2 DSTAPGR9 FIXED(16),            /* TOT. 9TH PG RESPONSES    */
+        2 DSTAPGRA FIXED(16),            /* TOT. 10TH PG RESPONSES   */
+        2 DSTAPGRB FIXED(16),            /* TOT. 11TH PG RESPONSES   */
+        2 DSTAPGRC FIXED(16),            /* TOT. 12TH PG RESPONSES   */
+        2 DSTAPGRN FIXED(16),            /* TOT. NEVER RESPONDED     */
+        2 DSTACURR FIXED(16),            /* CURRENT SIGNED ON USERS  */
+        2 DSTAHWM  FIXED(16),            /* 15 MIN HIGH WATER MARK   */
+        2 DSTALOG  FIXED(16);            /* # OF LOGONS              */
+ @EJECT;

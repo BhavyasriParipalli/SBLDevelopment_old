@@ -1,0 +1,111 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* COPYRIGHT IBM CORP                                               */
+ /*                                                                  */
+ /* DATE CREATED  - 08/13/81                                         */
+ /* DATE MODIFIED -                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*    THIS IS THE PARAMTER LIST USED TO REQUEST A MESSAGE TO BE     */
+ /*    SENT TO A RAMS USER.  THE CICS COMMAREA PUST ADDRESS THIS     */
+ /*    PARAMETER LIST WHEN LINKING TO RAMSMSGU PROGRAM.              */
+ /*                                                                  */
+ /*    UPON RETURN FROM RAMSMSGU THIS PARM LIST WILL CONTAIN         */
+ /*    A RETURN CODE.  THEREFORE THE STORAGE USED MUST BE DYNAMIC.   */
+ /*                                                                  */
+ /*  09/23/86 - SMSTEXT WAS INCREASED FROM 55 TO 140 BYTES FOR       */
+ /*             ECCO - TWS D874                                      */
+ /*  09/22/89 - USER AREA NUMBER ADDED FOR IMMEDIATE MESSAGES TO     */
+ /*             REMOTE USERS - JAP                                   */
+ /*  05/27/97 - ADD PL/I SUPPORT  - LBS                              */
+ /*                                                                  */
+ /********************************************************************/
+ %IF LANG = 'PLI' %THEN %DO;
+ DCL 1 SMSGPARM ,                       /* ADDRESSABILITY            */
+       2 SMSPCBP FIXED BIN(31) INIT(0), /* PCB POINTER IF RAMSMSG    */
+                                        /* SHOULD NOT SCHEDULE OWN   */
+                                        /* PSB. ZERO OTHERWISE.      */
+       2 SMSRETC BIT(8) ,               /* RETURN CODE               */
+                                        /*    0-MESSAGE PROCESSED.   */
+                                        /*    4-UID NOT DEFINED      */
+                                        /*      OR IS NOT SIGNED ON  */
+                                        /*      IF IMMED WAS         */
+                                        /*      REQUESTED.           */
+                                        /*    8-RESOURCES NOT        */
+                                        /*      AVALABLE FOR MESSAGE.*/
+                                        /*    C-QUEUE MSG REQUEST IN */
+                                        /*      A HUB SYSTEM. REQUEST*/
+                                        /*      NOT HONORED.         */
+                                        /*   10-INDETERMINATE ERROR  */
+                                        /*      DURING THE PROCESSING*/
+       2 SMSREQ,                        /* TYPE OF REQUEST           */
+        3 SMSQUE BIT(1),                /* IF A BINARY 1             */
+                                        /*    THEN QUEUE THE         */
+                                        /*    REQUEST IN THE USERS   */
+                                        /*    DL1 DATA BASE. - THIS  */
+                                        /*    IS INVALID IN HUB      */
+                                        /*    SYSTEMS.               */
+                                        /* IF A BINARY 0             */
+                                        /*    THE MESSAGE WILL BE    */
+                                        /*    SENT TO USER ONLY IF   */
+                                        /*    THE USER IS SIGNED ON  */
+                                        /*    TO RAMS.               */
+        3 SBITPAT BIT(7),               /*                           */
+       2 SMSUID CHAR(6),                /* ID OF USER TO RECEIVE     */
+                                        /* THE MESSAGE.              */
+       2 SMSOID CHAR(6),                /* ID OR MESSAGE ORIGINATOR  */
+                                        /* THIS WILL BE DISPLAYED    */
+                                        /* WITH THE MESSAGE.         */
+       2 SMSTEXT CHAR(140),             /* MAX IS 140 BYTES          */
+       2 SMSUSAR CHAR(2),               /* RECEIVING USER'S AREA NO. */
+       2 SMSUIBP FIXED BIN(31);         /* UIB POINTER IF RAMSMSG    */
+                                        /* SHOULD                    */
+                                        /* NOT SCHEDULE OWN PSB.     */
+                                        /* ZERO OTHERWISE.           */
+
+
+ %END;
+ %ELSE %DO;
+ DCL 1 SMSGPARM BASED,                  /* ADDRESSABILITY            */
+       2 SMSPCBP FIXED(32),             /* PCB POINTER IF RAMSMSG    */
+                                        /* SHOULD NOT SCHEDULE OWN   */
+                                        /* PSB.ZERO OTHERWISE.       */
+       2 SMSRETC FIXED(8),              /* RETURN CODE               */
+                                        /*   0-MESSAGE PRECESSED.    */
+                                        /*   4-UID NOT DEFINED OR IS */
+                                        /*     OR IS NOT SIGNED ON IF*/
+                                        /*     IMMED WAS REQUESTED.  */
+                                        /*   8-RESOURCES NOT AVALABLE*/
+                                        /*     FOR MESSAGE.          */
+                                        /*   C-QUEUE MSG REQUEST IN  */
+                                        /*     A HUB SYSTEM.  REQUEST*/
+                                        /*     NOT HONORED.          */
+                                        /*  10-INDETERMINATE ERROR   */
+                                        /*     DURING THE PROCESSING.*/
+       2 SMSREQ BIT(8),                 /* TYPE OF REQUEST           */
+        3 SMSQUE BIT(1),                /* IF A BINARY 1             */
+                                        /*    THEN QUEUE THE         */
+                                        /*    REQUEST IN THE USERS   */
+                                        /*    DL1 DATA BASE. - THIS  */
+                                        /*    IS INVALID IN HUB      */
+                                        /*    SYSTEMS.               */
+                                        /* IF A BINARY 0             */
+                                        /*    THE MESSAGE WILL BE    */
+                                        /*    SENT TO USER ONLY IF   */
+                                        /*    THE USER IS SIGNED ON  */
+                                        /*    TO RAMS.               */
+        3 SBITPAT BIT(7),               /*                           */
+       2 SMSUID CHAR(6),                /* ID OF USER TO RECEIVE     */
+                                        /* THE MESSAGE.              */
+       2 SMSOID CHAR(6),                /* ID OR MESSAGE ORIGINATOR  */
+                                        /* THIS WILL BE DISPLAYED    */
+                                        /* WITH THE MESSAGE.         */
+       2 SMSTEXT CHAR(140),             /* MAX IS 140 BYTES          */
+       2 SMSUSAR CHAR(2),               /* RECEIVING USER'S AREA NO. */
+       2 SMSUIBP FIXED(32);             /* UIB POINTER IF RAMSMSG    */
+                                        /* SHOULD NOT SCHEDULE OWN   */
+                                        /* PSB.  ZERO OTHERWISE      */
+ @EJECT;
+ %END;
+
+

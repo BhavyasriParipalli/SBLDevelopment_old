@@ -1,0 +1,72 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   XMITREC     VERSION NR:  01           DATE:  04/30/97    */
+ /*                                               TIME:  13:14:57    */
+ /*                                                                  */
+ /* TITLE: RRI Transmit Record                                       */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: N/A                                                        */
+ /*                                                                  */
+ /* LANGUAGE: PL/X and PL/I                                          */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*                                                                  */
+ /* This copy member maps the transmit record used to send data      */
+ /* across the RRI interface.                                        */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  04/30/97 S960744  7NSG Created to support direct    Fugette     */
+ /*                         invocations of RRISPOOL                  */
+ /*                         instead of using RAMBSPL.                */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /********************************************************************/
+
+ DCL 1 XMITREC XMITREC_STG,         /* RAMS TRANSMIT RECORD */
+       2 XMITRECH,                   /* NEW LEVEL TO ZERO XMITREC    */
+         3 XMITHDR,                  /* TRANSMISSION ROUTING HEADER  */
+           4 RECTYPE       CHAR(4),  /* TYPE OF RECORD IDENTIFIER    */
+           4 DESTID,                 /* SYMBOLIC SYSTEM NAME OF DEST */
+             5 XMIT_PAD1   CHAR(2),  /* "ER" FOR RAMS                */
+             5 XMITNODE    CHAR(3),  /* TARGET NODE WITHIN RAMS      */
+             5 XMIT_PAD2   CHAR(3),  /*                              */
+           4 SRCEID        CHAR(8),  /* SYMBOLIC SYSTEM NAME OF ORIG */
+           4 PRIORITY      BIT(8),   /* PRIORITY CODE, X'01' IS THE
+                                        HIGHEST PRIORITY , X'FF'
+                                        IS THE LOWEST PRIORITY       */
+           4 TRANFLG,                /* CONTROL FLAGS:               */
+             5 TRANFL1     BIT(1),   /*   EXPEDITE FUNCTION          */
+             5 TRANFL2     BIT(1),   /*   CHAINING FUNCTION - FIRST  */
+             5 TRANFL3     BIT(1),   /*   CHAINING FUNCTION - LAST   */
+             5 TRANFL4     BIT(1),   /*   RESERVED FOR FUTURE USE    */
+             5 TRANFL5     BIT(1),   /*   RESERVED FOR FUTURE USE    */
+             5 TRANFL6     BIT(1),   /*   RESERVED FOR FUTURE USE    */
+             5 TRANFL7     BIT(1),   /*   RESERVED FOR FUTURE USE    */
+             5 TRANFL8     BIT(1),   /*   RESERVED FOR FUTURE USE    */
+           4 XMIT_PAD3     CHAR(2),  /* RESERVED FOR FUTURE USE      */
+           4 SYNCVAL,                /* SYNCHRONIZATION VALUE        */
+             5 XMITGMT,
+               6 XMTYR     CHAR(2),  /* GMT YEAR                     */
+               6 XMTDY     CHAR(3),  /* GMT DAY                      */
+               6 XMTHR     CHAR(2),  /* GMT HOUR                     */
+               6 XMTMN     CHAR(2),  /* GMT MIN                      */
+               6 XMTSC     CHAR(2),  /* GMT SEC                      */
+             5 XMIT_PAD4   CHAR(6),  /* UNUSED                       */
+             5 XMITIFLG,             /* INTERNAL FLAG BYTE           */
+               6 XMITRREG  BIT(1),   /* SEND TO REAL REGION NOT BKUP */
+               6 XMIT_PAD5 BIT(7),
+             5 XMITIRC     CHAR(2),  /* INTERNAL RETURN CODE         */
+           4 TRANSID       CHAR(8),  /* NAME OF TRANSACTION THAT IS
+                                        TO PROCESS THE DATA ELEMENT  */
+ %IF LANG='PLI' %THEN %GOTO XMSKIP1;
+       2 XMITEXTN CHAR(*);           /* DATA ELEMENT (MAX 4K BYTES)  */
+ %XMSKIP1:;
+ /*------------------------------------------------------------------*/
+ /*                                  END  XMITREC                    */
+ /*------------------------------------------------------------------*/
+

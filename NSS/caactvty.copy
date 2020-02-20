@@ -1,0 +1,86 @@
+ /*********************************************************************/CAA00010
+ /*                                                                   */CAA00020
+ /* NAME:   CAACTVTY    VERSION NR:  01           DATE:  01/11/88     */CAA00030
+ /*                                               TIME:  11:38:04     */CAA00040
+ /*                                                                   */CAA00050
+ /* TITLE: CALL ACTIVITY                                              */CAA00060
+ /*                                                                   */CAA00070
+ /* IMS SEGMENT NAME: CAACTVTY                                        */CAA00080
+ /*                                                                   */CAA00090
+ /* TYPE:                                                             */CAA00100
+ /*                                                                   */CAA00110
+ /* LANGUAGE: PLS,PLI                                                 */CAA00120
+ /*                                                                   */CAA00130
+ /* DESCRIPTION: CALL ACTIVITY                                        */CAA00140
+ /*                                                                   */CAA00150
+ /*                                                                   */CAA00160
+ /* CHRONOLOGICAL UPDATE LOG:                                         */CAA00170
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:   */CAA00180
+ /*  -------- -------- ---- --------------------------- ------------  */CAA00190
+ /*  01/11/88 DYADICS1 8NSF CALL DATABASE CONVERSION    T. MCCONNELL  */CAA00200
+ /*  02/13/89 SR0073B  9NSA NSS PIPELINE ENHANCEMENTS   J. PUGH       */CAA00210
+ /*  07/17/89 SR9951   9NSI INTERAREA CALL MANAGEMENT   T. CHAPMAN    */CAA00220
+ /*                    ADD NICKNAME, AREA, AND CLASS CODE FIELDS.     */CAA00230
+ /*  03/08/90 SR347    0NSG SYSTEM TIME STAMP AND YEAR  J. LEHANE     */CAA00240
+ /*                                                                   */CAA00250
+ /*********************************************************************/CAA00260
+ %IF LANG = 'PLI' %THEN %GOTO ACTVSKIP;                                 CAA00270
+ DCL                               /*                                 */CAA00280
+ 1 CAACTVTY           BASED,       /* 060 CALL ACTIVITY               */CAA00290
+ %ACTVSKIP:;                                                            CAA00300
+   2 IACTSRCH,                     /* ACTIVITY SEARCH ARGUMENT        */CAA00310
+     3 IACTION        CHAR(2),     /* STATUS ACTION                   */CAA00320
+     3 DACTION        CHAR(5),     /* ACTION DATE (MM/DD)             */CAA00330
+     3 HACTION        CHAR(4),     /* ACTION TIME                     */CAA00340
+   2 FACTOT           CHAR(1),     /* OVERTIME FLAG                   */CAA00350
+   2 IACTCSC          CHAR(2),     /* CUSTOMER SERV COORD ID          */CAA00360
+   2 IACTBO           CHAR(3),     /* BRANCH OFFICE                   */CAA00370
+   2 IACTCE           CHAR(4),     /* CE REF                          */CAA00380
+   2 NACTCE           CHAR(14),    /* CE NAME                         */CAA00390
+   2 IACTTERR         CHAR(1),     /* FM TERRITORY                    */CAA00400
+   2 IACTAREA         CHAR(2),     /* AREA OF USER CREATING ACTIVITY  */CAA00410
+   2 IACTNICK         CHAR(8),     /* CE NICKNAME                     */CAA00420
+   2 IACTCLS          CHAR(2),     /* CLASS CODE OF COORD ID          */CAA00430
+   2 DSYSACT          CHAR(6),     /* DATE(YYMMDD)ACTIVITY WAS APPLIED*/CAA00440
+   2 HSYSACT          CHAR(4),     /* TIME(HHMM)ACTIVITY WAS APPLIED  */CAA00450
+   2 SPAD00           CHAR(2);     /* Padding                         */CAA00460
+                                   /*                                 */CAA00470
+ DCL                               /*                                 */CAA00480
+ %IF LANG = 'PLI' %THEN %GOTO ACTVSKP2;                                 CAA00490
+ 1 CAACTIDA DEF(CAACTVTY),         /* 060 IDA LINE ACTIVITY FOR CHECK */CAA00500
+ %GOTO ACTVCOM;                                                         CAA00510
+ %ACTVSKP2:;                                                            CAA00520
+   @CAACTIDA          POINTER,                                          CAA00530
+ 1 CAACTIDA   BASED(@CAACTIDA),    /* 060 IDA LINE ACTIVITY FOR CHECK */CAA00540
+ %ACTVCOM:;                                                             CAA00550
+                                   /*     SCREEN                      */CAA00560
+   2 UACTIDA,                      /* IDA LINE SEARCH ARGUMENT NOT    */CAA00570
+                                   /* DISPLAYED, USED ONLY FOR        */CAA00580
+                                   /* REPOSITIONING                   */CAA00590
+     3 IACTIDA        CHAR(2),     /* IDA ACTIVITY = 'FFFF'X          */CAA00600
+     3 DACTIDA        CHAR(5),     /* IDA ACTIVITY DATE               */CAA00610
+     3 HACTIDA        CHAR(4),     /* IDA ACTIVITY TIME               */CAA00620
+   2 IDRIND           CHAR(1),     /* I/D/R INDICATOR                 */CAA00630
+   2 UMTYPE,                       /* MACHINE TYPE STRUCTURE          */CAA00640
+     3 IMTYPE         CHAR(4),     /* MACHINE TYPE                    */CAA00650
+     3 SPAD01         CHAR(4),     /* RESERVED FOR EXPANSION          */CAA00660
+   2 UMSER,                        /* MACHINE SERIAL STRUCTURE        */CAA00670
+     3 IMSER          CHAR(7),     /* MACHINE SERIAL                  */CAA00680
+     3 SPAD02         CHAR(4),     /* RESERVED FOR EXPANSION          */CAA00690
+   2 IMETER           CHAR(6),     /* METER READING                   */CAA00700
+   2 IDMES#           CHAR(6),     /* MES NUMBER                      */CAA00710
+   2 SPAD03           CHAR(1),     /* PADDING                         */CAA00720
+ %IF LANG = 'PLI' %THEN %GOTO IDNUMSKP;                                 CAA00730
+   2 IDNUM            CHAR(2),     /* DETAIL IDA LINE NO.    SR0073B  */CAA00740
+ %GOTO IDNMSKP2;                                                        CAA00750
+ %IDNUMSKP:;                                                            CAA00760
+   2 IDNUM         FIXED BIN(15),  /* DETAIL IDA LINE NO.    SR0073B  */CAA00770
+ %IDNMSKP2:;                                                            CAA00780
+   2 IACTNIDA         CHAR(2),     /* ACTION CODE            SR0073B  */CAA00790
+   2 DSYSIDA          CHAR(6),     /* DATE(YYMMDD)ACTIVITY WAS APPLIED*/CAA00800
+   2 HSYSIDA          CHAR(4),     /* TIME(HHMM)ACTIVITY WAS APPLIED  */CAA00810
+   2 SPAD04           CHAR(2);     /* DATE(YY) OF IDA ACTIVITY- ASSOC.*/CAA00820
+                                   /* WITH IDA ACT DATE FIELD-DACTIDA */CAA00830
+ /*-------------------------------------------------------------------*/CAA00840
+ /*                                  END  CAACTVTY                    */CAA00850
+ /*-------------------------------------------------------------------*/CAA00860

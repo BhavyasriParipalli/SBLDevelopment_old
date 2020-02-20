@@ -1,0 +1,205 @@
+ /*-------------------------------------------------------------------*\     
+ |                                                                     |     
+ |                                                                     |     
+ | Name        - NSSOEEP COPY                                          |
+ |                                                                     |
+ | Title       - Parameter list to NSSOEE                              |
+ |                                                                     |
+ | Description -                                                       |
+ |                                                                     |
+ | Parameters  -                                                       |
+ |                                                                     |
+ | Language    - PLX                                                   |
+ |                                                                     |
+ | Notes       -                                                       |
+ |                                                                     |
+ |                                                                     |
+ | Change Activity                                                     |
+ |    SR     DRVR  Date    Description                      Programmer |
+ | --------  ---- -------- -------------------------------- ---------- |
+ | SR040021  4NSG 07/02/04 OEM Entitlement (OEE)            Gyula      |
+ |                                                                     |
+ \*-------------------------------------------------------------------*/
+ %IF LANG = 'PLI' %THEN %GOTO OEEP_PLI_1;                            
+ DCL 1 NSSOEEP BDY(WORD) ,    /*NSSOEEPS,   */
+ %OEEP_PLI_1:; 
+   /* Request parameters                                              */
+      2 OEE_REQUEST, 
+       3 OEE_RECD_ID CHAR(4),        /* Record Identifier             */
+       3 OEE_RECD_LVL CHAR(2),       /* Record Identifier Level       */
+       3 OEE_PRODUCT  CHAR(4),       /* Product Type                  */
+       3 OEE_IBM_MODEL CHAR(3),      /* IBM Model                     */
+       3 OEE_SERIAL    CHAR(25),     /* Serial Number of Machine      */
+       3 OEE_RQSR_TYPE CHAR(4),      /* request and subrequest type   */
+       3 OEE_ENT_DATE  CHAR(8),      /* Date to be used for Entitlement
+                                        format - YYYYMMDD             */
+       3 OEE_ENT_TIME  CHAR(4),      /* Time to be used for Entitlement
+                                        format - HHMM                 */
+       3 OEE_PRIORITY  CHAR(1),      /* Priority Code                 */
+       3 OEE_CUST_IDENT CHAR(10),    /* Value to indicate the customer
+                                        who requires the service      */
+       3 OEE_COUNTRY_CODE CHAR(3),   /* country code USA or CAN       */
+       3 OEE_OEM_MFG_ID CHAR(5),     /* OEM Manufacturer ID           */
+       3 OEE_OEM_MODEL_IN CHAR(30),  /* OEM Model                     */
+   /* response parameters                                             */
+      2 OEE_NSS_RC CHAR(2),              /* NSSOEE module return code */
+      2 OEE_RC     CHAR(1),             /* OEE return code           
+                                           '0' - results returned
+                                           '4' - input error
+                                          OEE_MESSAGE has error message
+                                           '8' - OEE processing error */ 
+      
+      
+      
+      2 OEE_RESPONSE,
+       3 OEE_ENT_RESULT  CHAR(1),    /* Entitlement result
+                                         '1' - Entitled
+                                         '0' - Not Entitled           */
+       3 OEE_MESSAGE CHAR(40),       /* Entitlement-related message   */
+       3 OEE_CONTR_NUMBER CHAR(8),   /* Contract Number               */
+       3 OEE_WARR_START_DATE CHAR(8),/* Warranty start date for the
+                                        machine. format - YYYYMMDD    */
+       3 OEE_WARR_END_DATE CHAR(8),  /* Warranty end date for the
+                                        machine. format - YYYYMMDD    */
+       3 OEE_CONTR_START_DATE CHAR(8),/* Contract start date for the
+                                        machine. format - YYYYMMDD    */
+       3 OEE_CONTR_END_DATE CHAR(8),  /* Contract end date for the
+                                        machine. format - YYYYMMDD    */
+       3 OEE_SERVICE_METHOD CHAR(4),  /* code for method of service
+                                         delivery.  ex. IOR, CCR      */
+       3 OEE_SERV_METH_DESCR CHAR(25),/* description of the method of
+                                         service delivery,
+                                         ex. IBM OnSite Repair        */
+       3 OEE_CONTR_TYPE CHAR(3),     /* type of conttract indicator
+                                        M/A - Maintenance Agreement
+                                        L/R - Lease/Rental
+                                        F&F - IBM Internal
+                                        T&M - Time & Materials
+                                        WAR - Waranty (IBM)
+                                        W/U - Warranty Upgrade        */
+       3 OEE_CONTR_DETAIL CHAR(3),   /* detail for special cases
+                                        SNP - Serial not provided
+                                        NOF - Not on file
+                                        NIL - Not in location         */
+       3 OEE_COVG_CODE CHAR(4),     /* Code for the Coverage for which 
+                                        the customer is entitled.
+                                        (Coverage Code abbrev.)       */
+       /* coverage start and end time - Format - HHMM                 */
+       3 OEE_MON_COVG_BEGIN_TIME CHAR(4), /* Monday starting time     */
+       3 OEE_MON_COVG_END_TIME   CHAR(4), /* Monday ending time       */
+       3 OEE_TUE_COVG_BEGIN_TIME CHAR(4), /* Tuesday starting time    */
+       3 OEE_TUE_COVG_END_TIME   CHAR(4), /* Tuesday ending time      */
+       3 OEE_WED_COVG_BEGIN_TIME CHAR(4), /* Wednesday starting time  */
+       3 OEE_WED_COVG_END_TIME   CHAR(4), /* Wednesday ending time    */
+       3 OEE_THU_COVG_BEGIN_TIME CHAR(4), /* Thursday starting time   */ 
+       3 OEE_THU_COVG_END_TIME   CHAR(4), /* Thursday ending time     */
+       3 OEE_FRI_COVG_BEGIN_TIME CHAR(4), /* Friday starting time     */
+       3 OEE_FRI_COVG_END_TIME   CHAR(4), /* Friday ending time       */
+       3 OEE_SAT_COVG_BEGIN_TIME CHAR(4), /* Saturday starting time   */
+       3 OEE_SAT_COVG_END_TIME   CHAR(4), /* Saturday ending time     */
+       3 OEE_SUN_COVG_BEGIN_TIME CHAR(4), /* Sunday starting time     */
+       3 OEE_SUN_COVG_END_TIME   CHAR(4), /* Sunday ending time       */
+
+       3 OEE_RESPONSE_HOURS      CHAR(4), /* Response Hours returned by 
+           entitlement.  This is the contracted number of hours between
+           when the customer calls for service and when IBM calls the
+           customer back. Only used when there is a value in the 
+           T&C record. 
+           Format=HHMM or '9901' to mean next business day.           */         
+       3 OEE_ARRIVAL_HOURS     CHAR(4), /* Arrival Hours returned by 
+           entitlement.  This is the contracted number of hours between 
+           when the customer calls for service and when IBM arrives 
+           Onsite. Only used when there is a value in the T&C record.
+           Format=HHMM or '9901' to mean next business day.           */         
+       3 OEE_FIX_HOURS  CHAR(4), /* Fix Hours returned by entitlement.
+           This is the contracted number of hours it takes the service 
+           rep to complete the repair.   Only used when there is a 
+           value in the T&C record. 
+           Format=HHMM or '9901' to mean next business day.           */         
+       3 OEE_COUNTRY_ISO CHAR(3), /* Country Code for the machine.   */
+       3 OEE_TC_KEY      CHAR(25),  /*T&C record key returned by 
+                                     entitlement. To allow value to be 
+                                     saved by calling application for 
+                                     error diagnosis.                 */ 
+       3 OEE_RQST_TYPE   CHAR(4),   /* Request Type and Sub request Type
+                                      returned by Entitlement -  E.g., 
+                                      '1000' for Hardware Repair
+                                      '10Z0' for PM
+                                      '1010' for Install              */ 
+       3 OEE_FULL_SERIA  CHAR(25), /* Full Manufacturer's machine 
+                                      serial number, when determined
+                                      by Entitlement                  */
+       3 OEE_INVEN_SERIAL CHAR(7), /* Short machine serial number used 
+                                      on IBM Inventory, when determined 
+                                      by Entitlement                  */
+       3 OEE_IBM_CUST#    CHAR(7),   /* IBM Customer Number for customer
+                                      receiving service, determined
+                                      by Entitlement                  */  
+       3 OEE_OEM_MODEL  CHAR(30),  /* OEM Model, when an OEM product. */
+       3 OEE_OEM_MODEL_DESCR CHAR(30), /* OEM Model Description, when 
+                                          an OEM product              */
+       3 OEE_OEM_PROD_MOD  CHAR(8), /* For OEM, will contain the
+                                      corresponding IBM PROD-MODEL    */
+       3 OEE_ORIGCONTR   CHAR(12),  /* Original Contract Holder for OEM 
+                                      contract picked up by IBM.      */
+       3 OEE_NOTATION    CHAR(100), /* Special Notation.  For an OEM 
+                                      product, used if some special 
+                                      service or entitlement 
+                                      information was communicated by 
+                                      the manufacturer for the machine 
+                                      on the Warranty feed.           */
+       3 OEE_ASP_NAME  CHAR(25), /* Authorized Service Provider Name  */                           
+       3 OEE_ASP_PHONE CHAR(10), /* Authorized Service Provider Phone */
+       3 OEE_PREPAY    CHAR(1),   /* Prepay Indicator for OEM contract 
+                                      pick up by IBM.
+                                      '1' = Prepaid
+                                      '0' = Not Prepaid               */
+       3 OEE_CONTR_WARR_FLAG CHAR(1), /* Contract/Warranty Flag used by
+                                         entitlement.
+                                     '0' = Not within either date range
+                                     '1' = Within Contract date range 
+                                           (or Evergreen) 
+                                     '2' = Within Warranty date range */
+       3 OEE_WARR_UPGRADE_FLAG CHAR(1), /* Warranty Upgrade Flag. 
+                                            '0' = Not on Warranty
+                                            '1' = On standard Warranty
+                                            '2' = Warranty Upgrade    */
+       3 OEE_OEM_EFFSTAT     CHAR(1), /* Flag to assist in setting 
+                                            costing for OEM 
+                                            (Effective Status) machine. 
+                                            '1' = OEM Warranty
+                                            '2' = OEM Extended Warranty
+                                            '3' = OEM Contract
+                                            '4' = OEM T&M             */
+       3 OEE_AFTER_HOURS_FLAG CHAR(1), /* After Coverage Hours Flag. 
+                                     '0' = Not approaching After Hours
+                                     '1' = Approaching After Hours
+                                           (within one half hour)
+                                     '2' = After Hours                */
+       3 OEE_HOW_ENTITLED_FLAG  CHAR(1), /* How Entitled Flag.  This 
+                                            indicates the method used 
+                                            to arrive at the entitlement 
+                                            result.
+                                   '0' = Unentitled (Either Not Found 
+                                         or on Inventory as T&M)
+                                   '1' = Entitled via Inventory
+                                   '3' = Entitled via Contract        */
+       3 OEE_PO_REQUIRED CHAR(1), /* PO Required flag returned by 
+                                    entitlement.  (Applies only when 
+                                    service is T&M).
+                                    '0' = Not PO customer 
+                                    '1' = PO customer                 */
+       3 OEE_COD_FLAG  CHAR(1),   /* COD Flag indicating if a Cash on
+                                    Delivery customer. 
+                                    '0' = Not a COD customer 
+                                    '1' = COD customer                */
+       3 OEE_CSUBOX    CHAR(1),   /* This machine is a Customer Setup 
+                                     product
+                                     '1' = Is CSU
+                                     '0' = Is not CSU                 */
+       3 OEE_FUTUREMA  CHAR(1),  /* This machine is going on MA after
+                                    Warranty
+                                    '1' = Is going on MA
+                                    '0' = Is not going on MA          */   
+       3 OEE_MGD_ID    CHAR(5),  /* OEM Manufacturer ID               */
+       3 OEE_ROUTE_CODE CHAR(4); /* Routing Code                      */                                                                             

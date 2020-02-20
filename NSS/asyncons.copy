@@ -1,0 +1,26 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*  COPYRIGHT - IBM CORP                                           */
+ /*                                                                 */
+ /*  DATE CREATED - 03/12/91                                        */
+ /*  DATE CHANGED -                                                 */
+ /*                                                                 */
+ /*             ASYNC CONSTANTS (TO BE INCLUDED IN RAMCONST)        */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL ON  BIT(1) CONSTANT('1'B),
+     OFF BIT(1) CONSTANT('0'B);
+ /*******************************************************************/
+ /*  THE FOLLOWING DECLARES ARE PROVIDED FOR USE BY THE RAMDLI AND  */
+ /*  RAMQMGR EXECUTABLE MACROS.                                     */
+ /*******************************************************************/
+ DCL DLIR1 REG(1) PTR(31),
+     DLIR13 REG(13) PTR(31) RSTD,
+     DLIR14 REG(14) PTR(31),
+     DFHEIPL CHAR(52) GENERATED,
+     DFHEISA CHAR(72) GENERATED;
+ DCL 1 DLIPRMS FIXED(31) BASED(DLIR14),
+       2 DLIPEND BIN(8),
+       2 * BIN(24);
+ DCL ASMTDLI NONLOCAL ENTRY EXTERNAL;            /* FOR DLI CALL */
+

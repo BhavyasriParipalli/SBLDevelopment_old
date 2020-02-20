@@ -1,0 +1,120 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME: DCSTBLPL      VERSION NR:  01           DATE:  08/22/2010  */
+ /*        see PL/X DCSTBL original version for actual definitions)  */
+ /* this was done to assist HSI get to the DCS_QUENAME field.  The   */
+ /* only use, technically speaking.                                  */
+ /*                                                                  */
+ /* TITLE: QSAR MACHINE/ACTIVITY STATUS TO COST CODE TRANSLATION     */
+ /*        TABLE - NSS ENVIRONMENT - MSF SEGMENT                     */
+ /*                                                                  */
+ /* DESC: THIS IS THE DATA LAYOUT FOR THE TRANSLATION FROM THE       */
+ /*       MACHINE/ACTIVITY STATUS TO THE COST CODE VALUE             */
+ /*    THE DCS CONTROL TABLE IS POINTED TO BY THE CWA.  THIS TABLE   */
+ /*    IS CREATED AT SYSTEM INITIALIZATION BY THE DCSINIT ROUTINE.   */
+ /*                                                                  */
+ /*    THIS BLOCK IS USED TO CONTAIN GLOBAL TYPE DATA.  THAT IS      */
+ /*    DATA THAT IS REQUIRED BEYOND THE LIFE OF A TRANSACTION        */
+ /*    OR AN INDIVIDUALS USER SESSION.  THERE IS ONLY ONE DCSTBL     */
+ /*    IN THE SYSTEM.                                                */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* RECORD KEY = N/A                                                 */
+ /*                                                                  */
+ /* TYPE:   CICS MEMORY AREA PART OF THE CWA                         */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*---------- -------- ---- ----------------------------------- ---- */
+ /*08/19/2010 0317104211 0NSE ORIGINAL VERSION                   LBS */
+ /*                                                                  */
+ /********************************************************************/
+ 3 DCSAREAH,
+   4 IDCSID    CHAR(4),        /* SET TO DCS AT INIT TIME   001- 004 */
+   4 XDCSCWAP    PTR,          /* PTR TO CWA                005- 008 */
+   4 XDCSTFPT    PTR,          /* PTR TO FIRST DCST         096- 012 */
+   4 XDCSRFTU    PTR,          /* PTR TO FIRST RF TCTUA     013- 016 */
+                               /* OUTBOUND                           */
+   4 XDCSINDX    PTR,          /* PTR TO PROFILE INDEX      017- 020 */
+   4 SPAD05      PTR,          /* unused                8NSM021- 024 */
+   4 XDCSCSTA    PTR,          /* PTR TO CURRENT DCS STATS  025- 028 */
+   4 XDCSPSTA    PTR,          /* PTR TO PREVIOUS DCS STATS 028- 032 */
+   4 XEB2ASCI    CHAR(256),    /* EBCDIC/ASCII              033- 288 */
+                               /* TRANSLATION TABLE                  */
+   4 XASCI2EB   CHAR(256),     /* ASCII/EBCDIC              289- 544 */
+                               /* TRANSLATION TABLE                  */
+   4 XBIN1EBC   CHAR(16),      /* BIN TO EBCDIC XLATE       545- 560 */
+                               /* USED IN DBSTELCO ET AL             */
+   4 SPAD10     CHAR(8),       /* unused               8NSM 561- 568 */
+   4 FDCS     FIXED BIN(31),   /* DCS FLAGS                 569- 572 */
+ /*  5 DCSCSDAC BIT(1),        /* 1 - CSD TEST ACTIVE                */
+ /*  5 DCSTRACT BIT(1),        /* 1 - TRACE ACTIVE                   */
+ /*  5 DCSAWITR BIT(1),        /* 1 - trace AWI          AWI         */
+ /*  5 DCSAWI   BIT(1),        /* 1 - AWUP already issuedAWI         */
+ /*                                                                  */
+ /*  5 SPAD15   BIT(1),        /* unsed                 8NSM         */
+ /*  5 DCSEXPRUN BIT(1),       /* 1 - DBSEXP running    MIG2         */
+ /*  5 DCS_DBSPURG BIT(1),     /* was run               6NSF         */
+ /*  5 SPAD15   BIT(25),       /* UNUSED               ACMr1         */
+   4 QDCSAPPL   FIXED BIN(15), /* NUMBER OF APPLICATIONS    573- 574 */
+   4 QDCSMSGS   FIXED BIN(15), /* THRESHOLD FOR MSGS SENT   575- 576 */
+   4 SPAD15     FIXED BIN(15), /* unused               ACMr 577- 578 */
+   4 TDCSMTIM   CHAR(1),       /* MINIMUM TIME SLICE VALUE  579- 579 */
+                               /* BITS 01 23 4567                    */
+                               /*      |  |  |                       */
+                               /*      |  |  |-BASE VALUE            */
+                               /*      |  |                          */
+                               /*      |  |-DELTA VALUE              */
+                               /*      |                             */
+                               /*      |-USER SELECTED               */
+   4 SPAD20     CHAR(3),       /* UNUSED OR SOMETHIN HERE   580- 582 */
+   4 SPAD25     FIXED BIN(15), /* UNUSED                    583- 584 */
+   4 XDCSTAT1   CHAR(28),      /* STAT TABLE                585- 612 */
+   4 XDCSTAT2   CHAR(28),      /* STAT TABLE                613- 640 */
+   4 SPAD30     PTR,           /* unused                    641- 644 */
+   4 NQUEUE     CHAR(6),       /* area queue name        AW 645- 650 */
+   4 AAWILAN    FIXED BIN(15), /* max size for LAN       AW 651- 652 */
+   4 AAWIBELL   FIXED BIN(15), /* max size Bell Moblity     653- 654 */
+                               /*                        AWI         */
+   4 AAWIATT    FIXED BIN(15), /* max size for ATT       AW 655- 656 */
+   4 SPAD35     FIXED BIN(15), /* unused                8NS 657- 658 */
+   4 AAWIVER    FIXED BIN(15), /* max size for VER       AW 659- 660 */
+   4 XDCSXPTR   PTR ,          /* PTR TO EXTENDED DCS STATS 661- 664 */
+   4 XDCSMAX    FIXED BIN(31), /* MAX NUMBER OF GCC'S       665- 668 */
+   4 XDCSDISP   PTR,           /* POINTER TO DISP ENTRY     669- 672 */
+   4 SPAD40     FIXED BIN(15), /* Unused                    673- 674 */
+   4 SPAD45     FIXED BIN(15), /* Unused                    675- 676 */
+   4 XDCS4XTB   PTR,           /* PTR to 4xGCC storage area 677- 680 */
+   4 SPAD50     CHAR(8),       /* Unused                8NS 681- 688 */
+   4 XAWIIN     FIXED BIN(15), /* AWI inbound syncpoint  AW 689- 690 */
+   4 XAWIOUT    FIXED BIN(15), /* AWI outbound syncpoint AW 691- 692 */
+   4 XDISPFIX   CHAR(11),      /* moved from DBSINDEX   8NS 693- 703 */
+   4 SPAD55     CHAR(1),       /* UNUSED                8NS 704- 704 */
+   4 XDCSSTAT   PTR,           /* GCC STAT TABLE(S)         705- 708 */
+   4 LDCSGSLN   PTR,           /* LENGTH OF 1 GCC STAT TBL  709- 712 */
+   4 XTBLVRSN(4),              /* DCS TABLE VERSIONS                 */
+     6 ICOMMLVL CHAR(1),       /* Communication level       713- 713 */
+
+     6 ICURRRF    CHAR(2),     /* RF Current Version        714- 715 */
+     6 IFUTRRF    CHAR(2),     /* RF Future Version         716- 717 */
+     6 DFUTURE    CHAR(6),     /* RF Future Date- mmddyy    718- 723 */
+
+     6 ICURRLAN   CHAR(2),     /* LAN Current Version       724- 725 */
+     6 IFUTURLN   CHAR(2),     /* LAN Future Version        726- 727 */
+     6 DFUTRLAN   CHAR(6),     /* LAN Future Date-mmddyy    728- 733 */
+
+  3 XGCCSTAT(2),               /* PREV AND CURR GCC STATS            */
+    4 LGCCSH,                  /* Added for LENGTH(DCSGCCST)         */
+      5 IGCCID    CHAR(3),     /* GCC ID                    797- 799 */
+      5 ISWTYPE   CHAR(1),     /* switch type A - Ardis     800- 800 */
+                               /* W - WB PS                          */
+      5 XGCCCM    PTR,         /* CURRENT GCC STAT TABLE    801- 804 */
+      5 XGCCPM    PTR          /* PREVIOUS GCC STAT TABLE   805- 808 */
+
+ /* NOTE: THE FINAL LENGTH OF THIS COPY MEMBER IS   =            820 */
+ 
+ 

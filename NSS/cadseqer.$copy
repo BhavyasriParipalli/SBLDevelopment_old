@@ -1,0 +1,145 @@
+ %skip;
+ /*********************************************************************/
+ /* SQL_ERROR:       THIS PROCEDURE WILL CHECK THE SQL RETURN CODE    */
+ /*  AFTER A SQL STATEMENT HAS BEEN EXECUTED.  IT USES THE DB2        */
+ /*  ROUTINE DSNTIAC TO FORMAT THE ERROR MESSAGE.                     */
+ /*                                                            I278601*/
+ /*                                                                   */
+ /*   THIS PROCEDURE SHOULD BE CALLED WHEN A DB2 ERROR IS ENCOUNTERED.*/
+ /*                                                                   */
+ /*   THE INCLUDING PROGRAM SHOULD HAVE AN INTERNAL PROC TO WRITE     */
+ /*   TO THE CICS LOG CALLED 'WRITE_TO_CICS_LOG' OR SET AN            */
+ /*   PREPROCESSOR VARIABLE CALLED 'WRITE_TO_CICS_LOG' TO THE         */
+ /*   NAME OF AN INTERNAL PROC.                                       */
+ /*   EX:                                                             */
+ /*       %DCL WRITE_TO_CICS_LOG CHAR                                 */
+ /*       %WRITE_TO_CICS_LOG = 'WTO_LOG'                              */
+ /*                                                                   */
+ /*   THE INCLUDING PROGRAM SHOULD HAVE AN INTERNAL VARIABLE NAMED    */
+ /*   CICS_MSG OR SET A PREPROCESSOR VARIABLE CALLED 'CICS_MSG'       */
+ /*   EX:                                                             */
+ /*       %DCL CICS_MSG CHAR                                          */
+ /*       %CICS_MSG = 'WTO_MSG'                                       */
+ /*                                                                   */
+ /*                                                                   */
+ /*   THE INCLUDING PROGRAM MUST SET THE FOLLOWING                    */
+ /*                                                                   */
+ /*       DCL FAILSTATEMENT CHAR(20) INIT('XXXXXXXXXXXXXXXXXX')       */
+ /*       NOTE: FAILSTATEMENT CAN BE SET TO ANYTHING WHICH WILL HELP  */
+ /*             FIND WHICH SEQ STATEMENT WAS BEING EXECUTED.          */
+ /*       NOTE: BE SURE TO INCLUDE THIS COPY MEMBER PRIOR TO ANY      */
+ /*             SQL STATEMENTS IN YOUR SOURCE FILE SO THE "WHENEVER"  */
+ /*             STATEMENTS WILL BE ACTIVE.                            */
+ /*********************************************************************/
+
+ EXEC SQL WHENEVER SQLWARNING CONTINUE;
+ EXEC SQL WHENEVER NOT FOUND CONTINUE;
+ EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+ SQL_ERROR:  PROC;
+
+ dcl commarea char(1) ; /* dummy commarea */
+ DCL DSNTIAC ENTRY OPTIONS(ASM,INTER,RETCODE);  /*             I278601*/
+ DCL I             FIXED BIN(15) INIT(0);
+ DCL PLIRETV BUILTIN;
+ DCL MSG_LENGTH    FIXED BIN(31) INIT(72);
+ DCL MSG_LINES     FIXED BIN(31) INIT(28);
+ DCL 1 ERROR_MESSAGE AUTOMATIC,
+       3 ERROR_LEN FIXED BIN(15) UNAL INIT((MSG_LENGTH*MSG_LINES)),
+       3 ERROR_TEXT(MSG_LINES) CHAR(MSG_LENGTH) INIT('');
+
+ DCL PIC_SQLCODE   PIC'SSSSSSSSS9';
+ DCL PIC_PLIRETV   PIC'SSSSSSSSS9';
+ DCL PIC_SQLERRD   PIC'SSSSSSSSSSSSS9';
+ DCL FIXED_SQLERRM CHAR(70);
+
+                                      /*------------------------------*/
+                                      /* (FORMAT AND) PRINT THE       */
+                                      /* CONTENTS OF THE SQLCA        */
+                                      /*------------------------------*/
+
+ PIC_SQLCODE = SQLCODE;
+ /*===================================================================*/
+ /* CICS_MSG = 'NSS0001S SQL ERROR ' || PIC_SQLCODE ||                */
+ /*            ' IN PROGRAM ' || PROGNAME ||                          */
+ /*            ' CONTACT NSS PERIOD SUPPORT'                          */
+ /*                                                                   */
+ /*===================================================================*/
+ CICS_MSG = '**SQL ERROR** SQLCODE   : ' || PIC_SQLCODE;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '              FAILING MODULE IS ' || PROGNAME;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '              FAILING STATEMENT IS ' || FAILSTATEMENT;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '              SQLERRM   : ' || SUBSTR(FIXED_SQLERRM,1,35);
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '                          ' || SUBSTR(FIXED_SQLERRM,36,35);
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '              SQLERRP   : ' || SQLERRP;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(1);
+ CICS_MSG = '              SQLERRD(1): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(2);
+ CICS_MSG = '              SQLERRD(2): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(3);
+ CICS_MSG = '              SQLERRD(3): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(4);
+ CICS_MSG = '              SQLERRD(4): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(5);
+ CICS_MSG = '              SQLERRD(5): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ PIC_SQLERRD = SQLERRD(6);
+ CICS_MSG = '              SQLERRD(6): ' || PIC_SQLERRD;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '             ' ||
+            'SQLWARN0 SQLWARN1 SQLWARN2 SQLWARN3 SQLWARN4 SQLWARN5';
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '                '||SQLWARN0||'        '||SQLWARN1||
+                    '        '||SQLWARN2||'        '||SQLWARN3||
+                    '        '||SQLWARN4||'        '||SQLWARN5;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '             ' ||
+            'SQLWARN6 SQLWARN7 SQLWARN8 SQLWARN9 SQLWARNA';
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '                '||SQLWARN6||'        '||SQLWARN7||
+                    '        '||SQLWARN8||'        '||SQLWARN9||
+                    '        '||SQLWARNA;
+ CALL WRITE_TO_CICS_LOG;
+ CICS_MSG = '              SQLSTATE  : ' || SQLSTATE;
+ CALL WRITE_TO_CICS_LOG;
+                                      /*------------------------------*/
+                                      /* CALL THE DB2 ERROR ROUTINE   */
+                                      /* TO CONVERT THE SQL CODE TO   */
+                                      /* AN ENGLISH MESSAGE           */
+                                      /*------------------------------*/
+ CALL DSNTIAC(DFHEIBLK,COMMAREA,SQLCA,ERROR_MESSAGE,MSG_LENGTH);
+
+                                      /*------------------------------*/
+ IF PLIRETV = 0 THEN                  /* IF WE HAD A GOOD RETURN CODE */
+                                      /*  FROM THE CALL,              */
+   DO I = 1 TO MSG_LINES;             /* LOOP THROUGH THE ARRAY OF    */
+     IF ERROR_TEXT(I) ^= '' THEN      /*  ERROR MESSAGES RETURNED FROM*/
+       DO;                            /*  DSNTIAC & SEND THEM TO THE  */
+         CICS_MSG = ERROR_TEXT(I);    /*  CICS LOG.                   */
+         CALL WRITE_TO_CICS_LOG;      /*------------------------------*/
+       END;
+     ELSE;
+   END;
+ ELSE                                 /*------------------------------*/
+   DO;                                /* PROBLEM CALLING DSNTIAC SO   */
+                                      /* SEND A MSG TO THE CICS LOG   */
+                                      /*------------------------------*/
+     PIC_PLIRETV = PLIRETV;
+     CICS_MSG = '              CALL TO DSNTIAC FAILED WITH A RETURN ';
+     CALL WRITE_TO_CICS_LOG;
+     CICS_MSG = '              CODE OF '|| PIC_PLIRETV;
+     CALL WRITE_TO_CICS_LOG;
+   END;
+
+
+ END SQL_ERROR;
+

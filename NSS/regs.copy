@@ -1,0 +1,27 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*         THE FOLLOWING REGISTER DECLARATIONS  ARE GENERAL USE    */
+ /*         DECLARES.  THOSE REGISTERS USED BY CICS ARE DECLARED    */
+ /*         AS RESTRICTED.  REGISTER 14 AND 15 ARE ALSO USED BY     */
+ /*         THE TRANSLATOR.  ENSURE THE GEN STATEMENT INCLUDES      */
+ /*         THE 'SETS R14 R15' DECLARATION.                         */
+ /*                                                                 */
+ /*******************************************************************/
+  DCL R0  REG(0)  FIXED(31),             /*  GENERAL REG 0          */
+      R1  REG(1)  POINTER(31) RSTD,      /* PARM LIST POINTER       */
+      R2  REG(2)  POINTER(31),           /*  GENERAL REG 2          */
+      R3  REG(3)  POINTER(31) RSTD,      /* USED AS CODE BASE REG   */
+      R4  REG(4)  POINTER(31),           /*  GENERAL REG 4          */
+      R5  REG(5)  POINTER(31),           /*  GENERAL REG 5          */
+      R6  REG(6)  POINTER(31),           /*  GENERAL REG 6          */
+      R7  REG(7)  POINTER(31),           /*  GENERAL REG 7          */
+      R8  REG(8)  POINTER(31),           /*  GENERAL REG 8          */
+      R9  REG(9)  POINTER(31),           /*  GENERAL REG 9          */
+      R10 REG(10) POINTER(31),           /*  GENERAL REG 10         */
+      R11 REG(11) POINTER(31) RSTD,      /* POINTER TO EIB          */
+      R12 REG(12) POINTER(31) RSTD,      /* USED AS A WORK REG      */
+      R13 REG(13) POINTER(31) RSTD,      /* S/A AND DYNAMIC STORAGE */
+      R14 REG(14) POINTER(31),           /* RETURN POINT ADDRESS    */
+      R15 REG(15) POINTER(31);           /* ENTRY POINT ADDRESS     */
+ @EJECT;
+

@@ -1,0 +1,27 @@
+ /*********************************************************************/
+ /* DCLGEN TABLE(DNSST3.NSVOL_INV)                                    */
+ /*        LIBRARY(BLDNSS.USER.FUGETTE.COPYLIB(NSVOINV))              */
+ /*        LANGUAGE(PLI)                                              */
+ /*        APOST                                                      */
+ /* ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS      */
+ /*********************************************************************/
+ EXEC SQL DECLARE NSVOL_INV TABLE
+           ( BO                             CHAR(3) NOT NULL,
+             OUTSIDE_LOCATION               CHAR(3) NOT NULL,
+             PART_NUMBER                    CHAR(12) NOT NULL,
+             QTY_INVENTORY                  CHAR(2) NOT NULL,
+             QTY_ALLOCATED                  CHAR(2) NOT NULL
+           ) ;
+ /*********************************************************************/
+ /* PLI DECLARATION FOR TABLE DNSST3.NSVOL_INV                        */
+ /*********************************************************************/
+ DCL 1 NSVOL_INV,
+      5 BO       CHAR(3),
+      5 OUTSIDE_LOCATION  CHAR(3),
+      5 PART_NUMBER  CHAR(12),
+      5 QTY_INVENTORY  CHAR(2),
+      5 QTY_ALLOCATED  CHAR(2);
+ /*********************************************************************/
+ /* THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 5          */
+ /*********************************************************************/
+

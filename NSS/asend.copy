@@ -1,0 +1,519 @@
+ %ASEND: MACRO KEYS (MSG,PTR,LEN,BO,UID,PT,APPLID,FUNID,PML,BEEP,       
+         ENCRYPT,REPLY,USRSV,BRDCST,DIAG,WRKREG,                        
+         RETRY,PUR,BKUP,RWRIT,SEQ,TIME,COR,NAME);                            
+ /********************************************************************/ 
+ /*                                                                  */ 
+ /* MACRO NAME:   ASEND                                              */ 
+ /*                                                                  */ 
+ /* DESCRIPTION:  THIS MACRO ALLOWS THE INVOKER TO                   */ 
+ /*               SEND MSGS FROM AN APPLICATION PGM                  */ 
+ /*               TO ONE OR MORE PT'S.                               */ 
+ /*               Use the ASENDPRM macro to generate the             */ 
+ /*               ASEND structures.                                  */ 
+ /*                                                                  */ 
+ /* OPERATION:    THE INVOKER SPECIFIES ONE OF THE                   */ 
+ /*               THREE TYPES OF MSGS (REGULAR,                      */ 
+ /*               BROADCAST, OR DIAGNOSTIC) AND                      */ 
+ /*               SPECIFIES THE PARMS ASSOCIATED                     */ 
+ /*               WITH THAT TYPE OF MSG.                             */ 
+ /*                                                                  */ 
+ /* INPUT PARMS:  MSG - Message to be sent                           */ 
+ /*               MSG - optional COR version                         */ 
+ /*                     first parameter - message to be sent         */ 
+ /*                     2nd parameter   - message header area        */ 
+ /*               PTR - pointer to header followed by message      PS*/ 
+ /*               LEN - Message length                               */ 
+ /*               BO  - 2 PARAMETERS - BO & TERR                     */ 
+ /*               UID - Userid (serial number).                      */ 
+ /*               PT  - PT id                                        */ 
+ /*               APPLID - APPLICATION ID.                           */ 
+ /*               FUNID - FUNCTION ID.                               */ 
+ /*               PML - Y - PENDING MSG LIST.                        */ 
+ /*               BEEP - Y - BEEP LOGIC (page)                       */ 
+ /*               ENCRYPT - Y - ENCRYPTED DATA.                      */ 
+ /*               REPLY - TYPE OF REPLY REQUESTED.                   */ 
+ /*                       A - on ACK                                 */ 
+ /*                       N - on NAK                                 */ 
+ /*                       B - on ACK and NAK                         */ 
+ /*                       E - on error                               */ 
+ /*               USRSV - ADDR OF USER RESERVE AREA. 10 bytes        */ 
+ /*               DIAG - DIAGNOSTIC MSG. SW id is the parameter      */ 
+ /*               BRDCST - BROADCAST MSG.                            */ 
+ /*               RETRY  - RETRY MSG IF NOT SENT                     */ 
+ /*               BKUP   - Y - BACKUP MSG IN HUB                     */ 
+ /*               PUR    - COMQ PURGE DATE                           */ 
+ /*               RWRIT  - REWRIT (BS ONLY)                          */ 
+ /*               SEQ    - SEQUENCE NUMBER FOR COMM                  */ 
+ /*                      - QUEUE  (BS ONLY)                          */ 
+ /*               TIME   - TIME FOR COMM QUEUE                       */ 
+ /*                      - (BS ONLY)                                 */ 
+ /*               COR    - Y if a COR module                         */ 
+ /*                        otherwise treated as AOR                  */ 
+ /*               WRKREG - work register to use (12 is the default)  */ 
+ /*                        original contents will saved and restored */
+ /*               NAME   - name of module that doing asend           */ 
+ /*                                                                  */ 
+ /* OUTPUT PARMS: PLIST  (SEE DCSPARM)                               */ 
+ /*                                                                  */ 
+ /* RTNS CALLED:  DBSASEND on the COR                                */ 
+ /*                                                                  */ 
+ /* RETURN CODES: IN REG. 15 (also ASRC field)                       */ 
+ /* (FROM CALLED  0 - MSG ENQUEUED FOR TRANS.                        */ 
+ /*  RTN)         4 - USER NOT IN TIMESLICE.                         */ 
+ /*               8 - GCC INACTIVE.                                  */ 
+ /*              12 - USER NOT SIGNED ON.                            */ 
+ /*              16 - MSG CANNOT BE DELIVERED.                       */ 
+ /*              20 - DPROF NOT FOUND.                               */ 
+ /*              24 - MSG LENGTH 0                                   */ 
+ /*                                                                  */ 
+ /* MACRO ERRORS: INVALID PARMS OR MANDATORY PARMS                   */ 
+ /*               NOT INCLUDED.  WILL NOT ALLOW                      */ 
+ /*               COMPILATION.  MACRO RETURN CODE                    */ 
+ /*               OF 16.                                             */ 
+ /* SR9400052 4NSM 06/09/94 EXPAND PTID FROM 2 TO 4 BYTES  GYULA   4B*/ 
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/ 
+ /*                         Also deleted ALL on diag                 */ 
+ /*                         Also deleted LNGMSG                      */ 
+ /* xxxxxx    7NSI 08/22/97 Handle AOR case when there is            */ 
+ /*                         no COR                         Gyula     */ 
+ /*                                                                  */
+ /* SR01066   2NSJ 04/16/02 MIG                            Gyula     */
+ /*                                                                  */
+ /*                03/17/05 Remove Motient direct support  Gyula     */
+ /*                         add NAME field - version 2               */
+ /*                         link to DBSMIG                           */
+ /*********ENDPROLOG**************************************************/ 
+ DCL REG CHAR;                                                          
+ DCL MMM CHAR;                                                          
+ ! DCL MACCK CHAR EXTERNAL; /* MACRO CHECK */                           
+ !IF MACCK^='Y' THEN                                                    
+ ! DO;                                                                  
+ !  MACCK='Y';                                                          
+ !  ANS('@INCLUDE SYSLIB(DCSPARM);') COL(2) NORESCAN;                   
+ !  ANS('@INCLUDE SYSLIB(MACREGS);') COL(2) NORESCAN;                   
+ ! END;                                                                 
+ /***********************************************************/          
+ /*                                                         */          
+ /* THE NEXT SECTION ALLOWS THE MACRO INVOCATION TO BE      */          
+ /* PRINTED AS A COMMENT ON THE SOURCE LISTING.             */          
+ /*                                                         */          
+ /***********************************************************/          
+ DCL MACINV CHAR;  /* PROVIDES AREA FOR SYNTAX OF MACRO INVOC. */       
+ MACINV=MACLABEL||MACNAME||MACLIST||' '||MACKEYS;                       
+ ANS('/* ?'||MACINV||'  VERSION 2 PS*/') COL(7) NORESCAN;               
+ /***********************************************************/          
+ /*                                                         */          
+ /* MANDATORY AND CONFLICTING PARM CHECK.                   */          
+ /*                                                         */          
+ /***********************************************************/          
+ IF (MSG(1)=''&PTR(1)='') | LEN(1)='' | NAME(1)='' THEN      
+  DO;                                                                   
+   ANS MSG('MANDATORY KEYWORDS MISSING: (MSG & LEN) or (PTR & LEN)')    
+    COL(2) NORESCAN; 
+   ANS MSG(' or NAME')    
+    COL(3) NORESCAN;                                                     
+   RETURN CODE(16);                                                     
+  END;                                                                  
+ IF MSG(1)^=''&PTR(1)^='' THEN  /* MANDATORY PARM CK. */                
+  DO;                                                                   
+   ANS MSG('CONFLICTING KEYWORDS SPECIFIED: MSG & PTR')                 
+    COL(2) NORESCAN;                                                    
+   RETURN CODE(16);                                                     
+  END;                                                                  
+ IF DIAG(1)^='' & BRDCST(1)^='' THEN  /* CONFLICTING PARM CK. */        
+  DO;                                                                   
+   ANS MSG('CONFLICTING KEYWORDS SPECIFIED: DIAG & BRDCST')             
+    COL(2) NORESCAN;                                                    
+   RETURN CODE(16);                                                     
+  END;                                                                  
+ IF COR(1)^=QUOTE('Y') & MSG(2)^='' THEN  /* CONFLICTING PARM CK. */    
+  DO;                                                                   
+   ANS MSG('Conflicting keywords specified: need COR-Y to use MSG '||   
+           'header parm.') COL(2) NORESCAN;                             
+   RETURN CODE(16);                                                     
+  END;                                                                  
+ ANS('DO;') COL(2) NORESCAN;                                            
+ IF PTR ^= ''                                                           
+  THEN                                                                  
+   DO;                                                                  
+    MMM = PTR(1);                                                       
+    MMN = "ASENDHDR";                                                   
+   END;                                                                 
+  ELSE                                                                  
+   IF MSG(2) = ''                                                       
+    THEN                                                                
+     DO;                                                                
+      MMM = "ADDR("||MSG(1)||"_P)";                                     
+      MMN = MSG(1)||"_P";                                               
+     END;                                                               
+    ELSE                                                                
+     DO;                                                                
+      MMM = "ADDR("||MSG(2)||")";                                       
+      MMN = MSG(2);                                                     
+     END;                                                               
+ ANS(MMM||' -> ASENDHDR = '||MMM||' -> ASENDHDR ')                      
+  NORESCAN COL(2);                                                      
+ ANS('&& '||MMM||' -> ASENDHDR; /* clear plist header */')              
+  NORESCAN COL(4);                                                      
+ IF MSG(2) ^= ''                                                        
+  THEN                                                                  
+   DO;                                                                  
+     ANS(MMM||' -> ASMSGADDR = ADDR('||MSG(1)||'); /* msg addr */')     
+         COL(2) RESCAN;                                                 
+     ANS(MMM||' -> ASSPCOR = '||QUOTE('1')||'B; /* tell ASEND '||       
+             'ASMSGADDR has msg addr */')                               
+      COL(2) NORESCAN;                                                  
+   END;                                                                 
+ /***********************************************************/          
+ /*                                                         */          
+ /* THIS SECTION OF CODE ZEROES OUT THE PARM LIST AREA.     */          
+ /* PLACES THE ADDR OF THE PARM LIST IN THE FIRST           */          
+ /* PARM.                                                   */          
+ /*                                                         */          
+ /***********************************************************/          
+ /***********************************************************/          
+ /*                                                         */          
+ /* THIS SECTION OF CODE SETS UP FOR A DIAGNOSTIC TYPE      */          
+ /* OF MESSAGE, TURNS ON THE DIAG MSG BIT AND PLACES THE    */          
+ /* ADDR OF THE USER RESERVE AREA IN THE PARM LIST.         */          
+ /*                                                         */          
+ /***********************************************************/          
+ IF DIAG(1)^='' THEN                                                    
+  DO;                                                                   
+     ANS(MMM||' -> ASDIAG = '||QUOTE('1')||'B; /* Diagnostic Msg */')   
+      COL(2) NORESCAN;                                                  
+     ANS(MMM||' -> ASGCCID = '||DIAG(1)||'; /* GCC id */')              
+         COL(2) RESCAN;
+   
+   IF UID(1)^='' THEN                                                   
+    DO;                                                                 
+      ANS(MMM||' -> ASPTBOU = '||UID(1)||'; /* UID IN PLIST */')        
+      COL(2) RESCAN;                                                    
+    END;                                                                                                              ASE01780
+   IF REPLY(1)^='' THEN                                                 
+    DO;                                                                 
+     IF REPLY(1) = QUOTE('A') THEN                                      
+      ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')          
+        COL(2) NORESCAN;                                                
+     ELSE                                                               
+      IF REPLY(1) = QUOTE('N') THEN                                     
+       ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')       
+        COL(2) NORESCAN;                                                
+     ELSE                                                               
+      IF REPLY(1) = QUOTE('B') THEN                                     
+       DO;                                                              
+        ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')        
+         COL(2) NORESCAN;                                               
+        ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')      
+         COL(2) NORESCAN;                                               
+       END;                                                             
+     ELSE                                                               
+      IF REPLY(1) = QUOTE('E') THEN; /* no bits are set on E  */                
+     ELSE                                                                       
+      DO;                                                                       
+       ANS(MMM||' -> ASWORK ='||REPLY(1)||';') COL(2) RESCAN;                   
+       ANS('SELECT ('||MMM||' -> ASWORK); ') COL(2) NORESCAN;                   
+       ANS('WHEN ('||QUOTE('A')||') ') COL(4) NORESCAN;                         
+        ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')                
+          COL(5) NORESCAN;                                                      
+       ANS('WHEN ('||QUOTE('N')||') ') COL(4) NORESCAN;                         
+        ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')              
+         COL(5) NORESCAN;                                                       
+       ANS('WHEN ('||QUOTE('B')||') ') COL(4) NORESCAN;                         
+        ANS('DO;    /* BOTH */') COL(5) NORESCAN;                               
+         ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')               
+           COL(6) NORESCAN;                                                     
+         ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')             
+          COL(6) NORESCAN;                                                      
+        ANS('END;') COL(5) NORESCAN;                                            
+       ANS('OTHER;') COL(4) NORESCAN;                                           
+       ANS('END;') COL(2) NORESCAN;                                             
+      END;                                                                      
+     IF USRSV(1)='' THEN                                                        
+      DO;                                                                       
+       ANS('DIAG MSG KEYWORD MISSING: REPLY SPECIFIED - USRSV OMITTED')         
+        COL(2) NORESCAN;                                                        
+       RETURN CODE(16);                                                         
+      END;                                                                      
+     ELSE                                                                       
+      DO;                                                                       
+       ANS(MMM||' -> ASUSRSV = '||USRSV(1)||'; /* USRSV IN PLIST */')           
+         COL(2) RESCAN;                                                         
+      END;                                                                      
+    END;                                                                        
+  END;                                                                          
+ /***********************************************************/                  
+ /*                                                         */                  
+ /* THIS SECTION OF CODE SETS UP FOR A BROADCAST  TYPE      */                  
+ /* OF MESSAGE, TURNS ON THE BROADCAST BIT AND TURNS ON     */                  
+ /* OTHER BITS ASSOCIATED WITH BROADCAST MSG.               */                  
+ /*                                                         */                  
+ /***********************************************************/                  
+ IF BRDCST(1)^='' THEN                                                          
+  DO;                                                                           
+   IF APPLID(1)='' | FUNID(1)='' THEN                                           
+    DO;                                                                         
+     ANS MSG('MANDATORY BRDCST KEYWORDS MISSING:') COL(2) NORESCAN;             
+     ANS MSG(' APPLID, OR FUNID') NORESCAN;                                     
+     RETURN CODE(16);                                                           
+    END;                                                                        
+   ANS(MMM||' -> ASBCST = '||QUOTE('1')||'B; /* Broadcast bit */')              
+           COL(2) NORESCAN;                                                     
+   ANS(MMM||' -> ASGCCID = '||BRDCST(1)||'; /* SW id */')                       
+          COL(2) NORESCAN;                                                      
+   ANS(MMM||' -> ASAPPLID = '||APPLID(1)||'; /* Applid IN PLIST */')            
+    COL(2) RESCAN;                                                              
+   ANS(MMM||' -> ASFUNID = '||FUNID(1)||'; /* Applid Function */')              
+    COL(2) RESCAN;                                                              
+  END;  /* END OF BCAST MSG SECTION */                                          
+ /***********************************************************/                  
+ /*                                                         */                  
+ /* THIS SECTION OF CODE SETS UP FOR A REGULAR TYPE         */                  
+ /* OF MESSAGE.                                             */                  
+ /*                                                         */                  
+ /***********************************************************/                  
+ IF BRDCST(1)='' & DIAG(1)='' THEN                                              
+  DO;                                                                           
+   IF (PT(1)=''&BO(1)=''&UID(1)='') | APPLID(1)='' | FUNID(1)='' THEN           
+    DO;                                                                         
+     ANS MSG('REG MSG MANDATORY PARMS MISSING: APPLID,FUNID,PT,BO,UID')         
+       COL(2) NORESCAN;                                                         
+     RETURN CODE(16);                                                           
+    END;                                                                        
+   ANS(MMM||' -> ASREG = '||QUOTE('1')||'B; /* Regular Message */')             
+      COL(2) NORESCAN;                                                          
+   IF PT(1)^='' THEN                                                            
+    DO;                                                                         
+     ANS(MMM||' -> ASPT = '||QUOTE('1')||'B; /* PT BIT */')                     
+      COL(2) NORESCAN;                                                          
+     ANS(MMM||' -> ASPTBOU(1::4) = '||PT(1)||'; /* PTid IN PLIST */')           
+      COL(2) RESCAN;                                                            
+    END;                                                                        
+   IF BO(1)^='' THEN                                                            
+    DO;                                                                         
+     ANS(MMM||' -> ASBOT = '||QUOTE('1')||'B; /* BO BIT */')                    
+      COL(2) NORESCAN;                                                          
+     ANS(MMM||' -> ASBO = '||BO(1)||'; /* BO IN PLIST */')                      
+      COL(2) RESCAN;                                                            
+     ANS(MMM||' -> ASTERR = '||BO(2)||'; /* TERR IN PLIST */')                  
+      COL(2) RESCAN;                                                            
+    END;                                                                        
+   IF UID(1)^='' THEN                                                           
+    DO;                                                                         
+     ANS(MMM||' -> ASUID = '||QUOTE('1')||'B; /* UID BIT */')                   
+      COL(2) NORESCAN;                                                          
+     ANS(MMM||' -> ASPTBOU = '||UID(1)||'; /* UID IN PLIST */')                 
+      COL(2) RESCAN;                                                            
+    END;                                                                        
+   IF PML(1)^='' THEN                                                           
+    DO;                                                                         
+     IF PML(1) = QUOTE('Y')                                                     
+      THEN                                                                      
+        ANS(MMM||' -> ASPML = '||QUOTE('1')||'B; /* PML bit */')                
+         COL(2) NORESCAN;                                                       
+      ELSE                                                                      
+       IF PML(1) ^= QUOTE('N')                                                  
+        THEN                                                                    
+         DO;                                                                    
+          ANS(MMM||' -> ASWORK ='||PML(1)||';') COL(2) RESCAN;                  
+          ANS('IF '||MMM||'-> ASWORK = '||QUOTE('Y')||' THEN    ')              
+           COL(2) NORESCAN;                                                     
+          ANS(MMM||' -> ASPML = '||QUOTE('1')||'B; /* PML bit */')              
+           COL(4) NORESCAN;                                                     
+         END;                                                                   
+    END;                                                                        
+   IF BEEP(1)^='' THEN                                                          
+    DO;                                                                         
+     IF BEEP(1) = QUOTE('Y')                                                    
+      THEN                                                                      
+        ANS(MMM||' -> ASBEEP = '||QUOTE('1')||'B; /* BEEP bit */')              
+         COL(2) NORESCAN;                                                       
+      ELSE                                                                      
+       IF BEEP(1) ^= QUOTE('N')                                                 
+        THEN                                                                    
+         DO;                                                                    
+          ANS(MMM||' -> ASWORK ='||BEEP(1)||';') COL(2) RESCAN;                 
+          ANS('IF '||MMM||'-> ASWORK = '||QUOTE('Y')||' THEN    ')              
+           COL(2) NORESCAN;                                                     
+          ANS(MMM||' -> ASBEEP = '||QUOTE('1')||'B; /* BEEP bit */')            
+           COL(4) NORESCAN;                                                     
+         END;                                                                   
+    END;                                                                        
+   IF ENCRYPT(1)='' | ENCRYPT(1)=QUOTE('Y') THEN                                
+    ANS(MMM||' -> ASENC = '||QUOTE('1')||'B; /* ENCRYPT bit */')                
+     COL(2) NORESCAN;                                                           
+   ELSE                                                                         
+    IF ENCRYPT(1)^=QUOTE('N') THEN                                              
+    DO;                                                                         
+     ANS(MMM||' -> ASWORK ='||ENCRYPT(1)||';') COL(2) RESCAN;                   
+     ANS('IF '||MMM||'-> ASWORK ^= '||QUOTE('N')||' THEN    ')                  
+         COL(2) NORESCAN;                                                       
+     ANS(MMM||' -> ASENC = '||QUOTE('1')||'B; /* ENCRYPT bit */')               
+         COL(4) NORESCAN;                                                       
+    END;                                                                        
+   IF REPLY(1)^='' THEN                                                         
+    DO;                                                                         
+     IF REPLY(1) = QUOTE('A') THEN                                              
+      ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')                  
+        COL(2) NORESCAN;                                                        
+     ELSE                                                                       
+      IF REPLY(1) = QUOTE('N') THEN                                             
+       ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')               
+        COL(2) NORESCAN;                                                        
+     ELSE                                                                       
+      IF REPLY(1) = QUOTE('B') THEN                                             
+       DO;                                                                      
+        ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')                
+         COL(2) NORESCAN;                                                       
+        ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')              
+         COL(2) NORESCAN;                                                       
+       END;                                                                     
+     ELSE                                                                       
+      IF REPLY(1) = QUOTE('E') THEN; /* no bits are set on E  */                
+     ELSE                                                                       
+      DO;                                                                       
+       ANS(MMM||' -> ASWORK ='||REPLY(1)||';') COL(2) RESCAN;                   
+       ANS('SELECT ('||MMM||' -> ASWORK); ') COL(2) NORESCAN;                   
+       ANS('WHEN ('||QUOTE('A')||') ') COL(4) NORESCAN;                         
+        ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')                
+          COL(5) NORESCAN;                                                      
+       ANS('WHEN ('||QUOTE('N')||') ') COL(4) NORESCAN;                         
+        ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')              
+         COL(5) NORESCAN;                                                       
+       ANS('WHEN ('||QUOTE('B')||') ') COL(4) NORESCAN;                         
+        ANS('DO;    /* BOTH */') COL(5) NORESCAN;                               
+         ANS(MMM||' -> ASACK = '||QUOTE('1')||'B; /* ACK bit */')               
+           COL(6) NORESCAN;                                                     
+         ANS(MMM||' -> ASNACK = '||QUOTE('1')||'B; /* NACK bit */')             
+          COL(6) NORESCAN;                                                      
+        ANS('END;') COL(5) NORESCAN;                                            
+       ANS('OTHER;') COL(4) NORESCAN;                                           
+       ANS('END;') COL(2) NORESCAN;                                             
+      END;                                                                      
+    END;                                                                        
+   ELSE;                                                                        
+   ANS(MMM||' -> ASAPPLID = '||APPLID(1)||'; /* Applid IN PLIST */')            
+    COL(2) RESCAN;                                                              
+   ANS(MMM||' -> ASFUNID = '||FUNID(1)||'; /* Applid Function */')              
+    COL(2) RESCAN;                                                              
+   IF USRSV(1)^='' THEN                                                         
+    DO;                                                                         
+     ANS(MMM||' -> ASUSRSV = '||USRSV(1)||'; /* USRSV IN PLIST */')             
+      COL(2) RESCAN;                                                            
+    END;                                                                        
+          /*******************************************/                         
+          /*                                         */                         
+          /* THIS SECTION OF CODE IS FOR THE COMMON  */                         
+          /* QUEUE PARAMETERS.                       */                         
+          /*                                         */                         
+          /*******************************************/                         
+   IF RETRY(1)=QUOTE('Y') THEN                                                  
+    DO;                                                                         
+     ANS(MMM||' -> ASRTRY = '||QUOTE('1')||'B; /* Retry bit */')                
+         COL(2) NORESCAN;                                                       
+     IF BKUP(1)=QUOTE('Y') THEN                                                 
+      DO;                                                                       
+       ANS(MMM||' -> ASBKUP = '||QUOTE('1')||'B; /* BKUP bit */')               
+         COL(2) NORESCAN;                                                       
+      END;                                                                      
+     IF PUR(1)^='' THEN                                                         
+      DO;                                                                       
+       ANS(MMM||' -> ASPUR = '||QUOTE('1')||'B; /* Purge bit */')               
+           COL(2) NORESCAN;                                                     
+       ANS(MMM||' -> ASPDATE = '||PUR(1)||'; /* Purge Date */')                 
+           COL(2) NORESCAN;                                                     
+      END;                                                                      
+     IF RWRIT(1)^='' THEN           /* base services only */                    
+      ANS(MMM||' -> ASWRIT = '||RWRIT(1)||';  /* rewrite  */')                  
+        COL(2) RESCAN;                                                          
+     IF SEQ(1)^='' THEN                /* BASE SERVICES ONLY  */                
+      ANS(MMM||' -> ASSEQ = '||SEQ(1)||';  /* sequence number  */')             
+        COL(2) RESCAN;                                                          
+     IF TIME(1)^='' THEN               /* BASE SERVICES ONLY  */                
+      ANS(MMM||' -> ASTIME = '||TIME(1)||';  /* time foy key b.s.*/')           
+        COL(2) RESCAN;                                                          
+    END;                                                                        
+  END;                                                                          
+  IF NAME(1)^=''                                                                
+   THEN                                                                         
+     ANS(MMM||' -> ASSENDER = '||NAME(1)||'; /* sender   */')                   
+      COL(2) RESCAN;                                                            
+                                                                                
+ /***********************************************************/                  
+ /*                                                         */                  
+ /* THIS SECTION OF CODE SETS UP THE MANDATORY PARMAMETERS  */                  
+ /* OF MSG AND LEN FOR ALL TYPES OF MSGS.  IT ALSO LINKS    */                  
+ /* TO DBSASEND AND UPON RETURN PUTS THE RC IN REG. 15.     */                  
+ /*                                                         */                  
+ /***********************************************************/                  
+ ANS(MMM||' -> ASLEN = '||LEN(1)||'; /* msg length IN PLIST */')                
+  COL(2) RESCAN;                                                                
+ REG = '12';                                                                    
+ IF WRKREG(1) ^= '' THEN                                                        
+  DO;                                                                           
+   REG = WRKREG(1);                                                             
+  END;                                                                          
+ ELSE;                                                                          
+ ANS('RFY M'||REG||' RSTD;') COL(2) RESCAN;                                     
+ ANS(MMM||' -> ASSAVEREG = M'||REG||';  /* SAVE CONTENTS OF REG  */')           
+  COL(2) RESCAN;                                                                
+ /* THIS SECTION OF CODE Links TO THE STATUS RTN            */                  
+ /* AOR version will use the SYSID of the COR               */                  
+ /*                                                         */                  
+ IF COR(1)=QUOTE('Y') THEN  /* COR version   */                                 
+  DO;                                                                           
+   IF MSG(2) = ''                                                               
+    THEN                                                                        
+     ANS(MMM||' -> ASTLEN = '||MMM||' -> ASLEN + LENGTH('||MMN||');'||          
+       ' /* total length */') COL(2) RESCAN;                                    
+    ELSE                                                                        
+     ANS(MMM||' -> ASTLEN = '||MMM||' -> ASLEN;'||                              
+       ' /* header length */') COL(2) RESCAN;                                   
+   ANS('M'||REG||' = '||MMM||'; /* addr of asend parm list */')                 
+      COL(2) RESCAN;                                                            
+   ANS('GENERATE REFS(M'||REG||',ASTLEN) SETS('||MMN||');')                     
+      COL(2) RESCAN;                                                            
+   ANS('EXEC CICS LINK PROGRAM('||QUOTE('DBSMIG'))                            
+      COL(2) NORESCAN;                                                          
+   ANS(') COMMAREA(0(,M'||REG||')) ') RESCAN;                                   
+   ANS('X') COL(MACRMAR) NORESCAN;                                              
+   ANS('LENGTH(ASTLEN(,M'||REG||'))')                                           
+      COL(4) NORESCAN;                                                          
+   ANS('@ENDGEN;') COL(2) NORESCAN;                                             
+  END;                                                                          
+ ELSE               /* AOR version */                                           
+  DO;                                                                           
+   ANS(MMM||' -> ASSYSID = CWA_COR_SYSID;')                                     
+     COL(2) RESCAN;                                                             
+   ANS(MMM||' -> ASTLEN = '||MMM||' -> ASLEN + LENGTH('||MMN||');'||            
+     ' /* total length */') COL(2) RESCAN;                                      
+   ANS('M'||REG||' = '||MMM||'; /* addr of asend parm list */')                 
+      COL(2) RESCAN;                                                            
+   ANS('GENERATE REFS(M'||REG||',ASTLEN,ASSYSID)')                              
+      COL(2) RESCAN;                                                            
+   ANS(' SETS('||MMN||');')                                                     
+       RESCAN;                                                                  
+   ANS('EXEC CICS LINK PROGRAM('||QUOTE('DBSMIG'))                            
+      COL(2) NORESCAN;                                                          
+   ANS(') COMMAREA(0(,M'||REG||'))') RESCAN;                                    
+   ANS('X') COL(MACRMAR) NORESCAN;                                              
+   ANS('LENGTH(ASTLEN(,M'||REG||')) SYSID(ASSYSID(,M'||REG||'))'||              
+       ' NOHANDLE')                                                             
+      COL(4) NORESCAN;                                                          
+   ANS('@ENDGEN;') COL(2) NORESCAN;                                             
+   ANS('IF EIBRESP ^= ?DFHRESP(NORMAL);   /* link worked ? xxxxxx*/')           
+    COL(2) RESCAN;                                                              
+   ANS('THEN') COL(3) NORESCAN;                                                 
+   ANS(MMM||' -> ASRC = 32;  /* indicate link failed xxxxxx*/')                 
+        COL(4) RESCAN;                                                          
+  END;                                                                          
+ ! deal with return - rc in reg, restore work reg                               
+ ANS('RFY M15 RSTD;') COL(2) NORESCAN;                                          
+ ANS('M15 = '||MMM||' -> ASRC; /* RC TO REG 15 */') COL(2) NORESCAN;            
+ ANS('M'||REG||' = '||MMM||' -> ASSAVEREG; /* restore register */')             
+  COL(2) RESCAN;                                                                
+ ANS('RFY M'||REG||' UNRSTD;') COL(2) RESCAN;                                   
+ ANS('RFY M15 UNRSTD;') COL(2) NORESCAN;                                        
+ ANS('END; /* ASEND DO END GROUP */') COL(2) NORESCAN;                          
+ ANS('/* END OF ASEND MACRO CODE */') COL(7) NORESCAN;                          
+ %END;                                                                          

@@ -1,0 +1,42 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   NSSZIPCD    VERSION NR:  01           DATE:  03/10/97    */
+ /*                                               TIME:  13:41:04    */
+ /*                                                                  */
+ /* TITLE:  COPY MEMBER FOR NSS ZIP CODE ROUTING TABLE               */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:  N/A                                           */
+ /*                                                                  */
+ /* TYPE:   COPY MEMBER                                              */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION: COPY MEMBER FOR NSS ZIP CODE ROUTING TABLE          */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  3/10/97  9600744  7NSG  NEW COPY MEMBER             KMURPHY     */
+ /*  8/13/07  040014   7NSR  REMOVE ZIP_RES_ROC          Fugette     */
+ /*                          ADD ZIP_COUNTY, ZIP_USERID              */
+ /*                                                                  */
+ /********************************************************************/
+
+      5 ZIP_CODE             CHAR( 5),
+      5 ZIP_RESP_AREA        CHAR( 2),
+      5 ZIP_GMT_OFFSET       CHAR( 4),
+      5 ZIP_DST              CHAR( 1),
+      5 ZIP_STATE            CHAR( 2),
+      5 ZIP_CITY             CHAR(13),
+      5 ZIP_LAT        FIXED DEC(7,4),
+      5 ZIP_LONG       FIXED DEC(7,4),
+      5 ZIP_TIME_STAMP       CHAR(26),
+      5 ZIP_COUNTY           CHAR(30),
+      5 ZIP_USERID           CHAR( 6);
+ /*------------------------------------------------------------------*/
+ /*                                  END  NSSZIPCD                   */
+ /*------------------------------------------------------------------*/
+
+

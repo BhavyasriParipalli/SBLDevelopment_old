@@ -1,0 +1,182 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* COPYRIGHT IBM CORP.                                             */
+ /*    CREATED - 02/28/82                                           */
+ /*                                                                 */
+ /*  DESCRIPTION -                                                  */
+ /*                                                                 */
+ /*      THE TWA IS APPENDED TO THE CICS TCA BY CICS AT TRANSACTION */
+ /*      INITIATION TIME. THE TWA ASSOCIATED WITH A DCS MESSAGE     */
+ /*      IS MAPPED HERE.IN ADDITION A 3.5 K  AREA IS SUPPLIED AND   */
+ /*      MAY BE USED BY THE APPLICATION. DCS BASE SERVICES WILL     */
+ /*      SET THE WORKAREA TO HEX 00 BEFORE LINKING TO THE           */
+ /*      APPLICATION.                                               */
+ /*                                                                 */
+ /*  For AOR the beginning of this mapping is used since the        */
+ /*  information will be passed from the COR in COMMAREA.           */
+ /*  There will no longer be a TWA in the modules called from       */
+ /*  the COR -- so be careful.  The mapping is used just to keep    */
+ /*  the mapping the same and not have to update two mappings.    PS*/
+ /*                                                                 */
+ /*  ADDRESSING -                                                   */
+ /*                                                                 */
+ /*      SET MACRO VARIABLE TWAPTR TO THE CORRECT BASE VARIABLE.    */
+ /*      THE TWA ADDRESS IS LOCATED BY ISSUING                      */
+ /*      THE EXEC CICS TWA COMMAND.                                 */
+ /*                                                                 */
+ /*  CHANGE -                                                       */
+ /*                                                                 */
+ /*           5/16/85 - D874 Expanded variable portion of name      */
+ /*                     across entire macro.  If variable "TWASET"  */
+ /*                     is not set within the program, names will   */
+ /*                     begin with "TWA" - else "DWA"               */
+ /*                                                                 */
+ /* CHRONOLOGICAL UPDATE LOG:                                       */
+ /* DATE:    REASON:  DRIVER: DESCRIPTION:                   PGMR:  */
+ /* -------- -------- ------------------------------------- ------  */
+ /* 06/08/93 9400052  4NSM    Remove T%%VID and T%%AGRES.   LEXCJBL */
+ /*                           Increase T%%PTID to 4 byes.           */
+ /*                                                                 */
+ /* SR9400052 4NSM 06/09/94 EXPAND PTID FROM 2 TO 4 BYTES  GYULA  4B*/
+ /* SR9600755 7NSI 04/15/97   NSS Parallel Phase 1          KMESMER */
+ /*                           - Remove DL1 bits                     */
+ /*           8NSN 04/23/99   Remove TELCO                  Gyula   */
+ /* SR01064   3NSG 01/24/03 CICS Upgrade                   Gyula  up*/
+ /* SR030049  4NSA 09/19/03 Larger segment size            Gyula max*/
+ /*                         move message to end                     */
+ /*                         remove large message pointer            */
+ /*                         add message size                        */
+ /*                         remove telco and unused fields          */
+ /* 5NSC_014  5NSC 02/02/05 DCS message limit              Gyula    */
+ /*******************************************************************/
+ %ACTIVATE T;
+ %IF TWASET='' %THEN %T='TWA';
+ %ELSE %T='AOR';
+ %IF TWASET = 'AOR' %THEN %GOTO TWAAOR1;
+ DCL 1 T%% CHAR(4096) BDY(DWORD) BASED (TWAPTR),
+ %GOTO TWAAORE;
+ %TWAAOR1:;
+ DCL 1 T%% BDY(DWORD) BASED (TWAPTR),
+ %TWAAORE:;
+      2 T%%SYS,                           /* SYSTEM AREA OF TWA     */
+       3 T%%SAV1 CHAR(4),                 /* reserved               */
+       3 T%%CWA PTR (31),                 /* PTR TO CWA             */
+       3 T%%DCSI PTR (31),                /* PTR TO DBS INDEX       */
+ %IF TWASET='' %THEN %T='PRO';
+ %IF TWASET='AOR' %THEN %T='PRO';
+       3 T%%UIBP PTR (31),              /* PTR TO UIB (SET BY APP)  */
+       3 T%%PCBP PTR (31),              /* PTR TO PCB (SET BY APP)  */
+       3 T%%PSBN CHAR (8),              /* PSBNAME    (SET BY APP)  */
+ %IF TWASET='' %THEN %T='TWA';
+ %ELSE %T='AOR';
+       /*************************************************************/
+       /*                                                           */
+       /*  THE FOLLOWING AREA IS USED TO SHOW THE TIME THE MESSAGE  */
+       /*  WAS GIVEN TO THE APPLICATION (VIA LINK).                 */
+       /*************************************************************/
+       3 T%%TIME CHAR(12),              /* TIME AND DATE            */
+         4 T%%CLOCK CHAR(6),            /* TIME IN HHMMSS           */
+         4 T%%DAY CHAR(5),              /* JULIAN DATE YYDDD        */
+         4 *        CHAR(1),            /* RESERVED                 */
+       3 T%%DATE1    CHAR(8),           /* DATE AS MM/DD/YY         */
+       3 T%%DATE2    CHAR(6),           /* DATE AS YYMMDD__         */
+       3 T%%DOFWK    FIXED(16),         /* DAY OF WEEK IN BIN 1-SAT */
+       /*************************************************************/
+       /*                                                           */
+       /*  THE FOLLOWING AREA IS USED TO SHOW THE TIME THE MESSAGE  */
+       /*  WAS RECEIVED BY BASE SERVICES INBOUND PROCESSOR.         */
+       /*************************************************************/
+       3 TWBTIME CHAR(12),              /* TIME AND DATE            */
+         4 TWBCLOCK CHAR(6),            /* TIME IN HHMMSS           */
+         4 TWBDAY   CHAR(5),            /* JULIAN DATE YYDDD        */
+         4 *        CHAR(1),            /* RESERVED                 */
+       3 TWBDATE1    CHAR(8),           /* DATE AS MM/DD/YY         */
+       3 TWBDATE2    CHAR(6),           /* DATE AS YYMMDD__         */
+       3 TWBDOFWK    FIXED(16),         /* DAY OF WEEK IN BIN 1-SAT */
+       /*************************************************************/
+       /*                                                           */
+       /*   THIS NEXT AREA IS A DESCRIPTION OF THE DBS PROFILE.     */
+       /*   THIS PROFILE IS APPENDED TO THE MESSAGE, WHICH          */
+       /*   IMMEDIATELY FOLLOWS THE DBS PROFILE. THE DBS PROFILE    */
+       /*   IN THE TWA IS A COPY OF THE DBS PROFILE. THE QUALIFIER  */
+       /*   DBS HAS BEEN CHANGED TO TWA IN THIS DSECT.              */
+       /*                                                           */
+       /*************************************************************/
+       3 T%%DBSP,                       /* AREA FOR DURD PROFILE    */
+       %ACT DURD;                       /* TWA DCS PROFILE          */
+       %IF TWASET='' %THEN %DURD = 'TWAD';
+                     %ELSE %DURD = 'AORD';
+       %INCLUDE SYSLIB  (DBSDURD) NOSEG;/* TWA DCS PROFILE          */
+       3 * CHAR(38),                    /* RESERVED FOR EXTENDED PROF*/
+       3 T%%LENGTH FIXED(15),           /* NSSAOR total length    PS*/
+       /*************************************************************/
+       /*                                                           */
+       /*   FOLLOWING IS A REPRESENTATION OF THE INBOUND MESSAGE.   */
+       /*   THE DESCRIPTION IS THAT FROM A GCC, FOR A REGULAR       */
+       /*   TEXT TYPE MESSAGE (A8 TO AN APPLICATION FROM A PT).     */
+       /*   IF THE MESSAGE IS AN ACK/NAK, THE PT RESPONSE IS        */
+       /*   DESCRIBED BY TWAMPTRP, AND THE ACK/NAK'ED MESSAGE WILL  */
+       /*   HAVE ITS COMM MGR HEADER AND TEXT MAPPED BELOW IN       */
+       /*   TWAMSG. THE USER HEADER AND TEXT INFORMATION IS VALID   */
+       /*   FOR A5 ACK/NAK MESSAGES, AND IS THE ACTUAL TEXT OF THE  */
+       /*   ACK/NAK'ED MESSAGE FROM THE OUTBOUND QUEUE.             */
+       /*************************************************************/
+       /*       W A R N I N G   W A R N I N G                       */
+       /*************************************************************/
+       /* ANY OTHER TYPE MESSAGE, (MOST LIKELY DIAGNOSTIC) MUST BE  */
+       /* MAPPED BY THE APPLICATION, AND REDFINED OVER THE TWAINBND */
+       /* AREA.                                                     */
+       /*************************************************************/
+       3 T%%USAVE CHAR (10),            /* USER SAVE BYTES          */
+   
+       3 T%%MUFLG BIT(8),               /* PERTAIN TO THIS MESSAGE  */
+         4 T%%MINP BIT (1),             /* REGULAR MESSAGE          */
+         4 T%%MACK BIT (1),             /* ACK MESSAGE              */
+         4 T%%MNAK BIT (1),             /* NAK MESSAGE              */
+         4 *       BIT (1),             /* spare                8nsn*/
+         4 T%%IAMH BIT (1),             /* ENTERED BECAUSE OF PML   */
+         4 T%%SIGN BIT (1),             /* ENTERED BECAUSE OF SIGNON*/
+         4 T%%LOG BIT (1),              /* ENTERED BECAUSE OF LOGOFF*/
+         4 T%%SL0 BIT (1),              /* MESSAGE IN SLOT 0 (TELCO)*/
+       3 T%%MPTRP CHAR (1),             /* PT RESP.(TYPE ACK/NAK)   */
+       3 T%%RCODE BIN (8),              /* DISPATCHER/TELCO PROC RC */
+       3 T%%MXFLG CHAR (1),             /* EXTENDED FLAG BYTE       */
+         4 T%%MLNG BIT(1),              /* LONG MESSAGE  - cor use  */
+         4 T%%IMS_ABEND BIT(1),         /* IMS Abend has occurred up*/ 
+         4 T%%NOTQUEUE BIT(1),      /* if 1, do not queue element up*/
+         4 *       BIT(5),              /* RESERVED                 */
+       3 T%%MMSGL FIXED(16),            /* LNTH OF USER TEXT PORTION*/
+       3 T%%TIMER FIXED (32),           /* RAW SYSTEM TIME          */
+       3 T%%MAXLEN FIXED(16),           /* single message size   max*/
+      
+      
+ %IF TWASET = 'AOR' %THEN %GOTO TWAAOR;
+      2 T%%MMSGS FIXED(16),      ! DCS/AJ message limit 5NSC_014
+      2 T%%AORAREA CHAR(220),    ! common area for appl - COR name
+      2 T%%UMSG CHAR (244),      /* USER MESSAGE AREA 4B max*/
+         3 T%%UHED CHAR (4),        /* COMM MGR HDR           4B*/
+           4 T%%APID CHAR (2),      /* APPLICATION ID         4B*/
+           4 T%%FUID CHAR (1),      /* FUNCTION ID            4B*/
+           4 T%%UFLG CHAR (1),      /* USER FLAGS             4B*/
+         3 T%%UTEXT CHAR (240),  ! MESSAGE TEXT 4B max - cor ver
+        
+      2 T%%UAREA CHAR(4096-(LENGTH(T%%SYS)+2+LENGTH(T%%AORAREA)
+                             +LENGTH(T%%UMSG))) BDY (DWORD);
+       
+      DCL 1 T%%MLONG CHAR(4) DEFINED (T%%UTEXT), /* LONG MSG ONLY   */ 
+            2 T%%MLPTR CHAR(4);                  /* ADDRESS OF MSG  */
+ %GOTO TWAAORF;
+ %TWAAOR:;
+    ! match old twa mapping   422991
+       2 T%%MMSGS FIXED(16),    ! DCS/AJ message limit 5NSC_014
+       2 T%%UAREA CHAR(220),    ! common area for appl - AOR name
+       2 T%%UMSG,                   /* user messagearea 4B max*/
+         3 T%%UHED CHAR (4),        /* COMM MGR HDR           4B*/
+           4 T%%APID CHAR (2),      /* APPLICATION ID         4B*/
+           4 T%%FUID CHAR (1),      /* FUNCTION ID            4B*/
+           4 T%%UFLG CHAR (1),      /* USER FLAGS             4B*/
+         3 T%%UTEXT CHAR (*);   ! MESSAGE TEXT 4B max - AOR ver
+ %TWAAORF:;
+   
+ %DEACTIVATE T;
+ @EJECT;

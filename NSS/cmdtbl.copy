@@ -1,0 +1,97 @@
+ % ACTIVATE PRE;
+ /*******************************************************************/
+ /*                                                                 */
+ /* COPYRIGHT IBM CORP                                              */
+ /*                                                                 */
+ /* DATE CREATED  - 10/27/80                                        */
+ /* DATE MODIFIED - 09/18/81                                        */
+ /*                                                                 */
+ /*                          09/18/81 - ADDED COMMAND DISABLED BIT  */
+ /*                                     TO TEMPORARILY SHUTDOWN     */
+ /*                                     A COMMAND.      DGS         */
+ /*                                                                 */
+ /*                                                                 */
+ /* DESCRIPTION -                                                   */
+ /*                                                                 */
+ /*      THE COMMAND TABLE CONTAINS A LIST OF COMMANDS SUPPORTED    */
+ /*      BY RAMS OR ITS APPLICATION PROGRAMS.  THERE IS ONE RAMS    */
+ /*      SYSTEM COMMAND TABLE AND THERE IS ONE FOR EACH OF THE      */
+ /*      RAMS APPLICATION PROGRAMS.                                 */
+ /*                                                                 */
+ /*      THE SYSTEM COMMAND TABLE IS ADDRESSED DIRECTLY FROM        */
+ /*      THE CWA.  APPLICATION COMMAND TABLES ARE ADDRESSED         */
+ /*      THROUGH THE APPLICATION ANCHOR BLOCK ADDRESSED             */
+ /*      BY THE CWAPPLRY ARRAY IN THE CWA.  THE REPRESENTATION      */
+ /*      IS SHOWN BELOW -                                           */
+ /*                                                                 */
+ /*                                                                 */
+ /*       CWA                                                       */
+ /*    *--------*                                                   */
+ /*    | CAD    |     CAD ANCHOR       CAD CMD                      */
+ /*    |        |---->*-------*         TABLE                       */
+ /*    |--------|     |       ------->*-------*                     */
+ /*    |        |     /       |       |       |     SYSTEM          */
+ /*    |        |     |       /       |       |    COMMAND          */
+ /*    |--------|     *-------*       *-------*     TABLE           */
+ /*    |CWASCMDP|-------------------------------->*--------*        */
+ /*    *--------*                                 |        |        */
+ /*                                               *--------*        */
+ /*                                                                 */
+ /*    NOTE-                                                        */
+ /*         THE CWA ENTRY SHOWS ONE SECTION OF THE CWAPPLRY         */
+ /*         ARRAY.  THE FIRST EIGHT BYTES IDENTIFY THE APPLICATION  */
+ /*         FOLLOWED BY A FULLWORD POINTER TO THE ANCHOR BLOCK.     */
+ /*                                                                 */
+ /* CHANGE:                                                         */
+ /* ENHANCEMENT E0024- 09/05/84- ADDED ON/OFF BIT TO DETERMINE IF   */
+ /*                              COMMAND HAS ON/OFF TYPE OF AUTHOR  */
+ /*                                                                 */
+ /*******************************************************************/
+  DCL 1 CMDTABLE BASED CMDPTR,
+         2 CMDHDR,                      /* HEADER SECTION OF TABLE  */
+            3 CMDFLAGS BIT(8),          /* FLAG BYTE                */
+               4 CMDAPPLU BIT(1),       /* APPL USES APPL COMMANDS  */
+               4 CMDPROF  BIT(1),       /* PROFILE HAS APPL UNIQUE  */
+                                        /* DATA                     */
+               4 CMDPF    BIT(1),       /* PROFILE HAS PF KEYS      */
+               4 CMDBO    BIT(1),       /* PROFILE HAS BRANCH OFF.  */
+                                        /* AUTHORIZATIONS           */
+               4 *        BIT(4),       /* RESERVED                 */
+            3 CMDCOUNT FIXED(8),        /* COUNT OF COMMANDS IN THIS*/
+                                        /* TABLE - MAX 255          */
+            3 *       CHAR(2),          /* RESERVED                 */
+         2 CMDENTRY (255),              /* ENTRIES FOR COMMANDS     */
+            3 CMDNAME CHAR(8),          /* NAME OF COMMAND          */
+            3 CMDCEPN  CHAR(8),         /* COMMAND ENTRY POINT NAME */
+              4 CMDCEPAD FIXED(32) BDY(BYTE), /* OR ENTRY ADDR. SEE */
+                                        /* CMDTYP  BYTE DEFINITIONS */
+              4 *    CHAR(4),           /* UNUSED IF ADD IN FIRST WD*/
+            3 CMDTRAN  CHAR(4),         /* TRANSACTION ID TO BE USED*/
+            3 CMDAFLAG BIT(8),/* FLAG BYTE FOR COMMAND CTL*/
+              4 CMDDISAB BIT(1),        /* THIS COMMAND IS DISABLED */
+              4 CMDNSUPP BIT(1),        /* Not supported in C++     */
+              4 CMDGUIFL BIT(1),        /* Not supported for 3270   */
+              4 *        BIT(3),        /* NOT DEFINED              */
+              4 CMDCLASS BIT(1),        /* AUTH. FOR CLASS IS NOT   */
+                                        /* DEFAULT FOR USER         */
+              4 CMDONOFF BIT(1),        /* E0024-HWF-               */
+                                        /* ON-COMMAND HAS ON/OFF    */
+                                        /* TYPE OF AUTHORITY        */
+                                        /*                          */
+                                        /* OFF-COMMAND HAS 1-4 TYPE */
+                                        /* OF AUTHORITY             */
+            3 *        CHAR(3),         /* UNUSED                   */
+            3 CMDTYP   BIT(8),          /* CMD TYPE BYTE            */
+ % PRE = '4 CMD';
+ %INCLUDE SYSLIB(AUTHBITS) NOSEG;
+            3 CMDINDEX FIXED(8),        /* INDEX INTO THE PROF BYTE */
+                                        /* MASK.  THE MASK IN THE   */
+                                        /* PROFILE WILL INDICATE IF */
+                                        /* THE USER IS AUTHORIZED TO*/
+                                        /* ISSUE THIS COMMAND.      */
+            3 CMDUAREA CHAR(28);        /* USER AREA - USUALLY      */
+                                        /* CONTAINS THE DESCRIPTION */
+                                        /* OF THE COMMAND.          */
+ @EJECT;
+ % DEACTIVATE PRE;
+

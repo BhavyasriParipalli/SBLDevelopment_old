@@ -1,0 +1,40 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*    CREATED - 9/22/81                                            */
+ /*    CHANGED - N/A                                                */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*  DESCRIPTION -                                                  */
+ /*                                                                 */
+ /*      THE TWA IS APPENDED TO THE CICS TCA BY CICS AT TRANSACTION */
+ /*      INITIATION TIME.  THIS TWA IS FOR USE BY THE RAMS          */
+ /*      BATCH DISPATCHER (RAMDISP).  THE BATCH RECORDS SEND VIA    */
+ /*      THE BATCH SPOOL PROCESSOR ARE READ INTO THIS TWA AND       */
+ /*      CONTROL IS PASSED TO THE REQUESTED PROGRAM.   THE          */
+ /*      PROGRAM MAY USE THE AREA AFTER THE BATCHREC AS A WORK AREA.*/
+ /*                                                                 */
+ /*                                                                 */
+ /*  ADDRESSING -                                                   */
+ /*                                                                 */
+ /*      SET MACRO VARIABLE TWAPTR TO THE CORRECT BASE VARIABLE.    */
+ /*      THE TWA ADDRESS IS LOCATED VIA A CICS ADDRESS TWA COMMAND. */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*******************************************************************/
+ DCL 1 TWA   BDY(WORD) BASED TWAPTR,     /* ADDRESSABILITY         */
+       2 TWASYS CHAR(4096) BDY(WORD),   /* SYSTEM USED AREA         */
+         3 TWAPREFX BDY(WORD),
+             /* THIS FIRST AREA IS USED TO JOURNAL RECORDS THAT ARE
+                IN ERROR.  */
+           4 TWAJRNL CHAR(LENGTH(BATPREFX)+LENGTH(JRNBASE)),
+           4 TWAREC CHAR(LENGTH(BATCHREC)),  /* AREA WHERE RECORD IS
+                                                READ INTO AND PASSED
+                                                TO REQUESTED PROGRAM */
+          /* THE NEXT AREA IS FREE SPACE FOR THE USER PROGRAM */
+         3 TWAUSER CHAR(LENGTH(TWASYS)-LENGTH(TWAPREFX));
+ @EJECT;
+

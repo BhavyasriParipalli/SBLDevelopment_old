@@ -1,0 +1,134 @@
+ %DCSERR: MACRO KEYS (PGM,SEG,ECODE,MSG,WRKREG);
+ /****************************************************/
+ /*                                                  */
+ /* MACRO NAME:   DCSERR                             */
+ /*                                                  */
+ /* DESCRIPTION:  THIS MACRO ALLOWS THE INVOKER TO   */
+ /*               RECORD ERRORS ON THE DCSERR DATA   */
+ /*               SET AND ELIMINATE SOME FULL DUMPS. */
+ /*                                                  */
+ /* OPERATION:    THE INVOKER SPECIFIES THE PROGRAM  */
+ /*               NAME, SEGMENT NAME, ERROR CODE     */
+ /*               AND MESSAGE TO BE RECORDED.        */
+ /*                                                  */
+ /* INPUT PARMS:  PGM - NAME OF ISSUING PROGRAM      */
+ /*               SEG - SEGMENT OF PROGRAM DETECTING */
+ /*                     THE ERROR.                   */
+ /*               ECODE - ERROR CODE TO IDENTITFY    */
+ /*                       THE ERROR DETECTED. MUST   */
+ /*                       BE NON-ZERO.               */
+ /*               MSG - VARIABLE WHERE MESSAGE TO    */
+ /*                     BE RECORDED MAY BE FOUND.    */
+ /*                     (1-256 BYTES)                */
+ /*                      IF GT 256 IT WILL BE TRUNC. */
+ /*                                                  */
+ /* OUTPUT PARMS: PLIST  (SEE DCSPARM)               */
+ /*                                                  */
+ /* RTNS CALLED:  DCSEREC                            */
+ /*                                                  */
+ /* RETURN CODES: NONE                               */
+ /*                                                  */
+ /* MACRO ERRORS: INVALID PARMS OR MANDATORY PARMS   */
+ /*               NOT INCLUDED.  WILL NOT ALLOW      */
+ /*               COMPILATION.  MACRO RETURN CODE    */
+ /*               OF 16.                             */
+ /* SR9600755 7NSI 03/01/97 Parallel Sysplex - Phase 1     Gyula   PS*/
+ /*                                                                  */
+ /****************************************************/
+ DCL REG CHAR;
+ ! DCL MACCK CHAR EXTERNAL; /* MACRO CHECK */
+ ! IF MACCK^='Y' THEN
+ !  DO;
+ !   MACCK='Y';
+ !   ANS('@INCLUDE SYSLIB(DCSPARM);') COL(2) NORESCAN;
+ !   ANS('@INCLUDE SYSLIB(MACREGS);') COL(2) NORESCAN;
+ !  END;
+ /***********************************************************/
+ /*                                                         */
+ /* THE NEXT SECTION ALLOWS THE MACRO INVOCATION TO BE      */
+ /* PRINTED AS A COMMENT ON THE SOURCE LISTING.             */
+ /*                                                         */
+ /***********************************************************/
+ DCL MACINV CHAR;  /* PROVIDES AREA FOR SYNTAX OF MACRO INVOC. */
+ MACINV=MACLABEL||MACNAME||MACLIST||' '||MACKEYS;
+ ANS('/* ?'||MACINV||'  VERSION 1 PS*/') COL(7) NORESCAN;
+ /***********************************************************/
+ /*                                                         */
+ /* MANDATORY AND CONFLICTING PARM CHECK.                   */
+ /*                                                         */
+ /***********************************************************/
+ IF PGM(1)='' | SEG(1)='' THEN  /* MANDATORY PARM CK. */
+  DO;
+   ANS MSG('MANDATORY KEYWORDS MISSING: PGM, OR SEG')
+    COL(2) NORESCAN;
+   RETURN CODE(16);
+  END;
+ IF ECODE(1)='' THEN  /* MANDATORY PARM CK. */
+  DO;
+   ANS MSG('MANDATORY KEYWORDS MISSING: ECODE')
+    COL(2) NORESCAN;
+   RETURN CODE(16);
+  END;
+ IF MSG(1)='' THEN  /* MANDATORY PARM CK. */
+  DO;
+   ANS MSG('MANDATORY KEYWORDS MISSING: MSG')
+    COL(2) NORESCAN;
+   RETURN CODE(16);
+  END;
+ /***********************************************************/
+ /*                                                         */
+ /* THIS SECTION OF CODE ZEROES OUT THE PARM LIST AREA.     */
+ /* PLACES THE ADDR OF THE PARM LIST IN THE FIRST           */
+ /* PARM.                                                   */
+ /*                                                         */
+ /***********************************************************/
+ ANS('DO;') COL(2) NORESCAN;
+   ANS('ADDR('||MSG(1)||'_E)->ERRHDR = ') COL(2) RESCAN;
+   ANS('ADDR('||MSG(1)||'_E)->ERRHDR && ') COL(4) RESCAN;
+   ANS('ADDR('||MSG(1)||'_E)->ERRHDR; /* zero parm area    */')
+    COL(2) RESCAN;
+ /***********************************************************/
+ /*                                                         */
+ /* THIS SECTION OF CODE SETS UP THE DCSPARM SECTION        */
+ /* AND THEN THE LINK WILL BE EXECUTED.                     */
+ /*                                                         */
+ /***********************************************************/
+  ANS('ADDR('||MSG(1)||'_E)->ERRPROG ='||PGM(1)||';/* program name */')
+    COL(2) RESCAN;
+  ANS('ADDR('||MSG(1)||'_E)->ERRSEG ='||SEG(1)||';/* segment name */')
+    COL(2) RESCAN;
+  ANS('ADDR('||MSG(1)||'_E)->ERRECODE ='||ECODE(1)||';/* error code */')
+    COL(2) RESCAN;
+  ANS('ADDR('||MSG(1)||'_E)->ERRTLEN = LENGTH('||MSG(1)||
+                     ') + LENGTH(ERRHDR); /* total length */')
+    COL(2) RESCAN;
+ REG = '12';
+ IF WRKREG(1) ^= '' THEN
+   REG = WRKREG(1);
+ ANS('RFY M'||REG||' RSTD;') COL(2) RESCAN;
+ ANS('ADDR('||MSG(1)||'_E) -> ERRRGSV = M'||REG||
+                      ';/* save register contents */')
+    COL(2) RESCAN;
+ ANS('M'||REG||'=ADDR('||MSG(1)||'_E); /* PLIST FOR COMMAREA */')
+  COL(2) RESCAN;
+ /*                                                         */
+ /* THIS SECTION OF CODE Links TO THE DCSEREC routine       */
+ /* DCSERC file is on the DOR                               */
+ /*                                                         */
+   ANS('GENERATE REFS(M'||REG||',ERRTLEN) SETS('||MSG(1)||'_E);')
+      COL(2) RESCAN;
+   ANS('EXEC CICS LINK PROGRAM('||QUOTE('DCSEREC'))
+      COL(2) NORESCAN;
+   ANS(') COMMAREA(0(,M'||REG||')) ') RESCAN;
+   ANS('X') COL(MACRMAR) NORESCAN;
+   ANS('LENGTH(ERRTLEN(,M'||REG||'))')
+      COL(4) NORESCAN;
+   ANS('@ENDGEN;') COL(2) NORESCAN;
+ ANS('M'||REG||' = ADDR('||MSG(1)||'_E) -> ERRRGSV;'||
+                              ' /* restore register contents*/')
+  COL(2) RESCAN;
+ ANS('RFY M'||REG||' UNRSTD;') COL(2) RESCAN;
+ ANS('END; /* DCSERR DO END GROUP */') COL(2) NORESCAN;
+ ANS('/* END OF DCSERR MACRO CODE */') COL(7) NORESCAN;
+ %END;
+

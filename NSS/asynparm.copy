@@ -1,0 +1,170 @@
+ /* This is a mapping of the input parameter list used to pass
+    requests to RAMAPUT (the RAMS asynchronous put routine).  The
+    interface to the routine is contained completely within this
+    parameter list.  The address of this list is placed in the CICS
+    commarea when using the CICS LINK command.  Note that the
+    parameter list must be in dynamic storage because the RAMAPUT
+    routine will alter the parameter list.  In effect the parmlist
+    will contain the request on input and it will contain the
+    response data upon return.                                       */
+
+     /* The first section of the parm list contains the GREGORIAN DATE
+        and time and sequence number that is used as a key for the
+        request.  For an add request the sequence number is ignored.
+        If a GREG.  date is not provided (i.e. a relative date or day
+        of week is requested) the actual computed GREG.  date will be
+        returned.  The time and date (when the date is provided) is in
+        EBCDIC format.  The time requested is always the real time of
+        day when the request is to be executed.  The only instance
+        when time is not required is when the request is for an
+        immediate dispatch.  Upon return from RAMAPUT the "asynseq"
+        field will provide a unique sequence number for the request.
+        If the requestor later wishes to cancel the request the
+        complete key (GREG.  date, time and sequence number) must be
+        provided.  Immediate requests cannot be cancelled.           */
+
+ %IF LANG = 'PLI' %THEN %GOTO ASYN_NOBASE;
+ DCL
+   1 ASYNPARM BDY(DWORD) BASED, /* Input parms and work area         */
+     2 ASYNSTEM CHAR(12) BDY(DWORD),
+
+       3 ASYNDATE CHAR(8) BDY(DWORD),   /* Input GREGdate or rel days*/
+
+         4 ASYNYY CHAR(4) BDY(DWORD),   /* Year of request to be disp*/
+                                        /*                      YYYY */
+           5 ASYNBIND FIXED(8),         /* A binary value for relative
+                                           date or day of week.  See
+                                           flag byte ASYNFLG1.       */
+
+         4 ASYNMMDD CHAR(4),            /* mmdd of request to be disp*/
+
+       /* ASYNTIME must always be specified except for immediate
+          requests (see asynimmd below). this field must identify the
+          time of day the request should be dispatched.              */
+
+       3 ASYNTIME CHAR(4),              /* Requested dispatch time in
+                                           EBCDIC 0001-2400 (hhmm)   */
+
+ %GOTO ASYN_SKIP;
+ %ASYN_NOBASE:;
+
+     2 ASYNSTEM,
+
+       3 ASYNDATE,                      /* Input GREGdate or rel days*/
+
+         4 ASYNYY CHAR(4),              /* Year of request to be disp*/
+                                        /*                      YYYY */
+
+         4 ASYNMMDD CHAR(4),            /* mmdd of request to be disp*/
+
+       /* ASYNTIME must always be specified except for immediate
+          requests (see asynimmd below). this field must identify the
+          time of day the request should be dispatched.              */
+
+       3 ASYNTIME,                      /* Requested dispatch time in
+                                           EBCDIC 0001-2400 (hhmm)   */
+
+ %ASYN_SKIP:;
+
+         4 ASYNHH CHAR(2),              /* First two bytes are hour
+                                           with 24 equal to midnight
+                                           and 00 equal to the first
+                                           hour after midnight.  If 24
+                                           is specified then ASYNMM
+                                           must be 00                */
+
+         4 ASYNMM CHAR(2),              /* Minutes to be dispatched  */
+
+ %IF LANG = 'PLI' %THEN %GOTO ASYN_PLI1;
+     2 ASYNSEQ FIXED(8),                /* Generated sequence number */
+ %GOTO ASYN_PLX1;
+ %ASYN_PLI1:;
+     2 ASYNSEQ CHAR(1),                 /* Generated sequence number */
+ %ASYN_PLX1:;
+                                        /* providing this request a
+                                           unique key.  This is
+                                           insignificant when
+                                           requesting an add to the Q.
+                                           Upon return from the add
+                                           this field will be set to
+                                           a unique value for the
+                                           request.  For a cancel
+                                           request the user must
+                                           supply both the asynstem
+                                           and the ASYNSEQ field that
+                                           are returned by the add
+                                           request.                  */
+
+     2 ASYNFLG1,                        /* Flag byte                 */
+
+       3 ASYNLONG BIT(1),               /* If 0 it's a short Q request,
+                                           else it's a long Q request*/
+
+       3 ASYNCAN BIT(1),                /* If 0 it's an add request,
+                                           else it's a cancel request*/
+
+       3 ASYNPDAT BIT(1),               /* If 0 use todays date, else
+                                           use the ASYNDATE provided */
+
+       3 ASYNDTYP BIT(2),       /* Type of date provided             */
+                                /* 00 - GREG.  date in ASYNDATE      */
+                                /* 01 - relative date in ASYNBIND    */
+                                /*      this is a binary number      */
+                                /*      relative to today            */
+                                /* 10 - date is in day of week       */
+                                /*      in ASYNBIND.  This is        */
+                                /*      a binary number where        */
+                                /*      01=Sat, 07=Friday.           */
+                                /*      If the day of week           */
+                                /*      requested has passed or      */
+                                /*      is equal today the           */
+                                /*      request will be scheduled    */
+                                /*      for the next occurrence      */
+                                /*      of the requested date.       */
+                                /* 11 - Reserved                     */
+
+       3 ASYNRSTD BIT(1),               /* If 0 the task may be re-
+                                           started if system goes down
+                                           after being started.  This
+                                           does not include ABENDS
+                                           that occur within the
+                                           dispatched function       */
+
+       3 ASYNPURG BIT(1),               /* If a 1 this request will be
+                                           purged if the time expires
+                                           during a system down
+                                           incident                  */
+
+       3 ASYNIMMD BIT(1),               /* If a 1 this request should
+                                           be dispatched as soon as
+                                           possible no time or date is
+                                           provided and this request
+                                           cannot be cancelled       */
+
+ %IF LANG = 'PLI' %THEN %GOTO ASYN_PLI2;
+     2 ASYNCODE FIXED(8),       /* Request return code               */
+ %GOTO ASYN_PLX2;
+ %ASYN_PLI2:;
+     2 ASYNCODE CHAR(1),        /* Request return code               */
+ %ASYN_PLX2:;
+                                /* 00 - successful                   */
+                                /* 04 - time slot is filled          */
+                                /* 08 - invalid time/date            */
+                                /* 0c - invalid cancel. key          */
+                                /*      does not match or            */
+                                /*      indeterminate i/o error      */
+                                /* 10 - cannot cancel because        */
+                                /*      routine is being             */
+                                /*      dispatched.                  */
+
+     2 ASYNUNUS CHAR(1),        /* Unused, needed for alignment      */
+
+     2 ASYNLPGM CHAR(8),        /* Name of program to be LINKed      */
+
+     2 ASYNFPGM CHAR(8),        /* Name of requesting program        */
+
+     2 ASYNUSER CHAR(6),        /* Userid causing the schedule       */
+
+     2 ASYNDATA CHAR(66);       /* Parms for async program           */
+
+

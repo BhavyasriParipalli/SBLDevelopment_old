@@ -1,0 +1,74 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* Name:        RNODTAB                                             */
+ /*                                                                  */
+ /* Title:       Remote Node Table                                   */
+ /*                                                                  */
+ /* Description: NSS remote node table to contain all destinations   */
+ /*              from the MAINT 8.6 screen and statistics for those  */
+ /*              destinations                                        */
+ /*                                                                  */
+ /* Language:    PL/X                                                */
+ /*                                                                  */
+ /* Notes:       All statistic counters are reset every 15 minutes   */
+ /*                                                                  */
+ /* CHANGE ACTIVITY:                                                 */
+ /*                                                                  */
+ /*    SR    DRVR   Date   Description                    Programmer */
+ /* -------- ---- -------- ------------------------------ ---------- */
+ /*  9400157 5ECC 02/10/95 ECI Redesign Phase 2           McConnell  */
+ /*                        - NSS/ECI automated backup switch         */
+ /*                                                                  */
+ /********************************************************************/
+ DCL
+ 1 RMT_ANKR BASED(CWARMTTB),      /* Remote ankor storage block       */
+  2 RMT_ANKRH,
+   3 RMT_EYECATCH   CHAR(4),      /* Eyecatcher                       */
+   3 RMT_GETMAINL   FIXED(31),    /* Length of getmain'd area         */
+   3 RMT_RCVD       FIXED(31),    /* # of records received            */
+   3 RMT_SENT       FIXED(31),    /* # of records sent                */
+   3 RMT_RCVD_TDL   FIXED(31),    /* TDL of records received          */
+   3 RMT_SENT_TDL   FIXED(31),    /* TDL of records sent              */
+   3 RMT_RCVD_S     FIXED(31),    /* # of records received for stats  */
+   3 RMT_SENT_S     FIXED(31),    /* # of records sent     for stats  */
+   3 RMT_RCVD_TDL_S FIXED(31),    /* TDL of records received for stats*/
+   3 RMT_SENT_TDL_S FIXED(31),    /* TDL of records sent     for stats*/
+   3 RMT_DESTID#    FIXED(15),    /* Number of destination IDs        */
+   3 RMT_FLAG       CHAR(1),
+    4 RMT_TIMESTAMP BIT(1),       /* Indicate take time stamps        */
+    4 RMT_DISP      BIT(1),       /* Dispatcher active flag           */
+    4 *             BIT(6),
+   3 RMT_RESET_DATE CHAR(8),      /* Date counters were reset         */
+   3 RMT_RESET_TIME CHAR(8),      /* Time counters were reset         */
+   3 RMT_BOU_DESTID CHAR(8),      /* Default Boulder Dest ID          */
+   3 RMT_BOU_APPLID CHAR(8),      /* Default Boulder application ID   */
+   3 *              CHAR(1),      /* Unused                           */
+   3 RMT_RSP_STATS@ PTR(32),      /* Response time stats pointer      */
+  2 RMT_TABLE(*)    CHAR(LENGTH(DESTID_REC))     /* Remote node table */
+                                  BDY(WORD);
+
+ DCL
+ 1 DESTID_REC       CHAR(64) BDY(WORD) BASED,
+  2 DEST_RBROUTE,                   /* Entry as it exists on RBROUTE  */
+   3 DEST_KEY       CHAR(4),        /* RBROUTE KEY = RMTx             */
+   3 DEST_DESCRIPT  CHAR(12),       /* Description                    */
+   3 DEST_ID        CHAR(8),        /* Destination ID                 */
+   3 DEST_PRI_SYSID CHAR(4),        /* Primary SYSID                  */
+   3 DEST_HUB_SYSID CHAR(4),        /* Hub     SYSID                  */
+   3 DEST_XR_QUEUE  CHAR(4),        /* XMIT/Receive queue             */
+   3 DEST_REC_TRANS CHAR(4),        /* Receive trans in remote system */
+   3 DEST_SYNC      FIXED(8),       /* Number of records between sync */
+   3 DEST_RSVD      CHAR(1),        /* Reserved for future use        */
+  2 DEST_FLAG       CHAR(1),
+   3 DEST_STOP      BIT(1),         /* Stop transmitting to this dest */
+   3 DEST_ACTIVE    BIT(1),         /* Transmission in progress       */
+   3 DEST_BACKUP    BIT(1),         /* In backup, use hub SYSID       */
+   3 *              BIT(5),
+  2 *               CHAR(3),        /* Unused                         */
+  2 DEST_SENT       FIXED(15),      /* Count of records sent          */
+  2 DEST_SENT_S     FIXED(15),      /* Count of records sents (stats) */
+  2 DEST_SENT_SYNC  FIXED(15),      /* Number or recs since last sync */
+  2 DEST_SENT_TDL   FIXED(31),      /* Total Data Length of recs sent */
+  2 DEST_SENT_TDL_S FIXED(31),      /* Total Data Length for stats    */
+  2 DEST_TDL_SYNC   FIXED(31);      /* Total Data Length since sync   */
+

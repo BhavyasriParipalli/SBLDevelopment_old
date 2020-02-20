@@ -1,0 +1,87 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME:     BOSLREC                                               */
+ /*  LRECL:    56                                                    */
+ /*  LANGUAGE: PLX, PLI                                              */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ /*                                                                  */
+ /*  FUNCTION: BOSL DATA BASE RECORDS                                */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ /*                                                                  */
+ /*  Usage: %DCL LANG CHAR                                           */
+ /*                                                                  */
+ /*         %LANG = 'PLX'                                            */
+ /*         %INCLUDE SYSLIB(BOSLREC)                                 */
+ /*                                                                  */
+ /*  or:    %LANG = 'PLI'                                            */
+ /*         %INCLUDE (BOSLREC)                                       */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ /*                                                                  */
+ /*  CHANGE LOG:                                                     */
+ /*                                                                  */
+ /*  WHO       WHEN        REASON                                    */
+ /* ======== ======== ============================================== */
+ /* NAK      05/27/86 INITIAL PROMOTE                                */
+ /* NAK      09/15/86 SR 9111                                        */
+ /* JAP      11/16/87 SR 9615 - ADDED STATUS EFFECTIVE DATE          */
+ /* ECC      05/04/89 SR 0074-2 Added Deal Code and EMO fields       */
+ /* MARKP    07/12/96 SR9600462 Added Service Definition, Source,    */
+ /*                             and filler. PLX/PLI versions.        */
+ /* SR01047  05/08/02 NEDB interface - add'l fields            JBL   */
+ /* SR060051 01/08/07 SDW Contract and ESA Codes         Gyula   7NSB*/
+ /********************************************************************/
+ %DCL CH CHAR;
+ %IF LANG = 'PLI' %THEN %CH = ''; %ELSE %CH = 'CHAR(11)';
+  3 BDBKEY CH,                      /*                               */
+    4 BDBMTYP    CHAR(4),           /* 01-04 MACHINE TYPE            */
+    4 BDBMSER    CHAR(7),           /* 05-11 MACHINE SERIAL          */
+  3 BDBMSO       CHAR(3),           /* 12-14 MASTER SERVICE OFFICE   */
+ %IF LANG = 'PLI' %THEN %CH = ''; %ELSE %CH = 'CHAR(14)';
+  3 BDBENTCOD CH,                   /* ENTITLEMENT CODES             */
+    4 BDBSVCPL   CHAR(2),           /* 15-16 BOSL SVC PLAN INDICATOR */
+ %IF LANG = 'PLI' %THEN %CH = 'PIC''999999'''; %ELSE %CH = 'CHAR(6)';
+    4 BDBWAREX CH,                  /* 17-22 WARRANTY EXPIRATION DATE*/
+ %IF LANG = 'PLI' %THEN %GOTO SKIP1;
+      5 BDBENWARMM CHAR(2),         /* 17-18 MONTH OF WARRANTY END   */
+      5 BDBENWARDD CHAR(2),         /* 19-20 DAY   OF WARRANTY END   */
+      5 BDBENWARYY CHAR(2),         /* 21-22 YEAR  OF WARRANTY END   */
+ %SKIP1:;
+ %IF LANG = 'PLI' %THEN %CH = ''; %ELSE %CH = 'CHAR(6)';
+    4 BDBENDDCOD CH,                /*                               */
+ %IF LANG = 'PLI' %THEN %CH = ''; %ELSE %CH = 'CHAR(2)';
+      5 BDBSAMF CH,                 /* WEEKDAY SERVICE AGREEMENT INFO*/
+        6 BDBSASMF  CHAR(1),        /* 23-23 SERV AGR WEEKDAY START  */
+        6 BDBSALMF  CHAR(1),        /* 24-24 SERV AGR WEEKDAY HRS CVG*/
+      5 BDBSASA CH,                 /* SATURDAY SERVICE AGREEMENT INF*/
+        6 BDBSASSA  CHAR(1),        /* 25-25 SERV AGR SATURDAY START */
+        6 BDBSALSA  CHAR(1),        /* 26-26 SERV AGR SATURDAY HR.CVG*/
+      5 BDBSASU CH,                 /* SUNDAY SERVICE AGREEMENT INFO */
+        6 BDBSASSU  CHAR(1),        /* 27-27 SERV AGR SUNDAY START   */
+        6 BDBSALSU  CHAR(1),        /* 28-28 SERV AGR SUNDAY HRS CVG */
+  3 BDBMMOD       CHAR(3),          /* 29-31 MACH MODEL              */
+  3 BDBSTAT       CHAR(2),          /* 32-33 STATUS                  */
+ %IF LANG = 'PLI' %THEN %CH = 'PIC''999999'''; %ELSE %CH = 'CHAR(6)';
+  3 BDBSTEFF      CH,               /* 34-39 STATUS EFFECTIVE DATE   */
+  3 BDBDEAL       CHAR(2),          /* 40-41 Deal Code               */
+  3 BDBEMO        CHAR(1),          /* 42-42 EMO Flag 1=ON BLANK=OFF */
+  3 BDBSDT        CHAR(3),          /* 43-45 SERVICE DEFINITION      */
+  3 BDBSOURCE     CHAR(1),          /* 46-46 SOURCE                  */
+  3 BDB_COUNTRY   CHAR(3),          /* 47-49 Country Code            */
+  3 BDB_P_LEVEL   CHAR(1),          /* 50-50 Process Level Code      */
+                                    /* '2' = shipped                 */
+  3 BDB_CB2M      CHAR(3),          /* 51-53 BUILT-TO MODEL          */
+  3 BDB_CRETFLAG  CHAR(1),          /* 54-54 RETURN FLAG             */
+                                    /*         ' ',                  */
+                                    /*         'N' - NOT RETURNED    */
+                                    /*         'Y' - RETURNED TO IBM */
+  3 BDB_CUPSRC    CHAR(2),          /* 55-56 UPSTREAM SOURCE         */
+  3 BDB_CONTRACT  CHAR(11),         /* 57-67 Contract            7NSB*/
+  3 BDB_ESA_CODES CHAR(10);         /* 68-77 ESA Codes           7NSB*/  
+ /********************************************************************/
+ /*                                                                  */
+ /*                    END OF BOSLREC COPY STATEMENT                 */
+ /*                                                                  */
+ /********************************************************************/

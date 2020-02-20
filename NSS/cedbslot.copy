@@ -1,0 +1,108 @@
+ /*********************************************************************/
+ /* NAME: CEDBSLOT                                                    */
+ /*                                                                   */
+ /* FUNCTION: SLOT TABLE DECLARES                                     */
+ /*                                                                   */
+ /*                                                                   */
+ /* CHRONOLOGICAL UPDATE LOG:                                         */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:   */
+ /*  -------- -------- ---- --------------------------- ------------  */
+ /*  01/15/98 9700117  8NSC Release 3.0 Support         EVAP          */
+ /*********************************************************************/
+ /* DCLGEN TABLE(COMMON.NSVCEDB_SLOT)                                 */
+ /*        LIBRARY(NSS.DBA.D8NSC.DDLLIB(DCLSLOT))                     */
+ /*        ACTION(REPLACE)                                            */
+ /*        LANGUAGE(PLI)                                              */
+ /*        APOST                                                      */
+ /*        LABEL(YES)                                                 */
+ /* ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS      */
+ /*********************************************************************/
+ EXEC SQL DECLARE NSVCEDB_SLOT TABLE
+           ( GENKEY                         INTEGER NOT NULL,
+             IDENTIFY                       CHAR(1) NOT NULL,
+             DSEFFDATE                      DATE,
+             DSENDDATE                      DATE,
+             ISCUNOUSE                      CHAR(7) NOT NULL,
+             ISBUDIV                        CHAR(1) NOT NULL,
+             ISBUCODE                       CHAR(7) NOT NULL,
+             ISIAGRNBR                      CHAR(6) NOT NULL,
+             ISAUTH_CODE                    CHAR(10) NOT NULL,
+             ISRESP_QTY                     DECIMAL(3,1) NOT NULL,
+             ISRESP_UNIT                    CHAR(1) NOT NULL,
+             ISSERVDLM                      CHAR(3) NOT NULL,
+             HSMOAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSMOAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSTUAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSTUAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSWEAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSWEAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSTHAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSTHAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSFRAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSFRAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSSAAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSSAAGRTO                      DECIMAL(3,1) NOT NULL,
+             HSSUAGRFR                      DECIMAL(3,1) NOT NULL,
+             HSSUAGRTO                      DECIMAL(3,1) NOT NULL,
+             ISTPMNT                        CHAR(5) NOT NULL,
+             ISSERVTYP                      CHAR(5) NOT NULL,
+             ISIHIES1                       CHAR(2) NOT NULL,
+             ISIHIES2                       CHAR(2) NOT NULL,
+             ISIHIES3                       CHAR(2) NOT NULL,
+             ISIHIES4                       CHAR(2) NOT NULL,
+             ISIHIES5                       CHAR(2) NOT NULL,
+             ISSRCIND                       CHAR(1) NOT NULL,
+             ISIAGRTCN                      CHAR(10) NOT NULL,
+             ISSDF                          CHAR(3) NOT NULL,
+             ISLABRIND                      CHAR(1) NOT NULL,
+             ISPARTIND                      CHAR(1) NOT NULL,
+             ISTRVLIND                      CHAR(1) NOT NULL
+           ) ;
+ /*********************************************************************/
+ /* PLI DECLARATION FOR TABLE COMMON.NSVCEDB_SLOT                     */
+ /*********************************************************************/
+ DCL 1 DCLNSVCEDB_SLOT,
+      5 GENKEY   BIN FIXED(31),    /* FOREIGN KEY                     */
+      5 IDENTIFY CHAR(1),          /* C-CURRENT F-FUTURE H-HISTORY    */
+      5 DSEFFDATE  CHAR(10),       /* EFFECTIVE DATE YYYY-MM-DD       */
+      5 DSENDDATE  CHAR(10),       /* END DATE YYYY-MM-DD             */
+      5 ISCUNOUSE  CHAR(7),        /* CUSTOMER NUMBER                 */
+      5 ISBUDIV  CHAR(1),          /* BUSINESS UNIT DIVISION          */
+      5 ISBUCODE CHAR(7),          /* BUSINESS UNIT CODE              */
+      5 ISIAGRNBR  CHAR(6),        /* MAINT. AGREEMENT CONTRACT NO.   */
+      5 ISAUTH_CODE  CHAR(10),     /* AUTHORIZATION NUMBER            */
+      5 ISRESP_QTY  DEC FIXED(3,1),/* RESPONSE TIME QUANTITY          */
+      5 ISRESP_UNIT  CHAR(1),      /* RESPONSE TIME UNIT              */
+      5 ISSERVDLM  CHAR(3),        /* SERVICE DELIVERY METHOD         */
+                                   /* COVERAGE HOURS                  */
+      5 HSMOAGRFR  DEC FIXED(3,1), /* MONDAY FROM TIME                */
+      5 HSMOAGRTO  DEC FIXED(3,1), /* MONDAY TO TIME                  */
+      5 HSTUAGRFR  DEC FIXED(3,1), /* TUESDAY FROM TIME               */
+      5 HSTUAGRTO  DEC FIXED(3,1), /* TUESDAY TO TIME                 */
+      5 HSWEAGRFR  DEC FIXED(3,1), /* WEDNESDAY FROM TIME             */
+      5 HSWEAGRTO  DEC FIXED(3,1), /* WEDNESDAY TO TIME               */
+      5 HSTHAGRFR  DEC FIXED(3,1), /* THURSDAY FROM TIME              */
+      5 HSTHAGRTO  DEC FIXED(3,1), /* THURSDAY TO TIME                */
+      5 HSFRAGRFR  DEC FIXED(3,1), /* FRIDAY FROM TIME                */
+      5 HSFRAGRTO  DEC FIXED(3,1), /* FRIDAY TO TIME                  */
+      5 HSSAAGRFR  DEC FIXED(3,1), /* SATURDAY FROM TIME              */
+      5 HSSAAGRTO  DEC FIXED(3,1), /* SATURDAY TO TIME                */
+      5 HSSUAGRFR  DEC FIXED(3,1), /* SUNDAY FROM TIME                */
+      5 HSSUAGRTO  DEC FIXED(3,1), /* SUNDAY TO TIME                  */
+      5 ISTPMNT  CHAR(5),          /* TYPE OF MAINTENANCE             */
+      5 ISSERVTYP  CHAR(5),        /* TYPE OF SERVICE                 */
+      5 ISIHIES1 CHAR(2),          /* ESA SPECIAL CONDITION (TABLE)   */
+      5 ISIHIES2 CHAR(2),          /* ESA SPECIAL CONDITION (TABLE)   */
+      5 ISIHIES3 CHAR(2),          /* ESA SPECIAL CONDITION (TABLE)   */
+      5 ISIHIES4 CHAR(2),          /* ESA SPECIAL CONDITION (TABLE)   */
+      5 ISIHIES5 CHAR(2),          /* ESA SPECIAL CONDITION (TABLE)   */
+      5 ISSRCIND CHAR(1),          /* SOURCE INDICATOR                */
+      5 ISIAGRTCN  CHAR(10),       /* TYPE OF CONTRACT                */
+      5 ISSDF    CHAR(3),          /* SERVICE DELIVERY FLAG           */
+      5 ISLABRIND  CHAR(1),        /* LABOR COVERED INDICATOR         */
+      5 ISPARTIND  CHAR(1),        /* PART   COVERED INDICATOR        */
+      5 ISTRVLIND  CHAR(1);        /* TRAVEL COVERED INDICATOR        */
+ /*********************************************************************/
+ /* THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 39         */
+ /*********************************************************************/
+

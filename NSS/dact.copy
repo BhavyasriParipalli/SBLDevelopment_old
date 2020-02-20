@@ -1,0 +1,112 @@
+ %DACT: MACRO KEYS(APPLID,FUNID,ALIAS,DIS,PGM,OVR,ACK,NAK,FIRST,LAST);
+ /****************************************************/
+ /*                                                  */
+ /* MACRO NAME:   DACT                               */
+ /*                                                  */
+ /* DESCRIPTION:  THIS MACRO ALLOWS THE INVOKER      */
+ /*               TO CREATE A DACT STRUCTURE.        */
+ /*                                                  */
+ /* OPERATION:    THE INVOKER SPECIFIES APPLICATION  */
+ /*               ID AND FUNCTION ID AND SPECIFIES   */
+ /*               ONE OR MORE OF THE VARIOUS BIT     */
+ /*               KEYWORDS (DIS,PGM,OVR,ACK,NAK)     */
+ /*               WHICH ALLOWS THE MACRO TO CREATE   */
+ /*               THE DACT STRUCTURE.                */
+ /*                                                  */
+ /* INPUT PARMS:  APPLID - APPLICATION ID.           */
+ /*               FUNID  - FUNCTION ID.              */
+ /*               ALIAS  - ALIAS SPECIFIED.          */
+ /*               DIS    - DISABLE FUNCTION.         */
+ /*               PGM    - PGM HANDLES MSG.          */
+ /*               OVR    - OVERRIDE.                 */
+ /*               ACK    - ACK PROCESSING.           */
+ /*               NAK    - NACK PROCESSING.          */
+ /*               FIRST  - 1ST INVOCATION OF MACRO.  */
+ /*               LAST   - NO MORE ENTRIES IN DACT.  */
+ /*                                                  */
+ /* OUTPUT:       DACT STRUCTURE.                    */
+ /*                                                  */
+ /* RTNS CALLED:  NONE.                              */
+ /*                                                  */
+ /* RETURN CODES: NONE.                              */
+ /* (FROM CALLED                                     */
+ /*  RTN)                                            */
+ /*                                                  */
+ /* MACRO ERRORS: INVALID PARMS OR MANDATORY PARMS   */
+ /*               NOT INCLUDED.  WILL NOT ALLOW      */
+ /*               COMPILATION.  MACRO RETURN CODE    */
+ /*               OF 16.                             */
+ /****************************************************/
+ /***********************************************************/
+ /*                                                         */
+ /* THE NEXT SECTION ALLOWS THE MACRO INVOCATION TO BE      */
+ /* PRINTED AS A COMMENT ON THE SOURCE LISTING.             */
+ /*                                                         */
+ /***********************************************************/
+ DCL MACINV CHAR;  /* PROVIDES AREA FOR SYNTAX OF MACRO INVOC. */
+ MACINV=MACLABEL||MACNAME||MACLIST||' '||MACKEYS;
+ ANS('/* ?'||MACINV||'  VERSION 0 */') COL(7) NORESCAN;
+ DCL TEMP FIXED;
+ TEMP = 0;
+ IF APPLID(1) = '' | FUNID(1) = '' THEN
+  DO;
+   ANS MSG ('APPLID OR FUNID NOT SPECIFIED') COL(2) NORESCAN;
+   RETURN CODE(16);
+  END;
+ /*************************************************************/
+ /*                                                           */
+ /* THIS SECTION CHECKS FOR 1ST TIME THRU AND DOES            */
+ /* FIRST TIME PROCESSING.  (1ST LEVEL DCL)                   */
+ /*                                                           */
+ /*************************************************************/
+ IF FIRST(1) = 'Y' THEN
+  ANS ('DCL 1 '||APPLID(1)||'DACT STATIC LOCAL,');
+ /*************************************************************/
+ /*                                                           */
+ /* THIS SECTION PROCESSES 1ST TIME AND ALL OTHER TIMES.      */
+ /* IT CREATES LEVEL 3 AND LEVEL 5 DCLS.                      */
+ /*                                                           */
+ /*************************************************************/
+ ANS('3 '||APPLID(1)||'ACT'||FUNID(1)||',') COL(6);
+ ANS('5 '||APPLID(1)||'ID'||FUNID(1)||' BIT(8) ') COL(10);
+ ANS('INIT('||QUOTE(FUNID(1))||'X), /* FUNCTION ID */');
+ IF ALIAS(1) ^= '' THEN
+  DO;
+   ANS('5 '||APPLID(1)||'AL'||FUNID(1)||' BIT(8) ') COL(10);
+   ANS('INIT('||QUOTE(ALIAS(1))||'X), /* ALIAS */');
+  END;
+ ELSE
+  DO;     /* IF NO ALIAS - INIT 0  */
+   ANS('5 '||APPLID(1)||'AL'||FUNID(1)||' BIT(8) ') COL(10);
+   ANS('INIT(0),' /* NO ALIAS */);
+  END;
+ /*************************************************************/
+ /*                                                           */
+ /* THIS SECTION CREATES THE INITIAL VALUE FOR THE FLAGS.     */
+ /* THE DECIMAL ADDITION IS USED TO TURN ON SPECIFIC BITS.    */
+ /* (OR'ING CANNOT BE DONE IN MACRO PROCESSING FOR A DCL).    */
+ /* NOTE: THE INITIAL VALUE FOR FLAGS IS SPECIFIED AS         */
+ /* A DECIMAL NUMBER NOT A CHARACTER NUMBER. (EX. INIT(16)    */
+ /* NOT INIT('16').                                           */
+ /*                                                           */
+ /*************************************************************/
+ IF DIS(1) = 'Y' THEN TEMP = TEMP + 128;
+ IF PGM(1) = 'Y' THEN TEMP = TEMP + 64;
+ IF OVR(1) = 'Y' THEN TEMP = TEMP + 32;
+ IF ACK(1) = 'Y' THEN TEMP = TEMP + 16;
+ IF NAK(1) = 'Y' THEN TEMP = TEMP + 8;
+ IF LAST(1) = 'Y' THEN TEMP = TEMP + 4;
+ ANS('5 '||APPLID(1)||'FL'||FUNID(1)||' BIT(8) ') COL(10);
+ ANS('INIT('|| CHAR(TEMP)||')');
+ /*************************************************************/
+ /*                                                           */
+ /* THIS SECTION CHECKS TO SEE IF IT IS THE LAST TIME OR      */
+ /* END FOR THAT DCL STMT.  IF IT IS, A SEMI-COLON IS         */
+ /* SPECIFIED, IF NOT THEN A COMMA IS SPECIFIED.              */
+ /*                                                           */
+ /*************************************************************/
+ IF LAST(1) = 'Y' THEN ANS('; /* FLAGS */');
+ ELSE ANS(', /* FLAGS */');
+ ANS('/* END OF DACT MACRO CODE */') COL(7) NORESCAN;
+ %END;
+

@@ -1,0 +1,54 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   RTPARM      VERSION NR:  01           DATE:  03/12/93    */
+ /*                                               TIME:  15:29:46    */
+ /*                                                                  */
+ /* TITLE: BILLING RATE INQUIRY PARMETER LIST                        */
+ /*                                                                  */
+ /* IMS SEGMENT NAME:                                                */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PL/X, PLI                                              */
+ /*                                                                  */
+ /* DESCRIPTION: PARMETER LIST TO BE USED WHEN DOING CUSTOMER        */
+ /*    BILLING RATE INQUIRIES FROM HSI DATA.                         */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  03/12/93 SR92039  3NSH NEW                         KMESMER      */
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 RTPARM         RTPARM_STG,
+       3 RTMACH       CHAR(4),                 /* MACHINE TYPE       */
+       3 RTMOD        CHAR(3),                 /* MODEL              */
+       3 RTRATE       CHAR(1),                 /* RATE TYPE          */
+ %IF LANG = 'PLI' %THEN %GOTO SKIPPLX;
+       3 RTCRI        CHAR(3),                 /* CUST RATE INSIDE   */
+       3 RTCRO        CHAR(3),                 /* CUST RATE OUTSIDE  */
+       3 RTGRI        CHAR(3),                 /* GOVT RATE INSIDE   */
+       3 RTGRO        CHAR(3),                 /* GOVT RATE OUTSIDE  */
+ %GOTO FINISH;
+ %SKIPPLX:;
+       3 RTCRI        DEC(5,2),                /* CUST RATE INSIDE   */
+       3 RTCRO        DEC(5,2),                /* CUST RATE OUTSIDE  */
+       3 RTGRI        DEC(5,2),                /* GOVT RATE INSIDE   */
+       3 RTGRO        DEC(5,2),                /* GOVT RATE OUTSIDE  */
+ %FINISH:;
+       3 RTBILL       CHAR(1),                 /* BILLING CLASS      */
+       3 RTMIN        CHAR(1),                 /* MINIMUM HOURS      */
+       3 RTDIS        CHAR(1),                 /* DISCLAIMER         */
+       3 RTRC         CHAR(2);                 /* RETURN CODE        */
+
+ DCL RATE_ERROR1       CHAR(80)  INIT(
+     'RATE INQUIRY ERROR: PRODUCT TYPE XXXX INVALID.');
+ DCL RATE_ERROR2       CHAR(80)  INIT(
+     'RATE INQUIRY ERROR: RATE NOT FOUND FOR PRODUCT XXXX.');
+ DCL RATE_ERROR3       CHAR(80)  INIT(
+     'RATE INQUIRY ERROR: SYSTEM PROBLEMS, PLEASE TRY AGAIN.');
+ /*------------------------------------------------------------------*/
+ /*                                  END  RTPARM                     */
+ /*------------------------------------------------------------------*/
+
