@@ -1,0 +1,44 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     CLAIM QSAR    ---------               */
+ /*             --------  CUSTOMER CONVERSION  ------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: AEQCLMX2                                                 */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR CUSTOMER NUMBER TO CLAIM WORK NUMBER     */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE CONVERSION RECORD PROVIDED BY THE   */
+ /*  CLAIM SYSTEM TO USE FOR QSAR CUSTOMER NUMBER TO CLAIM WORK     */
+ /*  NUMBER CONVERSION.                                             */
+ /*  C                                                              */
+ /*  U                                                              */
+ /*  S                                                              */
+ /*  T      B                                                       */
+ /*  O      L     W                                                 */
+ /*  M      A     O                                                 */
+ /*  E      N     R                                                 */
+ /*  R      K     K                                                 */
+ /*                                                                 */
+ /*  XXXXXXXBBBBBBXXXXX                                             */
+ /*  |...+....1....+..|                                             */
+ /*                                                                 */
+ /*  THE PID FIELD MAY NOT BE USED IN ALL FILES, BUT IS SHOWN TO    */
+ /*  KEEP ALL CONVERSION FILES IN A CONSISTENT FORMAT.              */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE NSS CICS REGION.               */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  05/11/98  S98040     8NSI    ORIGINAL VERSION          PRM     */
+ /*                               QSAR BMS/CLAIM INTERFACE          */
+ /*******************************************************************/
+   3 ICUST     CHAR(7),       /* QSAR CUSTOMER NUMBER   001- 007*/
+   3 SPADD01   CHAR(6),       /* PAD                    008- 013*/
+   3 IWORKNUM  CHAR(5)        /* CLAIM WORK NUMBER      014- 018*/
+ /*******************************************************************/
+ /*                   END OF AEQclmX2 INCLUDE                       */
+ /*******************************************************************/
+

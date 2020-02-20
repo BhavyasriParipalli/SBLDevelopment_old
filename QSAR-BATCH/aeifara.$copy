@@ -1,0 +1,181 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* INCLUDE: AEIFARA     VERSION NR:  01           DATE:  01/24/89   */
+ /*                                                TIME:  14:13:53   */
+ /*                                                                  */
+ /* TITLE: ORIGINS AIC DAILY INTERFACE FILE                          */
+ /*                                                                  */
+ /* TYPE: COPY                                                       */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* LENGTH: 535 BYTES                                                */
+ /*    NOTE: IF the length CHANGES, you need to change the copy      */
+ /*          member AECOMITR (trailer record layout)                 */
+ /*                                                                  */
+ /*                                                                  */
+ /* DESCRIPTION: THIS COPY MEMBER DEFINES A FORMAT THAT WILL BE      */
+ /*  WRITTEN TO DIFFERENT AREA NO. FILES, TO BE SENT TO THE          */
+ /*  RESPECTIVE AREAS.                                               */
+ /*                                                                  */
+ /* NOTE: IN ORDER TO GUARANTEE UNIQUENESS OF EACH RECORD, THE DATA  */
+ /*  SHOULD BE SEQUENCED ON THE FOLLOWING FIELDS:                    */
+ /*                                                                  */
+ /*   1) CPIADOC  - DOCUMENT NO.                                     */
+ /*   2) CPIAPSEQ - PARTS LINE SEQUENCE NO.                          */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:   DRVR:  DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- --------  ----- ------------------------- ------------ */
+ /*  01/24/89 DCR 30A01 8NSM  CREATION                         JWR   */
+ /*  12/14/89 DCR 0300C 0NSA  ADD REPAIR CODE                  BLS   */
+ /*  03/12/90 SR  0444  0NSG  ADD UNAVAILABLE TIME             BLS   */
+ /*  08/21/90 SR  0384  0NSK  ADD ADP FAILURE/ACTION CODE,           */
+ /*                           ADP PRODUCT CODE AND                   */
+ /*                           CUSTOMER REFERENCE               DVC   */
+ /*  12/19/91 SR  0882  2NSA  INCREASE LENGTH OF NARRATIVE           */
+ /*                           FROM 50 TO 70 BYTES (INCREASE          */
+ /*                           LENGTH OF INTERFACE FROM 450           */
+ /*                           TO 470 BYTES)                    ABM   */
+ /*  02/04/92 I145188   2NSA  CHANGE PAD FROM 14 TO 13         LBS   */
+ /*                           TO MAKE RECORD LENGTH 470              */
+ /*  03/31/92 SR0590    2NSD  INCREASE METER READING                 */
+ /*                           FROM 7 TO 9 BYTES                ABM   */
+ /*  05/06/92 SR0972    2NSD  ADD PRODUCT ID                   ABM   */
+ /*  05/06/92 SR1061    2NSD  ADD SERVICE PERFORMANCE          ABM   */
+ /*  08/26/92 SR0999    2NSH  EXPAND REF/FSC FROM 8 TO 12            */
+ /*                           BYTES, EXPAND AEIFARA COPY       ABM   */
+ /*                           FROM 470 TO 500 BYTES                  */
+ /*  02/28/94 I233358   4NSA  ADD NSDC DELETE DATA ELEMENT     LBS   */
+ /*  07/10/95 SR9400206 5NSE  CHANGE DATA ELEMENTS FOR         LBS   */
+ /*  05/23/96 S9600243  6NSG  REMOVE ROLM FROM QSAR PROCESSING DLP   */
+ /*  02/18/97 S97021    7NSD  ADD PRF TO ORIGINS               LBS   */
+ /*  03/03/97 C9702101  7NSD  YEAR 2000 COMPLIANCE AND ADDED   LBS   */
+ /*                           FIELDS PER RICH WHYTE                  */
+ /*                                                                  */
+ /********************************************************************/
+ /*                                                                 */
+    3 CPIVERSN     CHAR (1),  /* VERSION INDICATOR '3'      001- 001*/
+    3 CPIATYPE     CHAR (4),  /* MACHINE TYPE               002- 005*/
+    3 CPIASERL     CHAR(22),  /* MACHINE SERIAL NO.         006- 027*/
+    3 CPIAMODL     CHAR (3),  /* MACHINE MODEL              028- 030*/
+    3 CPIAACTD     CHAR (10), /* ACTIVITY DATE YYYY-MM-DD   031- 040*/
+    3 CPIAPDAT     CHAR (10), /* PROCESSING DATE YYYY-MM-DD 041- 050*/
+    3 CPIASTOP    PIC '99.V9',/* STOP TIME XX.X             051- 054*/
+    3 CPIASTHR     PIC '99',  /* STOP HOUR XX               055- 056*/
+    3 CPIAPT       CHAR (1),  /* PARTS TRAILER INDICATOR    057- 057*/
+    3 CPIAEMP      CHAR (6),  /* CE EMPLOYEE SERIAL NO.     058- 063*/
+    3 CPIAOBO      CHAR (3),  /* OTHER BRANCH OFFICE        064- 066*/
+    3 CPIABA       CHAR (1),  /* BILLABLE ACTIVITY CODE     067- 067*/
+    3 CPIACSS      CHAR(12),  /* CONTRACT CODE              068- 079*/
+    3 CPIATRVH    PIC '99.V9',/* TRAVEL HOURS XX.X          080- 083*/
+    3 CPIAMILE     PIC '999', /* TRAVEL MILES XXX           084- 086*/
+    3 CPIAEXP   PIC'(5)9.V99',/* TRAVEL EXPENSES $$$$$.››   087- 094*/
+    3 CPIAOTHR    PIC '99.V9',/* OVERTIME HOURS  XX.X       095- 098*/
+    3 CPIASVCH    PIC '99.V9',/* ACTUAL HOURS XX.X          099- 102*/
+    3 CPIACIA      CHAR (1),  /* COMPL./INCMPL/ASST. CODE   103- 103*/
+    3 CPIASC       CHAR (2),  /* SERVICE CODE               104- 105*/
+    3 CPIASVBO     CHAR (3),  /* CE ASSIGNED B/O            106- 108*/
+    3 CPIASVAR     CHAR (2),  /* CE ASSIGNED AREA           109- 110*/
+    3 CPIAFO       CHAR (1),  /* CE ASSGND. OPER. AREA      111- 111*/
+    3 CPIATER      CHAR (3),  /* CE ASSIGNED TERRITORY      112- 114*/
+    3 CPIACP       CHAR (1),  /* CE CAREER PATH             115- 115*/
+    3 CPIASVCT     CHAR (1),  /* SERVICE TYPE               116- 116*/
+    3 CPIASVCR     CHAR (1),  /* SERVICE REQUEST            117- 117*/
+    3 CPIAERR      CHAR (1),  /* RESUBMITTED DOCUMENT       118- 118*/
+    3 CPIABO       CHAR (3),  /* SERVICE BRANCH OFFICE      119- 121*/
+    3 CPIAAREA     CHAR (2),  /* SERVICE AREA               122- 123*/
+    3 CPIARSOA     CHAR (1),  /* SERVICE OPS                124- 124*/
+    3 CPIAMCT      CHAR (3),  /* MACHINE TERRITORY          125- 127*/
+    3 CPIACSNO     CHAR (7),       /* CUSTOMER NO.          128- 134*/
+    3 CPIAIST      CHAR (1),       /* PROCESSING LEVEL      135- 135*/
+    3 CPIAWAR      CHAR (1),       /* WARRANTY STATUS       136- 136*/
+    3 CPIAMETR     CHAR (9),       /* METER READING         137- 145*/
+    3 CPIAPTLN,                    /* PART LINE                     */
+      5 CPIAPSEQ   CHAR (1),       /* PART LINE SEQUENCE NO 146- 146*/
+      5 CPIAPN     CHAR (8),       /* PART NO.              147- 154*/
+      5 CPIAFC     CHAR (2),       /* FUNCTION CODE         155- 156*/
+      5 CPIAQTY    CHAR (2),       /* USAGE QUANTITY        157- 158*/
+      5 CPIAOF     CHAR (3),       /* OUTSIDE LOCATION      159- 161*/
+      5 CPIAPAT    PIC '99.V9',    /* PART ACQSTN. TIME     162- 165*/
+      5 CPIOEM     CHAR (1),       /* IS/WAS OEM PART (Y|N) 166- 166*/
+      5 CPIOEMPN   CHAR (20),      /* OEM PART NUMBER       167- 186*/
+                                   /*                               */
+    3 CPIAREG      CHAR (1),       /* MACHINE REGION        187- 187*/
+    3 CPIACERG     CHAR (1),       /* CE REGION             188- 188*/
+    3 CPIAMA       CHAR (2),       /* SERVICE PLAN          189- 190*/
+    3 CPIAFLOC     CHAR (8),       /* FEATURE/LOCATION      191- 198*/
+    3 CPIASHFT     CHAR (1),       /* SHIFT OF CALL         199- 199*/
+    3 CPIAMICE     CHAR (8),       /* MES/ECA/REA/MICROCODE 200- 207*/
+    3 CPIAMST      CHAR (2),       /* MACHINE STATUS        208- 209*/
+    3 INSSAREA     CHAR (2),       /* NSS AREA NUMBER       210- 211*/
+    3 CPIAPROB     CHAR (7),       /* PROBLEM NUMBER        212- 218*/
+    3 CPIADCS      CHAR (3),       /* PT SEQUENCE NO.       219- 221*/
+    3 CPIADOC      CHAR (9),       /* DOCUMENT NO.          222- 230*/
+    3 CPIAPOTB     CHAR (1),       /* POTENTIALLY BILLABLE? 231- 231*/
+    3 CPIAACTV     CHAR (2),       /* ACTIVITY CODE         232- 233*/
+    3 CPIAFMGR     CHAR (1),       /* FIELD MGR. GROUP      234- 234*/
+    3 CPIANARR     CHAR (70),      /* NARRATIVE             235- 304*/
+    3 CPIAESTB     PIC '(9)9',     /* ESTABLISHMENT NO.     305- 313*/
+    3 CPIAENTR     PIC '(7)9',     /* ENTERPRISE NO.        314- 320*/
+    3 CPIANAME     CHAR (17),      /* CUSTOMER NAME(CMR)    321- 337*/
+    3 CPIAPM       CHAR (2),       /* P/M FREQUENCY(MPI)    338- 339*/
+    3 CPIACUSN     CHAR (17),      /* NARRATIVE CUST. NAME  340- 356*/
+    3 CPIAOPRS     CHAR (3),       /* OPERATORS TRAINED     357- 359*/
+    3 CPIAFROM     CHAR (3),       /* 'FROM' BRANCH OFFICE  360- 362*/
+    3 CPIAREC      CHAR (3),       /* 'REC.' BRANCH OFFICE  363- 365*/
+    3 CPIAUSAG     CHAR (4),       /* USAGE CREDIT          366- 369*/
+    3 CPIAHSD      CHAR (9),       /* HRLY. SERV. DOC. NO.  370- 378*/
+    3 CPIALATD     CHAR (1),       /* LATE DOC. IND.        379- 379*/
+    3 CPIACHG      CHAR (2),       /* CHANGE P/M FREQ.      380- 381*/
+    3 CPIAPTLV     CHAR (3),       /* PT LEVEL              382- 384*/
+    3 CPIAPTDN     CHAR (1),       /* PT DOWNLEVEL INDIC.   385- 385*/
+    3 CPIASRCF     CHAR (1),       /* SOURCED FROM NSDC     386- 386*/
+    3 CPIADTYP     CHAR (1),       /* DATA TYPE(I, P, OR B) 387- 387*/
+                                   /* 1ST FOUR ERRORS               */
+    3 CPIAERRS(4)   PIC '999',     /* (ERROR NUMBER) # 1    388- 399*/
+                                   /* (ERROR NUMBER) # 2    391- 393*/
+                                   /* (ERROR NUMBER) # 3    394- 396*/
+                                   /* (ERROR NUMBER) # 4    397- 399*/
+    3 CPIARPTP     CHAR(6),        /* REPORT PERIOD(YYYYMM) 400- 405*/
+    3 CPIAEMPS     CHAR (1),       /* ASSIGNED SHIFT        406- 406*/
+    3 CPIAEMPN     CHAR (15),      /* EMPLOYEE LAST NAME    407- 421*/
+    3 CPIAEMPI     CHAR (1),       /* EMPL. FIRST INITIAL   422- 422*/
+    3 CPIANAP      CHAR (3),       /* NATL. ACCTS. PGM.     423- 425*/
+    3 CPIARSUB     CHAR (1),       /* RESUBMITTED ?         426- 426*/
+    3 CPIAOUTL     CHAR (3),       /* FROM OUTSIDE LOCATION 427- 429*/
+    3 CPIAIDM      CHAR (1),       /* I/D/M CODE            430- 430*/
+    3 CPIAMOD      CHAR (1),       /* MODIFICATIONS CODE    431- 431*/
+    3 CPIAMODNA    CHAR (1),       /* MODS NOT APPLIED CODE 432- 432*/
+    3 CPIASTRT     PIC '99',       /* START HOUR XX         433- 434*/
+                                   /* (STOP - TRAVEL - ACTUAL, ADD  */
+                                   /* 24 IF NEGATIVE)               */
+    3 CPIALATE     CHAR (1),       /* LATE ? 1=YES 0=NO     435- 435*/
+    3 CPIAFLT      CHAR (12),      /* REF/SYMPTOM/FAULT     436- 447*/
+    3 CPIATAC      CHAR (3),       /* TAC CODE  TU9889A     448- 450*/
+    3 CPIAACT      CHAR (1),       /* TAC ACTION TU9889A    451- 451*/
+    3 CPIAPOS      CHAR (2),       /* POSITION TYPE SR9928  452- 453*/
+    3 CPIAPDSC     CHAR (10),      /* PART DESCRIPTION      454- 463*/
+                                   /* (FROM PIMS PART REF)          */
+    3 CPIAPTAG     CHAR (1),       /* RED TAG INDICATOR     464- 464*/
+                                   /* Y - RED PART                  */
+                                   /* N - GREEN OR UNKNOWN          */
+    3 CPIAPPR   PIC '(7)9.V99',    /* PART PRICE            465- 474*/
+                                   /* (FROM PIMS PART REF)          */
+    3 CPIADPFA     CHAR (2),       /* FAIL/ACT CODE  SR0384 475- 476*/
+    3 CPIADPPC     CHAR (3),       /* PRODUCT CODE   SR0384 477- 479*/
+    3 CPIACSTR     CHAR (19),      /* CUST REF       SR0384 480- 498*/
+    3 CPIPRDID     CHAR (4),       /* PRODUCT ID     SR0972 499- 502*/
+    3 CPINSDEL     CHAR (1),       /* QSAR/C DELETE  Y|' '  503- 503*/
+    3 CPIPRF       CHAR (7),       /* PART RETURN FORM PRF  504- 510*/
+    3 IAVAILCE     CHAR (3),       /* AVAILABILITY CENTER   511- 513*/
+                                   /* OF THE CE/SERVICE             */
+    3 IAVALRSO     CHAR (3),       /* AVAILABILITY CENTER   514- 516*/
+                                   /* OF THE INVENTORY RSO          */
+    3 CPIAD30      CHAR (19)       /* PAD                   517- 535*/
+                                   /*                               */
+ /*-----------------------------------------------------------------*/
+ /*                                 END  AEIFARA                    */
+ /*-----------------------------------------------------------------*/
+

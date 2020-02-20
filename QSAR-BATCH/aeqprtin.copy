@@ -1,0 +1,68 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQPRTIN    VERSION NR:  01           DATE:  03/19/98    */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: PART   QSAR DATA LAYOUT INBOUND                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE STD INBOUND PART DATA WHICH IS LOADED TO      */
+ /*     THE QSAR DATABASE                                            */
+ /*                                                                  */
+ /*  Notes  - Any changes to this structure must coincide with the   */
+ /*             AEQPRTIN H member in SCLM                            */
+ /*                                                                  */
+ /* NOTE:THIS IS A SHARED COPY MEMBER BETWEEN CONS AND NSS(CMVC&SCLM)*/
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------  ----- */
+ /*03/19/1998 S98016   8NSM NEW COPY MEMBER CREATED              MKP */
+ /*05/10/2006 SR060019 6NSH REMOVE PART ACQ TIME, HPARTACQ       LBS */
+ /*                                                                  */
+ /********************************************************************/
+     3 QSRKEY,                  /* KEY FIELD                         */
+       5 CRECTYP  CHAR(1),      /* RECORD TYPE              001- 001 */
+                                /* R = ROOT RECORD                   */
+                                /* P = PART RECORD                   */
+       5 IDOCNUMB CHAR(9),      /* DOCUMENT NUMBER          002- 010 */
+       5 IINDOCNM CHAR(15),     /* UNIQUENESS IDENTIFIER    011- 025 */
+       5 IAPPLIC  CHAR(2),      /* APPLICATION              026- 027 */
+                                /* IR, PT, PO                        */
+       5 IEMPSER  CHAR(6),      /* EMPLOYEE SERIAL          028- 033 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR PART SEGMENT                                                */
+ /* ---------------------------------------------------------------- */
+     3 IPARTNUM   CHAR(20),     /* PART NUMBER              034- 053 */
+     3 CFUNC      CHAR(2),      /* FUNCTION CODE            054- 055 */
+     3 ISENDBO    CHAR(3),      /* FROM BRANCH OFFICE       056- 058 */
+     3 ISENDOL    CHAR(3),      /* FROM OUTSIDE LOCATION    059- 061 */
+     3 IRECBO     CHAR(3),      /* RECEIVING BRANCH OFFICE  062- 064 */
+     3 IRECOL     CHAR(3),      /* RECEIVING OUTSIDE LOC    065- 067 */
+     3 QUSAGE     CHAR(2),      /* USAGE QUANTITY           068- 069 */
+     3 QDISBRSE   CHAR(2),      /* DISBURSEMENT QUANTITY    070- 071 */
+     3 QREORDER   CHAR(2),      /* ORDER QUANTITY           072- 073 */
+     3 QRETURN    CHAR(2),      /* RETURN QUANTITY          074- 075 */
+     3 IBINLOC    CHAR(6),      /* BIN LOCATION             076- 081 */
+     3 IALTSBO    CHAR(3),      /* ALTERNATE SHIP           082- 084 */
+     3 CDELVPT    CHAR(2),      /* DELIVERY POINT           085- 086 */
+     3 SPAD01     CHAR(3),      /* PADDING                  087- 089 */
+  /* 3 HPARTACQ   CHAR(3),      /* PARTS ACQUISITION TIME   087- 089 */
+     3 IPRTMACH   CHAR(4),      /* REORDER M/T (PART ONLY)  090- 093 */
+     3 ITINNUM    CHAR(25),     /* TIN NUMBER               094- 118 */
+     3 IPRFNUM    CHAR(7),      /* PART RETURN FORM NUMBER  119- 125 */
+     3 CRETREAS   CHAR(1),      /* REASON FOR RETURN        126- 126 */
+     3 IRTSORD    CHAR(6),      /* RTS ORDER NUMBER         127- 132 */
+     3 FRETLBL    CHAR(1),      /* HAVE RETURN LABEL (Y/N)  133- 133 */
+     3 TPAD01     CHAR(417)     /* PAD                      134- 550 */
+
+ /********************************************************************/
+ /*                   END OF AEQPRTIN INCLUDE                        */
+ /********************************************************************/
+

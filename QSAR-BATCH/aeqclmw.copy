@@ -1,0 +1,46 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     CLAIM QSAR    ---------               */
+ /*             --------  WORK NUMBER DEFAULT  ------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: AEQCLMW                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF DEFAULT WORK NUMBER FOR CLAIM RECORDS         */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE RECORD USED TO MAP THE FILE USED    */
+ /*  TO PROVIDE THE DEFAULT WORK NUMBER AND ACTIVITY ID FOR         */
+ /*  SC 94 *1 AND *5 RECORDS.                                       */
+ /*                                                                 */
+ /*                                                                 */
+ /*                                                                 */
+ /*        A                                                        */
+ /*  W     C                                                        */
+ /*  O    BT     B                                                  */
+ /*  R    LV     L                                                  */
+ /*  K    AI     A                                                  */
+ /*       NT     NEFFECTIVE                                         */
+ /*  #    KY     KDATE                                              */
+ /*                                                                 */
+ /*  XXXXXBXXXXXXBYYYYMMDD                                          */
+ /*  |...+....1....+....2|                                          */
+ /*                                                                 */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE NSS CICS REGION.               */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  05/11/98  S98055     8NSI    ORIGINAL VERSION          PRM     */
+ /*                               QSAR BMS/CLAIM INTERFACE          */
+ /*******************************************************************/
+   3 IWORKNUM  CHAR(5),           /* CLAIM WORK NUMBER      001- 005*/
+   3 SPADD01   CHAR(1),           /* PAD                    006- 006*/
+   3 IACTIVTY  CHAR(6),           /* CLAIM ACTIVITY ID      007- 012*/
+   3 SPADD02   CHAR(1),           /* PAD                    013- 013*/
+   3 DEFFECT   CHAR(8)            /* EFFECTIVE DATE YYYYMMDD014- 021*/
+ /*******************************************************************/
+ /*                   END OF AEQclmW INCLUDE                        */
+ /*******************************************************************/
+

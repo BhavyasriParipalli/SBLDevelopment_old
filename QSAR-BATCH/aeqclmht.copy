@@ -1,0 +1,37 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCLMHT    VERSION NR:  01           DATE:  01/13/98    */
+ /*                                               TIME:  09:32:00    */
+ /*                                                                  */
+ /* TITLE:       CLAIM HEADER/TRAILER RECORD                         */
+ /*                                                                  */
+ /* LANGUAGE:    PLI                                                 */
+ /*                                                                  */
+ /* DESCRIPTION: THIS IS THE HEADER/TRAILER FILE LAYOUT FOR THE      */
+ /*              CLAIM INTERFACE.                                    */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  01/13/98 S97219   8NSC QSAR BMS/CLAIM INTERFACE           DLP   */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECID    CHAR(7),               /* WILL CONTAIN THE   001- 007 */
+                                      /* LITERAL VALUE "HEADER" or   */
+                                      /* LITERAL VALUE "TRAILER"     */
+   3 ISOURCE   CHAR(8),               /* WILL CONTAIN THE   008- 015 */
+                                      /* LITERAL VALUE "QSARLABR"    */
+   3 DCREATE   CHAR(10),              /* THE DATE THE LABOR 016- 025 */
+                                      /* FILE WAS CREATED            */
+                                      /* FORMAT MM/DD/YYYY           */
+   3 ISEQNUM   PIC '(6)9',            /* THE SEQUENCE #     026- 031 */
+                                      /* REPRESENTING THE            */
+                                      /* LABOR FILE.                 */
+   3 IRECCNT   PIC '(6)9',            /* NUMBER OF LABOR    032- 037 */
+                                      /* RECORDS                     */
+   3 SPADDING  CHAR(80)               /*                    038- 117 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQCLMHT                   */
+ /*------------------------------------------------------------------*/
+

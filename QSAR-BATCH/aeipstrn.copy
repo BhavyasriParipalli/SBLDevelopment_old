@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEIPSTRN    VERSION NR:  01           DATE:  06/19/2008  */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: INFOPRINT EMPLOYEE (OLD IBM TO NEW IPS) TRANSLATION TABLE */
+ /*        FOR THE CLAIM APPLICATIION (USED IN AECLMEX)              */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE RECORD FROM THE DB2 INFOPRINT TRANSLATION     */
+ /*     TABLE                                                        */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------  ----- */
+ /*06/19/2008 SR080009 8NSM NEW COPY MEMBER CREATED              LBS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IOEMPSER        CHAR( 6),  /* OLD IBM EMPLOYEE SERIAL  001- 006 */
+                                /* NUMBER                            */
+   3 SPAD01          CHAR( 1),  /*                          007- 007 */
+   3 INEMPSER        CHAR( 6),  /* NEW SERIAL NUMBER FOR    008- 013 */
+                                /* INFOPRINT                         */
+   3 SPAD02          CHAR( 1),  /*                          014- 014 */
+   3 CCOUNTRY        CHAR( 3),  /* COUNTRY CODE             015- 017 */
+                                /*                                   */
+   3 NLAST           CHAR(30),  /* LAST NAME                018- 047 */
+   3 NFIRST          CHAR(20),  /* FIRST NAME               048- 067 */
+   3 IDEPT           CHAR( 8),  /* DEPARTMENT               068- 075 */
+   3 QUIDLEN         CHAR( 1),  /* LENGTH OF USERID FIELD   076- 076 */
+   3 IUSERID         CHAR(30),  /* USERID (INTERNET)        077- 106 */
+   3 QTYPLEN   FIXED BIN (15),  /*                          107- 108 */
+   3 ITYPE           CHAR( 6)   /*                          109- 114 */
+ /********************************************************************/
+ /*                   END OF AEIPSTRN INCLUDE                        */
+ /********************************************************************/

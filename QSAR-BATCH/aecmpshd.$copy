@@ -1,0 +1,36 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECMPSHD    VERSION NR:  01           DATE:  12/01/95    */
+ /*                                               TIME:  13:15:41    */
+ /*                                                                  */
+ /* TITLE: TSS CMPS HEADER/TRAILER RECORD LAYOUT                     */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: HEADER/TRAILER LAYOUT FOR THE SEVEN DAY A WEEK      */
+ /*              FEED FROM QSAR TO CMPS.                             */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*  12/01/95 S9500167 6NSC INITIAL VERSION                      YDS */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECID     CHAR(1),                   /* RECORD ID     001- 001 */
+                                           /* HEADER  -> HEX '00'    */
+                                           /* TRAILER -> HEX 'FF'    */
+   3 ISEQ       PIC'9999',                 /*               002- 005 */
+   3 SPAD1      CHAR(1),                   /* PADDING       006- 006 */
+   3 QRECCNT    PIC'(6)9',                 /* RECORD COUNT  007- 012 */
+   3 DRUNDATE   CHAR(8),                   /* RUN DATE      013- 020 */
+                                           /* YYYYMMDD               */
+   3 SPAD2      CHAR(580)                  /* PADDING       021- 600 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AECMPSHD                   */
+ /*------------------------------------------------------------------*/
+

@@ -1,0 +1,53 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ---------     ORIGINS       ---------               */
+ /*             ---------  RECORD FORMAT    ---------               */
+ /*  NAME: AEQORIG                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR ORIGINS CONTROL RECORD FORMAT            */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE DATA FIELDS USED TO CONTROL THE     */
+ /*  SETTING OF THE QSAR ORIGINS EXTRACT.  THIS CONTROL RECORD      */
+ /*  HAS A KEY OF:                                                  */
+ /*                                                                 */
+ /*                                                                 */
+ /*  QSARORIG                         POSITIONS 11 THROUGH 31 ARE   */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  01/25/89 DCR A0301   8NSM    ORIGINAL VERSION          JWR     */
+ /*  09/09/92  I155896    2NSH    ADD COUNT OF RECORDS              */
+ /*                               FLAGGED ON DATA BASE      ABM     */
+ /*                                                                 */
+ /*******************************************************************/
+    3 ORIGKEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 ORIGKEY1  CHAR(8),       /* LITERAL 'QSARORIG'     001- 008*/
+       5 ORIGPAD1  CHAR(23),      /* KEY PADDING (BLANKS)   009- 031*/
+                                  /* FORMAT MMDD                    */
+    3  ORIGSEQU    FIXED BIN(31), /* TRAILER SEQUENCE #     032- 035*/
+    3  ORIGDATE    CHAR(6),       /* DATE OF LAST RUN       036- 041*/
+                                  /* FORMAT YYMMDD                  */
+    3  ORIGTIME    CHAR(6),       /* TIME OF LAST RUN       042- 047*/
+                                  /* FORMAT HHMMSS                  */
+    3  ORIGTSTP    CHAR(8),       /* LAST RECORD AUDIT DATE 048- 055*/
+                                  /*  YYYYMMDD (USED TO DETERMINE   */
+                                  /*  WHERE TO START EXTRACT)       */
+    3  ORIGRCNT    FIXED BIN(31), /* NUMBER OF RECORDS      056- 059*/
+                                  /*  WRITTEN TO FILE               */
+                                  /*   (NOT INCLUDING TRAILER)      */
+    3  ORIGDBCT    FIXED BIN(31), /* NUMBER OF RECORDS      060- 063*/
+                                  /*  MARKED ON DATA BASE           */
+    3  ORIGPAD2    CHAR(68)       /* PADDING                064- 131*/
+ /*******************************************************************/
+ /*                   END OF AEQORIG INCLUDE                        */
+ /*******************************************************************/
+

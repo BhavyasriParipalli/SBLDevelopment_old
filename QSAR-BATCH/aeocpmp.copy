@@ -1,0 +1,61 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME:   AEOCPMP                              DATE:  09/09/2010  */
+ /*                                                                  */
+ /*  TITLE: QSAR TO OCPM PARTS INTERFACE DATA LAYOUT                 */
+ /*                                                                  */
+ /*  DESCRIPTION: DESCRIBES THE BEING SENT TO OCPM RELATING TO       */
+ /*               PART USAGE.  ADDITIONAL DATA RELATING TO THE CAD   */
+ /*               CALL IS SENT TO HELP IN RECORD MATCHING IN OCPM.   */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: N/A                                           */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  APPLICATION: QSAR                                               */
+ /*                                                                  */
+ /*  RECORD KEY:  N/A                                                */
+ /*                                                                  */
+ /*  KEYLENGTH :  N/A                                                */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR: COMMENTS:                         BY   */
+ /*  -------- --------  ----- --------------------------------  ---  */ 
+ /*09/09/2010 SR100004  0CSE  ORIGINAL VERSION                   LBS */
+ /*10/19/2010 Mn44556299 0CSE change IECINUM from 10 to 7 add pad LBS*/
+ /*                                                                  */
+ /********************************************************************/
+   3 ICADPROB    CHAR(11),     /* NSS CAD PROBLEM NUMBER     001- 011*/
+                               /*                                    */
+                               /*                                    */
+   3 IOCPMPROB   CHAR(10),     /* OCPM PROBLEM NUMBER        012- 021*/
+   3 IECINUMB    CHAR( 7),     /* ECI ID - CUSTOMER NUMBER   022- 028*/
+   3 SPAD05      CHAR( 3),     /* PADDING                    029- 031*/
+   3 IQSARDOC    CHAR( 9),     /* QSAR DOCUMENT NUMBER       032- 040*/
+   3 XPARTS(4),                /*  (70 BYTES)                041- 330*/
+     5 IPARTNUM  CHAR(20),     /* PART NUMBER                041- 060*/
+     5 IPARTACT  CHAR( 2),     /* PART ACTIVITY/             061- 062*/
+                               /* aka FUNCTION CODE                  */
+                               /*  01 OUTSIDE LOCATION TRANSFER      */
+                               /*  02 PARTS USAGE                    */
+                               /*  03 PARTS ORDER                    */
+                               /*  04 NEW PART RETURN                */
+                               /*  06 BIN/ORDER#                     */
+                               /*  09 NOT MY PART                    */
+                               /*  10 PART NOT RECEIVED              */
+                               /*  21 DISBURSE AND USE PARTS         */
+                               /*  99 NEW DEFECTIVE PART             */
+     5 QUANTITY  CHAR( 2),     /* PART QUANTITY REPORTED     063- 064*/
+     5 CRETREAS  CHAR( 1),     /* REASON FOR RETURN OF PART  065- 065*/
+     5 TRETCMNT  CHAR(20),     /* FC 99 reason for return    066- 085*/
+                               /* comments                           */
+     5 ISHPTRKG  CHAR(25),     /* SHIPPING TRACKING          086- 110*/
+                               /* NUMBER                             */
+   3 SPAD99      CHAR(15)      /* PADDING                    321- 335*/
+ /*------------------------------------------------------------------*/
+ /*              END OF AEOCPMP DATA LAYOUT                          */
+ /*------------------------------------------------------------------*/
+ 

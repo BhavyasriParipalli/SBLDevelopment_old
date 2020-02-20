@@ -1,0 +1,45 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     CLAIM QSAR    ---------               */
+ /*             --------  CONTRACT CONVERSION  ------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: AEQCLMX                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR CONTRACT NUMBER TO CLAIM WORK NUMBER     */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE CONVERSION RECORD PROVIDED BY THE   */
+ /*  CLAIM SYSTEM TO USE FOR QSAR CONTRACT NUMBER TO CLAIM WORK     */
+ /*  NUMBER CONVERSION.                                             */
+ /*  C                                                              */
+ /*  O                                                              */
+ /*  N                                                              */
+ /*  T      B    B                                                  */
+ /*  R      L    LW                                                 */
+ /*  A      AP   AO                                                 */
+ /*  C      NI   NR                                                 */
+ /*  T      KD   KK                                                 */
+ /*                                                                 */
+ /*  XXXXXXXBXXXXBXXXXX                                             */
+ /*  |...+....1....+..|                                             */
+ /*                                                                 */
+ /*  THE Product ID FIELD MAY NOT BE USED IN ALL FILES, BUT IS      */
+ /*  SHOWN TO KEEP ALL CONVERSION FILES IN A CONSISTENT FORMAT.     */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  05/11/98  S98040     8NSI    ORIGINAL VERSION          PRM     */
+ /*                               QSAR BMS/CLAIM INTERFACE          */
+ /*******************************************************************/
+   3 ICONTRCT  CHAR(7),           /* QSAR CONTRACT NUMBER   001- 007*/
+   3 SPADD01   CHAR(1),           /* PAD                    008- 008*/
+   3 IPRODID   CHAR(4),           /* QSAR PRODUCT ID        009- 012*/
+   3 SPADD02   CHAR(1),           /* PAD                    013- 013*/
+   3 IWORKNUM  CHAR(5)            /* CLAIM WORK NUMBER      014- 018*/
+ /*******************************************************************/
+ /*                   END OF AEQclmX INCLUDE                        */
+ /*******************************************************************/
+

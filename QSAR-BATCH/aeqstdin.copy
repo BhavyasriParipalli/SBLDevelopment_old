@@ -1,0 +1,128 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQSTDIN    VERSION NR:  01           DATE:  03/19/98    */
+ /*                                               TIME:  13:23:49    */
+ /*                                                                  */
+ /* TITLE: COMMON QSAR DATA LAYOUT INBOUND                           */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/1                                                   */
+ /*                                                                  */
+ /* DESCRIPTION:                                                     */
+ /*     MAPPING OF THE STD INBOUND COMMON DATA LAYOUT OF DATA        */
+ /*     LOADED TO THE QSAR DATABASE                                  */
+ /*                                                                  */
+ /*  Notes  - Any changes to this structure must coincide with the   */
+ /*             AEQSTDIN H member in SCLM                            */
+ /*                                                                  */
+ /* NOTE:THIS IS A SHARED COPY MEMBER BETWEEN CONS AND NSS(CMVC&SCLM)*/
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:      REASON:  DRVR:   DESCRIPTION:                  PGMR: */
+ /*  ---------- -------- ---- -------------------------------  ----- */
+ /*  03/19/1998 S98016   8NSM NEW COPY MEMBER CREATED            MKP */
+ /*  02/29/2000 S00024   0NSB ADD WAYBILL                        MKP */
+ /*  01/28/2003 PRODSUPT 3NSE ADD AREA PROCESSING TO FORCE       DLP */
+ /*                           PROCESSING IN AREA WHERE PROBLEM       */
+ /*                           NUMBER IS FOUND      (IAREA)           */
+ /*  10/19/2005          5NSM add IWKNUMAC                       LBS */
+ /*  10/24/2005 SR050034 5NSO add IMODEL                         LBS */
+ /*  01/18/2006 SR040017 6NSC add IREQEMPL                       LBS */
+ /*  05/10/2006 SR060019 6NSH remove ADP prompts, FAILURE/ACTION LBS */
+ /*                           CODE, PRODUCT CODE,WORK ORDER NUMBER   */
+ /*                                                                  */
+ /********************************************************************/ 
+     3 QSRKEY,                  /* KEY FIELD                         */
+       5 CRECTYP  CHAR(1),      /* RECORD TYPE              001- 001 */
+                                /* R = ROOT RECORD                   */
+                                /* P = PART RECORD                   */
+       5 IDOCNUMB CHAR(9),      /* DOCUMENT NUMBER          002- 010 */
+       5 IINDOCNM CHAR(15),     /* UNIQUENESS IDENTIFIER    011- 025 */
+       5 IAPPLIC  CHAR(2),      /* APPLICATION              026- 027 */
+                                /* IR, PT, PO                        */
+       5 IEMPSER  CHAR(6),      /* EMPLOYEE SERIAL          028- 033 */
+     3 DCALCOMP   CHAR(8),      /* DATE (YYYYMMDD)          034- 041 */
+     3 CAPILVL    CHAR(3),      /* TABLE LVL FOR LAYOUT CHG 042- 044 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR COMMON DATA                                                 */
+ /* ---------------------------------------------------------------- */
+     3 HSTOP      CHAR(3),      /* STOP TIME (HHT)          045- 047 */
+     3 QSEQ       CHAR(3),      /* SEQUENCE/CALL NUMBER     048- 050 */
+     3 CSERVICE   CHAR(2),      /* SERVICE CODE             051- 052 */
+     3 CACTIVTY   CHAR(2),      /* ACTIVITY PERFORMED       053- 054 */
+     3 HACTUAL    CHAR(3),      /* ACTUAL HOURS (HHT)       055- 057 */
+     3 HTRAVEL    CHAR(3),      /* TRAVEL HOURS (HHT)       058- 060 */
+     3 HOVRTIME   CHAR(3),      /* OVERTIME HOURS (HHT)     061- 063 */
+     3 QTRAVLMI   CHAR(3),      /* MILEAGE-ACTUAL MILES     064- 066 */
+     3 ATRAVLEX   CHAR(6),      /* EXPENSE                  067- 072 */
+     3 IMACHTYP   CHAR(4),      /* MACHINE TYPE             073- 076 */
+     3 IMACHSER   CHAR(22),     /* MACHINE SERIAL           077- 098 */
+     3 CCOMPLET   CHAR(1),      /* COMPLETION CODE          099- 099 */
+     3 CTAC       CHAR(3),      /* TECHNICAL AREA CODE      100- 102 */
+     3 CTACACTN   CHAR(1),      /* ACTION CODE              103- 103 */
+     3 IPROBNUM   CHAR(11),     /* CE ENTERED PROB NUMBER   104- 114 */
+     3 CBILLACT   CHAR(1),      /* BILLABLE ACTIVITY CODE   115- 115 */
+     3 CCONCRNT   CHAR(1),      /* CONCURRENT               116- 116 */
+     3 CSCHED     CHAR(1),      /* SCHEDULED                117- 117 */
+     3 CSEVRITY   CHAR(1),      /* SEVERITY                 118- 118 */
+     3 IOTHRBOW   CHAR(3),      /* OTHER BO CHARGED         119- 121 */
+     3 IMKTBO     CHAR(3),      /* MARKETING BO             122- 124 */
+     3 CBILL      CHAR(3),      /* BILL CODE                125- 127 */
+     3 SPAD01     CHAR(3),      /* PADDING                  128- 130 */
+     3 IREQEMPL   CHAR(6),      /* IBM EMPLOYEE SERIAL NUM  131- 136 */
+     3 TPAD01     CHAR(15),     /* PAD, UNUSED              137- 151 */
+     3 QJBILMTR   CHAR(9),      /* J-BILLING METER          152- 160 */
+ /* ---------------------------------------------------------------- */
+     3 QMETER     CHAR(9),      /* METER READING            161- 169 */
+     3 QUSECRDT   CHAR(4),      /* USAGE CREDIT             170- 173 */
+     3 IPMFREQ    CHAR(2),      /* PM FREQUENCY             174- 175 */
+     3 CIDM       CHAR(1),      /* PLAN INSTALL RR/CSU DISC 176- 176 */
+     3 CMODNA     CHAR(1),      /* MODS N/A                 177- 177 */
+                                /* PREINSTALLED                      */
+                                /* NOT HERE                          */
+                                /* CANCELLED                         */
+     3 ICONTRCT   CHAR(12),     /* CONTRACT NUMBER          178- 189 */
+     3 SPAD02     CHAR(5),      /* PADDING                  190- 194 */
+     3 IPRODID    CHAR(4),      /* PRODUCT ID               195- 198 */
+     3 CCUSTTYP   CHAR(1),      /* CUSTOMER TYPE            199- 199 */
+     3 SPAD03     CHAR(8),      /* PADDING                  200- 207 */
+     3 ICECUST    CHAR(7),      /* CE ENTERED CUST NUMBER   208- 214 */
+     3 IMACHMOD   CHAR(19),     /* MANUFACTURER/MODEL       215- 233 */
+     3 CFAIL      CHAR(6),      /* FAILURE CODE/WARRANTY    234- 239 */
+     3 NAUTHNAM   CHAR(19),     /* VERIFY NAME              240- 258 */
+     3 IAUTHPH    CHAR(10),     /* VERIFY PHONE NUMBER      259- 268 */
+     3 CMICRO     CHAR(8),      /* MICROCODE FIX            269- 276 */
+     3 CMES       CHAR(6),      /* MES NUMBER               277- 282 */
+     3 CECA       CHAR(3),      /* ECA NUMBER               283- 285 */
+     3 CREA       CHAR(5),      /* REA NUMBER               286- 290 */
+     3 FACTPLWK   CHAR(1),      /* ACTION PLAN WORK (Y/N)   291- 291 */
+     3 CACTRSN    CHAR(1),      /* ACTION PLAN FAIL REASON  292- 292 */
+     3 IWKNUMAC   CHAR(6),      /* WORK NUMBER ACTIVITY ID  293- 298 */
+     3 IMODEL     CHAR(3),      /* MACHINE MODEL            299- 301 */
+     3 TPAD02     CHAR(24),     /* PAD                      302- 325 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR NARR DATA                                                   */
+ /* ---------------------------------------------------------------- */
+     3 IREFFSC    CHAR(12),     /* REFERENCE CODE           326- 337 */
+     3 ICCSTNAM   CHAR(17),     /* CUSTOMER NAME            338- 354 */
+     3 ICUSTREF   CHAR(19),     /* CUSTOMER REFERENCE       355- 373 */
+     3 CZIP       CHAR(09),     /* ZIP CODE                 374- 382 */
+     3 TCOMMENT   CHAR(70),     /* COMMENTS                 383- 452 */
+     3 TAPLNCMT   CHAR(60),     /* ACTION PLAN COMMENTS     453- 512 */
+     3 TPAD03     CHAR(03),     /* PAD                      513- 515 */
+ /* ---------------------------------------------------------------- */
+ /* QSAR MISC DATA                                                   */
+ /* ---------------------------------------------------------------- */
+     3 CSOURCE    CHAR(3),      /* TSS/PSS/PSC/... SOURCE   516- 518 */
+     3 QNUMPRTS   CHAR(2),      /* NUMBER OF PART RECORDS   519- 520 */
+     3 IWAYBILL   CHAR(16),     /* NUMBER OF PART RECORDS   521- 536 */
+     3 TPAD04     CHAR(12),     /* PAD                      537- 548 */
+     3 IAREA      CHAR(2)       /* THE AREA NUMBER THE      549- 550 */
+                                /* PROBLEM NUMBER WAS FOUND          */        
+                                /*                                   */ 
+ /********************************************************************/
+ /*                   END OF AEQSTDIN INCLUDE                        */
+ /********************************************************************/

@@ -1,0 +1,80 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQCLMD     VERSION NR:  01           DATE:  01/13/98    */
+ /*                                               TIME:  09:32:00    */
+ /*                                                                  */
+ /* TITLE:       CLAIM DATA   RECORD                                 */
+ /*                                                                  */
+ /* LANGUAGE:    PLI                                                 */
+ /*                                                                  */
+ /* DESCRIPTION: THIS IS THE DATA   FILE LAYOUT FOR THE BMS/CLAIM    */
+ /*              INTERFACE.                                          */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  01/13/98 S97219   8NSC QSAR BMS/CLAIM INTERFACE           DLP   */
+ /*  02/23/99 S97219   8NSN MAKE HOURS FIELDS PIC 99V.9        PRM   */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECID    CHAR(7),               /* WILL CONTAIN THE   001- 007 */
+                                      /* LITERAL VALUE "LABOR "      */
+   3 DWEEKEND  CHAR(10),              /* A FRIDAY DATE THAT 008- 017 */
+                                      /* REPRESENTS THE WEEK         */
+                                      /* FOR WHICH THE LABOR         */
+                                      /* IS TO BE APPLIED            */
+                                      /* MM/DD/YYYY                  */
+   3 IEMPSER   CHAR(6),               /* SERIAL NUMBER FOR  018- 023 */
+                                      /* THE EMPLOYEE                */
+   3 CCOMPANY  CHAR(8),               /* COMPANY CODE FOR   024- 031 */
+                                      /* THE EMPLOYEE                */
+   3 CCOUNTRY  CHAR(3),               /* COUNTRY CODE FOR   032- 034 */
+                                      /* THE EMPLOYEE                */
+   3 ISITEID   CHAR(8),               /* IDENTIFIER THAT    035- 042 */
+                                      /* REPRESENTS THE              */
+                                      /* INSTALLATION OF THE         */
+                                      /* CLAIM SYSTEM THAT           */
+                                      /* THE EMPLOYEE USES           */
+   3 IWRKITEM  CHAR(8),               /* IDENTIFIER OF THE  043- 050 */
+                                      /* WORK ITEM FOR WHICH         */
+                                      /* THE EMPLOYEES IS            */
+                                      /* ALLOCATED. (BLANK           */
+                                      /* FOR QSAR)                   */
+   3 IGROUPID  CHAR(8),               /* IDENTIFIER OF A    051- 058 */
+                                      /* LOGICAL GROUP OF            */
+                                      /* LABOR CLAIMERS              */
+                                      /* (BLANK FOR QSAR)            */
+   3 IWORKNUM  CHAR(8),               /* IDENTIFIER OF THE  059- 066 */
+                                      /* ACCOUNT ID                  */
+                                      /* (WORK NUMBER/CONTRACT)      */
+   3 IGROUP    CHAR(8),               /* IDENTIFIER OF THE  067- 074 */
+                                      /* Claim greography            */
+   3 IACTIVID  CHAR(6),               /* IDENTIFIER OF THE  075- 080 */
+                                      /* Claim ACTIVITY ID           */
+   3 QBILLRAT  CHAR(3),               /* CODE USED TO       081- 083 */
+                                      /* DESIGNATE A RATE            */
+                                      /* FOR EXTERNAL BILLING        */
+                                      /* FOR HOURLY AND BEST         */
+                                      /* ESTIMATE CONTRACTS          */
+   3 IOVRTIME  CHAR(1),               /* INDICATOR OF       084- 084 */
+                                      /* WHETHER OR NOT THE          */
+                                      /* TIME WITHIN THE RECORD      */
+                                      /* REPRESENTS OVERTIME         */
+                                      /* (ALWAYS "N" FOR QSAR)       */
+   3 HDAYHRS(7) PIC '99V.9',          /* HOURS WORKED ON    085- 112 */
+                                      /* EACH DAY OF THE WEEK.       */
+                                      /* DEFAULT IS ZERO (HH.T)      */
+                                      /* THIS IS AN ARRAY OF         */
+                                      /* DAYS FOR EACH DAY OF        */
+                                      /* THE WEEK STARTING           */
+                                      /* WITH SATURDAY.              */
+                                      /* (SAT-FRI)                   */
+   3 HTOTHRS   PIC '999V.9'           /* TOTAL HOURS WORKED 113- 117 */
+                                      /* FOR WEEK ENDING             */
+                                      /* DATE. MUST NOT              */
+                                      /* EXCEED 168 HOURS.           */
+                                      /*             (HHH.T)         */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQCLMD                    */
+ /*------------------------------------------------------------------*/
+

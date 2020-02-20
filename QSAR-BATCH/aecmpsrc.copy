@@ -1,0 +1,148 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AECMPSRC    VERSION NR:  01           DATE:  12/12/95    */
+ /*                                               TIME:  11:02:00    */
+ /*                                                                  */
+ /* TITLE: QSAR INTERFACE FILE FOR CMPS                              */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: N/A                                            */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: RECORD LAYOUT SENT TO CMPS FROM QSAR.               */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ----------------------------------- ---- */
+ /*  12/12/95 S9500167 6NSA  INITIAL VERSION                     YDS */
+ /*   4/11/96 S9600165 6NSE ADD IFUNCDE                          LBS */
+ /*   5/27/97 S9600755 7NSI SUPPORT NSS MRO PARALLE SYSPLEX      LBS */
+ /*                                                                  */
+ /********************************************************************/
+                                 /*----------------------------------*/
+   3 IRECID          CHAR(01),   /* R = DATA RECORD         001- 001 */
+                                 /*----------------------------------*/
+   3 DBSRDATE,                   /*      DATE CE REPORTED QSAR       */
+                                 /*----------------------------------*/
+     5 DBSRYEAR      CHAR(04),   /* YEAR   RECEIVED  (YYYY) 002- 005 */
+     5 DBSRMNTH      CHAR(02),   /* MONTH  RECEIVED  (MM)   006- 007 */
+     5 DBSRDAY       CHAR(02),   /* DAY    RECEIVED  (DD)   008- 009 */
+                                 /*----------------------------------*/
+                                 /* QSAR RECORD STRUCTURE            */
+                                 /*----------------------------------*/
+   3 IDOCMN          CHAR(09),   /* DOCUMENT NUMBER         010- 018 */
+   3 IMACHTYP        CHAR(04),   /* MACHINE TYPE            019- 022 */
+   3 IMACHSER        CHAR(22),   /* MACHINE SERIAL          023- 044 */
+   3 DCALCY          CHAR(04),   /* CALL COMPLETE YEAR      045- 048 */
+                                 /*                   YYYY           */
+   3 DCALCM          CHAR(02),   /* CALL COMPLETE MONTH MM  049- 050 */
+   3 DCALCD          CHAR(02),   /* CALL COMPLETE DAY   DD  051- 052 */
+   3 HSTOPTI         CHAR(03),   /* STOP TIME         HHT   053- 055 */
+   3 QTRAVMI         CHAR(03),   /* TRAVEL MILES            056- 058 */
+   3 QTRAVHR         CHAR(03),   /* TRAVEL HOURS      HHT   059- 061 */
+   3 ATRAVEX         CHAR(07),   /* TRAVEL EXPENSE $$$$$CC  062- 068 */
+                                 /*                                  */
+                                 /*----------------------------------*/
+                                 /*       INCIDENT DATA              */
+                                 /*----------------------------------*/
+   3 QOVTHR          CHAR(03),   /* OVERTIME HOURS     HHT  069- 071 */
+   3 QACTHR          CHAR(03),   /* ACTUAL HOURS       HHT  072- 074 */
+   3 CCOMPCD         CHAR(01),   /* COMPLETION CODE         075- 075 */
+                                 /* 1 = COMPLETE                     */
+                                 /* 2 = INCOMPLETE                   */
+                                 /* 3 = DIAGNOSTIC                   */
+                                 /* 4 = ASSIST                       */
+                                 /* 5 = SUSPENDED                    */
+                                 /* 6 = POST INSTALL                 */
+   3 CSVCCD          CHAR(02),   /* SERVICE CODE            076- 077 */
+   3 CACTCD          CHAR(02),   /* ACTIVITY CODE           078- 079 */
+   3 CIDMCD          CHAR(01),   /* INSTALL/DISC/MOVE CODE  080- 080 */
+                                 /*   1= INSTALLATION PLANNING       */
+                                 /*   2= INITIAL INSTALL             */
+                                 /*   3= DISCONTINUANCE              */
+                                 /*   4= OTHER                       */
+   3 CMODCD          CHAR(01),   /* MODIFICATIONS CODE      081- 081 */
+                                 /*   1= MES NUMBER 2= ECA NUMBER    */
+                                 /*   3= REA NUMBER 4= MICROCODE FIX */
+   3 CMODNA          CHAR(01),   /* MODIFICATIONS NOT       082- 082 */
+                                 /* APPLIED CODE                     */
+                                 /*   1= PREVIOUSLY APPLIED          */
+                                 /*   2= MACHINE NOT HERE            */
+                                 /*   3= CANCEL                      */
+   3 SPAD02          CHAR(06),   /* PROBLEM NUMBER PAD      083- 088 */
+   3 CPROBNO         CHAR(05),   /* CAD/CE PROBLEM NUMBER   089- 093 */
+   3 ICONTNO         CHAR(12),   /* CONTRACT NUMBER         094- 105 */
+                                 /* (S0ICSS)                         */
+   3 ORIGCONT        CHAR(12),   /* ORIGINAL CE CONTRACT #  106- 117 */
+                                 /* (S0ICSS2)                        */
+   3 IPTLVL          CHAR(03),   /* PT LEVEL                118- 120 */
+   3 IBOEMP          CHAR(03),   /* EMP B/O FROM PT         121- 123 */
+   3 DPROCDT         CHAR(08),   /* PROCESSING DATE         124- 131 */
+   3 CMSCM           CHAR(08),   /* MES/ECA/REA/MICROFIX #  132- 139 */
+   3 CTACCD          CHAR(03),   /* TAC CODE                140- 142 */
+   3 CTACACT         CHAR(01),   /* ACTION CODE             143- 143 */
+   3 UPARTS (4),                 /* PARTS STRUCTURE         192- 246 */
+     5 IFUNCDE       CHAR(02),   /* FUNCTION CODE           144- 145 */
+     5 IPART         CHAR(08),   /* PART NUMBER             146- 153 */
+     5 IPARTDSC      CHAR(10),   /* PART DESCRIPTION        154- 163 */
+     5 QDISUS        CHAR(02),   /* DISB.-USAGE-UPR SUB QTY 164- 165 */
+     5 IMCHTYPE      CHAR(04),   /* MACH/ TYPE (LN 2,3,&4)  166- 169 */
+     5 CGPART1T      CHAR(01),   /* IF Y RED TAG - LINE 1   170- 170 */
+                                 /* PART TYPE   RED/GREEN            */
+     5 CGPARTCS FIXED BIN(31),   /* PART UNIT COST  MILLS   171- 174 */
+     5 CGPARTPR FIXED BIN(31),   /* PART UNIT PRICE CENTS   175- 178 */
+     5 IOEMPART      CHAR(20),   /* OEMPART NUMBER          179- 198 */
+                                 /*----------------------------------*/
+                                 /*             PART LINE 2 188- 242 */
+                                 /*----------------------------------*/
+                                 /*             PART LINE 3 243- 297 */
+                                 /*----------------------------------*/
+                                 /*             PART LINE 4 298- 352 */
+                                 /*----------------------------------*/
+                                 /* END OF PART LINES                */
+                                 /*----------------------------------*/
+   3 CCESER          CHAR(06),   /* SR EMPLOYEE SERIAL      364- 369 */
+   3 CCEBO           CHAR(03),   /* SR ASSIGNED BRANCH OFF  370- 372 */
+   3 CCETER          CHAR(03),   /* SR TERRITORY NUMBER     373- 375 */
+                                 /*                                  */
+   3 CEMPIN1         CHAR(01),   /* EMPLOYEE FIRST INITIAL  376- 376 */
+   3 CEMPIN2         CHAR(01),   /* EMPLOYEE SECOND INIT    377- 377 */
+   3 CEMPLAST        CHAR(17),   /* EMPLOYEE LAST NAME      378- 394 */
+   3 CEMPDIV         CHAR(02),   /* EMPLOYEE DIVISION       395- 396 */
+   3 CEMPAREA        CHAR(02),   /* AREA                    397- 398 */
+   3 CEMPREG         CHAR(01),   /* REGION                  399- 399 */
+                                 /*----------------------------------*/
+                                 /* INVENTORY DATA                   */
+                                 /*----------------------------------*/
+   3 CMMOD           CHAR(03),   /* MACHINE MODEL           400- 402 */
+   3 CTYPEQ          CHAR(01),   /* TYPE EQUIPMENT          403- 403 */
+   3 DTYPEQ          CHAR(08),   /* TYPE EQUIP EFFECT DATE  404- 411 */
+   3 DMFGDT          CHAR(08),   /* DATE OF MANUFACTURE     412- 419 */
+   3 DOINST          CHAR(08),   /* ORIGINAL INSTALL DATE   420- 427 */
+   3 DRECON          CHAR(08),   /* DATE OF RECONDITION     428- 435 */
+   3 DCINST          CHAR(08),   /* CURRENT INSTALL DATE    436- 443 */
+   3 DWAREXP         CHAR(08),   /* WARRANTY EXPIRATION     444- 451 */
+   3 DDISC           CHAR(08),   /* DATE DISC FROM CUSTOMER 452- 459 */
+   3 CTYPEC          CHAR(01),   /* TYPE CUSTOMER           460- 460 */
+   3 ICUSTNO   FIXED BIN(31),    /* CUSTOMER NUMBER         461- 464 */
+                                 /*                                  */
+                                 /*----------------------------------*/
+                                 /* NARRATIVE DATA                   */
+                                 /*----------------------------------*/
+   3 CREFFSY         CHAR (12),  /* REFERENCE/FAULT/SYMPTOM 465- 476 */
+   3 CFEATLO         CHAR (08),  /* FEATURE/LOCATION        477- 484 */
+   3 NCUSTNM         CHAR (17),  /* CUSTOMER NAME           485- 501 */
+   3 TCUSTRF         CHAR (19),  /* CUSTOMER REFERENCE      502- 520 */
+   3 TNARR           CHAR (70),  /* FREE FORM NARRATIVE     521- 590 */
+                                 /* TEXT                             */
+   3 CPARTTLR        CHAR (1),   /* PART TRAILER INDICATOR  591- 591 */
+   3 IRECTYPE        CHAR (1),   /* IR/PT/PO                592- 592 */
+   3 SPAD01          CHAR (08)   /* PADDING                 593- 600 */
+ /*------------------------------------------------------------------*/
+ /*                  END  AECMPSRC                                   */
+ /*------------------------------------------------------------------*/
+
