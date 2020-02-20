@@ -1,0 +1,42 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQACTTB     VERSION NR:  01           DATE:  02/08/99   */
+ /*                                                TIME:  15:44:00   */
+ /*                                                                  */
+ /*  TITLE: QSAR ACTIVITY CODE/CLAIM ACTIVITY ID TMF TABLE (MSF)     */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPRT                                      */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + IACTVCD + 11 PAD                        */
+ /*    KEYLENGTH: 14 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  02/08/99 S98226    8NSN    INITIAL RELEASE                 DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "77".001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(01),      /* RECORD ID, ALWAYS "O" 003- 003 */
+       5 IACTVCD    CHAR(02),      /* QSAR ACTIVITY                  */
+                                   /* CODE            (KEY) 004- 005 */
+       5 SPAD01     CHAR(11),      /* PADDING         (KEY) 006- 016 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 IACTVID      CHAR(06),      /* CLAIM ACTIVITY ID     017- 022 */
+     3 TACTDSC      CHAR(55)       /* TRUER PROMPT                   */
+                                   /* DESCRIPTION           023- 077 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQACTTB                               */
+ /********************************************************************/
+

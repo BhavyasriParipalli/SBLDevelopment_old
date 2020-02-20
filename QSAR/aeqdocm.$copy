@@ -1,0 +1,93 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             --------- DOCUMENT CONTROL  ---------               */
+ /*             ---------  RECORD FORMAT    ---------               */
+ /*  NAME: AEQDOCM                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR DOCUMENT CONTROL RECORD FORMAT           */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE DATA FIELDS USED TO CONTROL THE     */
+ /*  SETTING OF THE QSAR DOCUMENT NUMBER S0IDOCMN.  THIS CONTROL    */
+ /*  RECORD HAS A KEY OF:                                           */
+ /*                                                                 */
+ /*  P                                                              */
+ /*  R                                                              */
+ /*  E       A                                                      */
+ /*  F       R                                                      */
+ /*  I       E                                                      */
+ /*  X       A                                                      */
+ /*                                                                 */
+ /*  QSARDOCMXX                       POSITIONS 11 THROUGH 31 ARE   */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD CAN BE UPDATED FROM THE NSS OR QSAR CICS REGIONS.  */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/10/88  SR 9891    8NSM    ORIGINAL VERSION             SPZ  */
+ /*  07/14/93  SR9300144  3NSJ    ADDED FILE SEQ NUMBER        LBS  */
+ /*                               FOR KODAK/AMIGO PROCESSING        */
+ /*  07/22/94  SR9400116  4NSG    ADDED FEEDBACK SEQ NUMBER    LBS  */
+ /*                               FOR KODAK/AMIGO PROCESSING        */
+ /*  11/17/95  S9500059   5NSM    CONVERT BATCH FEED FROM TSS  DLP  */
+ /*  01/26/96  S9500167   6NSC    ADD SOURCE FOR CMPS          YDS  */
+ /*  05/05/97  S9600744   7NSG    CHANGES FOR NSS AUTO PARTS   LQC  */
+ /*                               TRANSFER                          */
+ /*  05/27/97  S9600755   7NSI    CHANGES FOR NSS MRO PARALLEL LBS  */
+ /*                               SYSPLEX SUPPORT                   */
+ /*                                                                 */
+ /*******************************************************************/
+    3 DOCMKEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 DOCMKEY1  CHAR(8),       /* LITERAL 'QSARDOCM'     001- 008*/
+       5 DOCMAREA  CHAR(2),       /* AREA - WHEN AT HUB,    009- 010*/
+                                  /* ADD 30 TO AREA NUMBER          */
+                                  /* 01-12 AREA RECORDS             */
+                                  /* 31-42 HUB RECORDS              */
+       5 DOCMPAD1  CHAR(21),      /* KEY PADDING (BLANKS)   011- 031*/
+                                  /* FORMAT MMDD                    */
+    %IF LANG='PLI' %THEN %DO;
+    3  DOCMSEQU    FIXED BIN(31), /* DOCUMENT SEQUENCE #    032- 035*/
+    3  DOCMDATE    CHAR(8),       /* DATE OF LAST UPDATE    036- 041*/
+                                  /* FORMAT YYYYMMDD                */
+    3  DOCMTIME    CHAR(4),       /* TIME OF LAST UPDATE    042- 047*/
+                                  /* FORMAT HHMM                    */
+    3  DOCMSRCE    CHAR(1),       /* SOURCE OF LAST UPDATE  048- 048*/
+                                  /* N - NSS REGION                 */
+                                  /* Q - QSAR REGION                */
+                                  /* K - KODAK INPUT FILE           */
+                                  /* T - TSS/TRAC INPUT FILE        */
+                                  /* C - CMPS INPUT FILE            */
+                                  /* S - BOB SCHEDULER              */
+    3  QFILESEQ  FIXED DEC(9,0),  /* LAST FILE INPUT SEQ    049- 053*/
+                                  /* NUMBER                         */
+    3  QFDBKSEQ  FIXED DEC(9,0),  /* LAST FEEDBACK OUTPUT   049- 058*/
+                                  /* SEQUENCE NUMBER                */
+    3  DOCMPAD2    CHAR(73)       /* PADDING                059- 131*/
+    %END;
+    %ELSE %DO;
+    3  DOCMSEQU    FIXED BIN(31)  /* DOCUMENT SEQUENCE #    032- 035*/
+                   BDY(BYTE),
+    3  DOCMDATE    CHAR(8),       /* DATE OF LAST UPDATE    036- 041*/
+                                  /* FORMAT YYYYMMDD                */
+    3  DOCMTIME    CHAR(4),       /* TIME OF LAST UPDATE    042- 047*/
+                                  /* FORMAT HHMM                    */
+    3  DOCMSRCE    CHAR(1),       /* SOURCE OF LAST UPDATE  048- 048*/
+                                  /* N - NSS REGION                 */
+                                  /* Q - QSAR REGION                */
+                                  /* K - KODAK INPUT FILE           */
+                                  /* T - TSS/TRAC INPUT FILE        */
+                                  /* C - CMPS INPUT FILE            */
+                                  /* S - BOB SCHEDULER              */
+    3  DOCMPAD2    CHAR(83);      /* PADDING                059- 131*/
+    %END;
+ /*******************************************************************/
+ /*                   END OF AEQDOCM INCLUDE                        */
+ /*******************************************************************/
+

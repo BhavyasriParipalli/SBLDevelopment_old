@@ -1,0 +1,38 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QSPARTS     VERSION NR:  01           DATE:  04/12/88    */
+ /*                                               TIME:  08:28:34    */
+ /*                                                                  */
+ /* TITLE:  PART INFORMATION FOR THE QSAR APPLICATION UNDER NSS      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: QSPARTS                                        */
+ /*                                                                  */
+ /* TYPE:                                                            */
+ /*                                                                  */
+ /* LANGUAGE: PLI/PLS                                                */
+ /*                                                                  */
+ /* DESCRIPTION: LAYOUT FOR UPR PARTS ROOT SEGMENT.                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  06/03/88 TU9889C  8NSF UPR MESSAGES BACK TO PT             ECC  */
+ /*  05/27/95 S9500073 5NSE ADD CAPC FOR SENSITIVE PARTS        LBS  */
+ /*                         TRACKING                                 */
+ /*                                                                  */
+ /********************************************************************/
+ %IF LANG = 'PLI' %THEN %GOTO SKPDCL55;
+ DCL 1 QSPARTS BASED,
+ %SKPDCL55:;
+       2 IPARTNUM       CHAR(8),       /* 001 - 008  PART NUMBER     */
+       2 IUPRSTAT       CHAR(1),       /* 009 - 009  USED PART RETURN*/
+                                       /*            STATUS          */
+       2 ICONDITN       CHAR(1),       /* 010 - 010  CONDITIONAL RETN*/
+       2 CAPC           CHAR(1);       /* 011 - 011  ASSET PROTECTION*/
+                                       /*            CLASS           */
+ /*------------------------------------------------------------------*/
+ /*                                  END  QSPARTS                    */
+ /*------------------------------------------------------------------*/
+
