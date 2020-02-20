@@ -1,0 +1,45 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQBMSAC     VERSION NR:  01           DATE:  02/08/99   */
+ /*                                                TIME:  16:25:00   */
+ /*                                                                  */
+ /*  TITLE: BMS ACTIVITY CODE RECORD (MSF1)                          */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPRT                                      */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + IACTVID + CWORKTYP + 6 PAD              */
+ /*    KEYLENGTH: 14 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  02/08/99 S98226    8NSN    INITIAL RELEASE                 DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "24" 001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "S" 003- 003 */
+       5 IACTVID    CHAR(6),       /* ACTIVITY_CODE   (KEY) 004- 009 */
+       5 CWORKTYP   CHAR(1),       /* WORK NUMBER TYPE(KEY) 010- 010 */
+                                   /*   C = CONTRACT                 */
+                                   /*   O = OPPORTUNITY              */
+                                   /*   T = TRANSFER                 */
+       5 SPAD01     CHAR(06),      /* PADDING         (KEY) 011- 016 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 DACTVCLS     CHAR(08)       /* THE DATE THE          017- 024 */
+                                   /* ACTIVITY ID WAS CLOSED         */
+                                   /* FORMAT YYYYMMDD                */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQBMSAC                               */
+ /********************************************************************/
+

@@ -1,0 +1,180 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------  CNQDBSG2 LAYOUT  ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*  NAME: CNQDBSG2                                                  */
+ /*                                                                  */
+ /*  DESC: MAPPING OF DATA AFTER TRANSLATED IN QARDBFT2              */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*                                                                  */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:            PROGRAMMER:*/
+ /*  --------  ---------  ----    ------------------      -----------*/
+ /*                                                                  */
+ /* FUNCTION = MAPPING OF THE PET INCOMING DATA TO A COMMUNICATION   */
+ /*            AREA WHICH WILL BE USED TO PASS DATA FROM             */
+ /*            NSS MODULE QARDBFT2 TO MODULE CNQDB21                 */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  10/23/96  QC960073 6NSP INITIAL VERSION                     MKP */
+ /*  11/13/96  I513115  6NSP REARRANGE FIELDS SO THAT FIELDS     MKP */
+ /*                          LINE UP PROPERLY                        */
+ /*  12/04/96  S9600719 7NSA ADD SERVICE COMPONENT               MKP */
+ /*  06/11/98  S98111   8NSI ADD ACTION PLAN WORK, ACTION PLAN   LBS */
+ /*                          FAIL REASON, ACTION PLAN COMMENTS       */
+ /*  09/21/98  S98071   8NSM ADD PRF NUMBER, PRF FLAG, TIN       LBS */
+ /*  02/18/99  S98226   8NSN ADD TAC(BILL CODE), CNCTAC          MKP */
+ /*                          ADD RTS ORDER NUMBER, CNTRTSOR          */
+ /*                          REMOVE PRF NUMBER, PRF FLAG         LBS */
+ /*                          ADD SECOND CONTRACT NUMBER              */
+ /*  04/10/00  S00032   0NSD ADD CNIWAYBL, ADJUST PAD LENGTH     LBS */
+ /*                          COMMON SEGMENT                          */
+ /*  09/12/01  SR01032  1NSP Add CNCWKNAC for BMS tax changes    LBS */
+ /*  02/27/03  CICSTS13 3NSG add FIMSABND, FREQUEUE              LBS */
+ /*                                                                  */
+ /********************************************************************/
+ /* ---------------------------------------------------------------- */
+ /* QSAR ROOT SEGMENT. HERE, ALL VARIABLES BEGIN WITH "CNR".         */
+ /* ---------------------------------------------------------------- */
+      3 CNROOT ,
+        5 CNRKEY,              /* KEY FIELD                          */
+          7 CNREMPSR CHAR(6),  /* EMPLOYEE SERIAL            001- 006*/
+          7 CNRDAYWK CHAR(1),  /* DAY OF WEEK (1=SATURDAY    007- 007*/
+          7 CNRAMPM  CHAR(1),  /* A=AM (STOP TIME  0.0-14.0) 008- 008*/
+                               /* P=PM (STOP TIME 14.0-24.0)         */
+ /* ---------------------------------------------------------------- */
+ /* QSAR DATE SEGMENT. HERE, ALL VARIABLES BEGIN WITH "CND".         */
+ /* ---------------------------------------------------------------- */
+      3 CNDATE,
+        5 CNDRECDT CHAR(8),    /* KEY: DATE (YYMMDD)         009- 016*/
+        5 CNDPTLEV CHAR(2),    /* PT LEVEL FOR LAYOUT        017- 018*/
+ /* ---------------------------------------------------------------- */
+ /* QSAR COMMON SEGMENT.  HERE ALL VARIABLES START WITH "CNC"        */
+ /* ---------------------------------------------------------------- */
+      3 CNCOMMON,
+        5 CNCSTOP  CHAR(3),    /* STOP TIME (HHT)            019- 021*/
+        5 CNCRECNO CHAR(9),    /* RECORD NUMBER GENERATED    022- 030*/
+        5 CNCSEQCL CHAR(3),    /* SEQUENCE/CALL NUMBER       031- 033*/
+        5 CNCOMPL  CHAR(4),    /* RECORD COMPLETION TIME     034- 037*/
+                               /* (HHMM)                             */
+        5 CNCRCVTM CHAR(4),    /* HOST RECEIVE TIME (HHMM)   038- 041*/
+        5 CNCRCVDT CHAR(4),    /* HOST RECEIVE DATE (MMDD)   042- 045*/
+        5 CNCSC    CHAR(2),    /* SERVICE CODE               046- 047*/
+        5 CNCACTUL CHAR(3),    /* ACTUAL HOURS (HHT)         048- 050*/
+        5 CNCTRAVL CHAR(3),    /* TRAVEL HOURS (HHT)         051- 053*/
+        5 CNCPAD01 CHAR(9),    /****** UNUSED ***********    054- 062*/
+        5 CNCOVTIN CHAR(1),    /* OVERTIME INDICATOR         063- 063*/
+        5 CNCMTYPE CHAR(4),    /* MACHINE TYPE               064- 067*/
+        5 CNCMSERL CHAR(7),    /* MACHINE SERIAL             068- 074*/
+        5 CNCKOC   CHAR(1),    /* KIND OF CALL               075- 075*/
+        5 CNCPAD02 CHAR(9),    /****** UNUSED ***********    076- 084*/
+        5 CNCACTIV CHAR(2),    /* ACTIVITY CODE              085- 086*/
+        5 CNCOTHMK CHAR(3),    /* OTHER/MARKETING BRANCH     087- 089*/
+        5 CNCPBLM,             /* PROBLEM NUMBER                     */
+          7 CNCPQL   CHAR(2),  /* PROBLEM QUALIFIER          090- 091*/
+          7 CNCPROB  CHAR(5),  /* PROBLEM NUMBER             092- 096*/
+        5 CNCBILSP CHAR(1),    /* BILLABLE/SPECIAL ACTIVITY  097- 097*/
+        5 CNCOEMPL CHAR(6),    /* OTHER EMPLOYEE             098- 103*/
+        5 CNCBRUSE CHAR(5),    /* BRANCH USE                 104- 108*/
+        5 CNCPAD06 CHAR(5),    /* PAD TO ALIGN WITH US       109- 113*/
+        5 CNCTBLVL FIXED BIN(15),/* PT TBL VERSION AND LEVEL 114- 115*/
+        5 CNCPAD03 CHAR(1),    /* PAD TO ALIGN WITH US       116- 116*/
+        5 CNCFLAGS,            /*                                    */
+          7 CNCRCORG BIT(1),   /* 0=PT, 1=RAMS               117- 117*/
+          7 CNCPSFLG BIT(1),   /* 1=PSAR RECORD (OBSOLETE    117- 117*/
+          7 CNCPRFLG BIT(1),   /* 1=PARTS ONLY               117- 117*/
+          7 CDCPTFLG BIT(1),   /* 1=PART TRAILER             117- 117*/
+          7 CNCPAD04 BIT(4),   /* PADDING                    117- 117*/
+        5 CNCCSSCN CHAR( 8),   /* CSS CONTRACT               118- 125*/
+        5 CNCSVCCM CHAR( 2),   /* PAD (SERV COMP REMOVED)    126- 127*/
+        5 CNIACTPL CHAR( 1),   /* ACTION PLAN WORK (Y/N)     128- 128*/
+        5 CNIAPRSN CHAR( 1),   /* ACTION PLAN FAIL REASON    129- 129*/
+        5 CNCTAC   CHAR( 3),   /* TA CODE (BILL CODE)        130- 132*/
+        5 CNIWAYBL CHAR(16),   /* PART WAYBILL NUMBER        133- 148*/
+        5 CNCPAD05 CHAR(30),   /* PAD                        149- 178*/
+ /* ---------------------------------------------------------------- */
+ /* QSAR IPAR  SEGMENT.   HERE ALL VARIABLES START WITH "CNC"        */
+ /* ---------------------------------------------------------------- */
+      3 CNIPAR,
+        5 CNCMESEC CHAR(3),    /* MES/ECA                    179- 181*/
+        5 CNCUSTNM CHAR(15),   /* CUSTOMER NAME              182- 196*/
+        5 CNCMETER CHAR(7),    /* METER READING              197- 203*/
+        5 CNCPAT   CHAR(3),    /* PART ACQUISITION TIME      204- 206*/
+        5 CNCPSC   CHAR(1),    /* PART SOURCE CODE           207- 207*/
+        5 CNCSRVPF CHAR(5),    /* SERVICE PERFORMANCE        208- 212*/
+        5 CNCMES   CHAR(6),    /* MES NUMBER                 213- 218*/
+        5 CNCWKNAC CHAR(6),    /* WORK NUMBER ACTIVITY ID    219- 224*/
+        5 CNIPAD06 CHAR(154),  /****** UNUSED ***********    225- 378*/
+ /* ---------------------------------------------------------------- */
+ /* QSAR NARR  SEGMENT.  HERE ALL VARIABLES START WITH "CNC"         */
+ /* ---------------------------------------------------------------- */
+      3 CNNARR,
+        5 CNCSUTLC CHAR(18),   /* CUSTOMER LOCATION          379- 396*/
+        5 CNCONTAC CHAR(19),   /* CONTACT                    397- 415*/
+        5 CNCONTAP CHAR(10),   /* CONTACT PHONE              416- 425*/
+        5 CNCOURSE CHAR(5),    /* COURSE (EDUCATION)         426- 430*/
+        5 CNCPONBR CHAR(12),   /* PURCHASE ORDER NUMBER      431- 442*/
+        5 CNCNARRT CHAR(50),   /* NARRATIVE TEXT             443- 492*/
+        5 CNNAPCMT CHAR(60),   /* ACTION PLAN COMMENTS       493- 552*/
+        5 CNNPAD07 CHAR(24),   /* PADDING                    553- 576*/
+ /* ---------------------------------------------------------------- */
+ /* MISC QSAR DATA SEGMENT HERE ALL VAIRABLES START WITH "CNC"       */
+ /* ---------------------------------------------------------------- */
+      3 CNMISC,                /* MISCELLANEOUS DATA NOT             */
+        5 QMBO     CHAR(3),    /* ORIGINALLY PART OF         577- 579*/
+        5 QMTERR   CHAR(3),    /* DB                         580- 582*/
+        5 QMREGN   CHAR(2),    /*                            583- 584*/
+        5 QMDIV    CHAR(1),    /*                            585- 585*/
+        5 QMAPPID  CHAR(2),    /*                            586- 587*/
+        5 QMFUNC   CHAR(1),    /*                            588- 588*/
+        5 QMBSRTIM CHAR(6),    /* HHMMSS                     589- 594*/
+        5 QMBSRDAT CHAR(6),    /* YYMMDD                     595- 600*/
+        5 QMMSGCTL FIXED BIN(15),/*                          601- 602*/
+        5 QMMSGLEN FIXED BIN(15),/*                          603- 604*/
+        5 QMRECNO  FIXED BIN(31),/*                          605- 608*/
+        5 QMIFUNC       CHAR (2),/*                          609- 610*/
+        5 QMCOMPIL FIXED BIN(15),/*                          611- 612*/
+        5 QMTABID  FIXED BIN(15),/*                          613- 614*/
+        5 QMMSGFLG,            /*                                    */
+          7 QMPTRAMS    BIT(1),/*                            615- 615*/
+          7 QMHUB       BIT(1),/*                            615- 615*/
+          7 QMIPRPSR    BIT(1),/*                            615- 615*/
+          7 QMNUS12     BIT(5),/*                            615- 615*/
+        5 QMFLAGS,             /*                                    */
+          7 HAVENARR    BIT(1),/*                            616- 616*/
+          7 HAVEPART    BIT(1),/*                            616- 616*/
+          7 HAVEEXCP    BIT(1),/*                            616- 616*/
+          7 DUPE        BIT(1),/*                            616- 616*/
+          7 SUCC30      BIT(1),/*                            616- 616*/
+          7 FIMSABND    BIT(1),/* AD type IMS abend          616- 616*/
+          7 FREQUEUE    BIT(1),/* do you want to requeue     616- 616*/
+                               /* the record and reprocess?          */
+          7 QMNUS13     BIT(1),/*                            616- 616*/
+        5 QMPETVR  CHAR(1),    /* PET VERSION                617- 617*/
+        5 QMPAD01  CHAR(16),   /* PAD                        618- 633*/
+ /* ---------------------------------------------------------------- */
+ /* QSAR PARTS SEGMENT.  HERE ALL VARIABLES START WITH "CNT"         */
+ /* ---------------------------------------------------------------- */
+      3 CNTPARTS(32),          /*                        OFF         */
+                               /*                        SET         */
+        5 CNTPRTNM CHAR( 8),   /* PART NUMBER                634- 641*/
+        5 CNTFUNCT CHAR( 2),   /* FUNCTION CODE            8 642- 643*/
+        5 CNTMTYP  CHAR( 4),   /* MACHINE TYPE            10 644- 647*/
+        5 CNTFRMBO CHAR( 3),   /* FROM BRANCH OFFICE      14 648- 650*/
+        5 CNTRCVBO CHAR( 3),   /* RECEIVING BRANCH OFFICE 17 651- 653*/
+        5 CNTFRMOL CHAR( 3),   /* FROM OUTSIDE LOCATION   20 654- 656*/
+        5 CNTBINLC CHAR( 6),   /* BIN LOCATION            23 657- 662*/
+        5 CNTRCVOL CHAR( 3),   /* RECEIVING OUTSIDE LOC   29 663- 665*/
+        5 CNTQTYUS CHAR( 2),   /* USAGE QUANTITY          32 666- 667*/
+        5 CNTQTYOR CHAR( 2),   /* ORDER QUANTITY          34 668- 669*/
+        5 CNTALTSH CHAR( 3),   /* ALTERNATE SHIP          36 670- 672*/
+        5 CNTDELIV CHAR( 2),   /* DELIVERY POINT          39 673- 674*/
+        5 CNTTIN   CHAR(25),   /* TIN NUMBER              41 675- 699*/
+        5 CNTRTSOR CHAR( 6),   /* RTS ORDER NUMBER        66 700- 705*/
+        5 CNTPAD07 CHAR(58)    /****** UNUSED *********** 72 706- 763*/
+ /********************************************************************/
+ /* END OF CNQDBSG2                                                  */
+ /********************************************************************/
+

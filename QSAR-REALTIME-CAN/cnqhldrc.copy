@@ -1,0 +1,60 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             --------- C A N A D I A N   ---------                */
+ /*             ---------    AUDIT/EDIT     ---------                */
+ /*             ---------   TEMP HOLDING    ---------                */
+ /*             ---------    REC FORMAT     ---------                */
+ /*                                                                  */
+ /* NAME:   CNQHLDRC    VERSION NR:  01                              */
+ /*                                                                  */
+ /* TITLE:  QSAR HOLDING RECORD FORMAT FOR CANADA                    */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  IF THE NSS QSAR IS UNAVAILABLE OR THE AEQDBU1      */
+ /*               PSB CANNOT BE SCHEDULED THIS RECORD WILL BE PLACED */
+ /*               IN A VSAM DATASET FOR LATER PROCESSING             */
+ /*                                                                  */
+ /* NOTE:  IF OVERALL LENGTH OF THIS RECORD CHANGES, YOU MUST CHANGE */
+ /*        CNQHLDRC COPY MEMBER FOR THE US AND REDEFINE THE          */
+ /*        QSARHLD DATASET TO THE NEW LENGTH                         */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  09/15/89  SR 0038 9NSK  INITIAL VERSION                    SPZ  */
+ /*  04/24/90          0NSG  REDUCE THE PAD AT THE END          BLS  */
+ /*                          FROM 70 TO 40.                          */
+ /*  05/03/90  SR 9892 0NSA  INCREASE LENGTH TO 1039 TO MATCH   LBS  */
+ /*                          US VERSION (NEW DIM 3.1)                */
+ /*  08/06/90  I102010 0NSG  INCREASE PAD TO 65 TO MATCH US     TTT  */
+ /*                          VERSION OF 1039 BYTES.                  */
+ /*  02/14/91  SR 0649 1NSB  REDUCE PART ARRAY FROM 4 PARTS     ABM  */
+ /*                          TO ONLY 2 PARTS.                        */
+ /*  01/27/92  SR 0882 2NSA  REDUCE PADDING AT THE END OF       ABM  */
+ /*                          LAYOUT FROM 165 TO 129                  */
+ /*  08/21/95 S9500118 5NSK  INCREASE (2X) PART SEGMENTS.       DLK  */
+ /*                          RENAME PER PRIOR CONVENTION.       DLK  */
+ /*  04/10/00  S00032  0NSD  CHANGE SNUSED02 FROM 129 TO 105    LBS  */
+ /*                          (CNQSNARR WAS INCREASED FROM 136 TO 160)*/
+ /*                                                                  */
+ /********************************************************************/
+   2 CXRECKEY      FIXED DEC(15,0),     /* KEY IS BASED   001 -  002 */
+                                        /* ON SYSTEM TIME            */
+   2 CFSEGFLG,                          /*                003 -  003 */
+     5 CFHAVENARR        BIT (1),       /*                           */
+     5 CFHAVEEXCP        BIT (1),       /*                           */
+     5 CSNUSED01         BIT (6),       /*                           */
+   2 ROOT_SEG,                          /*                           */
+   %INCLUDE CNQSGENL; ,                 /* GENERAL SEGMNET           */
+   2 NARR_SEG,                          /*                           */
+   %INCLUDE CNQSNARR; ,                 /* NARRATIVE SEGMENT         */
+   2 PART_SEG (2),                      /*                           */
+   %INCLUDE CNQSPART; ,                 /* PARTS SEGMENT             */
+   2 SNUSED02           CHAR(105)       /*                           */
+ /*------------------------------------------------------------------*/
+ /*                          END  CNQHLDRC                           */
+ /*------------------------------------------------------------------*/
+

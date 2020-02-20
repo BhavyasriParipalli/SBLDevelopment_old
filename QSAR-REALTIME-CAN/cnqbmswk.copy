@@ -1,0 +1,54 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQBMSWK     VERSION NR:  01           DATE:  02/08/99   */
+ /*                                                TIME:  16:25:00   */
+ /*                                                                  */
+ /*  TITLE: BMS/CLAIM ACCOUNT ID/ACTIVITY CODE RECORD (MSF1)         */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME:                                               */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + IACCTID + IACTCOD + 5 PAD               */
+ /*    KEYLENGTH: 14 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  02/08/99 S98226    8NSN    INITIAL RELEASE                 DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "60".001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(01),      /* RECORD ID, ALWAYS "M" 003- 003 */
+       5 IWORKNUM   CHAR(08),      /* ACCOUNT_ID      (KEY) 004- 011 */
+       5 SPAD01     CHAR(05),      /* PADDING         (KEY) 012- 016 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 DWORKOPN     CHAR(08),      /* THE DATE THE          017- 024 */
+                                   /* ACCOUNT WAS OPENED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 DWORKCLS     CHAR(08),      /* THE DATE THE          025- 032 */
+                                   /* ACCOUNT WAS CLOSED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 CWORKSTA     CHAR(01),      /* ACCOUNT STATUS        033- 033 */
+     3 CSOWTYP      CHAR(02),      /* STATEMENT OF WORK     034- 035 */
+                                   /* CODE                           */
+     3 CWORKTYP     CHAR(01),      /* ACCOUNT ID TYPE       036- 036 */
+                                   /*   C = CONTRACT                 */
+                                   /*   O = OPPORTUNITY              */
+                                   /*   T = TRANSFER                 */
+     3 CCTLGRP      CHAR(08),      /* CONTROL GROUP ID      037- 044 */
+     3 ICUSTNO      CHAR(08),      /* CUSTOMER NUMBER       045- 052 */
+     3 SPAD02       CHAR(08)       /* PADDING               053- 060 */
+                                   /*                                */
+ /*------------------------------------------------------------------*/
+ /*                                  END  CNQBMSWK                   */
+ /*------------------------------------------------------------------*/
+

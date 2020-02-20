@@ -1,0 +1,46 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQBMSBL     VERSION NR:  01           DATE:  02/08/99   */
+ /*                                                TIME:  17:40:00   */
+ /*                                                                  */
+ /*  TITLE: BMS/CLAIM ACCOUNT ID/BILLING CODE RECORD (MSF1)          */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSSUPPRT                                      */
+ /*                                                                  */
+ /*  TYPE:  RECORD LAYOUT                                            */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  RECORD KEYS:                                                    */
+ /*    PRIMARY KEY: IRECID + IACCTID + IBILLCD + 02 PAD              */
+ /*    KEYLENGTH: 14 BYTES                                           */
+ /*    SECONDARY KEY : NONE                                          */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*                                                                  */
+ /*  02/08/99 S98226    8NSN    INITIAL RELEASE                 DLP  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 IRECLGTH     FIXED BIN(15), /* RECORD LENGTH IS "33".001- 002 */
+     3 IRECKEY,                    /*                                */
+       5 IRECID     CHAR(1),       /* RECORD ID, ALWAYS "N" 003- 003 */
+       5 IWORKNUM   CHAR(8),       /* WORK NUMBER     (KEY) 004- 011 */
+       5 IBILLCD    CHAR(3),       /* BILLING_CODE    (KEY) 012- 014 */
+       5 SPAD01     CHAR(02),      /* PADDING         (KEY) 015- 016 */
+                                   /*       FOR NEW KEY LENGTH       */
+     3 DBILLOPN     CHAR(08),      /* THE DATE THE          017- 024 */
+                                   /* ACCOUNT WAS OPENED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 DBILLCLS     CHAR(08),      /* THE DATE THE          025- 032 */
+                                   /* ACCOUNT WAS CLOSED             */
+                                   /* FORMAT YYYYMMDD                */
+     3 CBILLSTA     CHAR(01)       /* BILLING CODE STATUS   033- 033 */
+                                   /*                                */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQBMSBL                               */
+ /********************************************************************/
+

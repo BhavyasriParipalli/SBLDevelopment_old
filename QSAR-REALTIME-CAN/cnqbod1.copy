@@ -1,0 +1,35 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* INCLUDE: CNQBOD1                                                 */
+ /*                                                                  */
+ /* FUNCTION: RECORD LAYOUT FOR OUTSIDE LOCATION FILE - NEW SERVICE  */
+ /*           DIMENSIONS.                                            */
+ /*                                                                  */
+ /* LRECL: 146 BYTES                                                 */
+ /*                                                                  */
+ /*  KEYLENGTH : 14 PRIMARY KEY                                      */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY   */
+ /*  -------- --------  -----   ------------------------------  ---  */
+ /*  08/25/88 SR-0038  9NSK NSS ORIGINAL PROMOTE                HAS  */
+ /*  11/02/98 S98156   8CSN     ADD BOSR FIELD                  DLP  */
+ /********************************************************************/
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS "146 001- 002 */
+     3 RECKEY,                     /* RECORD KEY                     */
+       5 RECID      CHAR(1),       /* RECORD ID, ALWAYS "E" 003- 003 */
+       5 AEQCTRY    CHAR(3),       /* COUNTRY "649"         004- 006 */
+       5 AEQDIV     CHAR(2),       /* DIVISION "2H"         007- 008 */
+       5 AEQBO      CHAR(3),       /* BRANCH OFFICE         009- 011 */
+       5 FILL       CHAR(5),       /* BRANCH OFFICE         012- 016 */
+     3 AEOUTLC(1000) BIT(1),       /* VALID OUTSIDE LOCS.   017- 141 */
+                                   /* FOR THE BRANCH OFFICE          */
+     3 AEEPSC       CHAR(3),       /* EMERGENCY PART SERVICE142- 144 */
+                                   /*   CENTER  OR (BOSR)            */
+                                   /*   B/O SERVICING REQUEST        */
+     3 AEQNUSED     CHAR(5)        /* UNUSED                142- 146 */
+ /********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQBOD1                                */
+ /********************************************************************/
+

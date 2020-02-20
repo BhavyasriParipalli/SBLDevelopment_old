@@ -1,0 +1,102 @@
+*/********************************************************************/
+*/*                                                                  */
+*/* INCLUDE NAME = CNQDBSEG - A PL/AS COPY MEMBER                    */
+*/*                                                                  */
+*/* FUNCTION = MAPPING OF THE QSAR FORMATTING BUFFERS FOR            */
+*/*            QSAR CANADA.  THESE BUFFERS ARE BUILT BY              */
+*/*            QARDBFMT FROM INCOMING PT MESSAGES.  THE              */
+*/*            SEGMENT ID'S AND FIELDS MUST BE IN SYNC WITH          */
+*/*            MODULE PTHCAN (THE CANADIAN HOST QSAR TABLE).         */
+*/*                                                                  */
+*/*                                                                  */
+*/*  CHANGE HISTORY:                                                 */
+*/*  - - - - - - - -                                                 */
+*/*                                                                  */
+*/*  9NSK 08/23/89  SR0038   INITIAL VERSION                   SPZ   */
+*/*                                                                  */
+*/*  1NSB 01/24/91  SR0649   REMOVE CUSTOMER NUMBER, MACHINE         */
+*/*                          STATUS, PART ACQUISITION TIME 2,        */
+*/*                          AND PART SOURCE CODE 2. MOVE PAT        */
+*/*                          AND PSC TO CNCOMMON STRUCTURE.          */
+*/*                          ADD METER READING                ABM    */
+*/*                                                                  */
+*/*  1NSM 11/07/91  SR0650   ADD FUNCTION CODE, BIN LOCATION,        */
+*/*                          NEW MACHINE TYPE/SERIAL, ETC...         */
+*/*                          INCREASE CNCOMMON LENGTH TO 300         */
+*/*                          INCREASE CNTPARTS LENGTH TO 100         */
+*/*                          (CHANGE CNTPARTS TO AN ARRAY)     ABM   */
+*/*                                                                  */
+*/*  3NSF 02/12/93  SR93046  ADD SERVICE PERFORMANCE FIELD     ABM   */
+*/*                                                                  */
+*/*  3NSN 10/22/93  S9300215 ADD MES NUMBER FIELD              DLK   */
+*/*  7NSP 12/18/97  S97094  ADD SERVICE COMPONENT CNCSVCCM     DLP   */
+*/*                                                                  */
+*/********************************************************************/
+ DCL 1 CNCOMMON   CHAR(300) BASED BDY(BYTE),
+       3 CNCRECDT CHAR(6),      /* CALL COMPLETE DATE       001- 006 */
+                                /* (YYMMDD)                          */
+       3 CNCEMPSR CHAR(6),      /* EMPLOYEE SERIAL          007- 012 */
+       3 CNCSTOP  CHAR(3),      /* STOP TIME (HHT)          013- 015 */
+       3 CNCRECNO CHAR(9),      /* RECORD NUMBER GENERATED  016- 024 */
+       3 CNCSEQCL CHAR(3),      /* SEQUENCE/CALL NUMBER     025- 027 */
+       3 CNCOMPL  CHAR(4),      /* RECORD COMPLETION TIME   028- 031 */
+                                /* (HHMM)                            */
+       3 CNCRCVTM CHAR(4),      /* HOST RECEIVE TIME (HHMM) 032- 035 */
+       3 CNCRCVDT CHAR(4),      /* HOST RECEIVE DATE (MMDD) 036- 039 */
+       3 CNCSC    CHAR(2),      /* SERVICE CODE             040- 041 */
+       3 CNCACTUL CHAR(3),      /* ACTUAL HOURS (HHT)       042- 044 */
+       3 CNCTRAVL CHAR(3),      /* TRAVEL HOURS (HHT)       045- 047 */
+       3 *        CHAR(7),      /****** UNUSED ************ 048- 054 */
+       3 CNCOVTIN CHAR(1),      /* OVERTIME INDICATOR       055- 055 */
+       3 CNCMTYPE CHAR(4),      /* MACHINE TYPE             056- 059 */
+       3 CNCMSERL CHAR(7),      /* MACHINE SERIAL           060- 066 */
+       3 CNCKOC   CHAR(1),      /* KIND OF CALL             067- 067 */
+       3 *        CHAR(2),      /****** UNUSED ************ 068- 069 */
+       3 CNCACTIV CHAR(2),      /* ACTIVITY CODE            070- 071 */
+       3 CNCOTHMK CHAR(3),      /* OTHER/MARKETING BRANCH   072- 074 */
+       3 CNCPROB  CHAR(5),      /* PROBLEM NUMBER           075- 079 */
+       3 CNCBILSP CHAR(1),      /* BILLABLE/SPECIAL ACTIVIT 080- 080 */
+       3 CNCTBLVL FIXED(16) BDY(BYTE), /* PT TABLE / LEVEL  081- 082 */
+       3 CNCFLAGS,
+         5 CNCRCORG BIT(1),     /* 0=PT, 1=RAMS             083- 083 */
+         5 CNCPSFLG BIT(1),     /* 1=PSAR RECORD (OBSOLETE) 083- 083 */
+         5 CNCPRFLG BIT(1),     /* 1=PARTS ONLY             083- 083 */
+         5 CNCPTFLG BIT(1),     /* 1=PART TRAILER           083- 083 */
+         5 *        BIT(4),     /* PADDING                  083- 083 */
+       3 CNCOEMPL CHAR(6),      /* OTHER EMPLOYEE           084- 089 */
+       3 CNCONTAC CHAR(19),     /* CONTACT                  090- 108 */
+       3 CNCONTAP CHAR(10),     /* CONTACT PHONE            109- 118 */
+       3 CNCOURSE CHAR(5),      /* COURSE (EDUCATION)       119- 123 */
+       3 CNCSUTLC CHAR(19),     /* CUSTOMER LOCATION        124- 142 */
+       3 CNCPONBR CHAR(12),     /* PURCHASE ORDER NUMBER    143- 154 */
+       3 CNCMESEC CHAR(3),      /* MES/ECA                  155- 157 */
+       3 CNCNARRT CHAR(50),     /* NARRATIVE TEXT           158- 207 */
+       3 CNCUSTNM CHAR(15),     /* CUSTOMER NAME            208- 222 */
+       3 CNCBRUSE CHAR(5),      /* BRANCH USE               223- 227 */
+       3 CNCCSSCN CHAR(6),      /* CSS CONTRACT             228- 233 */
+       3 CNCMETER CHAR(9),      /* METER READING            234- 242 */
+       3 CNCPAT   CHAR(3),      /* PART ACQUISITION TIME    243- 245 */
+       3 CNCPSC   CHAR(1),      /* PART SOURCE CODE         246- 246 */
+       3 CNCNTYP  CHAR(4),      /* NEW MACHINE TYPE         247- 250 */
+       3 CNCNSER  CHAR(7),      /* NEW MACHINE SERIAL       251- 257 */
+       3 CNCSRVPF CHAR(5),      /* SERVICE PERFORMANCE      258- 262 */
+       3 CNCMES   CHAR(6),      /* MES NUMBER               263- 268 */
+       3 CNCSVCCM CHAR(4),      /* SERVICE COMPONENT        269- 272 */
+       3 *        CHAR(28);     /****** UNUSED ************ 273- 300 */
+
+ DCL 1 CNTPARTS  CHAR(50) BASED,
+       3 *        CHAR(2),      /****** UNUSED ************ 001- 002 */
+       3 CNTPRTNM CHAR(8),      /* PART NUMBER              003- 010 */
+       3 CNTFUNCT CHAR(2),      /* FUNCTION CODE            011- 012 */
+       3 CNTMTYP  CHAR(4),      /* MACHINE TYPE             013- 016 */
+       3 CNTFRMBO CHAR(3),      /* FROM BRANCH OFFICE       017- 019 */
+       3 CNTRCVBO CHAR(3),      /* RECEIVING BRANCH OFFICE  020- 022 */
+       3 CNTFRMOL CHAR(3),      /* FROM OUTSIDE LOCATION    023- 025 */
+       3 CNTBINLC CHAR(6),      /* BIN LOCATION             026- 031 */
+       3 CNTRCVOL CHAR(3),      /* RECEIVING OUTSIDE LOC    032- 034 */
+       3 CNTQTYUS CHAR(2),      /* USAGE QUANTITY           035- 036 */
+       3 CNTQTYOR CHAR(2),      /* ORDER QUANTITY           037- 038 */
+       3 CNTALTSH CHAR(3),      /* ALTERNATE SHIP           039- 041 */
+       3 CNTDELIV CHAR(2),      /* DELIVERY POINT           042- 043 */
+       3 *        CHAR(7);      /****** UNUSED ************ 044- 050 */
+

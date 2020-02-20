@@ -1,0 +1,41 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------    AUDIT/EDIT     ---------                */
+ /*             ---------     COMMAREA      ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*  NAME: CNQCOMM                                                   */
+ /*                                                                  */
+ /*  DESC: MAPPING OF COMMAREA FOR NSS QSAR/P PROGRAMS               */
+ /*                                                                  */
+ /*  THIS MEMBER DEFINES A COMMUNICATIONS AREA FOR USE BY CNQXXXX    */
+ /*  MODULES.  IT INCLUDES DATA BASE SEGMENT LAYOUTS AND COMMON      */
+ /*  APPLICATION CONTROL FLAGS.                                      */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:           PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------     ----------- */
+ /*  06/03/89  SR0038     9NSK    ORIGINAL VERSION            HAS    */
+ /*  02/14/91  SR0649     1NSB    REDUCE FROM 4 TO 2 PARTS    ABM    */
+ /*  12/11/91  SR0882     2NSA    INCREASE LENGTH TO 1126     ABM    */
+ /*  08/21/95  S9500118   5NSK    INCREASE LENGTH TO 1045 WITH       */
+ /*                               LONGER PART AND FLAG SEGMENTS. DLK */
+ /*  08/09/01 SR01032     1NSP    INCREASE LENGTH TO 1070, added LBS */
+ /*                               25 bytes to CNQSGENL               */
+ /********************************************************************/
+   2 ROOT_SEG,                    /*   525                           */
+   %INCLUDE CNQSGENL; ,           /*                                 */
+   2 NARR_SEG,                    /*   160                           */
+   %INCLUDE CNQSNARR; ,           /*                                 */
+   2 INVT_SEG,                    /*   150                           */
+   %INCLUDE CNQSINVT; ,           /*                                 */
+   2 PART_SEG(2),                 /*   200                           */
+   %INCLUDE CNQSPART; ,           /*                                 */
+   2 FLAG_SEG,                    /*    35                           */
+   %INCLUDE CNQFLAGS;             /*                                 */
+                                  /*  1070                           */
+ /*------------------------------------------------------------------*/
+ /*              END OF CNQCOMM COMMAREA INCLUDE                     */
+ /*------------------------------------------------------------------*/
+

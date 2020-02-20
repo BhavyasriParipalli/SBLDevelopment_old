@@ -1,0 +1,29 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQCOS1     VERSION NR:  01           DATE:  11/03/93    */
+ /*                                               TIME:  14:10:20    */
+ /*                                                                  */
+ /* TITLE: CONTRACT NUMBER REFERENCE FILE.                           */
+ /*                                                                  */
+ /* KEYLENGTH :  14                                                  */
+ /*                                                                  */
+ /* LANGUAGE:  PLI                                                   */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  11/03/93  S930190 3CSP ORIGINAL PROMOTE             DLP         */
+ /*  12/05/96 S9600719 7NSA ADD SERVICE COMPONENT        MKP         */
+ /*                                                                  */
+ /********************************************************************/
+    3 RECLGTH   FIXED BIN(15), /* RECORD LENGTH IS "17"     001- 002 */
+    3 RECID      CHAR(1),      /* RECORD ID, ALWAYS A "9".  003- 003 */
+    3 CONTKEY,               /* KEY TO THE CONTRACT NUMBER FILE      */
+      5 CONTNUM  CHAR(6),    /* CONTRACT NUMBER             004- 009 */
+      5 SVCCOMP  CHAR(7),    /* SERVICE COMPONENT           010- 017 */
+    3 PADDING  CHAR(14)      /* UNUSED PORTION OF KEY       018- 030 */
+ /*------------------------------------------------------------------*/
+ /*   END CNQCOS1                                                    */
+ /*------------------------------------------------------------------*/
+

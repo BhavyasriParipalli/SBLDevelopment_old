@@ -1,0 +1,58 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQPCRF     VERSION NR:  01           DATE:  10/15/96    */
+ /*                                               TIME:  07:53:16    */
+ /*                                                                  */
+ /*        CANADIAN VERSION                                          */
+ /* TITLE: PART COST REFERENCE FILE - NEW SERVICE DIMENSIONS         */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* RECORD KEY: PART NUMBER.                                         */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                     PGMR:*/
+ /*  -------- -------- ---- ---------------------------------------- */
+ /*  12/07/99 S99093   9NSC MAKE CANADIAN VERSION OF AEQPCRF    LBS  */
+ /*                                                                  */
+ /********************************************************************/
+                                   /*                                */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH = '40'  001- 002 */
+     3 RECID        CHAR(01),      /* RECORD ID, ALWAYS '5' 003- 003 */
+     3 PART         CHAR(08),      /* ( KEY ) PART NUMBER   004- 011 */
+
+ %IF LANG = 'PLX' %THEN %GOTO FIX_BDY;
+     3 PRICE        FIXED BIN(31), /* PART PRICE (CENTS)    012- 015 */
+     3 COST         FIXED BIN(31), /* PART COST  (MILLS)    016- 019 */
+ %GOTO PASS_FIX_BDY;
+ %FIX_BDY:;
+     3 PRICE  FIXED BIN(31) BDY(BYTE), /* PART PRICE (CENTS) 012-015 */
+     3 COST   FIXED BIN(31) BDY(BYTE), /* PART COST  (MILLS) 016-019 */
+ %PASS_FIX_BDY:;
+     3 DESCR        CHAR(10),      /* PART DESCRIPTION      020- 029 */
+     3 TAG          CHAR(01),      /* RED TAG Y=YES,N=NO    030- 030 */
+     3 HAZUS        CHAR(01),      /* HAZARDOUS PART U.S.   031- 031 */
+                                   /* Y = YES, N= NO                 */
+     3 HAZCAN       CHAR(01),      /* HAZARDOUS PART CANADA 032- 032 */
+                                   /* Y = YES, N= NO                 */
+     3 QUOTE        CHAR(01),      /* QUOTE/NO QUOTE PRICE  033- 033 */
+                                   /* 0,1,3,5,6 = QUOTE PRICE        */
+                                   /* 2,4,7,8,9,' ' = NON-QUOTE PRICE*/
+     3 CLASS        CHAR(01),      /* PART MAINT CLASS      034- 034 */
+     3 CUPR         CHAR(01),      /* CANADA UPR PART       035- 035 */
+     3 DUPR         CHAR(01),      /* DOMESTIC UPR PART     036- 036 */
+     3 FOEMPART     CHAR(01),      /* PART FROM VENDOR(OEM) 037- 037 */
+                                   /* Y = YES, ' '= NO               */
+     3 ICONSGND     CHAR(01),      /* CONSIGNED PART TO IBM 038- 038 */
+                                   /* Y = YES, ' '= NO (IBM OWNED)   */
+     3 CAPC         CHAR(01),      /* ASSET PROTECTION      039- 039 */
+                                   /* CLASS. THIS FIELD/CHAR         */
+                                   /* IS USED BY CANADA              */
+     3 SPAD1        CHAR(01)       /* UNUSED PADDING        040- 040 */
+ /* ---------------------------------------------------------------- */
+ /*    END  OF  COPY  MEMBER  AEQPCRF                                */
+ /* ---------------------------------------------------------------- */
+

@@ -1,0 +1,32 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ---------  ERROR STRUCTURE  ---------               */
+ /*             ---------      FORMAT       ---------               */
+ /*  NAME: CNQERRT                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF ERROR HANDLING DATA STRUCTURE                 */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:           PROGRAMMER:*/
+ /*  --------  ---------  ----    ------------------     -----------*/
+ /*  09/25/88  SR 0038    9NSK    ORIGINAL VERSION           HAS    */
+ /*                                                                 */
+ /*******************************************************************/
+       3 ET_PROGRAM_ID     CHAR(8),    /* PROGRAM IN ERROR  001- 008*/
+                                       /* EIB SAVE IMAGE IS 85 BYTES*/
+       3 ET_EIB            CHAR(85),   /* WITH CICS 1.7     009- 093*/
+       3 ET_DUMPCODE       CHAR(1),    /* DUMP? (Y/N)       094- 094*/
+                                       /* ERROR DESCRIPTION LINES   */
+       3 ET_TEXT1          CHAR(80),   /*                   095- 174*/
+       3 ET_TEXT2          CHAR(80),   /*                   175- 254*/
+       3 ET_TEXT3          CHAR(80),   /*                   255- 334*/
+       3 ET_TEXT4          CHAR(80),   /*                   335- 414*/
+       3 ET_TEXT5          CHAR(80),   /*                   415- 494*/
+       3 WTO_FLAG          CHAR(1)     /* WRITE TEXT TO     495- 495*/
+                                       /* OPERATOR? (Y/N)           */
+ /*-----------------------------------------------------------------*/
+ /*              END OF CNQERRT SEGMENT LAYOUT                      */
+ /*-----------------------------------------------------------------*/
+

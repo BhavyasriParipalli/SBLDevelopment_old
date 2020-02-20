@@ -1,0 +1,29 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* INCLUDE: CNQERR1                                                */
+ /*                                                                 */
+ /* FUNCTION: RECORD LAYOUT FOR CANADIAN ERROR MESSAGE TABEL        */
+ /*                                                                 */
+ /* LRECL: 90 BYTES                                                 */
+ /*                                                                 */
+ /* RECORD KEY: PRIMARY 14 LEGNTH                                   */
+ /*                                                                 */
+ /* CHRONOLOGICAL UPDATE LOG                                        */
+ /*                                                                 */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY  */
+ /*  -------- --------  -----   ------------------------------  --- */
+ /*                                                                 */
+ /*  08/04/89 SR-0038   9NSK    ORIGINAL PROMOTE                HAS */
+ /*******************************************************************/
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS 90   001- 002*/
+     3 RECKEY,                     /* RECORD KEY                    */
+       5 RECID      CHAR(1),       /* RECORD ID, ALWAYS "C" 003- 003*/
+       5 AEQERROR   CHAR(3),       /* ERROR NUMBER          004- 006*/
+       5 FILL       CHAR(10),      /* UNUSED                007- 016*/
+     3 AEQSARP      CHAR(40),      /* ERROR MESSAGE         017- 056*/
+     3 AEQPTMSG     CHAR(20),      /* PT ERROR MESSAGE      057- 076*/
+     3 AEQNUSED     CHAR(14)       /* UNUSED                077- 090*/
+ /*******************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQERR1                               */
+ /*******************************************************************/
+

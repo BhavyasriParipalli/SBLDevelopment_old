@@ -1,0 +1,2142 @@
+ /********************************************************************/
+ /*****  S T A R T   O F   C O P Y  --    C N R U L E 2           ****/
+ /*****  THIS IS THE AUDIT EDIT RULE SOURCE.  IT IS DEPENDENT     ****/
+ /*****  ON THE AEFEDIT MACRO, WHICH MUST BE INCLUDED IN THE      ****/
+ /*****  SAME MODULE THAT THIS RULE IS INCLUDED IN.               ****/
+ /********************************************************************/
+ /********************************************************************/
+ /*                                                                  */
+ /*  MODULE:  CNRULE2                                                */
+ /*                                                                  */
+ /*  PROGRAM LANGUAGE: PL/I                                          */
+ /*  PROGRAM TYPE:     PROGRAM INCLUDE                               */
+ /*                                                                  */
+ /*  FUNCTION:   PERFORM CANADIAN AUDIT EDIT RULE                    */
+ /*                                                                  */
+ /*  UPDATE LOG:                                                     */
+ /*  - - - - - -                                                     */
+ /*  9NSK    SR 0038    INITIAL CANADIAN VERSION    08/09/89 SPZ     */
+ /*  9NSK    I87504     REMOVE OFFSET FOR EC NUMBER 11/06/89 SPZ     */
+ /*  9NSK    I87746     ALLOW PART QTY 01 TO 60     11/08/89 SPZ     */
+ /*  9NSK    I87799     ALLOW NULL MACH SERIALS     11/10/89 SPZ     */
+ /*  9NSK    I88058     ADD CUSTOMER NUMBER AUDIT   11/14/89 SPZ     */
+ /*  9NSK    DCR0038F   RESTRICT MACHINE STATUS     11/15/89 SPZ     */
+ /*                     AUDIT BY SERVICE CODE                        */
+ /*  9NSK    I88050     MAKE RECEIVING BO REQUIRED  11/15/89 SPZ     */
+ /*  9NSK    I88063     ALLOW SC46 ON PART TRAILERS 11/15/89 SPZ     */
+ /*  9NSK    I88111     CONTACT PHONE FIELD         11/15/89 SPZ     */
+ /*  9NSK    I88157     ALLOW ZERO ACTUAL HOURS     11/15/89 SPZ     */
+ /*  9NSK    I88205     FORCE "90 DAY' AUDIT        11/15/89 SPZ     */
+ /*  9NSK    DCR0038K   CHECK FOR PRESENCE          11/30/89 ABM     */
+ /*                     OF MACHINE SERIAL IN                         */
+ /*                     MACHINE STATUS AUDIT                         */
+ /*  1NSB    SR0649     REMOVE MACHINE STATUS       02/14/91 ABM     */
+ /*                     AND CUSTOMER NUMBER,                         */
+ /*                     REMOVE PSC AND PAT FROM                      */
+ /*                     PARTS ARRAY, ETC...                          */
+ /*  2NSD    I154106    ADD CHECK FOR BRANCH OFFICE   07/01/92 ABM   */
+ /*                     WHEN CHECKING FOR EQUIVALIENT                */
+ /*                     SENDING AND RECEIVING OUTLOC                 */
+ /*  3NSF    93046002   ADD SERVICE PERFORMANCE       03/16/93 ABM   */
+ /*  3NSF    93046003   MODIFY SERVICE PERFORMANCE                   */
+ /*                     TO ALLOW "I" ON QUESTION 2    03/18/93 ABM   */
+ /*  3NSP    S9300190   VALIDATE CONTRACT NUMBERS                    */
+ /*                     FOR S/C 44                    11/10/93 DLP   */
+ /*          226146     ALLOW 40 HRS ON SC 44         01/28/94 DLK   */
+ /*  5NSA    H0121799   BLOCK NON-ALPHANUMERIC DATA IN MACHINE TYPE. */
+ /*                                                   02/20/95 DLK   */
+ /*  02/14/96 S9500205 6PTE    Eliminate Some service codes and      */
+ /*                    6PTE    Expand use of Activity Codes          */
+ /*                            Expand use of Contract Number         */
+ /*                            Modify Service Code 47                */
+ /*                            Modify Service Code 48                */
+ /*                            Modify Service Code 99             DLP*/
+ /*                                                                  */
+ /*  03/28/96 C9520504 6PTE    S/C 46 Machine type to be optional    */
+ /*                            S/C 47 Machine type to be optional    */
+ /*                            S/C 47 Other Employee to be Mandatory */
+ /*                            S/C 47 Other Office to be optional    */
+ /*                            Add machine type "3170" to the table  */
+ /*                            of machines requiring Meter Reading.  */
+ /*                                                               DLP*/
+ /*  05/10/96 S9500206 6NSF    Add check for machine type allowed    */
+ /*                            on SC 48.                          LBS*/
+ /*  12/04/96 S9600718 7NSA    CHECK CONTRACT ON SC 46            MKP*/
+ /*  12/11/96 S9600719 7NSA    VALIDATE SERVICE COMPONENT         MKP*/
+ /*  03/27/97 IXXXXXXX 7NSD    REMOVE 'STATIC' ON BIT FLAGS       LBS*/
+ /*                            COMMENT OUT WORK FOR S9600718&719     */
+ /*  05/16/97 S9600718 7NSG    ACTIVATE THE SERVICE COMPONENT     LBS*/
+ /*                            CHECK                                 */
+ /*  06/17/97 S9671801 7NSG    CHANGE PEND LEVEL TO WARNING ON    LBS*/
+ /*                            ERROR 152 & 153 PER NICKLES           */
+ /*  12/01/97 S970149  7NSP    CHANGE WARNING TO PEND ON 183         */
+ /*                            IF FSEROVRD FLAG IS 'N'            MKP*/
+ /*  07/25/98 S97242A  8NSI    CHANGE CHECK ON PART SOURCE CODE   LBS*/
+ /*                            AND PART ACQ TIME (ADD SERVICE CODES) */
+ /*  08/17/98 S98071   8NSM    CORRECT CHECK ON PART SOURCE CODE  LBS*/
+ /*                            ADD CHECKS FOR FUNCTION CODE 9 & 10   */
+ /*                                                                  */
+ /*  10/12/98 I927873  8NSM    CORRECT THE FUNCTION CODE CHECK    DLP*/
+ /*                            FOR 9 AND 10 ON PART LINE 2 FOR  10   */
+ /*                            ERROR CODE 501 WAS POINTING TO PART   */
+ /*                            LINE 1                                */
+ /*  10/15/98 I931386  8NSM    CORRECT THE FROM B/O AND FROM O/L  DLP*/
+ /*                            FROM BEING ASSIGNED ON ON RECORD      */
+ /*                            WHERE THEY ARE NOT NEEDED.            */
+ /*                                                                  */
+ /*  11/02/98 S980156  8NSN    CANADA REAL TIME FEED OF QSAR DATA    */
+ /*                            TO RTS, ADD ASSIGNMENTS FOR           */
+ /*                            MACHINE MODEL, MACHINE STATUS,        */
+ /*                            WARRANTY EXPIRATION DATE,             */
+ /*                            AND STATUS EFFECTIVE DATE          DLP*/
+ /*  03/01/99 S980226  8NSN    ADD BMS AUDITS                     MKP*/
+ /*           S990???  8NSN    ALLOW FUNCTION CODE 04 FOR         DLP*/
+ /*                            FUNCTION CODE ORDER QTY,              */
+ /*                            FROM BO AND FROM OL                   */
+ /*  04/12/00 S00032   0NSD    CHANGE DOWNLEVEL MESSAGE (22)      LBS*/
+ /*                            TO A WARNING                          */
+ /*  05/03/00 S00032   0NSD    add warning 257 for waybill        LBS*/
+ /*  12/18/00 S00073   0NSK    change pre 910 contract checks     mkp*/
+ /*  09/02/01 S01032   1NSP    update BMS work number checks      LBS*/
+ /*  07/07/04 PRODSUPT 4NSG    remove plidate items               LBS*/
+ /*                                                                  */
+ /********************************************************************/
+ DCL R_VERSION          CHAR(17) INIT('4NSG - 10/07/2004');
+
+ GET_AUDIT_VER: PROC;
+
+ /* THIS PROC CALLED BY CNQRUL3 */
+ R_VER = '4NSG';                     /* PLEASE KEEP THIS UPDATED     */
+ END GET_AUDIT_VER;
+
+ AUDIT_EDIT_RULE: PROC REORDER;
+
+ /* THIS PROC CALLED BY CNQRUL3 */
+
+ /* %INCLUDE DEFDATE;;   /* DATE CONVERSION MACROS */
+ /* $DEFDATE((CLLGRG,VALGRG));  */
+
+ DCL 1 DATE_BUF1,
+       2 CHAR_BUF1     CHAR(1),
+       2 LILIAN_WORK  CHAR(3);
+ DCL LILIAN_WORK      FIXED BIN(31) INIT(0);
+
+ DCL 1 DATE_BUF2,
+       2 CHAR_BUF2     CHAR(1),
+       2 LILIAN_TODAY CHAR(3);
+ DCL LILIAN_TODAY     FIXED BIN(31) INIT(0);
+
+ /* CHAR_BUF1 = LOW(1) */
+ /* CHAR_BUF2 = LOW(1) */
+
+ DCL WORK_DATE         CHAR(8)    INIT('');
+ DCL WORK_DATE_PIC     PIC '(8)9' BASED(ADDR(WORK_DATE));
+ DCL AUDIT_DATE_PIC    PIC '(8)9' BASED(ADDR(AUDIT_DATE));
+ DCL DATE_DIFFERENCE   FIXED BIN(31) INIT(0);
+ DCL S0QTRAHR_NUM      PIC '99V9' BASED(ADDR(S0QTRAHR));
+ DCL S0QSVCHR_NUM      PIC '99V9' BASED(ADDR(S0QSVCHR));
+ DCL S0CFUNC_1         CHAR(2)    BASED(ADDR(S0CFUNC(1)));
+ DCL S0CFUNC_2         CHAR(2)    BASED(ADDR(S0CFUNC(2)));
+ DCL S0IPART_1         CHAR(8)    BASED(ADDR(S0IPART(1)));
+ DCL S0IPART_2         CHAR(8)    BASED(ADDR(S0IPART(2)));
+ DCL S0QDISUS_1        CHAR(2)    BASED(ADDR(S0QDISUS(1)));
+ DCL S0QDISUS_2        CHAR(2)    BASED(ADDR(S0QDISUS(2)));
+ DCL ORDER_QTY1        CHAR(2)    BASED(ADDR(ORDER_QTY(1)));
+ DCL ORDER_QTY2        CHAR(2)    BASED(ADDR(ORDER_QTY(2)));
+ DCL S0IRECBO_1        CHAR(3)    BASED(ADDR(S0IRECBO(1)));
+ DCL S0IRECBO_2        CHAR(3)    BASED(ADDR(S0IRECBO(2)));
+ DCL S0IRECOL_1        CHAR(3)    BASED(ADDR(S0IRECOL(1)));
+ DCL S0IRECOL_2        CHAR(3)    BASED(ADDR(S0IRECOL(2)));
+ DCL S0IBINLC_1        CHAR(6)    BASED(ADDR(S0IBINLC(1)));
+ DCL S0IBINLC_2        CHAR(6)    BASED(ADDR(S0IBINLC(2)));
+
+ DCL SERV_PERF1        CHAR(1);
+ DCL SERV_PERF2        CHAR(1);
+ DCL SERV_PERF3        CHAR(1);
+ DCL SERV_PERF4        CHAR(1);
+ DCL SERV_PERF5        CHAR(1);
+
+ DCL WORK_NUM          FIXED DEC(7,0) INIT(0);
+
+ DCL ERR_SW            BIT (1) INIT('0'B);
+ DCL FC_FOUND          BIT (1) INIT('0'B);
+ DCL ON                BIT (1) INIT('1'B);
+ DCL OFF               BIT (1) INIT('0'B);
+ DCL MACHSER_BYPASS    BIT (1) INIT('0'B);
+ DCL MACHTYPE_BYPASS   BIT (1) INIT('0'B);
+ DCL PART_TRAILER      BIT (1) INIT('0'B);
+ DCL PART_ONLY         BIT (1) INIT('0'B);
+
+
+ /********************************************************************/
+ /* FIRST, SET PART TRAILER AND PART ONLY SWITCHES                   */
+ /* NOTE - CHCDATIT IS SET IN AEQFMT1                                */
+ /********************************************************************/
+
+ IF S0IPARTR = '1' THEN
+   PART_TRAILER = ON;
+ ELSE
+   PART_TRAILER = OFF;
+
+ IF CHCDATIT = 'P' & S0CSVC = '  ' THEN
+   PART_ONLY = ON;
+ ELSE
+   PART_ONLY = OFF;
+
+1/* START OF FIELD EDITS AND AUDITS */
+ SYSTEM_FAIL:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  LINKFAIL  IF SYSTEM PROBLEM, GIVE QSAR ERROR #110               */
+ /*  --------                                                        */
+ /********************************************************************/
+  IF TEST_SW
+    THEN DO;
+      DIAG_TEXT ='CNRULE2: > LINK FAIL = '||LINKFAIL;
+      CALL WRITE_TO_OPER;
+    END;
+
+
+ FEDIT (LINKFAIL,
+        REQUIRED,
+        ALPHANB,
+        EQ,
+        (' ','N'),
+        PEND,110)
+
+ IF FAIL THEN
+   RETURN;   /* NO SENSE DOING THE REST OF THE AUDITS IF SYSTEM SICK */
+
+ END SYSTEM_FAIL;
+
+1
+ DOWNLEVEL_CHECK:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  S0IBRGFG  IF THE PT OR TRUER DOWNLEVEL INDICATORS = L           */
+ /*  --------     THEN GIVE PEND ERROR #22                           */
+ /********************************************************************/
+ IF (S0ISRCPT) &
+    (^S0IRESUB) &
+    (QCRC_MULTRESUB ^= 'Y') THEN
+   DO;                                   /* PT DOWNLEVEL CHECK       */
+     FEDIT (S0IBRGFG,
+            NOTALLOWED,
+            ALPHANB,
+            EQ,
+            ('L'),
+            WARNING,22)
+                                         /* PET2/TRUER DOWNLEVEL     */
+                                         /* CHECK                    */
+     FEDIT (FPETDLPT,
+            NOTALLOWED,
+            ALPHANB,
+            EQ,
+            ('L'),
+            WARNING,22)
+   END;
+
+ END DOWNLEVEL_CHECK;
+1
+ ACTIVITY_CODE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  ACTIVITY CODE (S0CHACT)                                         */
+ /*  -------------                                                   */
+ /********************************************************************/
+ IF ( S0CSVC = '51'  |
+      S0CSVC = '60'  |
+      S0CSVC = '99' )|
+    ( PART_TRAILER ) |
+    ( PART_ONLY ) THEN
+   FEDIT (S0CHACT,
+          REQUIRED,
+          NUMB,
+          EQ,
+          ('  ','00'),
+          PEND,101)
+ ELSE;
+
+ IF S0IPECLV >= '910' &
+    S0IPECLV < '995'  &
+    S0CSVC  = '44'
+   THEN FEDIT (S0CHACT,
+                REQUIRED,
+                NUMB,
+                EQ,
+                ('80','99'),
+                PEND,101)
+
+ /*IF ( S0CSVC = '44' ) THEN        */
+ /*  FEDIT (S0CHACT,                */
+ /*         REQUIRED,               */
+ /*         NUM,                    */
+ /*         PEND,101)               */
+ END ACTIVITY_CODE;
+1
+ ACTUAL_HOURS:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  ACTUAL HOURS (S0QSVCHR)                                         */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) &
+    ( ^PART_TRAILER ) THEN
+   DO;
+     IF ( S0CSVC = '99' ) THEN
+       DO;
+         FEDIT (S0QSVCHR,
+                REQUIRED,
+                NUMB,
+                EQ,
+                ('   ','000'),
+                PEND,108)
+         IF FAIL THEN
+           S0QSVCHR = '000';
+       END;
+     ELSE
+       DO;
+          FEDIT (S0QSVCHR,
+                 REQUIRED,
+                 NUM,
+                 GE,
+                 ('000'),
+                 PEND,105)
+       END;
+   END;
+
+ FEDIT (FHRSINV,
+        REQUIRED,
+        ALPHAN,
+        NE,
+        ('Y'),
+        PEND,109)
+
+
+ END ACTUAL_HOURS;
+1
+ ALT_SHIP_BO:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  ALTERNATE SHIP B/O (S0IALTRB)                                   */
+ /*  ------------------                                              */
+ /********************************************************************/
+
+ FEDIT (S0IALTRB,
+        REQUIRED,
+        ALPHANB,
+        PEND,413)
+
+ END ALT_SHIP_BO;
+1
+ BA_CODE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  BILLABLE / SPECIAL ACTIVITY CODE (S0CBIOSA)                     */
+ /*  --------------------------------                                */
+ /********************************************************************/
+
+ FEDIT (S0CBIOSA,
+        REQUIRED,
+        ALPHANB,
+        PEND,115)
+
+ IF ( S0CSVC = '36' ) THEN
+   FEDIT (S0CBIOSA,
+          REQUIRED,
+          ALPHAN,
+          EQ,
+          ('1','4','X'),
+          PEND,115)
+
+ IF ( S0CSVC = '01' ) |
+    ( S0CSVC = '08' ) |
+    ( S0CSVC = '20' ) |
+    ( S0CSVC = '31' ) |
+    ( S0CSVC = '33' ) |
+    ( S0CSVC = '46' ) |
+    ( S0CSVC = '48' ) THEN
+   FEDIT (S0CBIOSA,
+          REQUIRED,
+          ALPHANB,
+          EQ,
+          (' ','1','4','X'),
+          PEND,115)
+ END BA_CODE;
+
+1
+ BILL_CODE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  BILL CODE        (337)                                          */
+ /*  (S0CTAC)                                                        */
+ /*  --------------------------                                      */
+ /*                                                                  */
+ /********************************************************************/
+
+ /* --------------------------------------------------------------- */
+ /* BILL CODE IS ONLY AVAILABLE ON A SERVICE CODE 44 QSAR.          */
+ /* ALSO THE VALID_BILL_CODE FLAG WILL ALWAYS BE SET TO "Y" UNLESS  */
+ /* IT'S IS NOT VALIDATED UNDER THE SC 44 CONDITIONS.               */
+ /* --------------------------------------------------------------- */
+ /* %NOPRINT;
+       IF TEST_SW &  S0CSVC = '44' THEN
+         DO;
+         DIAG_TEXT ='CNRULE2: > VALID BILL CODE   = '||VALID_BILL_CODE;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+  IF (S0CSVC = '44' & VALID_BILL_CODE = 'N')
+    THEN
+         FEDIT (VALID_BILL_CODE,
+                REQUIRED,
+                ALPHAN,
+                EQ,
+                ('Y'),
+                PEND,337)                    ENTERED BUT INVALID */
+
+ END BILL_CODE;
+
+1
+ BIN_LOC:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  BIN LOCATION (S0IBINLC)                                         */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ FEDIT (S0IBINLC_1,
+        REQUIRED,
+        ALPHANB,
+        PEND,415)
+
+ FEDIT (S0IBINLC_2,
+        REQUIRED,
+        ALPHANB,
+        PEND,515)
+
+ END BIN_LOC;
+1
+ CONTACT_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CONTACT    (CUSTCONT)                                           */
+ /*  -------                                                         */
+ /********************************************************************/
+
+ IF (^PART_ONLY) THEN                   /* I88428 */
+   DO;
+     IF ( (S0CBIOSA > ' ')  |
+          (S0CSVC = '01')   |
+          (S0CSVC = '08')   |
+          (S0CSVC = '20')   |
+          (S0CSVC = '36')    ) &
+        (S0CSVC ^= '44' )      THEN
+        FEDIT (CUSTCONT,
+               NOTALLOWED,
+               ALPHANBS,
+               EQ,
+               (''),
+               PEND,120)
+   END;
+ END CONTACT_FLD;
+1
+ CONTACT_PHONE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CONTACT PHONE:  (CUSTCONPH)                                     */
+ /*  -------------                                                   */
+ /********************************************************************/
+
+ FEDIT (CUSTCONPH,
+        REQUIRED,
+        ALPHANB,
+        PEND,125)
+
+ IF (^PART_ONLY) THEN                    /* I88428 */
+   DO;
+     IF (CUSTCONT > '') THEN
+        FEDIT (CUSTCONPH,
+               NOTALLOWED,
+               ALPHANB,
+               EQ,
+               (''),
+               PEND,121)
+   END;
+ END CONTACT_PHONE;
+1
+ COURSE_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  COURSE CODE:  (COURSE_CODE)                                     */
+ /*  -----------                                                     */
+ /********************************************************************/
+
+ IF (^PART_ONLY) &
+    (^PART_TRAILER) THEN
+   DO;
+     IF (S0CSVC = '51') THEN
+        FEDIT (COURSE_CODE,
+               NOTALLOWED,
+               ALPHANB,
+               EQ,
+               ('     '),
+               PEND,145)
+     IF (S0CSVC = '99') THEN
+        FEDIT (COURSE_CODE,
+               NOTALLOWED,
+               ALPHANB,
+               PEND,145)
+   END;
+ END COURSE_FLD;
+1
+ COMMENTS:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CSR COMMENTS: (CSR_COMMENTS)                                    */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF (^PART_ONLY) THEN                 /* I88428 */
+   DO;
+     IF (S0CSVC = '01')  |
+        (S0CSVC = '08')  |
+        (S0CSVC = '20')  |
+        (S0CSVC = '36')  |
+        (S0CSVC = '48')  |
+        (S0CBIOSA ^= ' ') THEN
+        FEDIT (CSR_COMMENTS,
+               NOTALLOWED,
+               ALPHANBS,
+               EQ,
+               (''),
+               PEND,205)
+   END;
+ END COMMENTS;
+1
+ CONTRACT_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CSS CONTRACT  (S0ICSS_CODE)                                     */
+ /*  ------------                                                    */
+ /*  IF THE TABLE IS 910 OR GREATER THE BMS AUDITS WILL BE PERFORMED */
+ /*                                                                  */
+ /*  ELSE IF THE TABLE IS LESS THAN 910 THE OLD AUDITS WILL BE USED: */
+ /*  CONTRACT IS REQUIRED FOR SC 42 & 44 BUT OPTIONAL FOR SC 46      */
+ /*  SERVICE COMPONENT IS REQUIRED FOR SC 44 BUT OPTIONAL FOR SC 42 &*/
+ /*   46.                                                            */
+ /********************************************************************/
+  IF  S0IPECLV >= '910' &
+      S0IPECLV ^= '997' &            /* OLD SCREENS PUT 997, 998 OR   */
+      S0IPECLV ^= '998' &            /* 999 IN THE PT LEVEL FIELD     */
+      S0IPECLV ^= '999'   THEN
+    DO;
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > ENTERING BMSCONTRACT AUDIT/EDITS';
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > CONTRACT NO            = '||S0ICSS2;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > ACTIVITY CODE          = '||S0CHACT;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > INVALID CONTRACT FLAG  = '||CINVCNTR;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > TABLE LEVEL            = '||S0IPECLV;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+    IF S0CSVC     = '44'  THEN
+      SELECT (CINVCNTR);             /* INVALID CONTRACT FLAG        */
+        WHEN (' ');                  /*   VALID WORK NUMBER          */
+        WHEN ('A')                   /* INVALID WORK NUMBER          */
+          DO;
+            ERR_SW = ON;
+            FEDIT (ERR_SW,
+                   NOTALLOWED,
+                   BI,
+                   EQ,
+                   (ON),
+                   PEND,333)
+            ERR_SW = OFF;
+          END;
+       WHEN ('D')                   /* OUT OF DATE FOR WORK NUMBER  */
+         DO;
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,336)
+           ERR_SW = OFF;
+         END;
+       WHEN ('E')                   /* OUT OF DATE FOR BILL CODE    */
+         DO;
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,335)
+           ERR_SW = OFF;
+         END;
+       WHEN ('G')                   /* INVALID ACTIVITY             */
+         DO;
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,334)
+           ERR_SW = OFF;
+         END;
+       WHEN ('H')                   /* INVALID DATE FOR ACTIVITY ID */
+         DO;
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,332)
+           ERR_SW = OFF;
+         END;
+       WHEN ('J')                   /* ACTIVITY ID INVALID FOR WORK */
+         DO;                        /* NUMBER                       */
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,340)
+           ERR_SW = OFF;
+         END;
+       WHEN ('K')                   /* ACTIVITY DATE AFTER ACTIVITY */
+         DO;                        /* ID CLOSE DATE                */
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,341)
+           ERR_SW = OFF;
+         END;
+       WHEN ('L')                   /* ACTIVITY DATE AFTER ACTIVITY */
+         DO;                        /* ID CLOSE DATE                */
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,337)
+           ERR_SW = OFF;
+         END;
+       OTHERWISE
+          DO;
+            ERR_SW = ON;
+            FEDIT (ERR_SW,
+                   NOTALLOWED,
+                   BI,
+                   EQ,
+                   (ON),
+                   PEND,333)
+            ERR_SW = OFF;
+          END;
+     END;
+   END;
+ ELSE   /* --- PRE 910 CHECKS  --- */
+   DO;
+
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > ENTERING BMSCONTRACT AUDIT/EDITS';
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > M_CONTRACT             = '
+           ||M_CONTRACT;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > TABLE LEVEL            = '||S0IPECLV;
+           CALL WRITE_TO_OPER;
+         END;
+
+     IF (^PART_ONLY) &
+        (^PART_TRAILER) THEN
+        DO;
+           IF (S0CSVC = '44' | S0CSVC = '42' |
+                (S0CSVC = '46' & S0ICSS2 ^= '' )) THEN
+            DO;
+              FEDIT (SUBSTR(S0ICSS2,1,6),
+                     REQUIRED,
+                     ALPHAN,
+                     PEND,150)           /* ------------------------ */
+                                         /* IF THE SERVICE CODE IS   */
+                                         /* 44 AND THE QSAR WAS      */
+                                         /* ENTERED VIA TRUER OR QCRC*/
+                                         /* THEN SERVICE COMPONENT IS*/
+                                         /* REQUIRED                 */
+                                         /* ------------------------ */
+              IF S0CSVC = '44' & (IPETLVL >= 115 | S0ISRCNS) THEN
+                FEDIT (SSVCCOMP,
+                       REQUIRED,
+                       ALPHAN,
+                    WARNING,153)
+                                     /* WAS PEND,153) CHANGED 6/17/97*/
+                /* TEMP CODE TO REQ MATCH TO CONTRACT                */
+
+                FEDIT (M_CONTRACT,
+                        REQUIRED,
+                        ALPHAN,
+                        EQ,
+                        ('Y'),
+                        PEND,151)
+                /* TEMP CODE TO REQ MATCH TO CONTRACT               */
+                                     /* --------------------------- */
+                                     /* IF SERVICE COMPONENT WAS    */
+                                     /* ENTERED AND NO MATCH WAS    */
+                                     /* MADE THEN PEND WITH 152     */
+                                     /* INVALID SERVICE COMPONENT   */
+                                     /* COMBINATION.  ELSE PEND WITH*/
+                                     /* 151 INVALID CONTACT         */
+          /*  IF SSVCCOMP = '' THEN     --------------------------- */
+          /*    FEDIT (M_CONTRACT,   */
+          /*            REQUIRED,    */
+          /*            ALPHAN,      */
+          /*            EQ,          */
+          /*            ('Y'),       */
+          /*            PEND,151)    */
+          /*  ELSE               TEMP COMMENTED OUT, PER NICKLES  */
+          /*    FEDIT (M_CONTRACT,   */
+          /*            REQUIRED,    */
+          /*            ALPHAN,      */
+          /*            EQ,          */
+          /*            ('Y'),       */
+          /*         WARNING,152)    */
+          /*                         */  /*WAS PEND,152) CHGD 6/17/97*/
+            END;
+
+        END;
+    END;
+
+ END CONTRACT_FLD;
+1
+ CUSTOMER_NAME:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CUSTOMER NAME (CUSTNAME)                                        */
+ /*  -------------                                                   */
+ /********************************************************************/
+
+ IF (^PART_ONLY) THEN                /* I88428 */
+   DO;
+     IF (S0CBIOSA ^= ' ') |
+        (S0CSVC = '01')   |
+        (S0CSVC = '08')   |
+        (S0CSVC = '20')   |
+        (S0CSVC = '36')   |
+        (S0CSVC = '48') THEN
+        FEDIT (CUSTNAME,
+               NOTALLOWED,
+               ALPHANBS,
+               EQ,
+               (''),
+               PEND,130)
+   END;
+ END CUSTOMER_NAME;
+1
+ CUSTOMER_ADDR:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CUSTOMER LOC  (CUSTADDR)                                        */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF (^PART_ONLY) THEN                /* I88428 */
+   DO;
+     IF (S0CBIOSA ^= ' ') |
+        (S0CSVC = '01')   |
+        (S0CSVC = '08')   |
+        (S0CSVC = '20')   |
+        (S0CSVC = '36')   |
+        (S0CSVC = '48') THEN
+        FEDIT (CUSTADDR,
+               NOTALLOWED,
+               ALPHANBS,
+               EQ,
+               (''),
+               PEND,140)
+   END;
+ END CUSTOMER_ADDR;
+1
+ DELIV_PT:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  DELIVERY POINT (S0CDELPT)                                       */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ FEDIT (S0CDELPT,
+        REQUIRED,
+        ALPHANB,
+        PEND,417)
+
+ END DELIV_PT;
+1
+ EC_NUMBER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  EC NUMBER    (S0CMSCM)  - RIGHTMOST 3 BYTES                     */
+ /*  ---------                                                       */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) &
+    ( ^PART_TRAILER ) THEN
+   IF ( S0CSVC = '33' ) THEN
+      FEDIT (S0CMSCM,
+             REQUIRED,
+             ALPHAN,
+             PEND,155)
+
+ END EC_NUMBER;
+1
+ EMP_SER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  EMPLOYEE SERIAL (S0IEMPSE)                                      */
+ /*  ---------------                                                 */
+ /********************************************************************/
+
+ FEDIT (S0IEMPSE,
+        REQUIRED,
+        ALPHAN,
+        PEND,160)
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH EMP SERIAL  = '||M_EMPSER;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+ FEDIT (M_EMPSER,
+        REQUIRED,
+        ALPHAN,
+        EQ,
+        ('Y'),
+        PEND,161)
+
+ END EMP_SER;
+1
+ FROM_BO:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  FROM BRANCH OFFICE (S0ISENBO)                                   */
+ /*  ------------------                                              */
+ /********************************************************************/
+ IF ( S0CFUNC_1 = '01' ) |
+    ( S0CFUNC_1 = '03' ) |
+    ( S0CFUNC_1 = '04' ) |
+    ( S0CFUNC_1 = '06' ) |
+    ( S0CFUNC_1 = '21' ) |
+    ( S0CFUNC_2 = '01' ) |
+    ( S0CFUNC_2 = '03' ) |
+    ( S0CFUNC_2 = '06' ) |
+    ( S0CFUNC_2 = '21' ) THEN
+   DO;
+     FEDIT (S0ISENBO,
+            REQUIRED,
+            ALPHANB,
+            PEND,423)
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH FROM BO     = '||M_FROMBO;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+     IF ^FAIL THEN
+       IF ( S0ISENBO > '' ) THEN
+         IF ( M_FROMBO = 'N' ) THEN
+           DO;
+             ERR_SW = ON;
+             FEDIT (ERR_SW,
+                    NOTALLOWED,
+                    BI,
+                    EQ,
+                    (ON),
+                    PEND,419)
+             ERR_SW = OFF;
+     END;
+   END;
+ ELSE
+   DO;
+     FEDIT (S0ISENBO,
+            REQUIRED,
+            ALPHANB,
+            EQ,
+            ('   '),
+            WARNING,426)
+
+     IF FAIL THEN
+       S0ISENBO = '';
+   END;
+
+ END FROM_BO;
+1
+ FROM_OL:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  FROM OUTSIDE LOCATION (S0ISENOL)                                */
+ /*  ---------------------                                           */
+ /********************************************************************/
+ IF ( S0CFUNC_1 = '01' ) |
+    ( S0CFUNC_1 = '03' ) |
+    ( S0CFUNC_1 = '04' ) |
+    ( S0CFUNC_1 = '06' ) |
+    ( S0CFUNC_1 = '21' ) |
+    ( S0CFUNC_2 = '01' ) |
+    ( S0CFUNC_2 = '03' ) |
+    ( S0CFUNC_2 = '06' ) |
+    ( S0CFUNC_2 = '21' ) THEN
+   DO;
+     FEDIT (S0ISENOL,
+            REQUIRED,
+            ALPHANB,
+            PEND,425)
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH FROM OL     = '||M_FROMOL;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+     IF ^FAIL THEN
+       IF ( S0ISENOL > '' ) THEN
+         IF ( M_FROMOL = 'N' ) THEN
+           DO;
+             ERR_SW = ON;
+             FEDIT (ERR_SW,
+                    NOTALLOWED,
+                    BI,
+                    EQ,
+                    (ON),
+                    PEND,421)
+             ERR_SW = OFF;
+           END;
+   END;
+ ELSE
+   DO;
+     FEDIT (S0ISENOL,
+            REQUIRED,
+            ALPHANB,
+            EQ,
+            ('   '),
+            WARNING,422)
+
+     IF FAIL THEN
+       S0ISENOL = '';
+   END;
+
+ IF ( S0ISENOL > '' ) THEN
+   DO;
+     IF ( S0IRECOL_1 > '' ) &
+        ( S0IRECOL_1 = S0ISENOL ) &
+        ( S0IRECBO_1 = S0ISENBO ) THEN
+       CALL SET_ERROR_ARRAY(1,'S0ISENOL',3,427);
+        /*    PEND,427)  */
+     ELSE;
+     IF ( S0IRECOL_2 > '' ) &
+        ( S0IRECOL_2 = S0ISENOL ) &
+        ( S0IRECBO_2 = S0ISENBO ) THEN
+       CALL SET_ERROR_ARRAY(1,'S0ISENOL',3,429);
+        /*    PEND,429)  */
+     ELSE;
+   END;
+
+ END FROM_OL;
+1
+ FUNC_CODE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PART FUNCTION CODE ( S0CFUNC )                                  */
+ /*  ------------------                                              */
+ /********************************************************************/
+
+ IF ( S0IPART_1 ^= '        ' ) THEN
+   FEDIT (S0CFUNC_1,
+          REQUIRED,
+          NUM,
+          EQ,
+          ('01','02','03','04','06','09','10','21'),
+          PEND,431)
+
+ IF ( S0IPART_2 ^= '        ' ) THEN
+   FEDIT (S0CFUNC_2,
+          REQUIRED,
+          NUM,
+          EQ,
+          ('01','02','03','04','06','09','10','21'),
+          PEND,433)
+
+ END FUNC_CODE;
+1
+ KOC_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  KIND OF CALL    (KOC)   CALLED COMPLETION CODE IN U.S.          */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) THEN
+   DO;
+     IF ( PART_TRAILER ) &
+        ( S0CSVC ^= '99' ) THEN
+       FEDIT (KOC,
+              REQUIRED,
+              NUM,
+              EQ,
+              ('1','2','4','5','6'),
+              PEND,175)
+     ELSE
+       IF ( S0CSVC ^= '99' ) THEN
+         FEDIT (KOC,
+                REQUIRED,
+                NUM,
+                EQ,
+                ('1','2','3','4','5','6'),
+                PEND,175)
+   END;
+ END KOC_FLD;
+1
+ MACHSER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  MACHINE SERIAL  (S0IMACSE)                                      */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) THEN
+   DO;
+     IF ( S0CSVC = '01' ) |
+        ( S0CSVC = '08' ) |
+        ( S0CSVC = '12' ) |
+        ( S0CSVC = '31' ) |
+        ( S0CSVC = '33' ) |
+        ( S0CSVC = '36' ) |
+        ( S0CSVC = '48' ) THEN
+         FEDIT (S0IMACSE,
+                NOTALLOWED,
+                ALPHANB,
+                EQ,
+                ('       '),
+                PEND,180)
+
+     IF ( S0CSVC = '20' ) |
+        ( S0CSVC = '42' ) |
+        ( S0CSVC = '44' ) |
+        ( S0CSVC = '46' ) |
+        ( S0CSVC = '47' ) |
+        ( S0CSVC = '99' ) THEN
+         FEDIT (S0IMACSE,
+                REQUIRED,
+                ALPHANB,
+                PEND,180)
+
+     IF ( S0CSVC = '51' ) |
+        ( S0CSVC = '60' ) THEN
+       DO;
+         FEDIT (S0IMACSE,
+                REQUIRED,
+                ALPHANB,
+                EQ,
+                ('       '),
+                WARNING,181)
+         IF FAIL THEN
+           S0IMACSE = '';
+       END;
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH INV REQ     = '||M_INV_REQ;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > SERIAL OVERRIDE   = '||FSEROVRD;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > SERIAL INVENTORY  = '||M_INV;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+     IF ( S0IMACSE > ' ' ) THEN
+       IF ( M_INV_REQ = 'Y' & FSEROVRD ^= 'Y' ) THEN
+         FEDIT (M_INV,
+                REQUIRED,
+                ALPHAN,
+                EQ,
+                ('Y'),
+                PEND,183)
+       ELSE
+         FEDIT (M_INV,
+                REQUIRED,
+                ALPHAN,
+                EQ,
+                ('Y'),
+                WARNING,182)
+     ELSE;
+   END;   /* NOT PARTS ONLY */
+ END MACHSER;
+1
+ MACH_TYPE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  MACHINE TYPE    (S0IMACTC)                                      */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ FEDIT (S0IMACTC,
+        REQUIRED,
+        ALPHANB,
+        WARNING,196)
+ IF FAIL THEN S0IMACTC = ' ';
+ ELSE;
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH MACH TYPE TABLE = '||M_MTT;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > FACTADMN              = '||FACTADMN;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+                    /* MACHINE TYPE NOT MANADTORY ON SC 42, 44, 46,   */
+                    /*                                  47 AND 51     */
+ IF ( ^PART_ONLY ) THEN
+   DO;
+     IF ( S0CSVC = '42' |
+          S0CSVC = '44' |
+          S0CSVC = '46' |
+          S0CSVC = '47' |
+          S0CSVC = '51' ) THEN
+       DO;
+         IF ( S0IMACTC > ' ' ) THEN
+            FEDIT (M_MTT,
+                  REQUIRED,
+                  ALPHAN,
+                  EQ,
+                  ('Y'),
+                  WARNING,197)
+       END;                               /* SERVICE CODE 51         */
+     ELSE
+                                         /* IF SC 48 AND MACHINE TYPE*/
+                                         /* NOT ALLOWED              */
+       IF ( S0CSVC  = '48' & ^FACTADMN) THEN
+         DO;
+           ERR_SW = ON;
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,195)
+           ERR_SW = OFF;
+         END;                      /* ALL OTHER SERVICE CODES BUT 60 */
+     ELSE
+       IF ( S0CSVC ^= '60' ) THEN /* ALL OTHER SERVICE CODES BUT 60  */
+         DO;
+           FEDIT (M_MTT,
+                  REQUIRED,
+                  ALPHAN,
+                  EQ,
+                  ('Y'),
+                  PEND,198)
+         END;                      /* ALL OTHER SERVICE CODES BUT 60 */
+   END;
+ END MACH_TYPE;
+
+ METER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  METER READING   (METER_READING)                                 */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF (S0IMACTC = '3112' | S0IMACTC = '3116' |
+     S0IMACTC = '3130' | S0IMACTC = '3160' |
+     S0IMACTC = '3170' | S0IMACTC = '3694' |
+     S0IMACTC = '3800' | S0IMACTC = '3807' |
+     S0IMACTC = '3812' | S0IMACTC = '3816' |
+     S0IMACTC = '3820' | S0IMACTC = '3825' |
+     S0IMACTC = '3827' | S0IMACTC = '3828' |
+     S0IMACTC = '3829' | S0IMACTC = '3835' |
+     S0IMACTC = '3890' | S0IMACTC = '3891' |
+     S0IMACTC = '3900' | S0IMACTC = '3912' |
+     S0IMACTC = '3916' | S0IMACTC = '3930' |
+     S0IMACTC = '3935' | S0IMACTC = '4028' |
+     S0IMACTC = '5258')   &
+    (S0CSVC = '01'     | S0CSVC = '08'     | S0CSVC = '20' |
+     S0CSVC = '31'     | S0CSVC = '33'     | S0CSVC = '36' |
+     S0CSVC = '44' )      &
+     KOC = '1'            & ^PART_TRAILER THEN
+         IF METER_READING = '' THEN
+            DO;
+              ERR_SW = ON;
+              FEDIT (ERR_SW,
+                     NOTALLOWED,
+                     BI,
+                     EQ,
+                     (ON),
+                     WARNING,185)
+            END;
+         ERR_SW = OFF;
+
+ END METER;
+1
+ THE_ORDER_QTY:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  ORDER QUANTITY     (ORDER_QTY(2))                               */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ IF (( S0CFUNC_1 = '01' ) |
+     ( S0CFUNC_1 = '03' ) |
+     ( S0CFUNC_1 = '04' ) |
+     ( S0CFUNC_1 = '21' )) &
+       ORDER_QTY1 ^= '  ' THEN
+   FEDIT (ORDER_QTY1,
+          REQUIRED,
+          NUM,
+          EQ,
+          ('01'-'99'),
+          PEND,402)
+
+ IF (( S0CFUNC_2 = '01' ) |
+     ( S0CFUNC_2 = '03' ) |
+     ( S0CFUNC_2 = '04' ) |
+     ( S0CFUNC_2 = '21' )) &
+       ORDER_QTY2 ^= '  ' THEN
+   FEDIT (ORDER_QTY2,
+          REQUIRED,
+          NUM,
+          EQ,
+          ('01'-'99'),
+          PEND,502)
+
+ END THE_ORDER_QTY;
+1
+ OTH_EMPL_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  OTHER EMPLOYEE  (OTH_EMPL)                                      */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ IF ( S0CSVC = '47' ) THEN
+   FEDIT (OTH_EMPL,
+          NOTALLOWED,
+          ALPHANB,
+          EQ,
+          ('      '),
+          PEND,
+          230)
+
+ IF ( S0CSVC = '99') THEN
+   FEDIT (OTH_EMPL,
+          REQUIRED,
+          ALPHANB,
+          PEND,230)
+ END OTH_EMPL_FLD;
+1
+ OTH_OFFICE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  OTHER OFFICE    (S0IOTBCW)                                      */
+ /*  ------------                                                    */
+ /********************************************************************/
+ IF ( ^PART_TRAILER ) &
+    ( ^PART_ONLY ) THEN
+   IF ( S0CSVC = '47' ) THEN
+     FEDIT (S0IOTBCW,
+            REQUIRED,
+            ALPHANB,
+            PEND,226)
+   ELSE
+     IF ( S0IOTBCW > ' ' ) THEN
+       FEDIT (S0IOTBCW,
+              REQUIRED,
+              ALPHAN,
+              PEND,225)
+ END OTH_OFFICE;
+1
+ PART_ACQ_TIME:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PART ACQUISITION TIME ( S0CPACQT )                              */
+ /*  ---------------------                                           */
+ /********************************************************************/
+
+                                         /* I116039 - PART ACQ TIME   */
+                                         /* NOT REQUIRED ON TRAILER   */
+ IF PART_TRAILER THEN
+    FEDIT (S0CPACQT,
+           REQUIRED,
+           NUMB,
+           PEND,141)
+ ELSE
+   DO;  /* NOT PART TRAILER */
+     IF (S0CSVC = '01'  |
+         S0CSVC = '08'  |
+         S0CSVC = '12'  |
+         S0CSVC = '20'  |
+         S0CSVC = '31'  |
+         S0CSVC = '33'  |
+         S0CSVC = '36'  |
+         S0CSVC = '46'  |
+         S0CSVC = '47'  ) &
+        (PART_SRC ^= '0') &
+        (KOC ^= '3') THEN
+       FEDIT (S0CPACQT,
+              REQUIRED,
+              NUM,
+              WARNING,141)
+    /*        PEND,141)   */
+     ELSE
+       FEDIT (S0CPACQT,
+              REQUIRED,
+              NUMB,
+              EQ,
+              (' '),
+              WARNING,141)
+      /*      PEND,141)  */
+
+  /* IF (S0CSVC = '08'  |          */
+  /*     S0CSVC = '12'  |          */
+  /*     S0CSVC = '20'  |          */
+  /*     S0CSVC = '31'  |          */    /* TEMP CODE UNTIL NEXT     */
+  /*     S0CSVC = '33'  |          */    /* TABLE                 LBS*/
+  /*     S0CSVC = '36'  |          */
+  /*     S0CSVC = '46'  |          */
+  /*     S0CSVC = '47'  )  &       */
+  /*     S0IPECLV < '810'  &       */
+  /*    (S0CPACQT ^= '') THEN      */
+  /*     S0CPACQT = '';            */
+
+   END; /* NOT PART TRAILER */
+
+ END PART_ACQ_TIME;
+1
+ PART_SRC_FLD:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PART SOURCE CODE      ( PART_SRC )                              */
+ /*  ------------------                                              */
+ /********************************************************************/
+
+                                         /* I116039 - PART SOURCE CD  */
+                                         /* NOT REQUIRED ON TRAILER   */
+ IF PART_TRAILER THEN
+    FEDIT (PART_SRC,
+           REQUIRED,
+           ALPHANB,
+           EQ,
+           (' ','0','1','2','3'),
+           PEND,144)
+ ELSE
+   DO;  /* NOT PART TRAILER */
+     IF (S0CSVC = '01' |
+         S0CSVC = '08' |
+         S0CSVC = '12' |
+         S0CSVC = '20' |
+         S0CSVC = '31' |
+         S0CSVC = '33' |
+         S0CSVC = '36' |
+         S0CSVC = '46' |
+         S0CSVC = '47' ) &
+        (KOC ^= '3') THEN
+       FEDIT (PART_SRC,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('0','1','2','3'),
+              WARNING,144)
+        /*    PEND,144)   */
+     ELSE
+       FEDIT (PART_SRC,
+              REQUIRED,
+              NUMB,
+              EQ,
+              (' '),
+              WARNING,144)
+         /*   PEND,144)    */
+
+  /* IF (S0CSVC = '08'  |       */
+  /*     S0CSVC = '12'  |       */
+  /*     S0CSVC = '20'  |       */
+  /*     S0CSVC = '31'  |       */       /* TEMP CODE UNTIL NEXT     */
+  /*     S0CSVC = '33'  |       */       /* TABLE                 LBS*/
+  /*     S0CSVC = '36'  |       */
+  /*     S0CSVC = '46'  |       */
+  /*     S0CSVC = '47'  )  &    */
+  /*     S0IPECLV < '810'  &    */
+  /*    (PART_SRC ^= '') THEN   */
+  /*     PART_SRC = '';         */
+
+   END; /* NOT PART TRAILER */
+
+ END PART_SRC_FLD;
+1
+ PART_NUMBER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PART NUMBER ( S0IPART(2) )                                      */
+ /*  -----------                                                     */
+ /********************************************************************/
+
+ FEDIT (S0IPART_1,
+        REQUIRED,
+        ALPHANB,
+        PEND,404)
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH TO PART 1       = '||M_PART1;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > MATCH TO PART 2       = '||M_PART2;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+ IF ( PART_TRAILER ) |
+    ( PART_ONLY ) THEN
+   FEDIT (S0IPART_1,
+          REQUIRED,
+          ALPHAN,
+          PEND,405)
+
+ IF ( S0IPART_1 > ' ' ) THEN
+   IF ( M_PART1 = 'N' ) THEN
+     DO;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,406)
+       ERR_SW = OFF;
+     END;
+
+ /* NOW AUDIT THE SECOND PART */
+
+ FEDIT (S0IPART_2,
+        REQUIRED,
+        ALPHANB,
+        PEND,504)
+
+ IF ( S0IPART_2 > ' ' ) THEN
+   IF ( M_PART2 = 'N' ) THEN
+     DO;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,506)
+        ERR_SW = OFF;
+     END;
+
+ END PART_NUMBER;
+
+1
+ TIN_NUMBER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  TRANSACTION IDENTIFIER NUMBER (ITINNBR) OR "TIN NUMBER" FOR     */
+ /*  ---------------------          ASSET TRACKING                   */
+ /********************************************************************/
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > TIN NUMBER 1 REQUIRED = '||TINREQ_1;
+           CALL WRITE_TO_OPER;
+           DIAG_TEXT = 'CNRULE2: > TIN NUMBER 2 REQUIRED = '||TINREQ_2;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+   IF TINREQ_1 = 'Y' THEN
+      FEDIT (ITINNBR(1),
+             REQUIRED,
+             ALPHANB,
+             GT,
+             (' '),
+             PEND,601)
+
+   IF TINREQ_2 = 'Y' THEN
+      FEDIT (ITINNBR(2),
+             REQUIRED,
+             ALPHANB,
+             GT,
+             (' '),
+             PEND,602)
+ END TIN_NUMBER;
+
+1
+ PO_NUMBER:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PURCHASE ORDER NUMBER    (CUSTPO#)                              */
+ /*  ---------------------                                           */
+ /********************************************************************/
+
+ FEDIT (CUSTPO#,
+        REQUIRED,
+        ALPHANB,
+        PEND,245)
+ END PO_NUMBER;
+1
+ PROBLEM_NBR:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROBLEM NUMBER     (S0CCSCPC)                                   */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ FEDIT (S0CCSCPC,
+        REQUIRED,
+        ALPHANB,
+        PEND,236)
+
+ IF ( ^PART_ONLY ) THEN
+   DO;
+     IF ( S0CSVC ^= '01' ) &
+        ( S0CSVC ^= '08' ) &
+        ( S0CSVC ^= '12' ) &
+        ( S0CSVC ^= '20' ) &
+        ( S0CSVC ^= '31' ) &
+        ( S0CSVC ^= '33' ) &
+        ( S0CSVC ^= '36' ) &
+        ( S0CSVC ^= '46' ) &
+        ( S0CSVC ^= '47' ) &
+        ( S0CSVC ^= '99' ) THEN
+       DO;
+         FEDIT (S0CCSCPC,
+                REQUIRED,
+                ALPHANB,
+                EQ,
+                ('     '),
+                WARNING,235)
+
+         IF FAIL THEN
+           S0CCSCPC = '';
+       END;
+   END;
+
+ END PROBLEM_NBR;
+1
+ QSAR_DATE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  CALL COMPLETE DATE    (S0DCALCD, S0DCALCY, S0DCALCM)            */
+ /*  ------------------                                              */
+ /********************************************************************/
+
+ WORK_DATE =  S0DCALCY || S0DCALCM || S0DCALCD;
+
+ FEDIT (WORK_DATE,
+        REQUIRED,
+        NUM,
+        PEND,272)
+
+ IF ( ^FAIL )
+   THEN DO;
+     DCL LIL_DATE   FIXED BIN(31) INIT(0);
+     LIL_DATE = GREGORIAN_TO_LILIAN(WORK_DATE,'1');
+     /* CALL VALGRG(WORK_DATE_PIC,'YMD')       IS DATE VALID ? */
+     /* IF PLIRETV ^= 0 THEN  */
+     IF LIL_DATE = 1
+       THEN DO;
+         ERR_SW = ON;
+         FEDIT (ERR_SW,
+                NOTALLOWED,
+                BI,
+                EQ,
+                (ON),
+                PEND,273)
+         ERR_SW = OFF;
+       END;
+       ELSE DO;    /* CHECK FOR RANGE */
+         /* LILIAN_WORK   = CLLGRG(WORK_DATE_PIC,'YMD')  */
+         LILIAN_WORK   = GREGORIAN_TO_LILIAN(WORK_DATE,'2');
+         LILIAN_TODAY  = GREGORIAN_TO_LILIAN(AUDIT_DATE,'3');
+         /*  LILIAN_TODAY  = CLLGRG(AUDIT_DATE_PIC,'YMD') */
+         DATE_DIFFERENCE = LILIAN_WORK - LILIAN_TODAY;
+         IF (( S0CSVC = '51' )  |
+            (  S0CSVC = '60' )) &
+            ( DATE_DIFFERENCE > 60 ) THEN
+           DO;
+             ERR_SW = ON;
+             FEDIT (ERR_SW,
+                    NOTALLOWED,
+                    BI,
+                    EQ,
+                    (ON),
+                    PEND,270)
+             ERR_SW = OFF;
+           END;
+         IF ( S0CSVC ^= '51' ) &
+            ( S0CSVC ^= '60' ) &
+            ( DATE_DIFFERENCE > 0 ) THEN
+           DO;
+             ERR_SW = ON;
+             FEDIT (ERR_SW,
+                    NOTALLOWED,
+                    BI,
+                    EQ,
+                    (ON),
+                    PEND,270)
+             ERR_SW = OFF;
+           END;
+         IF ( DATE_DIFFERENCE < -90 ) THEN  /* > 90 DAYS IN ARREARS */
+           DO;                            /* I88205               */
+             ERR_SW = ON;
+             FEDIT (ERR_SW,
+                    NOTALLOWED,
+                    BI,
+                    EQ,
+                    (ON),
+                    PEND,271)
+             ERR_SW = OFF;
+           END;
+       END;   /* CHECK FOR RANGE */
+   END;    /* IF ( ^FAIL) */
+
+ END QSAR_DATE;
+1
+ REC_BO:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  RECEIVING BRANCH  ( S0IRECBO(2) )                               */
+ /*  ----------------                                                */
+ /********************************************************************/
+
+ IF ( S0CFUNC_1 = '01' ) |
+    ( S0CFUNC_1 = '02' ) |
+    ( S0CFUNC_1 = '09' ) |
+    ( S0CFUNC_1 = '10' ) |
+    ( S0CFUNC_1 = '21' ) THEN
+     FEDIT (S0IRECBO_1,
+            REQUIRED,
+            ALPHAN,
+            PEND,410)
+
+ IF ( S0IRECBO_1 > '' ) THEN
+   IF ( M_RCVBO_1 = 'N' ) THEN
+     DO;
+
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT ='CNRULE2: > MATCH REC BO PART 1    = '||M_RCVBO_1;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,410)
+       ERR_SW = OFF;
+     END;
+
+ IF ( S0CFUNC_2 = '01' ) |
+    ( S0CFUNC_2 = '02' ) |
+    ( S0CFUNC_2 = '09' ) |
+    ( S0CFUNC_2 = '10' ) |
+    ( S0CFUNC_2 = '21' ) THEN
+     FEDIT (S0IRECBO_2,
+            REQUIRED,
+            ALPHAN,
+            PEND,510)
+
+ IF ( S0IRECBO_2 > '' ) THEN
+   IF ( M_RCVBO_2 = 'N' ) THEN
+     DO;
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT ='CNRULE2: > MATCH REC BO PART 2    = '||M_RCVBO_2;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,510)
+       ERR_SW = OFF;
+     END;
+
+ END REC_BO;
+1
+ REC_OL:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  RECEIVING O/L     ( S0IRECOL(2) )                               */
+ /*  -------------                                                   */
+ /********************************************************************/
+
+ IF ( S0CFUNC_1 = '01' ) |
+    ( S0CFUNC_1 = '02' ) |
+    ( S0CFUNC_1 = '09' ) |
+    ( S0CFUNC_1 = '10' ) |
+    ( S0CFUNC_1 = '21' ) THEN
+   DO;
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH RECEVING OL 1   = '||M_RCVOL_1;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+     FEDIT (S0IRECOL_1,
+            REQUIRED,
+            NUM,
+            PEND,411)
+     IF ( M_RCVOL_1 = 'N' ) THEN
+       DO;
+         ERR_SW = ON;
+         FEDIT (ERR_SW,
+                NOTALLOWED,
+                BI,
+                EQ,
+                (ON),
+                PEND,412)
+         ERR_SW = OFF;
+       END;
+   END;
+
+ IF ( S0CFUNC_2 = '01' ) |
+    ( S0CFUNC_2 = '02' ) |
+    ( S0CFUNC_2 = '09' ) |
+    ( S0CFUNC_2 = '10' ) |
+    ( S0CFUNC_2 = '21' ) THEN
+   DO;
+  %NOPRINT;
+       IF TEST_SW  THEN
+         DO;
+           DIAG_TEXT = 'CNRULE2: > MATCH RECEVING OL 2   = '||M_RCVOL_2;
+           CALL WRITE_TO_OPER;
+         END;
+  %PRINT;
+     FEDIT (S0IRECOL_2,
+            REQUIRED,
+            NUM,
+            PEND,511)
+     IF ( M_RCVOL_2 = 'N' ) THEN
+       DO;
+         ERR_SW = ON;
+         FEDIT (ERR_SW,
+                NOTALLOWED,
+                BI,
+                EQ,
+                (ON),
+                PEND,512)
+         ERR_SW = OFF;
+       END;
+   END;
+
+ END REC_OL;
+1
+ SERVICE_CODE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  SERVICE CODE      ( S0CSVC )                                    */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) THEN
+   DO;
+     FEDIT (S0CSVC,
+            REQUIRED,
+            NUM,
+            PEND,266)
+   END;
+
+ IF ( PART_TRAILER ) THEN
+   IF ( S0CSVC ^= '01' ) &
+      ( S0CSVC ^= '08' ) &
+      ( S0CSVC ^= '12' ) &
+      ( S0CSVC ^= '20' ) &
+      ( S0CSVC ^= '31' ) &
+      ( S0CSVC ^= '33' ) &
+      ( S0CSVC ^= '36' ) &
+      ( S0CSVC ^= '46' ) THEN
+     DO;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,265)
+       ERR_SW = OFF;
+     END;
+
+ IF ( ^PART_TRAILER ) & ( ^PART_ONLY ) THEN
+   IF ( S0CSVC ^= '01' ) &
+      ( S0CSVC ^= '08' ) &
+      ( S0CSVC ^= '12' ) &
+      ( S0CSVC ^= '20' ) &
+      ( S0CSVC ^= '31' ) &
+      ( S0CSVC ^= '33' ) &
+      ( S0CSVC ^= '36' ) &
+      ( S0CSVC ^= '42' ) &
+      ( S0CSVC ^= '44' ) &
+      ( S0CSVC ^= '46' ) &
+      ( S0CSVC ^= '47' ) &
+      ( S0CSVC ^= '48' ) &
+      ( S0CSVC ^= '51' ) &
+      ( S0CSVC ^= '60' ) &
+      ( S0CSVC ^= '99' ) THEN
+     DO;
+       ERR_SW = ON;
+       FEDIT (ERR_SW,
+              NOTALLOWED,
+              BI,
+              EQ,
+              (ON),
+              PEND,265)
+       ERR_SW = OFF;
+     END;
+
+ END SERVICE_CODE;
+1
+ SERVICE_PERFORMANCE:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  SERVICE PERFORMANCE (SERV_PERF)                                 */
+ /*  -------------------                                             */
+ /********************************************************************/
+
+  SERV_PERF1 = SUBSTR(SERV_PERF,1,1);
+  SERV_PERF2 = SUBSTR(SERV_PERF,2,1);
+  SERV_PERF3 = SUBSTR(SERV_PERF,3,1);
+  SERV_PERF4 = SUBSTR(SERV_PERF,4,1);
+  SERV_PERF5 = SUBSTR(SERV_PERF,5,1);
+
+   IF SERV_PERF > '' THEN
+     DO;
+       FEDIT (SERV_PERF1,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('A','B','C','D','E'),
+              PEND,600)
+       FEDIT (SERV_PERF2,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('H','I','J','K','L','M','N'),
+              PEND,600)
+       FEDIT (SERV_PERF3,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('P','Q','R','S','T','U'),
+              PEND,600)
+       FEDIT (SERV_PERF4,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('V','W','X','Y','Z','1','2','3','4'),
+              PEND,600)
+       FEDIT (SERV_PERF5,
+              REQUIRED,
+              ALPHAN,
+              EQ,
+              ('1','2','3','4','5','6','7'),
+              PEND,600)
+     END;
+
+ END SERVICE_PERFORMANCE;
+1
+ STOP_TIME:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  STOP TIME   ( S0QSTOTI )                                        */
+ /*  ---------                                                       */
+ /********************************************************************/
+
+ IF ( ^PART_ONLY ) THEN
+    IF IPETLVL >= 115
+      THEN ;                          /* STOP TIME NOT REQD FOR   */
+                                      /* DATA ENTERED VIA TRUER,  */
+    ELSE                              /* TRUER WILL CONTROL       */
+      FEDIT (S0QSTOTI,
+             REQUIRED,
+             NUM,
+             EQ,
+             ('001'-'240'),
+             PEND,280)
+
+ END STOP_TIME;
+1
+ TRAVEL_HOURS:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  TRAVEL HOURS  ( S0QTRAHR )                                      */
+ /*  ------------                                                    */
+ /********************************************************************/
+
+ IF ( S0QTRAHR = ' ' ) THEN
+   S0QTRAHR = '000';
+
+ IF ( S0QTRAMI > ' ' ) THEN
+   FEDIT (S0QTRAHR,
+          REQUIRED,
+          NUM,
+          GE,
+          ('000'),
+          PEND,285)
+
+ IF ( S0CSVC = '60' ) |
+    ( S0CSVC = '99' ) THEN
+   DO;
+     FEDIT (S0QTRAHR,
+            REQUIRED,
+            ALPHANB,
+            EQ,
+            ('   ','000'),
+            WARNING,286)
+     IF FAIL THEN
+       S0QTRAHR = '000';
+   END;
+
+ IF ( S0CSVC = '51' ) THEN
+   DO;
+     FEDIT (S0QTRAHR,
+            REQUIRED,
+            NUM,
+            EQ,
+            ('000'-'240'),
+            PEND,287)
+   END;
+ ELSE
+   DO;
+     FEDIT (S0QTRAHR,
+            REQUIRED,
+            NUM,
+            EQ,
+            ('000'-'080'),
+            PEND,288)
+   END;
+ END TRAVEL_HOURS;
+1
+ GEN_HOURS:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*  THESE ARE THE GENERAL HOURS AUDITS                              */
+ /*  THEY ARE FIRED AFTER ALL THE OTHER AUDITS ARE COMPLETED.        */
+ /********************************************************************/
+
+ ERR_SW = OFF;
+ IF ( ^PART_ONLY ) &
+    ( ^PART_TRAILER ) THEN
+   DO;
+     IF ( S0QSVCHR < '000' ) |
+        ( S0QTRAHR < '000' ) THEN
+         ERR_SW = ON;
+
+     IF ^ERR_SW THEN
+       DO;
+         WORK_NUM =  S0QSVCHR_NUM + S0QTRAHR_NUM;
+         IF ( WORK_NUM > 8 ) &
+            ( S0CSVC ^= '44') &
+            ( S0CSVC ^= '51') &
+            ( S0CSVC ^= '60') THEN
+           ERR_SW = ON;         /* TRIGGER PEND 106 */
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,106)
+       END;
+
+     IF ^ERR_SW THEN
+       DO;
+         WORK_NUM =  S0QSVCHR_NUM + S0QTRAHR_NUM;
+         IF  ( WORK_NUM > 40 ) &
+            (( S0CSVC = '44') |
+             ( S0CSVC = '51') |
+             ( S0CSVC = '60')) THEN
+           ERR_SW = ON;           /* TRIGGER PEND 107 */
+           FEDIT (ERR_SW,
+                  NOTALLOWED,
+                  BI,
+                  EQ,
+                  (ON),
+                  PEND,107)
+       END;
+   END;
+
+ END GEN_HOURS;
+1
+ USAGE_QTY:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  USAGE QUANTITY     (S0QDISUS(2))                                */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+ IF ( S0CFUNC_1 = '01' ) |
+    ( S0CFUNC_1 = '02' ) |
+    ( S0CFUNC_1 = '09' ) |
+    ( S0CFUNC_1 = '10' ) |
+    ( S0CFUNC_1 = '21' ) THEN
+   DO;
+     FEDIT (S0QDISUS_1,
+            REQUIRED,
+            NUM,
+            EQ,
+            ('01'-'99'),
+            PEND,401)
+
+     IF ITINNBR(1) > ' ' THEN
+       FEDIT (S0QDISUS_1,
+              REQUIRED,
+              NUM,
+              EQ,
+              ('01'),
+              PEND,401)
+     ELSE;
+   END;
+
+ IF ( S0CFUNC_2 = '01' ) |
+    ( S0CFUNC_2 = '02' ) |
+    ( S0CFUNC_2 = '09' ) |
+    ( S0CFUNC_2 = '10' ) |
+    ( S0CFUNC_2 = '21' ) THEN
+   DO;
+     FEDIT (S0QDISUS_2,
+            REQUIRED,
+            NUM,
+            EQ,
+            ('01'-'99'),
+            PEND,501)
+
+     IF ITINNBR(2) > ' ' THEN
+       FEDIT (S0QDISUS_2,
+              REQUIRED,
+              NUM,
+              EQ,
+              ('01'),
+              PEND,501)
+     ELSE;
+   END;
+ END USAGE_QTY;
+
+1
+ WAYBILL:
+ BEGIN REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  WAYBILL    (IWAYBILL)                                           */
+ /*  --------------                                                  */
+ /********************************************************************/
+
+  %NOPRINT;
+  IF TEST_SW  THEN
+    DO;
+     DIAG_TEXT = 'CNRULE2 : WAYBILL ('||IWAYBILL||')';
+     CALL WRITE_TO_OPER;
+    END;
+  %PRINT;
+
+ ERR_SW = OFF;
+ IF ( FOEMCNTR & IWAYBILL = ''  &
+    ( S0CFUNC_1 = '02'   |
+      S0CFUNC_1 = '04'   |
+      S0CFUNC_1 = '21'   |
+      S0CFUNC_2 = '02'   |
+      S0CFUNC_2 = '04'   |
+      S0CFUNC_2 = '21' )  )
+
+   THEN DO;
+        ERR_SW = ON;
+        FEDIT (ERR_SW,
+               NOTALLOWED,
+               BI,
+               EQ,
+               (ON),
+               WARNING,257)            /* WAYBILL MISSING            */
+        ERR_SW = OFF;
+
+   END;
+
+
+
+
+ END WAYBILL;
+
+
+
+ RETURN;
+ END AUDIT_EDIT_RULE;
+ /********************************************************************/
+ /*  E N D   O F   A U D I T   E D I T   R U L E   # 2               */
+ /********************************************************************/
+

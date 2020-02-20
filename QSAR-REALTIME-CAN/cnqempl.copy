@@ -1,0 +1,61 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   CNQEMPL     VERSION NR:  01           DATE:  06/12/89    */
+ /*                                                                  */
+ /*                                                                  */
+ /* TITLE: CANADIAN EMPLOYEE FILE                                    */
+ /*                                                                  */
+ /*                                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /* DATE:    REASON:    DRVR:   DESCRIPTION:              PROGRAMMER:*/
+ /* -------  ---------  ----    ------------------        -----------*/
+ /* 06/12/89 SR0038    9NSK    ORIGINAL VERSION                  HAS */
+ /* 11/17/89 DCR0038F  9NSK    ADD QCRC_TERR                     SPZ */
+ /* 06/24/97 YEAR2000  7CSI    CHANGE ASSIGNMENT FIELDS              */
+ /*                               FROM FIXED DEC(6) TO CHAR(8)       */
+ /*                               TO ACCEPT GREGORIAN DATES      MLN */
+ /* 12/01/97 YEAR2000  7CSP    EXPANDED RECORD LENGTH TO         KLS */
+ /*                               133 AND RECID FROM "B" TO "K"      */
+ /* 11/10/98 QSARPROD  8CSN    CHANGE RECORD ID TO "R"           PRM */
+ /*                               FROM "K' TO PREVENT DUPED          */
+ /*                               US AND CANADA RECORDS              */
+ /* 10/27/99 SR99091   9NSA    CHANGE MANGR FIXED DEC TO CHAR    PRM */
+ /* 07/28/01    S01032    1NSP    INCREASE THE LENGTH TO ADD A       */
+ /*                               31 BYTE KEY.                   LBS */
+ /*                                                                  */
+ /********************************************************************/
+         3 RECLGTH       FIXED BIN(15), /* REC LENGTH "140"  001- 002*/
+         3 RECKEY,                      /* RECORD KEY                */
+           5 RECID       CHAR (1),      /* ALWAYS "R"        003- 003*/
+           5 EMPSER      CHAR (6),      /* EMPLOYEE SERIAL   004- 009*/
+           5 FILL        CHAR(24),      /* UNUSED            010- 033*/
+         3 EMPNAME       CHAR(20),      /* EMPLOYEE NAME     034- 053*/
+         3 CURR,                        /* CURRENT INFO              */
+           5 BRANCH      CHAR (3),      /* BRANCH OFFICE     054- 056*/
+           5 REGION      CHAR (1),      /* REGION            057- 057*/
+           5 MANGR       CHAR (3),      /* MANAGER           058- 060*/
+           5 TERR        CHAR (3),      /* TERRITORY         061- 063*/
+           5 FMNAME      CHAR (20),     /* FIELD MGR NAME    064- 083*/
+           5 TEAM        CHAR (1),      /* TEAM              084- 084*/
+           5 ASSGNT      CHAR (8),      /* ASSIGNMENT DATE   085- 092*/
+                                        /* MMDDYYYY                  */
+         3 PREV,                        /* PREVIOUS                  */
+           5 BRANCH      CHAR (3),      /* BRANCH OFFICE     093- 095*/
+           5 REGION      CHAR (1),      /* REGION            096- 096*/
+           5 MANGR       CHAR (3),      /* MANAGER           097- 099*/
+           5 TERR        CHAR (3),      /* TERRITORY         100- 102*/
+           5 FMNAME      CHAR (20),     /* FIELD MGR NAME    103- 122*/
+           5 TEAM        CHAR (1),      /* TEAM              123- 123*/
+           5 ASSGNT      CHAR (8),      /* ASSIGNMENT DATE   124- 131*/
+                                        /* MMDDYYYY                  */
+         3 GENRL,                       /* GENERAL INFO              */
+           5 C_PATH      CHAR (1),      /* CAREER PATH       132- 132*/
+           5 DIV         CHAR (1),      /* DIVISION          133- 133*/
+         3 QCRC_TERR     CHAR (3),      /* QCRC TERRITORY    134- 136*/
+         3 SPARE         CHAR(14)       /* FILLER            137- 140*/
+ /*********************************************************************/
+ /*    END  OF  COPY  MEMBER  CNQEMPL                                 */
+ /*********************************************************************/
+         

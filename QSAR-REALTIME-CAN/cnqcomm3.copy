@@ -1,0 +1,95 @@
+ /********************************************************************/
+ /* >>>>>  OBOSOLETE   9/2000<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<         */
+ /*             ---------     NSS QSAR      ---------                */
+ /*             ---------    AUDIT/EDIT     ---------                */
+ /*             ---------   COMM AREA #2    ---------                */
+ /*             ---------    REC FORMAT     ---------                */
+ /*             ---------   NSS TO QSAR     ---------                */
+ /*                                                                  */
+ /* MACRO NAME = CNQCOMM3                                            */
+ /*                                                                  */
+ /* TITLE:  SPECIAL TEMPORARY CANADA COMM AREA FOR PT/QSAR DATA      */
+ /*                                                                  */
+ /* FUNCTION = MAPPING OF THE PT INCOMING DATA TO A COMMUNICATION    */
+ /*            AREA WHICH WILL BE USED TO PASS DATA FROM             */
+ /*            NSS MODULE QARDBFMT TO THE QSAR/P MODULE CNQDBU1      */
+ /*                                                                  */
+ /* INVOCATION = %INCLUDE (CNQCOMM3)                                 */
+ /*                                                                  */
+ /* LRECL = 400                                                      */
+ /*                                                                  */
+ /*    ( ( THIS IS A TEMPORARY LAYOUT USED IN AN EMERGENCY ) )       */
+ /*    ( ( FIX FOR AN INSTALL PROBLEM SPECIFIC TO CANADIAN ) )       */
+ /*    ( ( QSAR AND THE 1NSM NSS CODE DRIVER !!            ) )       */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  11/07/91  SR0650  1NSM     ORIGINAL VERSION               ABM   */
+ /*                                                                  */
+ /********************************************************************/
+     3 C3COMMON,                /* CANADA COMMON SEGMENT (CNQDBSEG)  */
+                                /* TOTAL LENGTH MUST BE 255, OR      */
+                                /* EQUAL TO LENGTH OF CNCOMMON IN    */
+                                /* CNQDBSEG                          */
+       5 C3CRECDT CHAR(6),      /* CALL COMPLETE DATE       001- 006 */
+                                /* (YYMMDD)                          */
+       5 C3CEMPSR CHAR(6),      /* EMPLOYEE SERIAL          007- 012 */
+       5 C3CSTOP  CHAR(3),      /* STOP TIME (HHT)          013- 015 */
+       5 C3CRECNO CHAR(9),      /* RECORD NUMBER GENERATED  016- 024 */
+       5 C3CSEQCL CHAR(3),      /* SEQUENCE/CALL NUMBER     025- 027 */
+       5 C3COMPL  CHAR(4),      /* RECORD COMPLETION TIME   028- 031 */
+                                /* (HHMM)                            */
+       5 C3CRCVTM CHAR(4),      /* HOST RECEIVE TIME (HHMM) 032- 035 */
+       5 C3CRCVDT CHAR(4),      /* HOST RECEIVE DATE (MMDD) 036- 039 */
+       5 C3CSC    CHAR(2),      /* SERVICE CODE             040- 041 */
+       5 C3CACTUL CHAR(3),      /* ACTUAL HOURS (HHT)       042- 044 */
+       5 C3CTRAVL CHAR(3),      /* TRAVEL HOURS (HHT)       045- 047 */
+       5 C3CKILOM CHAR(3),      /* MILEAGE-ACTUAL KM TRAVEL 048- 050 */
+       5 C3CEXPNS CHAR(4),      /* EXPENSE                  051- 054 */
+       5 C3COVTIN CHAR(1),      /* OVERTIME INDICATOR       055- 055 */
+       5 C3CMTYPE CHAR(4),      /* MACHINE TYPE             056- 059 */
+       5 C3CMSERL CHAR(7),      /* MACHINE SERIAL           060- 066 */
+       5 C3CKOC   CHAR(1),      /* KIND OF CALL             067- 067 */
+       5 C3CACTN  CHAR(2),      /* ACTION CODE              068- 069 */
+       5 C3CACTIV CHAR(2),      /* ACTIVITY CODE            070- 071 */
+       5 C3COTHMK CHAR(3),      /* OTHER/MARKETING BRANCH   072- 074 */
+       5 C3CPROB  CHAR(5),      /* PROBLEM NUMBER           075- 079 */
+       5 C3CBILSP CHAR(1),      /* BILLABLE/SPECIAL ACTIVIT 080- 080 */
+       5 C3CTBLVL FIXED BIN(15),       /* PT TABLE / LEVEL  081- 082 */
+       5 C3CFLAGS,
+         7 C3CRCORG BIT(1),     /* 0=PT, 1=RAMS             083- 083 */
+         7 C3CPSFLG BIT(1),     /* 1=PSAR RECORD (OBSOLETE) 083- 083 */
+         7 C3CPRFLG BIT(1),     /* 1=PARTS ONLY             083- 083 */
+         7 C3CPTFLG BIT(1),     /* 1=PART TRAILER           083- 083 */
+         7 C3CPAD1  BIT(4),     /* PADDING                  083- 083 */
+       5 C3COEMPL CHAR(6),      /* OTHER EMPLOYEE           084- 089 */
+       5 C3CONTAC CHAR(19),     /* CONTACT                  090- 108 */
+       5 C3CONTAP CHAR(10),     /* CONTACT PHONE            109- 118 */
+       5 C3COURSE CHAR(5),      /* COURSE (EDUCATION)       119- 123 */
+       5 C3CSUTLC CHAR(19),     /* CUSTOMER LOCATION        124- 142 */
+       5 C3CPONBR CHAR(12),     /* PURCHASE ORDER NUMBER    143- 154 */
+       5 C3CMESEC CHAR(3),      /* MES                      155- 157 */
+       5 C3CNARRT CHAR(50),     /* NARRATIVE TEXT           158- 207 */
+       5 C3CUSTNM CHAR(15),     /* CUSTOMER NAME            208- 222 */
+       5 C3CBRUSE CHAR(5),      /* BRANCH USE               223- 227 */
+       5 C3CCSSCN CHAR(6),      /* CSS CONTRACT             228- 233 */
+       5 C3CMETER CHAR(9),      /* METER READING            234- 242 */
+       5 C3CPAT   CHAR(3),      /* PART ACQUISITION TIME    243- 245 */
+       5 C3CPSC   CHAR(1),      /* PART SOURCE CODE         246- 246 */
+       5 C3CPAD2  CHAR(54),     /* UNUSED                   247- 300 */
+     3 C3TPARTS(2),
+       5 C3TPRTNM CHAR(8),      /* PART NUMBER              001- 008 */
+       5 C3TFUNCT CHAR(2),      /* FUNCTION CODE            009- 010 */
+       5 C3TFRMBO CHAR(3),      /* FROM BRANCH OFFICE       011- 013 */
+       5 C3TRCVBO CHAR(3),      /* RECEIVING BRANCH OFFICE  014- 016 */
+       5 C3TFRMOL CHAR(3),      /* FROM OUTSIDE LOCATION    017- 019 */
+       5 C3TRCVOL CHAR(3),      /* RECEIVING OUTSIDE LOC    020- 022 */
+       5 C3TQTYUS CHAR(2),      /* USAGE QUANTITY           023- 024 */
+       5 C3TALTSH CHAR(3),      /* ALTERNATE SHIP           025- 027 */
+       5 C3TDELIV CHAR(2),      /* DELIVERY POINT           028- 029 */
+     3 C3TPAD2    CHAR(42);     /* UNUSED                   059- 100 */
+ /********************************************************************/
+ /*  END OF CNQCOMM3 INCLUDE                                         */
+ /********************************************************************/
+
