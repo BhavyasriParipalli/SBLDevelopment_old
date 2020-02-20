@@ -1,0 +1,1033 @@
+ AEQDBP1: PROC(@IO_PCB,@QSAR_PCB,@QSAR2_PCB,@CNTL_PCB)
+          OPTIONS(MAIN) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  AEQDBP1                                               */
+ /*                                                                  */
+ /*  PROGRAM LANGUAGE: PL/I                                          */
+ /*  PROGRAM TYPE:     MAIN PROCEDURE                                */
+ /*                                                                  */
+ /*  FUNCTION:   THE PURPOSE OF THIS MODULE IS TO PURGE THE QSAR     */
+ /*              AND CONTROL DATA BASES.                             */
+ /*                                                                  */
+ /*  PURGE   :   READ IN QSAR DB AND CONTROL DB RETENTION PERIODS    */
+ /*  CRITERIA    FROM THE PURGCTL FILE.  IF THE RETENTION PERIOD     */
+ /*              IS 999, BYPASS PURGE PROCESSING FOR THAT DATA BASE. */
+ /*                                                                  */
+ /*              FOR THE CONTROL DATA BASE:                          */
+ /*              --------------------------                          */
+ /*              GHU ALL CAASRCSC SEGMENTS FROM CONTROL DB           */
+ /*              FOR EACH SEGMENT:                                   */
+ /*              COUNT SEGMENTS READ                                 */
+ /*              IF KEY STARTS WITH 'QSAR'                           */
+ /*                IF AGE > RETENTION PERIOD,                        */
+ /*                  DLET                                            */
+ /*                  COUNT DELETES                                   */
+ /*                                                                  */
+ /*              FOR THE QSAR DATA BASE:                             */
+ /*              -----------------------                             */
+ /*              GHN ALL QSGENL SEGMENTS FROM QSAR DB                */
+ /*              FOR EACH SEGMENT:                                   */
+ /*              COUNT SEGMENTS READ                                 */
+ /*              IF AGE > RETENTION PERIOD                           */
+ /*                IF S0CAECMP = 'Y' AND                             */
+ /*                 ((QSARP_S  = 'Y' AND  BILL_S ^= N                */
+ /*                  (ORIGNS_S ^= ' ' AND FSFTPEND ^= y              */
+ /*                                       AT THE AREA))              */
+ /*                            OR                                    */
+ /*                  (MIRROR_IND = 'Y' AND AT THE HUB))              */
+ /*                   CGQHIGSE < '3' AND                             */
+ /*                   MIRROR_IND = 'Y' OR NSDC_DEL = 'Y'             */
+ /*                    THEN                                          */
+ /*                   GHU THE QSGENL ROOT AND THEN                   */
+ /*                   DLET QSGENL (AND ALL KIDS) VIA QSAR2_PCB       */
+ /*                   COUNT DELETES                                  */
+ /*              ELSE                                                */
+ /*                WE'RE THROUGH                                     */
+ /*  UPDATE LOG:                                                     */
+ /*  - - - - - -                                                     */
+ /*  8NSM    SR 9891    INITIAL VERSION               09/14/88   SPZ */
+ /*  8NSM    SR 9891    REMOVE CHECK POINT RESTART    10/15/88   HAS */
+ /*  8NSM    SR 9891    ADD BASIC CHECK POINT         10/22/88   HAS */
+ /*  8NSM    I74377     CORRECT CHKP_FREQ ERROR       02/01/89   HAS */
+ /*  8NSM    I74419     CORRECT CONTROL DB CALL       02/03/89   HAS */
+ /*  9NSE    I81545     CHANGE CODE TO READ THRU      07/12/89   LBS */
+ /*                     ENTIRE CNTL DB                               */
+ /*  9NSE    I81345     ADD CONDITION CHECK ON        08/07/89   LBS */
+ /*                     ON PURGE, QSARP_S = 'Y'                      */
+ /*  9NSE    I84615     CORRECT AREA PURGING          09/12/89   LBS */
+ /*  0NSA    SR9892     ADD BILL_S FLAG TO CONDITION  09/21/89   LBS */
+ /*                     CHECK FOR PURGING AT THE HUB                 */
+ /*  0NSA    I86151     ADD ORIGINS_S FLAG CONDITION  09/21/89   LBS */
+ /*                     TO THE AREA PURGE CRITERIA                   */
+ /*  0NSA    I88944     SEPARATE U.S. AND CANADA      12/06/89   ABM */
+ /*                     PURGE SO THAT CANADIAN QSAR'S                */
+ /*                     WILL BE PURGED PROPERLY                      */
+ /*  0NSA    I96457     CHANGE BILL_S FLAGE CHECK FROM 4/11/90   LBS */
+ /*                     = 'Y' TO ^= 'N', DOWNLEVEL CODE DOES NOT     */
+ /*                     SET BILL_S FLAG                              */
+ /*  3NSL   I199477     RESET PCB POINTER AFTER TAKING CHKPT     LBS */
+ /*                     IGNORE AMIGO RECORDS ON DELETE               */
+ /*  6NSC   S9500167    ADD FCMPS_S FLAG TO CONDITION  11/28/95  LBS */
+ /*  7NSI               YEAR 2000 CHANGES               5/09/97  LBS */
+ /*  7NSL               CHANGE CONTROL DATE CHECK      10/03/97  LBS */
+ /*  7NSP   S9600755    UPDATE PURGE CHECK CRITERIA    11/09/97  LBS */
+ /*  7NSP   I9500167    REMOVE CMPS_S FLAG CONDITION   12/17/97  LBS */
+ /*  8NSO   S98226      ADD PREVENTION OF CLAIM EXTRACT12/17/97  DLP */
+ /*  8NSN   S97140      BLACKHOLE NO PURGE OF SOFTPEND  3/23/99  SFM */
+ /*  8NSN   S97133      ADD QSARRSTC RECORDS TO PEND    5/26/99  LBS */
+ /*  8NSN   YEAR2K      CHANGE DATE TO DATETIME         5/28/99  LBS */
+ /*  9NSA   S99093      REMOVE FIELD FSRCKDK           10/01/99  LBS */
+ /*  0NSK   Ixxxxx      REMOVE SOFTPEND CHECK FROM HUB 11/30/00  LBS */
+ /*  2NSG   PRODSUPT    LE 210 CHANGES - PLIXOPT       04/17/02  DLP */
+ /*04/25/2002 PRODSUPT 2NSG    CHANGE PLIDATE TO CEEDATE         DLP */
+ /*08/27/2004 PRODSUPT 4NSG  UPDATE ACA REPORT FOR NEW COMPILER  DLP */
+ /*08/30/2004 PRODSUPT 4NSG  REMOVE SKIP STATEMENTS              DLP */
+ /*09/29/2008 prodsupt 8NSM  add records to control purge list   LBS */
+ /*                                                                  */
+ /*02/13/2012 RCQ1882  2HSC  Recompiled for NSS Sunsetting       NAK */
+ /*02/14/2012 RCQ1882  2HSC  add HSI keys to delete process      LBS */
+ /*                          QSARLARC,QSAROVRC,QSARACKC,QSARHSDC     */
+ /*                          QSARHSIC                                */
+ /********************************************************************/
+ DCL MODULE            CHAR(7)  STATIC INIT('AEQDBP1');
+ DCL DRIVER            CHAR(4)  STATIC INIT('2HSC');
+ DCL LAST_CHANGE       CHAR(10) STATIC INIT('02/14/2012');
+
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+ DCL COMPILE   CHAR(18)  INIT (CMPTIME);
+
+ %PAGE;
+ /********************************************************************/
+ /*                         DECLARES                                 */
+ /********************************************************************/
+
+ DCL SYSPRINT FILE PRINT;
+ DCL PURGCTL  FILE STREAM INPUT ENV(RECSIZE(80));
+ DCL RUNCTL   FILE STREAM INPUT ENV(RECSIZE(80));
+ DCL ACARPT   FILE STREAM PRINT;
+
+ /*----------------------------------------------------------------*/
+ /* Pre LE 210 enviroment plixopt statement                        */
+ /*----------------------------------------------------------------*/
+ /* DCL PLIXOPT           CHAR(30)      INIT('ISA(8K),STAE,NR')    */
+ /*                                   STATIC   VARYING EXTERNAL    */
+ /*----------------------------------------------------------------*/
+
+ /*----------------------------------------------------------------*/
+ /* LE 210 enviroment plixopt statement                            */
+ /*----------------------------------------------------------------*/
+ DCL PLIXOPT      CHAR(250)
+   INIT('STACK(6K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+   MSGFILE(SYSPRINT),THREADHEAP(2K,2K,ANY,),LIBSTACK(1K,1K,FREE),
+   ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+   TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                    STATIC VARYING EXTERNAL;
+
+ DCL PLITDLI ENTRY EXTERNAL;                   /* IMS CALL INTERFACE */
+
+ DCL PLIABND  EXT ENTRY(FIXED BIN(31)) OPTIONS(ASM INTER);
+
+ %PAGE;
+ /********************************************************************/
+ /*                  PL/I BUILTIN FUNCTIONS                          */
+ /********************************************************************/
+ DCL (ADDR,
+      DATAFIELD,
+      DATETIME,
+      LOW,
+      ONLOC,
+      PLIDUMP,
+      PLIRETV,
+      PLIRETC,
+      SUBSTR,
+      VERIFY) BUILTIN;
+
+ /*------------------------------------------------------------------*/
+ /* INCLUDE DATE CONVERSION MACRO:                                   */
+ /*                                                                  */
+ /* INCLUDE INCLIB(DEFDATE)                                          */
+ /* $DEFDATE((CLLGRG,VALGRG,VALCLL))                                 */
+ /*------------------------------------------------------------------*/
+ /* %INCLUDE INCLIB(DEFDATE)                                         */
+ /* $DEFDATE((CLLGRG,VALGRG,VALCLL))                                 */
+ /*------------------------------------------------------------------*/
+
+ %page;
+ %INCLUDE CEEIBMAW;
+ %include CEEIBMCT;
+
+ /* %INCLUDE AELILCHR */
+
+ %page;
+ DCL 1 QSGENL UNALIGNED BASED(ADDR(IO_BUFFER)),
+    %INCLUDE AEQSGENL; ;
+ 
+ %page;
+ DCL 1 STATS UNALIGNED BASED(ADDR(IO_BUFFER)),
+    %INCLUDE AEQNSSC; ;
+
+ %page;
+ DCL LILIAN_TODAY        FIXED BIN(31) INIT(0);
+ DCL LILIAN_COMP         FIXED BIN(31) INIT(0);
+ DCL PARM_CT1            FIXED BIN(31) STATIC INIT(1);
+ DCL PARM_CT2            FIXED BIN(31) STATIC INIT(2);
+ DCL PARM_CT3            FIXED BIN(31) STATIC INIT(3);
+ DCL PARM_CT4            FIXED BIN(31) STATIC INIT(4);
+ DCL PARM_CT5            FIXED BIN(31) STATIC INIT(5);
+ DCL PARM_CT6            FIXED BIN(31) STATIC INIT(6);
+
+ DCL @IO_PCB            POINTER;
+ DCL 1 IO_PCB           BASED(@IO_PCB),
+       2 LTERM_NAME     CHAR(8),
+       2 DLI_RESERVE    BIT(16),
+       2 STATUS         CHAR(2),
+       2 PREFIX,
+         3 PRE_DATE     FIXED DEC(7,0),
+         3 PRE_TIME     FIXED DEC(7,0),
+         3 PRE_MSGCT    FIXED BIN(31,0),
+       2 FORMAT_3270    CHAR(8),
+       2 USER_ID        CHAR(8);
+
+ DCL @QSAR_PCB           POINTER;       /* FROM IMS */
+ DCL @QSAR2_PCB          POINTER;       /* FROM IMS */
+ DCL @CNTL_PCB           POINTER;       /* FROM IMS */
+
+ DCL 1 QSAR_PCB BASED(@QSAR_PCB),
+       2 Q_DBDNAME       CHAR(8),
+       2 Q_SEG_LEVEL     CHAR(2),
+       2 Q_STAT          CHAR(2),
+       2 Q_PROC_OPT      CHAR(4),
+       2 Q_DLI_RESERVED  FIXED BIN(31),
+       2 Q_SEGNAME       CHAR(8),
+       2 Q_FB_LENGTH     FIXED BIN(31),
+       2 Q_NBR_SENS_SEGS FIXED BIN(31),
+       2 Q_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 QSAR2_PCB BASED(@QSAR2_PCB),
+       2 Q2_DBDNAME       CHAR(8),
+       2 Q2_SEG_LEVEL     CHAR(2),
+       2 Q2_STAT          CHAR(2),
+       2 Q2_PROC_OPT      CHAR(4),
+       2 Q2_DLI_RESERVED  FIXED BIN(31),
+       2 Q2_SEGNAME       CHAR(8),
+       2 Q2_FB_LENGTH     FIXED BIN(31),
+       2 Q2_NBR_SENS_SEGS FIXED BIN(31),
+       2 Q2_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 CNTL_PCB BASED(@CNTL_PCB),
+       2 C_DBDNAME       CHAR(8),
+       2 C_SEG_LEVEL     CHAR(2),
+       2 C_STAT          CHAR(2),
+       2 C_PROC_OPT      CHAR(4),
+       2 C_DLI_RESERVED  FIXED BIN(31),
+       2 C_SEGNAME       CHAR(8),
+       2 C_FB_LENGTH     FIXED BIN(31),
+       2 C_NBR_SENS_SEGS FIXED BIN(31),
+       2 C_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 SSA_CAASCRSC_UNQUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(9) INIT('CAASCRSC ');
+
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8) INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1) INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8) INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2) INIT(' >'),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1) INIT(')');
+
+ DCL 1 SSA_CAASCRSC2_QUAL UNALIGNED,
+       2 CAASCRSC2_NAME     CHAR(8) INIT('CAASCRSC'),
+       2 CAASCRSC2_QUAL     CHAR(1) INIT('('),
+       2 CAASCRSC2_KEYNAME  CHAR(8) INIT('IINTAREA'),
+       2 CAASCRSC2_OPR      CHAR(2) INIT(' ='),
+       2 CAASCRSC2_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC2_ENDCHAR  CHAR(1) INIT(')');
+
+ DCL 1 SSA_QSGENL_UNQUAL   UNALIGNED,
+       2 QSGENL_NAME       CHAR(9) INIT('QSGENL   ');
+
+ DCL 1 SSA_QSGENL_QUAL UNALIGNED,
+       2 QSGENL_NAME      CHAR(8) INIT('QSGENL  '),
+       2 QSGENL_QUAL      CHAR(1) INIT('('),
+       2 QSGENL_KEYNAME   CHAR(8) INIT('AE4TIME '),
+       2 QSGENL_OPR       CHAR(2) INIT('>='),
+       2 QSGENL_KEYVAL    CHAR(14) INIT(''),
+       2 QSGENL_ENDCHAR   CHAR(1) INIT(')');
+
+ DCL 1 SSA_QSGENL2_QUAL UNALIGNED,
+       2 QSGENL2_NAME     CHAR(8) INIT('QSGENL  '),
+       2 QSGENL2_QUAL     CHAR(1) INIT('('),
+       2 QSGENL2_KEYNAME  CHAR(8) INIT('IDOCUMNT'),
+       2 QSGENL2_OPR      CHAR(2) INIT('= '),
+       2 QSGENL2_KEYVAL   CHAR(9) INIT(''),
+       2 QSGENL2_ENDCHAR  CHAR(1) INIT(')');
+
+ %PAGE;
+ /******************************************************/
+ /* MISCELLANEOUS DECLARES                             */
+ /******************************************************/
+ DCL ABEND_CODE     FIXED BIN(31) STATIC INIT(3333);
+ DCL AUDIT_DATE_CHAR      CHAR(8)    BASED(ADDR(QSGENL.AUDIT_DATE));
+ DCL AGE            FIXED BIN(31)    INIT(0);
+ DCL BIG_TODAY            PIC '(8)9' INIT(0);
+ DCL CHKP_COUNT           PIC '(6)9' INIT(0);
+ DCL CHKP_FREQ            CHAR(4)    INIT('');
+ DCL CHKP_FREQ_NUM        PIC '9999' INIT(0);
+ DCL CHKP_ID              CHAR (8)   INIT('');
+ DCL CNTL_RETPD_NUM FIXED BIN(31)    INIT(0);
+ DCL CNTL_RETPD           CHAR(3)    INIT('');
+ DCL ERROR_TEXT           CHAR(80)   INIT('');
+ DCL FUNC                 CHAR(4)    INIT('');
+ DCL HUBAREA              CHAR(1)    INIT('A');  /* A = AREA H = HUB */
+ DCL IMS_PSB              CHAR(8)    INIT('AEQDBP1 ');
+ DCL (I, J)         FIXED BIN(31)    INIT(0);
+ DCL IO_BUFFER            CHAR(1000) INIT('');
+ DCL ONE            FIXED BIN(31)    INIT(1);
+ DCL PAGE_CNT       FIXED BIN(15)    INIT(0);
+ DCL PIC_AREA             PIC '9999' BASED(ADDR(STATS.NSSCAREA));
+ DCL QSAR_RETPD           CHAR(3)    INIT('');
+ DCL QSAR_RETPD_NUM FIXED BIN(31)    INIT(0);
+ DCL REC_COUNT      FIXED BIN(31)    INIT(0);
+ DCL RETCODE1             CHAR(8)    INIT('');
+ DCL RETCODE2             CHAR(8)    INIT('');
+ DCL RUNDATE              CHAR(17)   INIT('');
+ DCL RUNTIME              CHAR(5)    INIT('');
+ DCL STAT_ZERO            BIT(8)     INIT((8)'0'B) STATIC;
+ DCL TEMP_DATE            CHAR(8)    INIT('');
+ DCL THREE          FIXED BIN(31)    INIT(3);
+ DCL TODAY                CHAR(17)   INIT('');
+ DCL WORK_RUN_DATE        CHAR(10)   INIT('');
+ DCL WORK_TIME            CHAR(9)    INIT('');
+
+ DCL 1 WORK_BITS,
+       3 DEBUG            BIT(1)     INIT('0'B),
+       3 CONTINUE         BIT(1)     INIT('1'B),
+       3 QUIT             BIT(1)     INIT('0'B);
+
+ DCL 1 SAVE_AREA  UNALIGNED,           /* SAVE AREA FOR PROCESSING*/
+        2  CURRENT_DB      CHAR(4),     /* 'CNTL' OR 'QSAR' */
+        2  QSAR_PURGE_US   FIXED BIN(31) INIT(0),
+        2  QSAR_INPUT      FIXED BIN(31) INIT(0),
+        2  CNTL_ALL_INPUT  FIXED BIN(31) INIT(0),
+        2  CNTL_QSAR_INPUT FIXED BIN(31) INIT(0),
+        2  CNTL_PURGE      FIXED BIN(31) INIT(0);
+ 
+ %page;
+ /********************************************************************/
+ /* ON NAME                                                          */
+ /********************************************************************/
+
+ ON NAME(RUNCTL)
+   BEGIN;
+     PUT FILE(ACARPT) EDIT 
+        ('INVALID FIELD IN RUNCTL FILE - ',DATAFIELD)(COL(5),A,A);
+   END;
+
+ ON NAME(PURGCTL)
+   BEGIN;
+     PUT FILE(ACARPT) EDIT
+        ('INVALID FIELD IN PURGCTL FILE - ',DATAFIELD)(COL(5),A,A);
+   END;
+
+ %page;
+ /********************************************************************/
+ /* ON ERROR                                                         */
+ /********************************************************************/
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     PUT FILE(ACARPT) EDIT(ERROR_TEXT)             (COL(5),A) ;
+     PUT FILE(ACARPT) EDIT
+      ('ERROR OCCURRED IN PROC: ',ONLOC)            (COL(5),A,A)
+      ('######  AEQDBP1 - UNSUCCESSFUL RUN  ######')(COL(5),A)
+      ('CURRENT DATA BASE: ',CURRENT_DB)            (COL(5),A,A)
+      ('QSAR PCB #1 DB RETURN CODE:  ',Q_STAT)      (COL(5),A,A)
+      ('QSAR PCB #2 DB RETURN CODE:  ',Q2_STAT)     (COL(5),A,A)
+      ('CONTROL DB RETURN CODE:      ',C_STAT)      (COL(5),A,A);
+
+     PUT FILE(ACARPT) EDIT
+      ('CURRENT QSAR PCB #1 UNQUALIFIED SSA: ', SSA_QSGENL_UNQUAL)
+                                                      (COL(5),A,A)
+      ('CURRENT QSAR PCB #1 QUALIFIED SSA:   ', SSA_QSGENL_QUAL)  
+                                                      (COL(5),A,A)
+      ('CURRENT QSAR PCB #2 QUALIFIED SSA:   ', SSA_QSGENL2_QUAL)  
+                                                      (COL(5),A,A)
+      ('CURRENT CNTL UNQUALIFIED SSA:        ', SSA_CAASCRSC_UNQUAL)   
+                                                      (COL(5),A,A)
+      ('CURRENT CNTL QUALIFIED SSA:          ', SSA_CAASCRSC_QUAL)    
+                                                      (COL(5),A,A);
+     CLOSE FILE(SYSPRINT);
+
+     CALL PRINT_ACARPT;
+     PUT FILE(ACARPT) EDIT
+        ('******  AEQDBP1 RUN UNSUCCESSFUL  ******') (COL(5),A);
+
+     CALL PLIRETC(ABEND_CODE);
+     CALL PLIDUMP;
+     CALL PLITDLI (ONE,'ROLL');                    /* JUMP BACK, JACK */
+     CALL PLIABND(ABEND_CODE);
+   END;
+
+ %page;
+ /********************************************************************/
+ /* MAIN PROCESSING BEGINS - INIT DATA FIELDS                        */
+ /********************************************************************/
+
+ /********************************************************************/
+ /* CALCULATE DATES                                                  */
+ /********************************************************************/
+ TODAY         = DATETIME;
+
+ WORK_RUN_DATE = SUBSTR(TODAY,5,2) || '/' ||
+                 SUBSTR(TODAY,7,2) || '/' ||
+                 SUBSTR(TODAY,1,4);
+
+ RUNTIME       = SUBSTR(TODAY,9,2)||':'||
+                 SUBSTR(TODAY,11,2);
+ 
+ %PAGE;
+ /********************************************************************/
+ /* PRINT ACA REPORT HEADING                                         */
+ /********************************************************************/
+ CALL WRITE_ACA_HEADER;
+
+ TEMP_DATE = SUBSTR(TODAY,1,8);
+
+ IF DEBUG 
+   THEN PUT FILE(ACARPT) EDIT('AFTER ASSIGN BIG_TODAY, TODAY (',
+          TODAY,')')                 (COL(5),A,A,A);
+
+ LILIAN_TODAY = GREGORIAN_TO_LILIAN(SUBSTR(TODAY,1,8),'1');
+
+ IF DEBUG
+   THEN PUT FILE(ACARPT) EDIT('AFTER GREGORIAN_TO_LILIAN, LILDATE (',
+          LILIAN_TODAY,')')                 (COL(5),A,F(9),A);
+
+ /* ---------------------------------------------------------------- */
+ /* CALL VALGRG(BIG_TODAY,'YMD')                  VALIDATE DATE      */
+ /* IF PLIRETV ^=0 THEN                                              */
+ /*   DO                                                             */
+ /*     PUT EDIT('INVALID DATE IN BIG_TODAY: ',BIG_TODAY)            */
+ /*                  (COL(1),A,A)                                    */
+ /*     SIGNAL ERROR                                                 */
+ /*  END                                                             */
+ /*                                                                  */
+ /* LILIAN_TODAY_C = CLLGRG(BIG_TODAY,'YMD')            CONVERT DATE */
+ /* ---------------------------------------------------------------- */
+ 
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /* GET THE RUN CONTROL PARM AND VERIFY                              */
+ /* ---------------------------------------------------------------- */
+
+ GET FILE (RUNCTL) DATA (CHKP_FREQ);
+
+ /* THIS SHOULD BE IN THE RUNCTL FILE AS: CHKP_FREQ = '0025' */
+
+  IF VERIFY(CHKP_FREQ,'0123456789') ^= 0
+    THEN DO;
+      PUT FILE(ACARPT) EDIT('NON-NUMERIC CHKP_FREQ PARM ENTERED:',
+                  CHKP_FREQ)       (COL(5),A,A);
+      SIGNAL ERROR;
+    END;
+    ELSE DO;
+      CHKP_FREQ_NUM = CHKP_FREQ;
+      PUT FILE(ACARPT) EDIT('AEQDBP1 - CHECKPOINT FREQUENCY - ',
+                  CHKP_FREQ)        (COL(5),A,A);
+    END;
+
+ %page;
+ /* ---------------------------------------------------------------- */
+ /* GET THE PURGE CONTROL PARMS AND VERIFY                           */
+ /* HUBAREA = A FOR THE AREA PURGE DON'T CHECK THE QSARP_S FLAG      */
+ /* HUBAREA = H FOR THE HUB PURGE, QSARP_S FLAG MUST BE 'Y'          */
+ /* ---------------------------------------------------------------- */
+                                         /* I84615                   */
+ GET FILE (PURGCTL) DATA (QSAR_RETPD,CNTL_RETPD,HUBAREA);
+ /* ---------------------------------------------------------------- */
+ /* THESE SHOULD BE IN THE PURGCTL FILE AS:                          */
+ /* QSAR_RETPD = '030', CNTL_RETPD = '030',HUBAREA = 'H'             */
+ /* ---------------------------------------------------------------- */
+
+ IF VERIFY(QSAR_RETPD,'0123456789') ^= 0
+   THEN DO;
+     PUT FILE(ACARPT) EDIT('NON-NUMERIC QSAR_RETPD PARM ENTERED:',
+              QSAR_RETPD)            (COL(5),A,A);
+     SIGNAL ERROR;
+   END;
+   ELSE DO;
+     QSAR_RETPD_NUM = QSAR_RETPD;
+     PUT FILE(ACARPT) EDIT('QSAR PURGE RETENTION PERIOD: ',QSAR_RETPD,
+                   ' DAYS')     (COL(5),A,A,A);
+   END;
+
+ IF VERIFY(CNTL_RETPD,'0123456789') ^= 0
+   THEN DO;
+     PUT FILE(ACARPT) EDIT('NON-NUMERIC CNTL_RETPD PARM ENTERED:',
+              CNTL_RETPD)              (COL(5),A,A);
+     SIGNAL ERROR;
+   END;
+   ELSE DO;
+     CNTL_RETPD_NUM = CNTL_RETPD;
+     PUT FILE(ACARPT) EDIT('CNTL PURGE RETENTION PERIOD: ',CNTL_RETPD,
+                   ' DAYS')     (COL(5),A,A,A);
+   END;
+
+ IF CNTL_RETPD = '999' & QSAR_RETPD = '999'
+   THEN DO;
+     PUT FILE(ACARPT) EDIT(
+        'BYPASSING PURGE - 999 DAYS SPECIFIED FOR BOTH ',
+        'CONTROL AND QSAR DATA BASES')   (COL(5),A,A);
+     RETURN;
+   END;
+
+ PUT FILE(ACARPT) EDIT('DB PURGE BEING RUN AT: ',HUBAREA)(COL(5),A,A);
+ PUT FILE(ACARPT) EDIT('       ')(COL(1),A);
+ 
+ %PAGE;
+ /* ---------------------------------------------------------------- */
+ /* MAIN PROCESSING                                                  */
+ /* ---------------------------------------------------------------- */
+
+ IF QSAR_RETPD ^= '999'
+   THEN CALL PURGE_QSAR;
+   ELSE PUT FILE(ACARPT) EDIT(
+            'BYPASSING QSAR PURGE - 999 DAYS SPECIFIED FOR ',
+                 'QSAR DATA BASE') (COL(1),A,A);
+
+ IF CNTL_RETPD ^= '999'
+   THEN CALL PURGE_CNTL;
+   ELSE PUT FILE(ACARPT) EDIT(
+                    'BYPASSING CNTL PURGE - 999 DAYS SPECIFIED FOR ',
+                 'CNTL DATA BASE')(COL(1),A,A);
+
+ CALL PRINT_ACARPT;
+ PUT FILE(ACARPT) EDIT('               ') (COL(1),A);
+ PUT FILE(ACARPT) EDIT('               ') (COL(1),A);
+ PUT FILE(ACARPT) EDIT('******  AEQDBP1 RUN SUCCESSFUL  ******') 
+                                                 (COL(1),A);
+
+ RETURN;
+
+ %PAGE;
+ WRITE_ACA_HEADER: PROC;
+ /********************************************************************/
+ /* PRINT ACA REPORT HEADING                                         */
+ /********************************************************************/
+  PUT FILE(ACARPT) EDIT
+   ('****************************************************',
+                             'PAGE:',PAGE_CNT+1) (COL(5),A,COL(60),A,A)
+   ('********             H S I                  ********',
+                           'DATE:',WORK_RUN_DATE)(COL(5),A,COL(60),A,A)
+   ('********        ',MODULE, ' ACA REPORT          ********',
+                                'TIME:',RUNTIME)
+                                (COL(5),A,A,A,COL(60),A,A)
+   ('********        HSI DATA BASE PURGE         ********')  (COL(5),A)
+   ('****************************************************')  (COL(5),A)
+   ('COMPILE DATE                  - ',COMPILE)        (COL(5),A,A)
+   ('LAST FIX DRIVER               - ',DRIVER)         (COL(5),A,A)
+   ('DATE OF LAST  CHANGE          - ',LAST_CHANGE)    (COL(5),A,A)
+   ('         ')                                       (COL(5),A);
+
+  PUT FILE(ACARPT) EDIT ('          ')(COL(1),A);
+
+ END WRITE_ACA_HEADER;
+
+ %page;
+ /********************************************************************/
+ /* PURGE QSARS BASED ON AGE OF QSAR, IF CLEAN AND A/E COMPLETE      */
+ /********************************************************************/
+ PURGE_QSAR: PROC REORDER;
+
+ CURRENT_DB = 'QSAR';                      /* FOR CHECKPOINT RESTART */
+ FUNC = 'GHN ';        /* GET HOLD ROOT - QSGENL - AE4TIME   KEY SEQ */
+ CALL PLITDLI (PARM_CT4,
+               FUNC,
+               QSAR_PCB,
+               IO_BUFFER,
+               SSA_QSGENL_UNQUAL);
+
+ ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN QSGENL';
+ IF Q_STAT ^= '  '                    /* MUST HAVE BLANK STATUS CODE */
+   THEN SIGNAL ERROR;
+   ELSE QSGENL_KEYVAL = QSGENL.AUDIT_DATE||QSGENL.AUDIT_TIME;
+
+ CONTINUE = '1'B;
+ REC_COUNT = 0;
+
+ DO WHILE(CONTINUE);
+   IF REC_COUNT > CHKP_FREQ_NUM
+     THEN DO;
+       CHKP_COUNT = CHKP_COUNT + 1;
+       CHKP_ID = 'QS' || CHKP_COUNT;
+       CALL PLITDLI (THREE,'CHKP',IO_PCB,CHKP_ID);
+       IF STATUS ^= '  '
+         THEN DO;
+           PUT FILE(ACARPT) EDIT('AEQDBP1 - CHECKPOINT FAILED -')   
+                                                      (COL(1),A,A);
+           PUT FILE(ACARPT) EDIT('CHECKPOINT ID = ',CHKP_ID)
+                                                    (COL(1),A,A);
+           PUT FILE(ACARPT) EDIT('STATUS = ',STATUS)(COL(1),A,A);
+           SIGNAL ERROR;
+         END;                        /* IF STATUS ^= '  ' */
+       REC_COUNT = 0;
+
+       /* RESET THE PSB POINTER  TO CURRENT POSITION       */
+       QSGENL_KEYVAL = QSGENL.AUDIT_DATE||QSGENL.AUDIT_TIME;
+       FUNC = 'GU  ';
+
+       CALL PLITDLI (PARM_CT4,
+                     FUNC,
+                     QSAR_PCB,
+                     IO_BUFFER,
+                     SSA_QSGENL_QUAL);
+
+       ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN QSGENL';
+
+     END;                              /* IF REC_COUNT > CHKP_REQ_NUM */
+
+   QSAR_INPUT = QSAR_INPUT + 1;
+
+   CALL PURGE_QSAR_US;
+
+   IF CONTINUE
+     THEN DO;
+       FUNC = 'GHN ';
+       CALL PLITDLI (PARM_CT4,
+                     FUNC,
+                     QSAR_PCB,
+                     IO_BUFFER,
+                     SSA_QSGENL_QUAL);
+
+       ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN QSGENL';
+       IF (Q_STAT ^= '  ') &
+          (Q_STAT ^= 'GE') &
+          (Q_STAT ^= 'GB')
+         THEN SIGNAL ERROR;
+         ELSE QSGENL_KEYVAL = QSGENL.AUDIT_DATE||QSGENL.AUDIT_TIME;
+
+       IF Q_STAT = 'GE' | Q_STAT = 'GB'
+         THEN CONTINUE = '0'B;
+
+     END; /* IF CONTINUE THEN */
+ END;         /* DO WHILE(CONTINUE) */
+
+ END PURGE_QSAR;
+
+ %page;
+ /********************************************************************/
+ /* PURGE PROCEDURE FOR U.S. QSARS  I88944/0NSA - ABM                */
+ /********************************************************************/
+ PURGE_QSAR_US: PROC REORDER;
+
+   IF VERIFY(QSGENL.AUDIT_DATE,'0123456789') ^= 0
+     THEN PUT FILE(ACARPT) EDIT('QSAR DOCUMENT(',QSGENL.S0IDOCMN,
+                            ') CONTAINS AN INVALID AUDIT_DATE(',
+                             QSGENL.AUDIT_DATE,')')(COL(1),A,A,A,A,A);
+     ELSE DO;
+        /* -------------------------------------------------------- */
+        /* AUDIT_DATE IS NUMERIC                                    */
+        /*  CALL VALGRG(AUDIT_DATE_PIC,'YMD')    VALIDATE DATE      */
+        /*                                                          */
+        /*  IF PLIRETV ^=0                                          */
+        /*    THEN PUT EDIT('QSAR DOCUMENT(',QSGENL_CAN.S0IDOCMN,   */
+        /*                 ') CONTAINS AN INVALID AUDIT_DATE(',     */
+        /*                  QSGENL_CAN.AUDIT_DATE,')')              */
+        /*                 (COL(1),A,A,A,A,A)                       */
+        /*    ELSE DO                                               */
+        /* -------------------------------------------------------- */
+        TEMP_DATE = AUDIT_DATE_CHAR;
+        LILIAN_COMP = GREGORIAN_TO_LILIAN(AUDIT_DATE_CHAR,'2');
+
+        /* LILIAN_COMP_C =  CLLGRG(AUDIT_DATE_CHAR,'YMD') */
+
+        AGE = (LILIAN_TODAY - LILIAN_COMP);
+
+        IF DEBUG
+           THEN DO;
+             PUT FILE(ACARPT) EDIT('check age QSGENL doc = ',
+                                 QSGENL.S0IDOCMN)(COL(5),A,A);
+             PUT FILE(ACARPT) EDIT('QSAR AGE: ',AGE) (COL(5),A,F(9));
+           END;
+
+        IF AGE > QSAR_RETPD_NUM
+           THEN DO;
+        /* ----------------------------------------------------------*/
+        /* IF AUDIT/EDIT IS COMPLETE FOR THIS QSAR,                  */
+        /*   IF AT AREA (QSAR HAS BEEN EXTRACTED FOR BATCH PROCESSING*/
+        /*               AND THE BILLING SEGMENTS HAVE BEEN EXTRACTED*/
+        /*               AND EXTRACTED FOR CLAIM                     */
+        /*               AND NOT SOFTPENDED)                         */
+        /*    IF HAS BEEN EXTRACTED   = YES AND BILL SEND NOT NO     */
+        /*                  AND QSAR SENT TO ORIGINS)                */
+        /*    IF AT THE HUB MUST HAVE BEEN MIRRORED TO THE AREA      */
+        /*    IT MUST HAVE BEEN MIRRORED AREA TO HUB/HUB TO AREA     */
+        /*    IT HAS NOT PENDED THRU THE AUDIT/EDIT PROCESS          */
+        /*         ---------   OR   ----------------------           */
+        /*    THIS RECORD IS FLAGGED AS A  DELETE VIA NSDC DELETES...*/
+        /* ----------------------------------------------------------*/
+                                                        /* SR9892    */
+       IF DEBUG
+           THEN DO;
+             PUT FILE(ACARPT) EDIT(' A/E COMP ',     QSGENL.S0CAECMP,
+                                   ' SFT PEND ',     QSGENL.FSFTPEND,
+                                   ' QSAR SEND ',    QSGENL.QSARP_S,
+                                   ' BILL SEND ',    QSGENL.BILL_S,
+                                   ' CLAIM SEND ',   QSGENL.FCLM_S,
+                                   ' HUB AREA FLG ', HUBAREA,
+                                   ' MIRROR IND ',  QSGENL.MIRROR_IND,
+                                   ' SEVERITY ',    QSGENL.CGQHIGSE,
+                                   ' DEL FLAG ',    QSGENL.NSDC_DEL)
+                   ( COL(5),A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A);
+             PUT FILE(ACARPT) EDIT('          ')(COL(5),A);
+           END;
+    
+             IF (QSGENL.S0CAECMP = 'Y'
+                                &
+                (
+                 (QSGENL.FSFTPEND ^= 'Y' &     /* ^SOFTPENDED S97140 */
+                  QSGENL.QSARP_S  = 'Y'  &     /* QSAR EXTRACTED     */
+                  QSGENL.BILL_S   = 'Y'  &     /* BILL ^EXTRACTED    */
+                  QSGENL.FCLM_S   = 'Y'  &     /* CLM   EXTRACTED    */
+                         HUBAREA  = 'A')       /* at the area        */
+                                   |
+                 (QSGENL.MIRROR_IND = 'Y' &    /* REC MIRRORED       */
+                         HUBAREA  = 'H')       /* AT THE HUB         */
+                                          )
+                                 &
+                 (QSGENL.MIRROR_IND = 'Y') &   /* BEEN MIRRORED      */
+                 (QSGENL.CGQHIGSE < '3')       /* NOT PENDED         */
+                                          )
+                                    |
+
+                 (QSGENL.NSDC_DEL = 'Y')       /* IF  A DELETE       */
+                     THEN DO;
+                       CALL DELETE_QSGENL;
+                       QSAR_PURGE_US = QSAR_PURGE_US + 1;
+                       REC_COUNT = REC_COUNT + 1;
+                     END;
+
+           END;                       /* AGE >  RETPD                */
+           
+         ELSE CONTINUE = '0'B;        /* PAST PURGEABLE RECORDS      */
+     END;                       /* END OF ELSE AUDIT DATE IS NUMERIC */
+    /* END                                     AUDIT_DATE IS NUMERIC */
+
+ END PURGE_QSAR_US;
+
+ %page;
+ /********************************************************************/
+ /* THE PURGE CONTROL DB SEGMENTS                                    */
+ /********************************************************************/
+ PURGE_CNTL: PROC REORDER;
+
+ /* ---------------------------------------------------------------- */
+ /* BASED ON AGE OF CONTROL SEGMENT, IF A QSAR TYPE, DELETE          */
+ /* ---------------------------------------------------------------- */
+
+ CURRENT_DB = 'CNTL';                    /* FOR CHECKPOINT RESTART   */
+ FUNC       = 'GHU ';                    /* GET HOLD ROOT - CAASCRSC */
+ CALL PLITDLI (PARM_CT4,
+               FUNC,
+               CNTL_PCB,
+               IO_BUFFER,
+               SSA_CAASCRSC_UNQUAL);
+
+ ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN CAASCRSC';
+
+ IF C_STAT ^= '  '           /* MUST HAVE BLANK STATUS CODE */
+   THEN SIGNAL ERROR;
+   ELSE CAASCRSC_KEYVAL = NSSCKEY1||NSSCAREA||NSSCACTD||NSSCPAD1;
+
+ CONTINUE = '1'B;
+ REC_COUNT = 0;
+
+ DO WHILE(CONTINUE);
+
+   IF REC_COUNT > CHKP_FREQ_NUM
+     THEN DO;
+       CHKP_COUNT = CHKP_COUNT + 1;
+       CHKP_ID = 'QS' || CHKP_COUNT;
+       CALL PLITDLI (THREE,'CHKP',IO_PCB,CHKP_ID);
+
+       IF STATUS ^= '  '
+         THEN DO;
+           PUT FILE(ACARPT) EDIT('AEQDBP1 - CHECKPOINT FAILED -')
+                                                    (COL(1),A,A);
+           PUT FILE(ACARPT) EDIT('CHECKPOINT ID = ',CHKP_ID) 
+                                                    (COL(1),A,A);
+           PUT FILE(ACARPT) EDIT('STATUS = ',STATUS)(COL(1),A,A);
+           SIGNAL ERROR;
+         END;   /* STATUS ^= '  ' */
+       REC_COUNT = 0;
+                                         /* RESET THE PCB POINTER     */
+       CAASCRSC_KEYVAL = NSSCKEY1||NSSCAREA||NSSCACTD||NSSCPAD1;
+       FUNC = 'GU  ';
+       CALL PLITDLI (PARM_CT4,
+                     FUNC,
+                     CNTL_PCB,
+                     IO_BUFFER,
+                     SSA_CAASCRSC_QUAL);
+
+       ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN CAASCRSC';
+
+       IF (C_STAT ^= '  ') &
+          (C_STAT ^= 'GE') &
+          (C_STAT ^= 'GB')
+         THEN SIGNAL ERROR;
+         ELSE ;
+
+
+     END; /* REC_COUNT > CHKP_FREQ_NUM */
+
+   CNTL_ALL_INPUT = CNTL_ALL_INPUT + 1;
+
+   IF NSSCKEY1 = 'QSARNSSC' |
+      NSSCKEY1 = 'QSARQSRC' |
+      NSSCKEY1 = 'QSARRTSC' |
+      NSSCKEY1 = 'QSARCLMQ' |
+      NSSCKEY1 = 'QSARCLMD' |
+      NSSCKEY1 = 'QSARSQLL' |
+      NSSCKEY1 = 'QSARQLXL' |
+      NSSCKEY1 = 'QSARWPSL' |
+      NSSCKEY1 = 'QSARSFTP' |
+      NSSCKEY1 = 'QSARLARC' |
+      NSSCKEY1 = 'QSAROVRC' |
+      NSSCKEY1 = 'QSARACKC' |
+      NSSCKEY1 = 'QSARHSIC' |
+      NSSCKEY1 = 'QSARHSDC' 
+
+     THEN DO;
+       CNTL_QSAR_INPUT = CNTL_QSAR_INPUT + 1;
+       IF VERIFY(NSSCACTD,'0123456789') ^= 0
+         THEN DO; 
+           PUT FILE(ACARPT) EDIT('CONTROL RECORD(',NSSCKEY1,
+                 NSSCAREA,NSSCACTD,NSSCPAD1,') CONTAINS AN ',
+                          'NON-NUMERIC DATE(',NSSCACTD,')')
+            (COL(1),A,A,A,A,A,A,A,A,A);
+           NSSCACTD = '19000101'; /* set to a default to allow      */
+                                  /* purge process to delete it     */
+         END;   
+         
+       TEMP_DATE   = NSSCACTD;
+       LILIAN_COMP = GREGORIAN_TO_LILIAN(NSSCACTD,'3');
+
+       AGE = (LILIAN_TODAY - LILIAN_COMP);
+
+       IF DEBUG
+         THEN DO;
+           PUT FILE(ACARPT) EDIT('AGE= ',AGE) (COL(5),A,F(9));
+         END;
+
+       IF AGE > CNTL_RETPD_NUM
+         THEN DO;
+           CAASCRSC2_KEYVAL =  CAASCRSC_KEYVAL;
+           FUNC = 'GHU ';
+           CALL PLITDLI (PARM_CT4,
+                         FUNC,
+                         CNTL_PCB,
+                         IO_BUFFER,
+                         SSA_CAASCRSC2_QUAL);
+
+           ERROR_TEXT='AEQDBP1 UNABLE TO GHU CAASCRSC';
+           IF C_STAT ^= '  '
+             THEN SIGNAL ERROR;
+
+           IF DEBUG
+             THEN DO;
+               PUT FILE(ACARPT) EDIT('PURGED REC KEY: ',
+                      SUBSTR(IO_BUFFER,1,20))(COL(5),A,A,A);
+             END;
+
+           FUNC = 'DLET';
+           CALL PLITDLI (PARM_CT3,
+                         FUNC,
+                         CNTL_PCB,
+                         IO_BUFFER);
+
+           ERROR_TEXT='AEQDBP1 UNABLE TO DLET CAASCRSC';
+           IF C_STAT ^= '  '
+             THEN SIGNAL ERROR;
+
+           CNTL_PURGE = CNTL_PURGE + 1;
+           REC_COUNT = REC_COUNT + 1;
+         END;                       /* IF AGE > CNTL_RETPD_NUM   */
+         ELSE DO;                   /* SKIP OVER CURRENT RECS    */
+           PIC_AREA = PIC_AREA + 1;                /* I81545    */
+           CAASCRSC_KEYVAL = NSSCKEY1||NSSCAREA||
+                             NSSCACTD||NSSCPAD1;
+         END;
+
+                                         /*PAST PURGEABLE RECORDS */
+       /*  END                                       PLIRETV = 0      */
+     END;                     /* NSSCKEY1 IS 'QSARNSSC' OR 'QSARQSRC' */
+
+   IF CONTINUE
+     THEN DO;
+       FUNC = 'GHN ';
+       CALL PLITDLI (PARM_CT4,
+                     FUNC,
+                     CNTL_PCB,
+                     IO_BUFFER,
+                     SSA_CAASCRSC_QUAL);
+
+       ERROR_TEXT = 'AEQDBP1 UNABLE TO GHN CAASCRSC';
+       IF (C_STAT ^= '  ') &
+          (C_STAT ^= 'GE') &
+          (C_STAT ^= 'GB')
+         THEN SIGNAL ERROR;
+         ELSE CAASCRSC_KEYVAL = NSSCKEY1||NSSCAREA||
+                                NSSCACTD||NSSCPAD1;
+       IF DEBUG
+         THEN DO;
+           PUT FILE(ACARPT) EDIT('NEXT CONTROL KEY: ',
+                   SUBSTR(IO_BUFFER,1,20))(COL(5),A,A,A);
+         END;
+
+       IF C_STAT = 'GE' | C_STAT = 'GB'
+         THEN CONTINUE = '0'B;
+
+     END;                                      /* IF CONTINUE        */
+ END;                                          /* DO WHILE(CONTINUE) */
+
+ END PURGE_CNTL;
+
+ %page;
+ /********************************************************************/
+ /* SINCE YOU CAN'T DELETE A ROOT THROUGH A SECONDARY INDEX, WE      */
+ /* GHU ON THE PRIMARY INDEX AND DELETE THIS WAY                     */
+ /********************************************************************/
+ DELETE_QSGENL: PROC REORDER;
+   IF DEBUG
+     THEN DO;
+       PUT FILE(ACARPT) EDIT('IN DELETE QSGENL DOC =',
+                              QSGENL.S0IDOCMN)(COL(5),A,A);
+      END;
+
+   FUNC = 'GHU ';
+   QSGENL2_KEYVAL = QSGENL.S0IDOCMN;
+   CALL PLITDLI (PARM_CT4,
+                 FUNC,
+                 QSAR2_PCB,
+                 IO_BUFFER,
+                 SSA_QSGENL2_QUAL);
+
+   ERROR_TEXT = 'AEQDBP1 UNABLE TO GHU QSGENL - PCB #2';
+   IF Q2_STAT ^= '  '
+     THEN SIGNAL ERROR;
+
+   FUNC = 'DLET';
+   CALL PLITDLI (PARM_CT3,
+                 FUNC,
+                 QSAR2_PCB,
+                 IO_BUFFER);
+
+   ERROR_TEXT = 'AEQDBP1 UNABLE TO DLET QSGENL - PCB #2';
+   IF Q2_STAT ^= '  '
+     THEN SIGNAL ERROR;
+
+   IF DEBUG
+     THEN DO;
+       PUT FILE(ACARPT) EDIT('DELETE DOC: ',QSGENL2_KEYVAL)
+                        (COL(5),A,A);
+     END;
+
+ END DELETE_QSGENL;
+
+ %page;
+ /********************************************************************/
+ /* PRINT ACA REPORT FINDINGS                                        */
+ /********************************************************************/
+ PRINT_ACARPT: PROC;
+
+   PUT FILE(ACARPT) EDIT
+     ('AEQDBP1 OUTPUT COUNTS')                    (COL(1),A)
+     ('---------------------')                    (COL(1),A)
+     ('CONTROL RECORDS READ:                         ', CNTL_ALL_INPUT) 
+                                                (COL(1),A,P'Z,ZZZ,ZZ9')
+     ('QSAR-TYPE CONTROL RECORDS READ:               ', CNTL_QSAR_INPUT) 
+                                                (COL(1),A,P'Z,ZZZ,ZZ9')
+     ('QSAR-TYPE CONTROL RECORDS PURGED:             ', CNTL_PURGE) 
+                                                (COL(1),A,P'Z,ZZZ,ZZ9')
+     ('QSARS READ:                                   ',QSAR_INPUT) 
+                                                (COL(1),A,P'Z,ZZZ,ZZ9')
+     ('U.S. QSARS PURGED:                            ',QSAR_PURGE_US) 
+                                                (COL(1),A,P'Z,ZZZ,ZZ9');
+
+ END PRINT_ACARPT;
+
+ %PAGE;
+ /********************************************************************/
+ /* Convert a gregorian date to the lilian date format               */
+ /********************************************************************/
+ GREGORIAN_TO_LILIAN: PROC(INGREG_DATE,LOC) RETURNS(FIXED BIN(31));
+   DCL INGREG_DATE          CHAR(8);
+   DCL LOC                  CHAR(1);
+   DCL GREG_DATE            CHAR(255) VARYING;
+   DCL DATE_FORMAT          CHAR(255) VARYING;
+   DCL OUTLIL_DATE  REAL FIXED BIN(31);
+
+   DCL 01 FC,                     /* Feedback token */
+               03 MsgSev    REAL FIXED BINARY(15,0),
+               03 MsgNo     REAL FIXED BINARY(15,0),
+               03 Flags,
+                  05 Case      BIT(2),
+                  05 Severity  BIT(3),
+                  05 Control   BIT(3),
+               03 FacID     CHAR(3),      /* Facility ID */
+               03 ISI   /* Instance-Specific Information */
+                            REAL FIXED BINARY(31,0);
+
+   IF DEBUG
+     THEN DO;
+       PUT FILE(ACARPT) EDIT
+              (' INSIDE FUNCTION GREGORIAN_TO_LILIAN ',
+                               INGREG_DATE,' FROM LOC ',LOC)
+                                               (COL(5),A,A,A,A);
+     END;
+   DATE_FORMAT = 'YYYYMMDD';
+   GREG_DATE   = INGREG_DATE;
+                     /*  GREGORIAN DATE TO LILIAN DATE            */
+   CALL CEEDAYS (GREG_DATE, DATE_FORMAT, OUTLIL_DATE, FC);
+
+   IF FBCHECK (FC, CEE000)
+     THEN DO;
+       IF DEBUG
+         THEN DO;
+            PUT FILE(ACARPT) EDIT (MODULE,
+                 ': VALID DATE-GREGDATE ',
+                  SUBSTR(GREG_DATE,1,8),
+                   ' LIL_DATE ',
+                   OUTLIL_DATE)       (COL(5),A,A,A,A,A);
+
+         END;
+     END;
+     ELSE DO;
+       PUT FILE(ACARPT) EDIT
+            ('CEEDAYS failed with msg ', FC.MsgNo)(COL(2),A,A);
+       PUT FILE(ACARPT) EDIT (
+                 'INVALID DATE-GREGDATE ',SUBSTR(GREG_DATE,1,8))
+                                                    (COL(2),A,A);
+       IF LOC = '3'
+         THEN DO;
+           PUT FILE(ACARPT)EDIT (
+                   'CONTROL RECORD KEY ',NSSCKEY1) (COL(2),A,A);
+         END;
+       GREG_DATE   = SUBSTR(TODAY,1,8);
+                     /*  GREGORIAN DATE TO LILIAN DATE            */
+       CALL CEEDAYS (GREG_DATE, DATE_FORMAT, OUTLIL_DATE, FC);
+       ABEND_CODE = 1025;
+       /* SIGNAL ERROR;  */
+
+     END;
+
+   RETURN(OUTLIL_DATE);
+
+ END GREGORIAN_TO_LILIAN;
+
+ END AEQDBP1;

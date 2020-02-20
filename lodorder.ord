@@ -1,0 +1,232 @@
+$¬ PROFILE FOR LOADING LE PARTS  LODORDER.ORD
+$¬  See epilog for change history.
+&  SET   MOD==L,CLASS==L,PROFILE==L,BINARY==L,RECFM==L,LRECL==L,
+&        PARTDATA==L,IGNORE==L
+&        DATAC CHKR,PATH
+&        SKIP  1,D.ND.
+&  DATAC EXIT  &#NAME
+&        DATAC FOLD,PATH
+&        DATAC PARSE,PATH,PARTNAME,'.',REST
+&        DATAC PARSE,REST,PTYPE,'.',JUNK
+&        SET   U,@PL=&PARTNAME(L),@PT=&PTYPE(L),@P1=&PTYPE(1)
+&        SKIP  2,@PL.LT.9,@PT.NE.0,@PT.LT.9,@P1.LT.0
+&        SET   U,IGNORE=YES=G
+&  DATAC EXIT  &#NAME
+&        SET   U,MOD=&PARTNAME=G
+&        SKIP IGNORE,MOD.EQ.CEELEOV
+&        SET   PTYPE
+&        SKIP  &PTYPE
+$¬
+&        ENDSK ORD
+&        SET   U,CLASS=ORDER=G,PROFILE=NONE=G
+&  DATAC EXIT  &#NAME
+$¬
+$¬ file extension copts. JMD 8/31/98
+$¬ COPTS parts will have options (parms) used by C/C++ parts. They
+$¬ will be assigned the STDCOPTS profile which will place the source
+$¬ for the options in the designated olib.
+&        ENDSK COPTS
+&        SET   U,CLASS=COPT=G,PROFILE=STDCOPTS=G
+&  DATAC EXIT  &#NAME
+$¬
+$¬ file extension LMOD
+&        ENDSK LMOD
+&        SET   U,CLASS=LMOD=G,PROFILE=#WLMOD1N=G
+&  DATAC EXIT  &#NAME
+$¬
+$¬ file extension ASM
+&        ENDSK ASM
+$¬
+&        SKIP  #ASM01,MOD.EQ.PRPALLOC
+&        SET   U,CLASS=MODULE=G,PROFILE=NONE=G
+&  DATAC EXIT  &#NAME
+$¬ Special processing for parts with .asm file extension follow:
+$¬ #ASM01 and #ASM02 profiles instruct the build to write the obj to
+$¬ an olib in addition to doing a high level assembly. The olib is
+$¬ input to the c370lib tool in a subsequent build phase.
+&        ENDSK #ASM01
+&        SET   U,CLASS=MODULE=G,PROFILE=#ASM01=G
+&  DATAC EXIT  &#NAME
+&        ENDSK #ASM02
+&        SET   U,CLASS=MODULE=G,PROFILE=#ASM02=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK ASMMVS
+&        SET   U,CLASS=MODULE=G,PROFILE=#ASMMVS=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK SCRIPT
+
+&        SKIP  SCRIPT1,MOD.EQ.EDCZUMSG
+&        SKIP  SCRIPT1,MOD.EQ.EDCZEMSG
+&        SKIP  SCRIPT1,MOD.EQ.EDCZJMSG
+&        SKIP  SCRIPT2,MOD.EQ.APARA217
+
+&        SET   U,CLASS=MACRO=G,PROFILE=STDMAC=G
+&  DATAC EXIT  &#NAME
+&        ENDSK SCRIPT1
+&        SET   U,CLASS=MODULE=G,PROFILE=NONE=G
+&  DATAC EXIT &#NAME
+&        ENDSK SCRIPT2
+&        SET   U,CLASS=SAMP=G,PROFILE=NONE=G
+&  DATAC EXIT &#NAME
+$¬
+&        ENDSK HLASM
+&        SET   U,CLASS=MODULE=G,PROFILE=NONE=G
+&  DATAC EXIT &#NAME
+$¬
+&        ENDSK OPUPD
+&        SET   U,CLASS=OPUPD=G,PROFILE=NONE=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK MCSCPYRT
+&        SET   U,CLASS=MCSCPYRT=G,PROFILE=NONE=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK ASSEMBLE
+&        SKIP  ASSEM1,MOD.EQ.EDCTLIB
+&        SKIP  ASSEM1,MOD.EQ.EDCTLIB2
+&        SKIP  ASSEM2,MOD.EQ.CEEBLNUE
+&        SKIP  ASSEM3,MOD.EQ.CEEHDRA
+&        SET   U,CLASS=MODULE=G,PROFILE=#ASSEM1=G
+&  DATAC EXIT  &#NAME
+&         ENDSK ASSEM1
+&        SET   U,CLASS=SAMP=G,PROFILE=NONE=G
+&  DATAC EXIT &#NAME
+&        ENDSK ASSEM2
+&        SET   U,CLASS=MODULE=G,PROFILE=#ASSEM2=G
+&  DATAC EXIT &#NAME
+&        ENDSK ASSEM3
+&        SET U,CLASS=SAMPLE=G,PROFILE=#COPY1=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLI2C3
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPLIENT=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLICMQ
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPLENMQ=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLICMQD
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPLEMQD=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLI2D3
+&        SET   U,CLASS=MODULE=G,PROFILE=#DLIPLIE=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLI2CD3
+&        SET   U,CLASS=MODULE=G,PROFILE=#CDLPLEN=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLI2
+&        SET   U,CLASS=MODULE=G,PROFILE=#PLIENT=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLI2IMS
+&        SET   U,CLASS=MODULE=G,PROFILE=#PLIIMSE=G
+&  DATAC EXIT  &#NAME
+$¬  
+&        ENDSK PLIDB2C
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPLIDB2=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLXEX3M
+&        SET   U,CLASS=MODULE=G,PROFILE=#CICPLXN=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK PLX370
+&        SKIP  PLX40C,MOD.EQ.CEEVSSFR
+&        SET   U,CLASS=MODULE=G,PROFILE=#PLX3701=G
+&  DATAC EXIT  &#NAME
+&        ENDSK PLX40C
+&        SET   U,CLASS=MODULE=G,PROFILE=#PLX3702=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK COPY
+&        SKIP  COPY1,MOD.EQ.CEEBALCT
+$¬
+&        SET U,CLASS=MACRO=G,PROFILE=STDMAC=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK EXEC
+&        SKIP  EXEC2,MOD.EQ.CEEBLDTX
+&        SET   U,CLASS=SAMPLE=G,PROFILE=#EXEC1=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK EXEC2
+&        SET   U,CLASS=SAMPLE=G,PROFILE=#EXEC2=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK EXEC3
+&        SET   U,CLASS=SAMPLE=G,PROFILE=#EXEC3=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK JCLIN
+&        SET   U,CLASS=JCLIN=G,PROFILE=JCLIN=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK MACRO
+&        SET   U,CLASS=MACRO=G,PROFILE=STDMAC=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK INCLUDE
+&        SET   U,CLASS=INCLUDE=G,PROFILE=#INCLUDE=G,RECFM=V=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK H
+&        SKIP  HEAD1,MOD.EQ.@@GETIPC
+&        SKIP  HEAD2,MOD.EQ.IN
+&        SKIP  HEAD3,MOD.EQ.IF
+&        SKIP  HEAD4,MOD.EQ.INET
+&        SET   U,CLASS=MACRO=G,PROFILE=STDHDR=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK HEAD1
+&        SET   U,CLASS=MACRO=G,PROFILE=#HEAD1=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK HEAD2
+&        SET   U,CLASS=MACRO=G,PROFILE=#HEAD2=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK HEAD3
+&        SET   U,CLASS=MACRO=G,PROFILE=#HEAD3=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK HEAD4
+&        SET   U,CLASS=MACRO=G,PROFILE=#HEAD4=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK C
+&        SKIP  CPARM02,MOD.EQ.EDCFNWSA
+$¬ c370lb1 is for c370 parts that will be shadowing obj
+$¬            to a pds for subsequent processing by C370LIB
+&        SKIP  C370LB1,MOD.EQ.EDCOXENV
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPARM01=G,RECFM=V=G
+&  DATAC EXIT  &#NAME
+&        ENDSK CPARM02
+&        SET   U,CLASS=MODULE=G,PROFILE=#CPARM02=G,RECFM=V=G
+&  DATAC EXIT  &#NAME
+&        ENDSK C370LB1
+&        SET   U,CLASS=MODULE=G,PROFILE=#C370LB1=G,RECFM=V=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK CXX
+&        SET   U,CLASS=MODULE=G,PROFILE=#CXXPARM=G,RECFM=V=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK REBUILD
+&        SET   U,CLASS=REBUILD=G,PROFILE=STDRBLD=G
+&  DATAC EXIT  &#NAME
+$¬
+&        ENDSK IGNORE
+&        ENDSK
+&        SET   U,IGNORE=YES=G
+&  DATAC EXIT &#NAME
+$¬ ******************** EPILOG **********************************
+$¬ created by Jake Dunn
+$¬ 3/13/2002 changed for le 2.10 libraries changed PL/1 profiles Raj
+$¬ 6/4/2010  added #cplenmq for MQ Series                        LBS
+$¬ 6/4/2010  added #cplemqd for MQ Series, CICS,PL/1 with IMS

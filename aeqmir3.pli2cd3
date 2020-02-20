@@ -1,0 +1,1021 @@
+  AEQMIR3:
+     PROC OPTIONS(MAIN,REENTRANT) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  AEQMIR3     VERSION NR:  01        DATE:  10/05/88    */
+ /*                                                                  */
+ /*  TITLE: CONTINUOUS AREA-TO-HUB MIRRORING PROGRAM                 */
+ /*         USED IN US AND CANADA                                    */
+ /*                                                                  */
+ /*  FUNCTION:  THE PURPOSE OF THIS MODULE IS TO MIRROR CONTROL      */
+ /*             DATA BASE SEGMENTS WITH PREFIX QSARNSSC, QSARQSRC,   */
+ /*             QSARCLM AND QSARRTSC.  THE PROGRAM IS FAULT TOLERANT */
+ /*             SO WHEN A LINE DROPS, THE PROGRAM WILL CONTINUE      */
+ /*             PROCESSING.                                          */
+ /*                                                                  */
+ /*             MIRRORING IS INITIATED BY AEQPLTI, DURING CICS       */
+ /*             INITIALIZATION.                                      */
+ /*                                                                  */
+ /*             THE PROGRAM BUFFERS CONTROL UPDATES 10 AT A TIME.    */
+ /*             THIS CAN BE ALTERED BY CHANGING THE INITIAL VALUE    */
+ /*             IN FIELD BUFFER_CT.                                  */
+ /*                                                                  */
+ /*  LANGUAGE: PLI                                                   */
+ /*                                                                  */
+ /*  MODULE TYPE: CICS     (PLI2CD3)                                 */
+ /*                                                                  */
+ /*  PARM:                                                           */
+ /*      NONE                                                        */
+ /*                                                                  */
+ /*  INPUTS:                                                         */
+ /*      CONTROL FILE                                                */
+ /*                                                                  */
+ /*  OUTPUTS:                                                        */
+ /*      REMOTE CONTROL DATA BASE                                    */
+ /*                                                                  */
+ /*  REPORTS:                                                        */
+ /*      NONE                                                        */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:               PROGRAMMER:*/
+ /*  10/05/88 SR9891   8NSM    INITIAL PROMOTE                   HAS */
+ /*  10/05/89 SR9892   0NSA    CHANGE REMOTE PSB FROM            LBS */
+ /*                            AEQMIR3R TO AEQMI3R                   */
+ /*  09/18/90 SR0529   0NSI    ADD CICS RETURN WHEN THE REGION       */
+ /*                            IS COMING DOWN                    LBS */
+ /*  08/26/92 SR0999   2NSH    ATTEMPT TO ALLOCATE A LU6.2       LBS */
+ /*                            SESSION BEFORE MIRRORING              */
+ /*  05/11/97 S9600755 7NSI  SUPPORT NSS MRO PARALLEL SYSPLEX    LBS */
+ /*                          PHASE I                                 */
+ /*  02/09/98 S970219  8NSC    REMOVE SPIE FROM PLIXOPT          MKP */
+ /*  01/22/99 PRODSUPT 9NSA    CHANGE PROGRAM TO RUN AT HUB      MKP */
+ /*  09/13/00 Ixxxxxxx 0NSH    ADD RECORD IDS  QSARCLM AND       LBS */
+ /*                            QSARRTSC TO BE MIRRORED               */
+ /*  12/06/00 PRODSUPT 0NSK    ADD DUPLICATE TRANS CHECK         LBS */
+ /* 03/15/2002 LE210    2NSG change PLIXOPT parameters for le 210 LBS*/
+ /* 01/22/2004 prodsupt 4NSC additional records to mirror         LBS*/
+ /* 12/21/2011 RCQ1882  2HSC Hardcode sysid and PSB,              NAK*/
+ /*                          remove area,                            */
+ /*                          eliminate link to ramcwto.plxex3m module*/
+ /* 02/16/2012 RCQ1882  2HSC added diagnostic messages            LBS*/
+ /*                                                                  */
+ /* 03/05/2012 RCQ1882  2HSC Remove the write to operator call    NAK*/
+ /********************************************************************/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 03/05/2012');
+ DCL MODULE            CHAR( 7) STATIC INIT('AEQMIR3');
+
+
+ /* ---------------------------------------------------------------- */
+ /*  %DCL CMPTIME CHAR                                               */
+ /*  %DCL COMPILETIME BUILTIN                                        */
+ /*  %CMPTIME = ''''||COMPILETIME||''''                              */
+ /*  %DCL LANG CHAR                                                  */
+ /*  %LANG = 'PLI'                                                   */
+ /* ---------------------------------------------------------------- */
+
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+ DCL COMPILE   CHAR(18)  INIT (CMPTIME) STATIC;
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ DCL SYSPRINT FILE STREAM PRINT;   /* POINTS TO CPLI QUEUE */
+ /* DCL PLIXOPT EXT CHAR(40) VAR INIT('STAE,ISA(10K),HEAP(0),NR')   */
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(10K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP,2K,2K),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+ DCL PLITDLI      ENTRY;
+
+1/* ----------------------------------------------------------------- */
+ /*      BUILTIN ROUTINES                                             */
+ /* ----------------------------------------------------------------- */
+
+  DCL (ADDR,
+       CSTG,
+       LENGTH,
+       LOW,
+       MOD,
+       ONLOC,
+       ONSOURCE,
+       STG,
+       SUBSTR,
+       VERIFY)
+               BUILTIN;
+
+1/* ----------------------------------------------------------------- */
+ /*  IMS USER INTERFACE BLOCK DECLARE                                 */
+ /* ----------------------------------------------------------------- */
+  %INCLUDE DLIUIB;
+
+
+1/* ----------------------------------------------------------------- */
+ /* NSS CWA  (COMMON WORK AREA)                                       */
+ /* ----------------------------------------------------------------- */
+   DCL CWA_PTR POINTER;
+   DCL 1 CWA UNALIGNED BASED(CWA_PTR),
+         %INCLUDE CWA;;
+
+1
+ DCL 1 PCBN_PTRS BASED(UIBPCBAL),
+       3 @CNTL_PCB POINTER;          /* MIRROR INDEX FOR AEQMIR3 PSB */
+                                     /*           AND                */
+                                     /* DOCUMENT INDEX FOR AEQMI3R   */
+ DCL 1 CNTL_PCB BASED(@CNTL_PCB),
+       3 DBDNAME        CHAR(8),
+       3 SEG_LEV        CHAR(2),
+       3 STAT           CHAR(2),
+       3 PROC_OPT       CHAR(4),
+       3 DLI_RESERVED   FIXED BIN(31),
+       3 SEGNAME        CHAR(8),
+       3 FB_LENGTH      FIXED BIN(31),
+       3 NBR_SENS_SEGS  FIXED BIN(31),
+       3 KEY_FEEDBACK   CHAR(50);
+
+   DCL 1 ERROR_DATA UNALIGNED,
+         %INCLUDE AEQERRT;;
+
+
+1/* ----------------------------------------------------------------- */
+ /*      CONTROL DATA BASE DECLARES                                   */
+ /* ----------------------------------------------------------------- */
+  DCL 1 CONTROL_DB UNALIGNED,
+        %INCLUDE AEQCT01;;
+
+1/* ----------------------------------------------------------------- */
+ /*   SSA DECLARES                                                    */
+ /* ----------------------------------------------------------------- */
+  DCL 1 CNTL_USSA,
+        2 UCNTL_NAME      CHAR(9)  INIT('CAASCRSC ');
+
+  DCL 1 CNTL_QSSA UNALIGNED,
+        2 QCNTL_NAME      CHAR(8)  INIT('CAASCRSC'),
+        2 QCNTL_QUAL      CHAR(1)  INIT('('),
+        2 QCNTL_KEYNAME   CHAR(8)  INIT('IINTAREA'),
+        2 QCNTL_OPR       CHAR(2)  INIT(' ='),
+        2 QCNTL_KEYVAL    CHAR(31) INIT(' '),
+        2 QCNTL_ENDCHAR   CHAR(1)  INIT(')');
+
+  DCL 1 CNTL_QSSA2 UNALIGNED,
+        2 QCNTL2_NAME     CHAR(8)  INIT('CAASCRSC'),
+        2 QCNTL2_QUAL     CHAR(1)  INIT('('),
+        2 QCNTL2_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+        2 QCNTL2_OPR      CHAR(2)  INIT(' >'),
+        2 QCNTL2_KEYVAL   CHAR(31) INIT(' '),
+        2 QCNTL2_ENDCHAR  CHAR(1)  INIT(')');
+
+
+1/* ----------------------------------------------------------------- */
+ /* BUFFER_CT INDICATES HOW MANY RECS  TO ATTEMPT TO PROCESS FOR      */
+ /* EACH PASS OF THE MIRRORING TRANSACTION.                           */
+ /* ----------------------------------------------------------------- */
+
+  DCL BUFFER_CT   FIXED BIN(15) INIT(10);
+
+ /* ----------------------------------------------------------------- */
+ /* DATA BUFFERS TO STORE SEGMENTS IN FLIGHT                          */
+ /* ----------------------------------------------------------------- */
+  DCL IO_BUF            CHAR(131)   INIT('');  /* GENERIC IO BUFFER   */
+  DCL CNTL_BUF(BUFFER_CT+1) CHAR(131);
+
+ /* ----------------------------------------------------------------- */
+ /* MISCELLANEOUS DECLARATIONS                                        */
+ /* ----------------------------------------------------------------- */
+  DCL DATA_TO_PROCESS   BIT(1)    INIT('1'B);   /* ALWAYS TRUE        */
+  DCL FIRSTTIME         BIT(1)    INIT('1'B);
+  DCL MORE_CNTLS        BIT(1)    INIT('1'B);   /* MORE ROOTS SWITCH  */
+  DCL NULL              BIT(8)    INIT('0'B);
+  DCL OKAY              BIT(1)    INIT('0'B);
+  DCL SYSTEM_LIMITED    BIT(1)    INIT('0'B);
+  DCL TEST_SW           BIT(1)    INIT('0'B);
+
+  DCL AREA_PSBNAME      CHAR(8)   INIT('');
+  DCL BLANKS23          CHAR(23)  INIT('');
+  DCL CONVID            CHAR(4)   INIT('') UNALIGNED;
+  DCL COUNTER     FIXED BIN(31)   INIT(0);
+  DCL CICS_STAT   FIXED BIN(31)   INIT(0);
+  DCL CNTL_CT     FIXED BIN(15)   INIT(0);    /* CONTROL COUNTER    */
+  DCL CUR_CNTL    FIXED BIN(15)   INIT(0);    /* CURRENT CNTL INDEX */
+  DCL DIAGTEXT          CHAR(80)  INIT('');
+  DCL DO_AGAIN          CHAR(1)   INIT('Y');
+  DCL EIB_STRING        CHAR(85)  BASED(DFHEIPTR);
+  DCL ERR1              CHAR(9)   INIT('QSR9000: ');
+  DCL ERR2              CHAR(9)   INIT('QSR9002: ');
+  DCL FIVE        FIXED BIN(31)   INIT(5);
+  DCL FOUR        FIXED BIN(31)   INIT(4);
+  DCL FUNC              CHAR(4)   INIT('');
+  DCL HH                PIC'999'  INIT(0);
+  DCL HI_CNTL     FIXED BIN(15)   INIT(0);    /* HIGH CNTL INDEX    */
+  DCL I           FIXED BIN(31)   INIT(0);
+  DCL LASTCNTL_SENT     CHAR(31)  INIT('');
+  DCL MM                PIC'99'   INIT(0);
+  DCL NBRTASKS    FIXED BIN(31)   INIT(0);
+  DCL NUM_TASKS         PIC 'ZZ9' INIT(0);
+  /* DCL MSG_PTR           POINTER;          RCQ1882 */
+  DCL ONE         FIXED BIN(31)   INIT(1);
+  DCL PASS_COUNT  FIXED BIN(31)   INIT(10);
+  DCL PCBNUM      FIXED BIN(15)   INIT(1);
+  DCL PIC2              PIC'99'   INIT(0);
+  DCL PIC_4             PIC'9999' INIT(0);
+  DCL PIC8              PIC'(8)9' INIT(0);
+  DCL PSBNAME           CHAR(8)   INIT('');
+  DCL RESPONSE    FIXED BIN(31)   INIT(0);
+  DCL RETCODE1          CHAR(8)   INIT('');
+  DCL RETCODE2          CHAR(8)   INIT('');
+  DCL SS                PIC'99'   INIT(0);
+  DCL TASKCOUNT   FIXED BIN(15)   INIT(0);
+  DCL TASKNUM(999)FIXED DEC(7,0)  BASED(@TASKPTR);
+  DCL TEXT_MSG          CHAR(80)  INIT('');
+  DCL THREE       FIXED BIN(31)   INIT(3);
+  DCL TIMEOUT     FIXED DEC(7,0)  INIT(0);
+  DCL TIMEOUT_ILL FIXED DEC(7,0)  INIT(1500); /* 15 MINUTES  */
+  DCL TIME_START  FIXED DEC(7,0)  INIT(200); /* 2 MINUTES  */
+  DCL TWO         FIXED BIN(31)   INIT(2);
+  DCL WKTRANS           CHAR(4)   INIT('');
+  DCL WORKATHM    FIXED BIN(31,0) INIT(0);
+
+  DCL CNTL_PTR          POINTER;
+  DCL @TASKPTR          POINTER;
+
+ %PAGE;
+ /*****************************************************************/
+ /*   ON ERROR                                                    */
+ /*****************************************************************/
+
+ ON ERROR
+    BEGIN;
+      ON ERROR SYSTEM;
+
+      WTO_FLAG = 'Y';
+      FUNC = 'TERM';
+      CALL PLITDLI(ONE,FUNC);
+      ET_PROGRAM_ID = 'AEQMIR3';
+      ET_EIB = EIB_STRING;
+
+      EXEC CICS XCTL PROGRAM('AEQERRP')
+           COMMAREA(ERROR_DATA)
+           RESP(RESPONSE);
+      IF RESPONSE ^= DFHRESP(NORMAL) THEN
+
+      NOT_NORMAL: DO;
+            EXEC CICS DUMP DUMPCODE('MIR3') TASK;
+            EXEC CICS RETURN;
+      END NOT_NORMAL;
+    END;
+
+1/*******************************************************************/
+ /*         START MAIN PROCESSING                                   */
+ /*******************************************************************/
+ TEXT_MSG = ERR1 ||
+              'AEQMIR3 -  HUB-TO-AREA CONTROL DB MIRRORING STARTED';
+ /* RCQ1882 : Write messages to Operator log                       */
+ /* MSG_PTR = ADDR(TEXT_MSG);                              RCQ1882 */
+ /* EXEC CICS LINK PROGRAM('RAMCWTO') COMMAREA(MSG_PTR);   RCQ1882 */
+
+  EXEC CICS WRITE OPERATOR TEXT(TEXT_MSG);              /* RCQ1882 */
+
+ EXEC CICS ADDRESS CWA(CWA_PTR);
+
+ IF CWA_QSAR_TRACE = 'M'
+   THEN DO;
+     TEST_SW = '1'B;
+     /* RCQ1882: CWA_COR_SYSID no longer exists */
+     /*DIAGTEXT= 'AEQMIR3: CWA INFO - CORE SYSID '||CWA_COR_SYSID||*/
+     DIAGTEXT= 'AEQMIR3: CWA INFO - QSAR TRACE FLAG '
+               ||CWA_QSAR_TRACE;
+     CALL WRITE_TO_OPER;
+   END;
+
+ IF FIRSTTIME
+   THEN DO;
+     CALL GET_TASK_LIST;
+     FIRSTTIME = '0'B;
+   END;
+
+                                         /* ---------------------- */
+ /* RCQ1882 PIC2/CWAARNUM not really used in this module           */
+ /*PIC2 = CWAARNUM; */                   /* GET AREA NUMBER        */
+                                         /* ---------------------- */
+ /* RCQ1882 : Hardcode PSB name */
+
+   AREA_PSBNAME= 'AEQM3C1';              /* RCQ1882                */
+ /*AREA_PSBNAME= 'AEQM3'||SUBSTR(CWA_COR_SYSID,1,2);               */
+
+ IF TEST_SW 
+   THEN DO;
+   /*  RCQ1882 :  CWA_COR_SYSID no longer exists                  */
+   /*  DIAGTEXT = 'AEQMIR3: CONNECTING TO '||CWA_COR_SYSID||      */
+     DIAGTEXT = 'AEQMIR3: CONNECTING TO HSIP. ';
+     CALL WRITE_TO_OPER;
+
+ /*******************************************************************/
+ /* GIVE SYSTEM TWO MINUTES TO STABILIZE...                         */
+ /*******************************************************************/
+     PIC8 = TIME_START;
+     DIAGTEXT = 'AEQMIR3: TIMEOUT AEQMIR3A '||PIC8;
+     CALL WRITE_TO_OPER;
+   END;
+ EXEC CICS DELAY INTERVAL(TIME_START) REQID('AEQMIR3A');
+
+ DO WHILE (DATA_TO_PROCESS);         /* BEGINNING OF INFINITE LOOP */
+                                     /* SR 0529                    */
+   EXEC CICS INQUIRE SYSTEM CICSSTATUS(CICS_STAT);
+   IF CICS_STAT ^= DFHVALUE(ACTIVE) & CICS_STAT ^= DFHVALUE(STARTUP)
+     THEN DO;
+       EXEC CICS WRITE OPERATOR TEXT
+          ('QSR9000: AEQMIR3 TRANSACTION AEQS IS BEING TERMINATED');
+       EXEC CICS RETURN;
+     END;
+
+  /* RCQ1882 : Hardcode HSIP : Primary                              */
+  /*  EXEC CICS ALLOCATE SYSID(CWA_COR_SYSID)                       */
+  EXEC CICS ALLOCATE SYSID('HSIP')                /* RCQ1882        */
+                       NOQUEUE RESP(RESPONSE);
+                                         /* WILL RETURN 53 IF CANNOT */
+    IF RESPONSE = DFHRESP(NORMAL)        /* ALLOCATE SESSION, RETURN */
+      THEN DO;                           /* 59 IF ALL SESSIONS BUSY, */
+        CONVID = SUBSTR(EIBRSRCE,1,4);   /* NORMAL = 00              */
+        EXEC CICS FREE CONVID(CONVID);
+        CALL DO_MIRRORING;
+      END;
+                                        /* NOT CONNECTED TO QSAR HUB */
+                                        /* FOR SOME REASON, MAY BE   */
+                                        /* HQSARDAY RUNNING AT HUB   */
+                                        /* SLEEP FOR 10 MINUTES      */
+      ELSE DO;
+       IF TEST_SW
+         THEN DO;
+           PIC8 = 1000;
+           DIAGTEXT = 'AEQMIR3: TIMEOUT AEQMIR3H '||PIC8;
+           CALL WRITE_TO_OPER;
+         END;
+        EXEC CICS DELAY INTERVAL(1000) REQID('AEQMIR3H');
+      END;
+
+   IF CWA_QSAR_TRACE = 'N'
+     THEN DO;
+       TEST_SW = '0'B;
+       DIAGTEXT= 'AEQMIR3: CWA INFO - QSAR TRACE FLAG '
+                 ||CWA_QSAR_TRACE||' TURN OFF TRACING';
+       /* CALL WRITE_TO_OPER;                                 RCQ1882*/
+     END;
+     
+ END;  /* DO FOREVER */
+
+
+1/*********************************************************************/
+ /*********************************************************************/
+ GET_TASK_LIST: PROC REORDER;
+
+   EXEC CICS INQUIRE TASK
+                     LIST
+                     LISTSIZE(NBRTASKS)
+                     SET(@TASKPTR)
+                     RESP(RESPONSE);
+   CALL CHECK_RESPONSE;
+
+   NUM_TASKS = 0;
+   DO TASKCOUNT = 1 TO NBRTASKS;
+     IF EIBTASKN ^= TASKNUM(TASKCOUNT)   /* DON'T COUNT YOURSELF      */
+       THEN NUM_TASKS = NUM_TASKS + 1;
+   END;
+
+   IF NUM_TASKS > 0
+     THEN DO;
+       DIAGTEXT = 'AEQMIR3 STARTING '|| NUM_TASKS ||
+                  ' TASK(S) FOUND ';
+       EXEC CICS WRITE OPERATOR TEXT(DIAGTEXT);
+       CALL CHECK_TASKS;
+     END;
+
+
+ END GET_TASK_LIST;
+
+1/*********************************************************************/
+ /* LOOK FOR ANOTHER CONTINUOUS RECYCLE TRANSACTION (AEQ2)            */
+ /*********************************************************************/
+ CHECK_TASKS: PROC REORDER;
+   IF TEST_SW
+     THEN DO;
+        DIAGTEXT = 'AEQMIR3 '|| NUM_TASKS ||
+               ' TASK(S) FOUND ';
+        EXEC CICS WRITE OPERATOR TEXT(DIAGTEXT);
+     END;
+
+
+
+   DCL PIC_TASKNUM         PIC 'ZZZZZZ9' INIT(0);
+   DCL PIC_EIBRESP2        PIC 'ZZZZZZ9' INIT(0);
+   DCL REG_PURGE           FIXED BIN(31) INIT(0);
+
+   REG_PURGE = DFHVALUE(FORCEPURGE);
+
+   EXEC CICS IGNORE CONDITION TASKIDERR;
+   DO TASKCOUNT = 1 TO NBRTASKS;
+
+                                         /* DO NOT CHECK YOURSELF    */
+     IF EIBTASKN ^= TASKNUM(TASKCOUNT)   /*                          */
+       THEN DO;
+         EXEC CICS INQUIRE TASK(TASKNUM(TASKCOUNT))
+                           TRANSACTION(WKTRANS)
+                           RESP(RESPONSE);
+         IF RESPONSE = DFHRESP(NORMAL)
+          THEN DO;
+            IF WKTRANS = 'AEQS' | WKTRANS = 'QAES'
+              THEN DO;
+                PIC_TASKNUM = TASKNUM(TASKCOUNT);
+                DIAGTEXT = 'DUPLICATE HUB TO AREA CONTROL DB MIRROR '||
+                      'TRANS TASK # '||PIC_TASKNUM;
+                EXEC CICS WRITE OPERATOR TEXT(DIAGTEXT);
+
+                EXEC CICS RETURN;
+              END;
+          END;
+       END;
+   END;
+
+
+ END CHECK_TASKS;
+
+
+1
+ DO_MIRRORING: PROC REORDER;
+ /******************************************************************/
+ /******************************************************************/
+   IF TEST_SW THEN
+     DO;
+       DIAGTEXT = 'AEQMIR3: IN PROC DO_MIRRORING';
+       CALL WRITE_TO_OPER;
+     END;
+
+   FUNC = 'PCB ';                          /* SCHEDULE AEQMIR3 PSB */
+   PSBNAME = 'AEQMIR3 ';
+   ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO SCHEDULE '||PSBNAME;
+   IF TEST_SW 
+     THEN DO;
+       DIAGTEXT = 'AEQMIR3: SCHEDULING PSB: '||PSBNAME;
+       CALL WRITE_TO_OPER;
+     END;
+     
+   CALL PLITDLI (THREE,FUNC,PSBNAME,UIBPTR);
+   CALL ANALYZE_LOCAL_UIB;
+
+   PASS_COUNT = PASS_COUNT + 1;
+   IF PASS_COUNT > 10                   /* DO THIS EVERY 10 PASSES */
+     THEN DO;
+       CALL PROCESS_CTLSEG;
+       PASS_COUNT = 0;
+     END;
+
+   FUNC = 'GU';
+   CALL BUILD_OUTBOUND_SEGS;
+   CALL MIRROR_SEGS;
+
+   IF SYSTEM_LIMITED
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           PIC8 = TIMEOUT_ILL;
+           DIAGTEXT = 'AEQMIR3: SYSTEM LIMITED, TIMEOUT AEQMIR3B '||
+                       PIC8;
+           CALL WRITE_TO_OPER;
+         END;
+       EXEC CICS DELAY INTERVAL(TIMEOUT_ILL) REQID('AEQMIR3B');
+     END;
+     ELSE DO;
+       IF TEST_SW
+         THEN DO;
+           PIC8 = TIMEOUT;
+           DIAGTEXT = 'AEQMIR3: TIMEOUT AEQMIR3C '||PIC8;
+           CALL WRITE_TO_OPER;
+         END;
+       EXEC CICS DELAY INTERVAL(TIMEOUT) REQID('AEQMIR3C');
+     END;
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* IF NO MORE DATA TO SEND, TIMEOUT A LITTLE LONGER                */
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+   IF ^MORE_CNTLS
+     THEN DO;
+       IF TEST_SW
+         THEN DO;
+           PIC8 = TIMEOUT_ILL;
+           DIAGTEXT = 'AEQMIR3: TIMEOUT AEQMIR3D '||PIC8;
+           CALL WRITE_TO_OPER;
+         END;
+       EXEC CICS DELAY INTERVAL(TIMEOUT_ILL) REQID('AEQMIR3D');
+     END;
+
+ END DO_MIRRORING;
+
+1
+ BUILD_OUTBOUND_SEGS: PROC REORDER;
+ /******************************************************************/
+ /*  GN CNTL AND PUT IN PROPER BUFFER                              */
+ /*  DO WHILE(MORE_CNTLS & CNTL_CT < BUFFER_CT)                    */
+ /*       BUMP CNTL_CT INDEX                                       */
+ /*       PUT IO_BUF IN SEG STORE AREA(CNTL_CT)                    */
+ /*    GN CNTL AND PUT IN PROPER BUFFERS                           */
+ /*  END                                                           */
+ /*  TERMINATE AEQMIR3 PSB                                         */
+ /******************************************************************/
+   IF TEST_SW THEN
+     DO;
+       DIAGTEXT = 'AEQMIR3: IN PROC BUILD_OUTBOUND_SEGS';
+       CALL WRITE_TO_OPER;
+     END;
+
+   CNTL_BUF(*) = '';
+
+   MORE_CNTLS = '1'B;   /* RESET FOR CHANCE OF MORE CNTLS COMING IN */
+   CALL GN_CNTL;
+   CNTL_CT    = 0;
+
+   DO WHILE(MORE_CNTLS & CNTL_CT < BUFFER_CT);
+      CNTL_BUF(BUFFER_CT + 1) = IO_BUF;
+      CNTL_PTR                = ADDR(CNTL_BUF(BUFFER_CT + 1));
+
+      IF TEST_SW 
+        THEN DO;
+         DIAGTEXT = 'AEQMIR3: BUILD/CHECK KEY '||SUBSTR(IO_BUF,1,31);
+         CALL WRITE_TO_OPER;
+        END;
+                           /*???QSARACR/QSARSQL/QSARQLX/QSARSFTP  */
+
+      /* RCQ1882: Added 5 LAR Control keys for mirroring */
+
+      /* QSARLARC -  CONTAINS COUNT OF INPUT TYPE 1 RECORDS.
+         QSAROVRC -  CONTAINS COUNTS OF TYPE 5 INPUT, PROCESSED
+                     TYPE 5 AND TYPE 6 RECORDS.
+         QSARACKC -  CONTAINS COUNT OF TYPE 2 RECORDS SENT FOR
+                     PROCESSED TYPE 1 AND ERRORED TYPE 1 RECORDS.
+         QSARHSIC -  CONTAINS COUNT OF TYPE 3 RECORDS SENT.
+         QSARHSDC -  CONTAINS COUNT OF TYPE 4 RECORDS SENT.  */
+
+      IF SUBSTR(IO_BUF,1,8) = 'QSARNSSC' |
+         SUBSTR(IO_BUF,1,8) = 'QSARQSRC' |
+         SUBSTR(IO_BUF,1,7) = 'QSARCLM'  |
+         SUBSTR(IO_BUF,1,8) = 'QSARRTSC' |
+         SUBSTR(IO_BUF,1,8) = 'QSARLARC' |
+         SUBSTR(IO_BUF,1,8) = 'QSAROVRC' |
+         SUBSTR(IO_BUF,1,8) = 'QSARACKC' |
+         SUBSTR(IO_BUF,1,8) = 'QSARHSIC' |
+         SUBSTR(IO_BUF,1,8) = 'QSARHSDC'
+
+         THEN DO;
+           CNTL_CT           = CNTL_CT + 1;
+           CNTL_BUF(CNTL_CT) = IO_BUF;
+           CNTL_PTR          = ADDR(CNTL_BUF(CNTL_CT));
+         END;
+     CALL GN_CNTL;
+   END;
+
+   FUNC = 'TERM';            /* TERMINATE LOCAL AEQMIR3 PSB */
+   CALL PLITDLI (ONE,FUNC);
+
+ END BUILD_OUTBOUND_SEGS;
+
+1
+ GN_CNTL: PROC REORDER;
+ /******************************************************************/
+ /*  GET NEXT ON THE CNTL DATA BASE BY READING THROUGH THE MIRROR  */
+ /*  INDEX.                                                        */
+ /******************************************************************/
+  IF TEST_SW 
+    THEN DO;
+      DIAGTEXT = 'AEQMIR3: IN PROC GN_CNTL';
+      CALL WRITE_TO_OPER;
+    END;
+
+  QCNTL2_KEYVAL = LASTCNTL_SENT;
+  ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||FUNC||' CNTL SEGMENT';
+  ET_TEXT2 = ERR2||'AEQMIR3 QUALIFIED SSA ('
+                    ||QCNTL2_KEYNAME||QCNTL2_OPR||QCNTL2_KEYVAL||')';
+
+   IF TEST_SW 
+     THEN DO;
+      DIAGTEXT = 'AEQMIR3: SSA '||QCNTL2_KEYNAME||QCNTL2_OPR||
+                                  QCNTL2_KEYVAL;
+      CALL WRITE_TO_OPER;
+    END;
+
+  CALL PLITDLI (FOUR,FUNC,CNTL_PCB,IO_BUF,CNTL_QSSA2);
+  CALL ANALYZE_LOCAL_UIB;
+
+  IF (STAT ^= '  ') &
+     (STAT ^= 'GE') &
+     (STAT ^= 'GB') 
+    THEN DO;
+      ET_TEXT3 = ERR2||' DL/I STATUS = '||STAT;
+      SIGNAL ERROR;
+    END;
+
+  IF (STAT = 'GE') |
+     (STAT = 'GB') 
+    THEN DO;
+      MORE_CNTLS = '0'B;
+      LASTCNTL_SENT = ''; /* START MIRRORING FROM START OF LOCAL DO*/
+    END;
+
+  FUNC = 'GN  ';
+
+ END GN_CNTL;
+
+1
+ MIRROR_SEGS: PROC REORDER;
+ /******************************************************************/
+ /*  SCHEDULE REMOTE PSB - AEQMI3R                                 */
+ /*  IF FAIL, RETURN (SYSTEM LIMITED FLAG IS SET)                  */
+ /*  DO CUR_CNTL = 1 TO CNTL_CT WHILE (SYSTEM HEALTHY)             */
+ /*    GHU  CNTL                                                   */
+ /*    IF 'GE' RETURN CODE THEN ISRT CNTL                          */
+ /*    IF '  ' RETURN CODE THEN REPL CNTL                          */
+ /*    DELAY INTERVAL                                              */
+ /*  END                                                           */
+ /*  TERMINATE AEQMI3R PSB                                         */
+ /******************************************************************/
+ IF TEST_SW 
+   THEN DO;
+     DIAGTEXT = 'AEQMIR3: IN PROC MIRROR_SEGS';
+     CALL WRITE_TO_OPER;
+   END;
+
+ SYSTEM_LIMITED = '0'B;                   /* ASSUME GOOD HEALTH    */
+
+ FUNC = 'PCB ';                           /* SCHEDULE AEQMI3R PSB  */
+ /*PSBNAME = 'AEQMI3R'*/
+ PSBNAME = AREA_PSBNAME;
+ ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||FUNC||' '||PSBNAME;
+
+ CALL PLITDLI (THREE,FUNC,PSBNAME,UIBPTR);
+ CALL ANALYZE_REMOTE_UIB;
+ 
+ IF TEST_SW 
+   THEN DO;
+     DIAGTEXT = 'AEQMIR3: SCHEDULING PSB: '||PSBNAME;
+     CALL WRITE_TO_OPER;
+   END;
+   
+ DO CUR_CNTL = 1 TO CNTL_CT WHILE (^SYSTEM_LIMITED);
+    IO_BUF = CNTL_BUF(CUR_CNTL);
+    QCNTL_KEYVAL = SUBSTR(IO_BUF,1,31);
+    FUNC = 'GHU ';
+    CNTL_PTR = ADDR(CNTL_BUF(CUR_CNTL));
+    ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||FUNC||' USING PSB '||
+                                                               PSBNAME;
+    ET_TEXT2 = ERR2||'AEQMIR3 QUALIFIED SSA ('
+                   ||QCNTL_KEYNAME||QCNTL_OPR||QCNTL_KEYVAL||')';
+
+    IF TEST_SW 
+      THEN DO;
+        DIAGTEXT = 'AEQMIR3: MIRRORING '||SUBSTR(IO_BUF,1,31);
+        CALL WRITE_TO_OPER;
+      END;
+
+    CALL PLITDLI (FOUR,FUNC,CNTL_PCB,
+                  IO_BUF,CNTL_QSSA);
+    CALL ANALYZE_REMOTE_UIB;
+    IF ^SYSTEM_LIMITED 
+      THEN DO;
+          SELECT(STAT);
+            WHEN('GE')
+              DO;
+                FUNC = 'ISRT';
+                ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||
+                           FUNC||' USING PSB'||PSBNAME;
+                CALL PLITDLI (FOUR,
+                              FUNC,
+                              CNTL_PCB,
+                              CNTL_BUF(CUR_CNTL),
+                              CNTL_USSA);
+                CALL ANALYZE_REMOTE_UIB;
+                
+                IF SYSTEM_LIMITED 
+                  THEN DO; 
+                    IF TEST_SW
+                      THEN DO;
+                        PIC8 = TIMEOUT_ILL;
+                        DIAGTEXT = 'AEQMIR3: SYSTEM LIMITED, '||
+                                    'TIMEOUT AEQMIR3E '||PIC8;
+                        CALL WRITE_TO_OPER;
+                      END;
+                    EXEC CICS DELAY INTERVAL(TIMEOUT)
+                                       REQID('AEQMIR3E');
+                  END;
+                 IF TEST_SW 
+                   THEN DO;
+                     DIAGTEXT = 'AEQMIR3: INSERTED ('||
+                                     QCNTL_KEYVAL||')';
+                     CALL WRITE_TO_OPER;
+                   END;
+                IF ^SYSTEM_LIMITED &
+                   STAT ^= '  ' 
+                  THEN DO;
+                    ET_TEXT3 = ERR2||' DL/I STATUS = '||STAT;
+                    SIGNAL ERROR;
+                  END;
+              END;
+            WHEN('')
+              DO;
+                 FUNC = 'REPL';
+                 ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||
+                            FUNC||' USING PSB'||PSBNAME;
+                 CALL PLITDLI
+                     (THREE,FUNC,CNTL_PCB,CNTL_BUF(CUR_CNTL));
+                 CALL ANALYZE_REMOTE_UIB;
+                 IF TEST_SW 
+                   THEN DO;
+                     DIAGTEXT = 'AEQMIR3: REPLACED ('||
+                                  QCNTL_KEYVAL||')';
+                     CALL WRITE_TO_OPER;
+                   END;
+                 IF SYSTEM_LIMITED 
+                   THEN DO;
+                     IF TEST_SW
+                       THEN DO;
+                         PIC8 = TIMEOUT;
+                         DIAGTEXT = 'AEQMIR3: SYSTEM LIMITED, '||
+                                     'TIMEOUT AEQMIR3F '||PIC8;
+                         CALL WRITE_TO_OPER;
+                       END;
+
+                     EXEC CICS DELAY INTERVAL(TIMEOUT)
+                                        REQID('AEQMIR3F');
+                   END;
+                 IF ^SYSTEM_LIMITED &
+                     STAT ^= '  ' 
+                    THEN DO;
+                      ET_TEXT3 = ERR2||' DL/I STATUS = '||STAT;
+                      SIGNAL ERROR;
+                    END;
+              END;
+            OTHERWISE
+              DO;
+                ET_TEXT3 = ERR2||' DL/I STATUS = '||STAT;
+                SIGNAL ERROR;
+              END;
+          END; /* SELECT(STAT) */
+          /*************************************************/
+          /* MARK POSITION FOR NEXT LOCAL GET NEXT CALL    */
+          /*************************************************/
+          LASTCNTL_SENT = QCNTL_KEYVAL;
+      END;  /* ^SYSTEM_LIMITED */
+      ELSE DO;
+        IF TEST_SW
+         THEN DO;
+           PIC8 = TIMEOUT;
+           DIAGTEXT = 'AEQMIR3: TIMEOUT AEQMIR3G '||PIC8;
+           CALL WRITE_TO_OPER;
+         END;
+        EXEC CICS DELAY INTERVAL(TIMEOUT) REQID('AEQMIR3G');
+      END;
+
+ END;  /* DO I = 1 TO CUR_GENL WHILE (^SYSTEM_LIMITED) */
+
+ FUNC = 'TERM';                    /* TERMINATE AEQMIR3 REMOTE PSB */
+ ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||FUNC||' '||PSBNAME;
+ CALL PLITDLI (ONE,FUNC);
+ CALL ANALYZE_REMOTE_UIB;
+
+ END MIRROR_SEGS;
+
+1
+ CHECK_RESPONSE: PROC REORDER;
+ /******************************************************************/
+ /*  CHECK FOR SUCCESSFUL CICS CALL ....   TAKE APPROPRIATE ACTION */
+ /******************************************************************/
+   IF TEST_SW 
+     THEN DO;
+       DIAGTEXT = 'AEQMIR3: IN PROC CHECK_RESPONSE';
+       CALL WRITE_TO_OPER;
+     END;
+
+   IF RESPONSE ^= DFHRESP(NORMAL)
+     THEN DO;
+       ET_TEXT3 = ERR2||MODULE||' CICS RESPONSE IS '||RESPONSE;
+       SIGNAL ERROR;
+     END;
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+   ET_TEXT3 = '';
+
+ END CHECK_RESPONSE;
+
+1
+ ANALYZE_LOCAL_UIB: PROC REORDER;
+ /***************************************************************/
+ /* CHECK FOR VALID RETURN CODE FROM DLI USER INTERFACE BLOCK   */
+ /* BEFORE CHECKING THE PCB STATUS CODE.                        */
+ /***************************************************************/
+  IF TEST_SW 
+    THEN DO;
+       DIAGTEXT = 'AEQMIR3: IN PROC ANALYZE_LOCAL_UIB';
+       CALL WRITE_TO_OPER;
+     END;
+
+  IF UIBFCTR = NULL 
+    THEN OKAY = '1'B;
+    ELSE DO;
+      OKAY = '0'B;
+      RETCODE1 = UIBFCTR;
+      RETCODE2 = UIBDLTR;
+      ET_TEXT3 = ERR2||'AEQMIR3 UIBFCTR='||RETCODE1||
+                 ' UIBDLTR='||RETCODE2||' PSB='||PSBNAME||
+                 ' FUNC='||FUNC;
+      SIGNAL ERROR;
+    END;
+  ET_TEXT3 = '';
+
+ END ANALYZE_LOCAL_UIB;
+
+1
+ ANALYZE_REMOTE_UIB: PROC REORDER;
+ /***************************************************************/
+ /* CHECK FOR VALID RETURN CODE FROM DLI USER INTERFACE BLOCK   */
+ /* BEFORE CHECKING THE PCB STATUS CODE.                        */
+ /* THIS ROUTINE HAS ADDED CHECKS INTO THE UIBFCTR AND UIBDLTR  */
+ /* SO YOU CAN TELL IF A REMOTE SYSTEM IS NOT AVAILABLE.        */
+ /***************************************************************/
+  IF TEST_SW 
+    THEN DO;
+      DIAGTEXT = 'AEQMIR3: IN PROC ANALYZE_REMOTE_UIB';
+      CALL WRITE_TO_OPER;
+    END;
+
+  IF UIBFCTR = NULL 
+    THEN DO;
+      IF STAT = 'AI' THEN                          /* DB NOT OPEN */
+        SYSTEM_LIMITED = '1'B;
+    END;
+    ELSE DO;
+     IF UIBFCTR = '00001100'B |             /* DB NOT OPEN */
+        ((UIBFCTR = '00001000'B) &          /* INVALID REQUEST */
+        ((UIBDLTR = '00000101'B) |          /* PSB SCHEDULE FAILED */
+        (UIBDLTR = '00000111'B) |           /* PSB TERMINATE FAILED */
+        (UIBDLTR = '11111111'B) |           /* DL/I INACTIVE */
+        (UIBDLTR = '00001000'B)))           /* FUNCTION UNSCHEDULED */
+        THEN DO;
+          SYSTEM_LIMITED = '1'B;
+          FUNC = 'TERM';                         /* TRY TO TERMINATE */
+          CALL PLITDLI (ONE,FUNC);
+        END;
+        ELSE DO;
+          RETCODE1 = UIBFCTR;
+          RETCODE2 = UIBDLTR;
+          ET_TEXT3 = ERR2||PSBNAME||' UIBFCTR='||RETCODE1||
+                     ' UIBDLTR='||RETCODE2||' PSB='||PSBNAME||
+                     ' FUNC='||FUNC;
+          SIGNAL ERROR;
+        END;
+  END;
+  ET_TEXT3 = '';
+
+ END ANALYZE_REMOTE_UIB;
+
+1
+ PROCESS_CTLSEG: PROC REORDER;
+ /***************************************************************/
+ /* READ CONTROL DATABASE TO GET MIRRORING INTERVAL             */
+ /***************************************************************/
+   IF TEST_SW 
+     THEN DO;
+       DIAGTEXT = 'AEQMIR3: IN PROC PROCESS_CTLSEG';
+       CALL WRITE_TO_OPER;
+     END;
+
+   FUNC = 'GU  ';
+   QCNTL_KEYVAL = 'QSARCT01'||BLANKS23;
+   ET_TEXT1 = ERR2||'AEQMIR3 UNABLE TO '||FUNC||' CAASCRSC SEGMENT';
+   ET_TEXT2 = ERR2||'AEQMIR3 CAASCRSC KEYVALUE ('||QCNTL_KEYVAL||')';
+
+   CALL PLITDLI (FOUR,
+                 FUNC,
+                 CNTL_PCB,
+                 CONTROL_DB,
+                 CNTL_QSSA);
+   CALL ANALYZE_LOCAL_UIB;
+
+ /*----------------------------------------------------------------*/
+ /*  CHECK FOR SUCCESSFUL CONTROL DLI CALL-TAKE APPROPRIATE ACTION */
+ /*  IF NO CONTROL DATA BASE SEGMENT EXISTS FOR AREA TO HUB        */
+ /*  MIRRORING, DEFAULT TO A 20 SECOND DELAY INTERVAL.             */
+ /*----------------------------------------------------------------*/
+   SELECT(STAT);
+     WHEN('GB') TIMEOUT =  200;               /* END OF FILE       */
+     WHEN('GE') TIMEOUT =  200;               /* SEGMENT NOT FOUND */
+     WHEN('  ')                               /* SEGMENT FOUND     */
+       DO;
+           IF CT01ATHM > 0 
+             THEN DO;
+                 /**************************************/
+                 /* BE PREPARED FOR OVERFLOW CONDITION */
+                 /**************************************/
+                 IF CT01ATHM/60 >= 60 
+                   THEN DO;
+                       WORKATHM = (CT01ATHM/60) - 60;
+                       IF WORKATHM >= 60 
+                         THEN DO;
+                            HH = 002;
+                            MM = WORKATHM - 60;
+                          END;
+                          ELSE DO;
+                            HH = 001;
+                            MM = CT01ATHM - 60;
+                          END;
+                   END;
+                   ELSE DO;
+                        HH = 0;
+                        MM = CT01ATHM/60;
+                        SS = MOD(CT01ATHM,60);
+                   END;
+             END;
+             ELSE DO;
+               HH = 0;
+               MM = 0;
+               SS = 0;
+             END;
+           TIMEOUT   = HH||MM||SS;
+           CALL TIME_SYSTEM_ILL;
+       END;
+     OTHERWISE
+       DO;
+           ET_DUMPCODE = 'Y';
+           ET_TEXT1 = ERR2||'AEQMIR3 RECEIVED '
+                      ||'IMS STATUS CODE('||
+                      STAT||') WITH FUNCTION '||FUNC||
+                      ' TO CONTROL DB';
+           SIGNAL ERROR;
+       END;
+   END;                       /*  END OF SELECT                      */
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+   ET_TEXT3 = '';
+
+ END PROCESS_CTLSEG;
+
+1
+ TIME_SYSTEM_ILL: PROC REORDER;
+  /******************************************************************/
+  /*  TIME ROUTINE TO CALCULATE TIME WHEN DELAY INTERVAL MUST BE    */
+  /*  MULTIPLIED BY 5 DUE TO SYSTEM PROBLEMS.                       */
+  /******************************************************************/
+
+   IF TEST_SW 
+     THEN DO;
+        DIAGTEXT = 'AEQMIR3: IN PROC TIME_SYSTEM_ILL';
+        CALL WRITE_TO_OPER;
+     END;
+
+   IF CT01ATHM > 0 
+     THEN DO;
+          WORKATHM = CT01ATHM * 5;
+         /**************************************/
+         /* BE PREPARED FOR OVERFLOW CONDITION */
+         /**************************************/
+         IF WORKATHM/60 >= 60 THEN
+            DO;
+                WORKATHM = (WORKATHM/60) - 60;
+                IF WORKATHM >= 60 THEN
+                   DO;
+                      HH = 002;
+                      MM = WORKATHM - 60;
+                   END;
+                ELSE DO;
+                        HH = 001;
+                        MM = WORKATHM - 60;
+                     END;
+            END;
+          ELSE
+            DO;
+                HH = 0;
+                MM = WORKATHM/60;
+                SS = MOD(WORKATHM,60);
+            END;
+     END;
+     ELSE DO;
+       HH = 0;
+       MM = 0;
+       SS = 0;
+      END;
+
+
+   TIMEOUT_ILL = HH||MM||SS;
+
+ END TIME_SYSTEM_ILL;
+
+1
+ WRITE_TO_OPER: PROC;
+ /******************************************************************/
+ /******************************************************************/
+   /* EXEC CICS WRITE OPERATOR TEXT(DIAGTEXT)  */
+   EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAGTEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+ END AEQMIR3 ;

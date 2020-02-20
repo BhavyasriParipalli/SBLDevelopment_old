@@ -1,0 +1,358 @@
+ /* NAME:   QBABEND     VERSION NR:  01           DATE:  06/23/10    */
+ /*                                               TIME:  00:00:00    */
+ /*                                                                  */
+ /* TITLE:  MQ Q ABEND COPY BOOK                                     */
+ /*                                                                  */
+ /*                                                                  */
+ /* TYPE:  OTHER                                                     */
+ /*                                                                  */
+ /* CURRENT LENGTH: 50                                               */
+ /*                                                                  */
+ /* LANGUAGE:  PL/I                                                  */
+ /*                                                                  */
+ /* DESCRIPTION:  COPY BOOK FOR PUT Q ACKNOWLEDGEMENT                */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  06/23/10 IT4211  0NSE  INITIAL VERSION                     DH   */
+ /********************************************************************/
+  3 C_ERR_CATGY                    CHAR(3)           INIT(' '),
+  3 ERROR_CODES,
+   5 MQERR1,
+     7 MQ_CONNECT_ERR             CHAR(3)           INIT('001'),                
+     7 DESC_CONNECT_FAILED        CHAR(50)          
+                      INIT('MQ ERROR - QUEUE CONNECTION FAILED'), 
+ 
+     7 MQ_OPEN_ERR                CHAR(3)           INIT('002'), 
+     7 DESC_OPEN_FAILED           CHAR(50)          
+                      INIT('MQ ERROR - OPEN QUEUE FAILED'), 
+ 
+     7 MQ_GET_ERR                 CHAR(3)           INIT('003'),            
+     7 DESC_GET_FAILED        CHAR(50)          
+                      INIT('MQ ERROR - GET QUEUE FAILED'),
+
+     7 MQ_SET_ERR                 CHAR(3)           INIT('004'),            
+     7 DESC_SET_FAILED            CHAR(50)          
+                      INIT('MQ ERROR - QUEUE SET TRIGGER FAILED'),
+  
+     7 MQ_PUT_ERR                 CHAR(3)           INIT('005'),            
+     7 DESC_PUT_FAILED            CHAR(50)          
+                      INIT('MQ ERROR - PUT QUEUE FAILED'),
+ 
+     7 MQ_CLOSE_ERR               CHAR(3)           INIT('006'),            
+     7 DESC_CLOSE_FAILED          CHAR(50)          
+                      INIT('MQ ERROR - CLOSE QUEUE FAILED'),
+  
+     7 MQ_DISCONNECT_ERR          CHAR(3)           INIT('007'),            
+     7 DESC_DISCONNECT_FAILED     CHAR(50)          
+                      INIT('MQ ERROR - DISCONNECT QUEUE FAILED'),
+  
+     7 MQ_RECORD_ERR              CHAR(3)           INIT('008'),            
+     7 MQ_RECORD_INVALID          CHAR(50)          
+                      INIT('MQ ERROR - MQ RECORD IS INVALID'),
+  
+     7 MQ_COMMIT_ERR              CHAR(3)           INIT('009'),            
+     7 MQ_COMMIT_FAILED           CHAR(50)          
+                      INIT('MQ ERROR - MQ QUEUE COMMIT FAILED'),
+  
+     7 MQ_ERR                     CHAR(3)           INIT('010'),            
+     7 MQ_UNKNOWN_ERROR           CHAR(50)          
+                      INIT('MQ ERROR - GET QUEUE UNKNOWN ERROR'),
+  
+     7 MQ_ERR2                    CHAR(3)           INIT('011'),            
+     7 MQ_IMPROPER_ERROR          CHAR(50)          
+                      INIT('MQ ERROR - GET QUEUE IMPROPER FORMAT'),
+  
+     7 UNKNOWN_ERR                CHAR(3)           INIT('012'),            
+     7 OTHER_ERROR                CHAR(50)          
+        INIT('OTHER UNKNOWN ERROR:CONTACT HSI DEVELOPMENT'),
+    
+     7 PRICE_ERR                  CHAR(3)           INIT('013'),            
+     7 UNIT_PRICE_ERROR           CHAR(50)          
+                      INIT('PARTS UNIT PRICE FIELD IS INVALID'),
+  
+     7 COST_ERR                   CHAR(3)           INIT('014'),            
+     7 UNIT_COST_ERROR            CHAR(50)          
+                      INIT('PARTS UNIT COST FIELD IS INVALID'),
+        
+     7 PT_ERR                     CHAR(3)           INIT('015'),            
+     7 PT_FLAG_ERROR              CHAR(50)          
+                      INIT('PT ERROR MSG FLAG IS INVALID'),
+        
+     7 PT_SOURCE_ERR              CHAR(3)           INIT('016'),            
+     7 PT_SOURCE_FLAG_ERROR       CHAR(50)          
+                      INIT('SOURCED FROM PT FLAG IS INVALID'),
+
+     7 NSD_SOURCE_ERR              CHAR(3)          INIT('017'),            
+     7 NSD_SOURCE_FLAG_ERROR       CHAR(50)          
+                      INIT('SOURCED FROM NSD FLAG IS INVALID'),
+     
+     7 RESUBMIT_ERR                CHAR(3)          INIT('018'),            
+     7 RESUBMIT_DOC_ERROR         CHAR(50)          
+                      INIT('RESUBMIT DOC FLAG IS INVALID'),
+      
+     7 RECYCL_ERR                CHAR(3)          INIT('019'),            
+     7 RECYCL_DOC_ERROR          CHAR(50)          
+                      INIT('RECYCLED DOC FLAG IS INVALID'),
+        
+     7 HOLD_ERR                  CHAR(3)          INIT('020'),            
+     7 HOLD_FLAG_ERROR           CHAR(50)          
+                      INIT('HOLD FLAG IS INVALID'),
+     
+     7 MPI_ERR                  CHAR(3)          INIT('021'),            
+     7 MPI_FLAG_ERROR           CHAR(50)          
+                      INIT('MPI BUSY FLAG IS INVALID'),
+          
+     7 SAV_ERR                  CHAR(3)          INIT('022'),            
+     7 SAV_FLAG_ERROR           CHAR(50)          
+                      INIT('FSAVBUSY FLAG IS INVALID'),
+      
+     7 SPWN_ERR                  CHAR(3)          INIT('023'),            
+     7 SPWN_FLAG_ERROR           CHAR(50)          
+                      INIT('FSPWN08 FLAG IS INVALID'),
+
+     7 FPT_ERR                  CHAR(3)          INIT('024'),            
+     7 FPT_FLAG_ERROR           CHAR(50)          
+                      INIT('FPTCORR FLAG IS INVALID'),
+     
+     7 FSYSS_ERR                  CHAR(3)        INIT('025'),            
+     7 FSYSS_FLAG_ERROR           CHAR(50)          
+                      INIT('FSYSSPWN FLAG IS INVALID'),
+
+     7 FOEM_ERR                  CHAR(3)        INIT('026'),            
+     7 FOEM_FLAG_ERROR           CHAR(50)          
+                      INIT('OEM MACHINE TYPE FLAG IS INVALID'),
+
+     7 FOEM_CNTR_ERR             CHAR(3)        INIT('027'),            
+     7 FOEM_CNTR_FLAG_ERROR      CHAR(50)          
+                      INIT('OEM CONTRACT FLAG IS INVALID'),
+      
+     7 FAUD_ERR                  CHAR(3)        INIT('028'),
+     7 FAUD_FLAG_ERROR           CHAR(50)      
+                     INIT('AUDIT TRAIL DB FLAG IS INVALID'),  
+     
+     7 FMPI_DB_ERR               CHAR(3)        INIT('029'),
+     7 FMPI_DB_FLAG_ERROR        CHAR(50)      
+                     INIT('MPI DB RECOVERY FLAG IS INVALID'),  
+
+     7 FISS_CNTR_ERR             CHAR(3)        INIT('030'),
+     7 FISS_CNTR_FLAG_ERROR      CHAR(50)      
+                     INIT('CONTRACT FLD FLAG IS INVALID'),  
+
+     7 FIBM_ERR                  CHAR(3)        INIT('031'),
+     7 FIBM_FLAG_ERROR           CHAR(50)      
+             INIT('SERVICE ACTIVITY FOR IBM FLAG IS INVALID'),  
+
+     7 FONMA_ERR                  CHAR(3)        INIT('032'),
+     7 FONMA_FLAG_ERROR           CHAR(50)      
+             INIT('MACHINE ON MA FLAG IS INVALID'),  
+ 
+     7 FWARR_ERR                  CHAR(3)        INIT('033'),
+     7 FWARR_FLAG_ERROR           CHAR(50)      
+             INIT('MACHINE UNDER WARRANTY FLAG IS INVALID'),  
+
+     7 FOEE_ERR                  CHAR(3)        INIT('034'),
+     7 FOEE_FLAG_ERROR           CHAR(50)      
+             INIT('OEE DATABASE FLAG IS INVALID'),  
+ 
+     7 FECI_ERR                  CHAR(3)        INIT('035'),
+     7 FECI_FLAG_ERROR           CHAR(50)      
+             INIT('FECI CALL FLAG IS INVALID'),  
+  
+     7 FEBCONT_ERR               CHAR(3)        INIT('036'),
+     7 FEBCONT_FLAG_ERROR        CHAR(50)      
+             INIT('EB CONTRACT FLAG IS INVALID'),  
+  
+     7 FRSTCNTR_ERR               CHAR(3)        INIT('037'),
+     7 FRSTCNTR_FLAG_ERROR        CHAR(50)      
+             INIT('RESET CINVCNTR INDICATOR IS INVALID'), 
+
+     7 FCAD_ERR                   CHAR(3)        INIT('038'),
+     7 FCAD_FLAG_ERROR            CHAR(50)      
+             INIT('MATCH TO CAD RECORD INDICATOR IS INVALID'), 
+
+     7 FSRCNSS_ERR               CHAR(3)        INIT('039'),
+     7 FSRCNSS_FLAG_ERROR        CHAR(50)      
+             INIT('SOURCED NSS SCHEDULER INDICATOR IS INVALID'), 
+
+     7 FTSSMACH_ERR               CHAR(3)       INIT('040'),
+     7 FTSSMACH_FLAG_ERROR        CHAR(50)      
+             INIT('FTSSMACH INDICATOR IS INVALID'), 
+    
+     7 FPETMSG_ERR               CHAR(3)       INIT('041'),
+     7 FPETMSG_FLAG_ERROR        CHAR(50)      
+             INIT('FPETMSG INDICATOR IS INVALID'),
+
+     7 FSYSBILL_ERR               CHAR(3)       INIT('042'),
+     7 FSYSBILL_FLAG_ERROR        CHAR(50)      
+             INIT('FSYSBILL INDICATOR IS INVALID'), 
+
+     7 FMICRO_ERR                 CHAR(3)       INIT('043'),
+     7 FMICRO_FLAG_ERROR        CHAR(50)      
+             INIT('MICROCODE QSAR INDICATOR IS INVALID'),
+     
+     7 FMES_ERR                   CHAR(3)       INIT('044'),
+     7 FMES_FLAG_ERROR            CHAR(50)      
+             INIT('MES QSAR INDICATOR IS INVALID'),
+
+     7 FECA_ERR                   CHAR(3)       INIT('045'),
+     7 FECA_FLAG_ERROR            CHAR(50)      
+             INIT('ECA QSAR INDICATOR IS INVALID'),
+     
+     7 FREA_ERR                   CHAR(3)       INIT('046'),
+     7 FREA_FLAG_ERROR            CHAR(50)      
+             INIT('AREA QSAR INDICATOR IS INVALID'),
+     
+     7 FCTRBUSY_ERR               CHAR(3)       INIT('047'),
+     7 FCTRBUSY_FLAG_ERROR        CHAR(50)      
+             INIT('CONTRACT DB BUSY INDICATOR IS INVALID'),
+
+     7 FCTRDBUN_ERR               CHAR(3)       INIT('048'),
+     7 FCTRDBUN_FLAG_ERROR        CHAR(50)      
+         INIT('CONTRACT DB UNAVAILABLE INDICATOR IS INVALID'),
+    
+     7 FSPCCNTR_ERR               CHAR(3)       INIT('049'),
+     7 FSPCCNTR_FLAG_ERROR        CHAR(50)      
+           INIT('SPECIAL CONTRACT INDICATOR IS INVALID'),
+    
+     7 FPREPEND_ERR               CHAR(3)       INIT('050'),
+     7 FPREPEND_FLAG_ERROR        CHAR(50)      
+           INIT('FPREPEND INDICATOR IS INVALID'),
+    
+     7 FMPI24X7_ERR               CHAR(3)       INIT('051'),
+     7 FMPI24X7_FLAG_ERROR        CHAR(50)      
+           INIT('MPI 24X7  INDICATOR IS INVALID'),
+    
+     7 FCNT24X7_ERR              CHAR(3)       INIT('052'),
+     7 FCNT24X7_FLAG_ERROR       CHAR(50)      
+           INIT('CONTRACT 24X7  INDICATOR IS INVALID'),
+    
+     7 FWAR24X7_ERR              CHAR(3)       INIT('053'),
+     7 FWAR24X7_FLAG_ERROR       CHAR(50)      
+           INIT('WARRANTY 24X7  INDICATOR IS INVALID'),
+    
+     7 FSOMACH_ERR               CHAR(3)      INIT('054'),
+     7 FSOMACH_FLAG_ERROR        CHAR(50)      
+         INIT('SPECIAL OFFERING MACHINE INDICATOR IS INVALID'),
+
+     7 FOEE_ERR2                 CHAR(3)      INIT('055'),
+     7 FOEE_FLAG_ERROR2           CHAR(50)      
+         INIT('OEM-OEE ENTITLEMENT ENGINE INDICATOR IS INVALID'),
+     
+     7 FLNVEMPL_ERR              CHAR(3)     INIT('056'),
+     7 FLNVEMPL_FLAG_ERROR       CHAR(50)      
+         INIT('LENOVO EMPLOYEE INDICATOR IS INVALID'),
+    
+     7 GJFCMFEA_ERR              CHAR(3)     INIT('057'),
+     7 GJFCMFEA_FLAG_ERROR       CHAR(50)      
+         INIT('COMM FEATURE PRESENT INDICATOR IS INVALID'),
+    
+     7 GJFDCMFE_ERR              CHAR(3)     INIT('058'),
+     7 GJFDCMFE_FLAG_ERROR       CHAR(50)      
+         INIT('COMM FEATURE DELETED INDICATOR IS INVALID'),
+    
+     7 GJFSYST_ERR              CHAR(3)     INIT('059'),
+     7 GJFSYST_FLAG_ERROR       CHAR(50)      
+         INIT('PART OF A SYSTEM INDICATOR IS INVALID'),
+    
+     7 GJF30PCT_ERR              CHAR(3)     INIT('060'),
+     7 GJF30PCT_FLAG_ERROR       CHAR(50)      
+         INIT('30% SERVICE INDICATOR IS INVALID'),
+
+     7 GJF40PCT_ERR              CHAR(3)     INIT('061'),
+     7 GJF40PCT_FLAG_ERROR       CHAR(50)      
+         INIT('40% SERVICE INDICATOR IS INVALID'),
+    
+     7 GJFDEMO_ERR              CHAR(3)     INIT('062'),
+     7 GJFDEMO_FLAG_ERROR       CHAR(50)      
+         INIT('DEMONSTRATOR INDICATOR IS INVALID'),
+    
+     7 GJFCELOA_ERR              CHAR(3)     INIT('063'),
+     7 GJFCELOA_FLAG_ERROR       CHAR(50)      
+         INIT('SR LOANER INDICATOR IS INVALID'),
+
+     7 GJFMLCAU_ERR              CHAR(3)     INIT('064'),
+     7 GJFMLCAU_FLAG_ERROR       CHAR(50)      
+         INIT('MLC AUTOMATIC INDICATOR IS INVALID'),
+
+     7 GJFAUTOR_ERR              CHAR(3)     INIT('065'),
+     7 GJFAUTOR_FLAG_ERROR       CHAR(50)      
+         INIT('AUTOMATIC SA INDICATOR IS INVALID'),
+    
+     7 GJFDCFTS_ERR              CHAR(3)     INIT('066'),
+     7 GJFDCFTS_FLAG_ERROR       CHAR(50)      
+         INIT('DCF TYPE/SERIAL INDICATOR IS INVALID'),
+    
+     7 GJFSOLIC_ERR              CHAR(3)     INIT('067'),
+     7 GJFSOLIC_FLAG_ERROR       CHAR(50)      
+         INIT('CUSTOMER SOLICATION INDICATOR IS INVALID'),
+
+     7 GJFARBI_ERR              CHAR(3)     INIT('068'),
+     7 GJFARBI_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM ARBI INDICATOR IS INVALID'),
+   
+     7 GJFPAD04_ERR              CHAR(3)    INIT('069'),
+     7 GJFPAD04_FLAG_ERROR       CHAR(50)      
+         INIT('UNUSED INDICATOR IS INVALID'),
+
+     7 GJFIMI_ERR              CHAR(3)    INIT('070'),
+     7 GJFIMI_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM IMI INDICATOR IS INVALID'),
+
+     7 GJFROPS_ERR              CHAR(3)    INIT('071'),
+     7 GJFROPS_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM ROPS INDICATOR IS INVALID'),
+
+     7 GJFDSI_ERR              CHAR(3)    INIT('072'),
+     7 GJFDSI_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM DSI INDICATOR IS INVALID'),
+     
+     7 GJFPMD_ERR              CHAR(3)    INIT('073'),
+     7 GJFPMD_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM PM INDICATOR IS INVALID'),
+  
+     7 GJFBTH_ERR              CHAR(3)    INIT('074'),
+     7 GJFBTH_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM BETHEDSA INDICATOR IS INVALID'),
+
+     7 GJFBRV_ERR              CHAR(3)    INIT('075'),
+     7 GJFBRV_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM BETHEDSA INDICATOR IS INVALID'),
+
+     7 GJFBSF_ERR              CHAR(3)    INIT('076'),
+     7 GJFBSF_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM SF INDICATOR IS INVALID'),
+
+     7 GJFBSO_ERR              CHAR(3)    INIT('077'),
+     7 GJFBSO_FLAG_ERROR       CHAR(50)      
+         INIT('SOURCED FROM SO INDICATOR IS INVALID'),
+
+     7 GJFPAD06_ERR            CHAR(3)    INIT('078'),
+     7 GJFPAD06_FLAG_ERROR     CHAR(50)      
+         INIT('UNUSED INDICATOR IS INVALID'),
+
+     7 GJFRT_ERR             CHAR(3)    INIT('079'),
+     7 GJFRT_FLAG_ERROR      CHAR(50)      
+         INIT('UPDATED BY R/T INDICATOR IS INVALID'),
+
+     7 GJFNUS_ERR             CHAR(3)    INIT('089'),
+     7 GJFNUS_FLAG_ERROR      CHAR(50)      
+         INIT('UNUSED INDICATOR IS INVALID'),
+
+     7 CGFOCL_ERR             CHAR(3)    INIT('090'),
+     7 CGFOCL_FLAG_ERROR      CHAR(50)      
+         INIT('OUTSIDE CITY LIMITS INDICATOR IS INVALID'),
+
+     7 CGFCOD_ERR             CHAR(3)    INIT('091'),
+     7 CGFCOD_FLAG_ERROR      CHAR(50)      
+         INIT('COD BIT INDICATOR IS INVALID'),
+
+     7 CGFCOD_ERR2            CHAR(3)    INIT('092'),
+     7 CGFCOD_FLAG_ERROR2      CHAR(50)      
+         INIT('INTERNAL IBM CUSTOMER INDICATOR IS INVALID'),
+  
+   3 FILLER               CHAR(200)     INIT(' ');    
+ /* ------------------------------------------------------------------*/
+ /*                      END  QBABEND                                 */
+ /*------------------------------------------------------------------*/

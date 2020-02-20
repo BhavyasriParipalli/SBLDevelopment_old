@@ -1,0 +1,102 @@
+$^   LE/390 Main Build Order 6/01/99
+$^
+$^
+&        SKIP  NOGLOBAL,GLOBAL.NE.SET
+&        SET   U,FUNCTION=LEXTST2=G
+&        SET   U,RELCOOR=TSO5U.PCECK,JOBQ=U=G,TIME=5=G
+$^**************************************************************
+&        SET   U,MAXBTYPE=4=G,
+&              BTC1=LOAD=G,
+&              BTC2=DEVTEST=G,
+&              BTC3=LMODS=G,
+&              BTC4=LMODCOPY=G
+$^
+&        SET   BLDTYPE=&BTC1=G
+$^
+&        SKIP  NOT1,BLDTYPE.NE.&BTC1
+&        SET   U,MAXPHASE=1=G,
+&              BPC1=C-OPUPD=G
+$^
+&  DATAC EXIT   &#NAME
+$^
+&        ENDSK  NOT1
+&        SKIP   NOT2,BLDTYPE.NE.&BTC2
+&        SET    U,MAXPHASE=4=G,
+&               BPC1=C-OPUPD=G,
+&               BPC2=C-MACRO=G,
+&               BPC3=C-MODULE=G,
+&               BPC4=C-*=G
+&  DATAC EXIT  &#NAME
+$^
+&        ENDSK   NOT2
+&        SKIP   NOT3,BLDTYPE.NE.&BTC3
+&        SET    U,MAXPHASE=6=G,
+&               BPC1=C-OPUPD=G,
+&               BPC2=C-MACRO=G,
+&               BPC3=C-REBUILD=G,
+&               BPC4=C-MODULE=G,
+&               BPC5=C-LMOD=G,
+&               BPC6=C-*=G
+&  DATAC EXIT  &#NAME
+$^
+&        ENDSK   NOT3
+&        SKIP   NOT4,BLDTYPE.NE.&BTC4
+&        SET    U,MAXPHASE=6=G,
+&               BPC1=C-OPUPD=G,
+&               BPC2=C-MACRO=G,
+&               BPC3=C-REBUILD=G,
+&               BPC4=C-MODULE=G,
+&               BPC5=C-LMOD=G,
+&               BPC6=C-*=G
+&  DATAC EXIT  &#NAME
+$^
+$^       ENDSK  NOT4
+&  DATAC EXIT  &#NAME
+$^
+$
+$^
+$^**************************************************************
+&        ENDSK NOGLOBAL
+$^
+&        SKIP  NOFR,PROCESS.NE.FREE
+&        SET   U,DCLS1=REBUILD=G
+&  DATAC EXIT  &#NAME
+&        ENDSK NOFR
+$^
+&        SKIP  NOUS,LOCAL.NE.UNSET
+&  @UNSETL
+&  DATAC EXIT  &#NAME
+&        ENDSK NOUS
+$^
+$^
+&        SKIP  1,LOCAL.EQ.SET
+&  DATAC EXIT  &#NAME
+$^
+$^  Set default SCODE and DISTTYPE for various classes
+$^
+&        SET   U,COMP=19801=G
+&        SET   U,FID=LEXTST2=G
+&        SKIP  NOS,DISTTYPE.DF.,SCODE.DF.
+&        SKIP  2,CLASS.NE.ORDER
+&        SET   U,SCODE=U=G,DISTTYPE=I=G
+&        SKIP  NOS
+&        SKIP  2,CLASS.NE.MODULE,CLASS.NE.CPYRT
+&        SET   U,SCODE=C=G,DISTTYPE=C=G
+&        SKIP  NOS
+&        SKIP  2,CLASS.NE.MACRO
+&        SET   U,SCODE=C=G,DISTTYPE=I=G
+&        SKIP  NOS
+&        SET   U,SCODE=U=G,DISTTYPE=B=G
+&        ENDSK NOS
+$^
+&        SKIP  2,CLASS.NE.MODULE
+&        SET   U,BLDPROC=XCOMPILE=G
+&  DATAC EXIT  &#NAME
+$^
+&        SKIP  2,CLASS.NE.CPYRT
+&        SET   U,STRIPED=YES=G
+&  DATAC EXIT  &#NAME
+$^
+&        SKIP  1,BLDPROC.DF.
+&        SET   U,BLDPROC=NONE=G
+&  DATAC EXIT  &#NAME

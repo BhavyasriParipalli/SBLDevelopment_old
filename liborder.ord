@@ -1,0 +1,99 @@
+$^  BUILD/390 SAMPLE OUTPUT LIBRARY ALLOCATION ORDER 04/13/98
+$^  removed the ',' each section before the 'skip small' 10/29/03
+$^
+$^  @DIAG '*ERROR* No Product Allocation order (LIBORDER) found'
+$^  DATAC EXIT  &#NAME                   &< No-op is default
+$^
+$^  This is a sample order used to allocate all output
+$^   libraries for a driver. It will allocate a header file and
+$^   a maclib. ADSM sample data is used for the DLIBs
+$^
+$^  Build/390 uses this order to allocate all driver libraries
+$^   such as header files and maclibs as well as all DLIBs needed
+$^   for packaging the various functions in the product. In this
+$^   example, there is one function allocating three DLIBs.
+$^   Driver libraries are allocated during phase 1 of
+$^   the first build. DLIBs are allocated when BLDOBJ is executed
+$^   against that function.
+$^
+$^  When delta drivers are created, a field in UNIMODC called
+$^   DRVRSIZE (Driver Size) is filled in to indicate the expected
+$^   number of parts in the driver. This keyword is available to
+$^   the LIBORDER and can be used when allocating driver output
+$^   libraries. In this example, two different driver sizes, SMALL
+$^   and MEDIUM are used to adjust the size of the output libraries.
+$^
+$^  The epilogue contains a table summarizing the information set
+$^   in the metadata and also defines the keyword names.
+$^
+&        DATAC CHKR,FUNCTION
+&        SKIP  1,D.ND.
+&  DATAC EXIT  &#NAME
+&        SKIP  &FUNCTION
+$^
+&        ENDSK DRIVER
+&  SET U,LIB1=MACLIB=G,RFM1=FB=G,LRL1=80=G,BLK1=23440=G,
+&            FMT1=PDSE=G,VLS1=#VLIST=G,
+&        LIB2=H=G,RFM2=FB=G,LRL2=80=G,BLK2=23440=G,
+&            FMT2=PDSE=G,VLS2=#VLIST=G, 
+&        LIB3=LOADMODS=G,RFM3=U=G,LRL3=0=G,BLK3=6144=G,
+&            FMT3=PDSE=G,VLS3=#VLIST=G,
+&        LIB4=DBRMLIB=G,RFM4=FB=G,LRL4=80=G,BLK4=23440=G,
+&            FMT4=PDSE=G,VLS4=#VLIST=G,
+&        LIB5=LSTCOPY=G,RFM5=FB=G,LRL5=80=G,BLK5=23440=G,
+&            FMT5=PDSE=G,VLS5=#VLIST=G 
+$^
+&  SKIP  NOTSMALL,DRVRSIZE.NE.SMALL
+&  SET U,UNI1=TRK=G,PRI1=10=G,SEC1=5=G,       &< MACLIB
+&        UNI2=TRK=G,PRI2=10=G,SEC2=5=G,       &< H
+&        UNI3=CYL=G,PRI3=2=G,SEC3=1=G,        &< LOADMODS
+&        UNI4=TRK=G,PRI4=10=G,SEC4=5=G,       &< DBRMLIB
+&        UNI5=TRK=G,PRI5=10=G,SEC5=5=G        &< LSTCOPY
+&        SKIP  SMALL                 &< SMALL IT WAS 
+$^
+&        ENDSK NOTSMALL
+&  SKIP  NOTMED,DRVRSIZE.NE.MEDIUM
+&  SET U,UNI1=CYL=G,PRI1=1=G,SEC1=1=G,        &< MACLIB
+&        UNI2=CYL=G,PRI2=1=G,SEC2=1=G,        &< H
+&        UNI3=CYL=G,PRI3=5=G,SEC3=5=G,        &< LOADMODS
+&        UNI4=CYL=G,PRI4=1=G,SEC4=1=G,        &< DBRMLIB
+&        UNI5=CYL=G,PRI5=10=G,SEC5=5=G        &< LSTCOPY
+&        SKIP  MEDIUM                 &< MEDIUM IT WAS 
+$^
+&  ENDSK NOTMED                       &< Big it must be  
+&  SET U,UNI1=CYL=G,PRI1=5=G,SEC1=3=G,        &< MACLIB
+&        UNI2=CYL=G,PRI2=5=G,SEC2=3=G,        &< H
+&        UNI3=CYL=G,PRI3=10=G,SEC3=5=G,       &< LOADMODS
+&        UNI4=CYL=G,PRI4=5=G,SEC4=3=G,        &< DBRMLIB
+&        UNI5=CYL=G,PRI5=10=G,SEC5=5=G        &< LSTCOPY
+$^
+&        ENDSK SMALL
+&        ENDSK MEDIUM
+&  DATAC EXIT  &#NAME
+$^
+$^
+&        ENDSK QSAR
+&  SET U,LIB1=AMORMACS=G,RFM1=FB=G,LRL1=80=G,BLK1=27920=G,FMT1=PO=G,
+&        PRI1=2=G,SEC1=1=G,DIR1=30=G,UNI1=CYL=G,VLS1=#VLIST=G,
+&        LIB2=AMORMODS=G,RFM2=U=G,LRL2=0=G,BLK2=6144=G,FMT2=PO=G,
+&        PRI2=5=G,SEC2=1=G,DIR2=30=G,UNI2=CYL=G,VLS2=#VLIST=G
+&  DATAC EXIT  &#NAME
+$^
+$^
+$^ LIB      RFM  LRL    BLK     FMT  PRI  SEC  DIR  UNI  VLS    FUNCTION
+$^ H        VB   255    23476   PDSE 1    1    0    CYL  #VLIST DRIVER
+$^ MACLIB   FB   80     23440   PDSE 1    1    0    CYL  #VLIST DRIVER
+
+$^
+$^ LIBnn - Low level qualifier of Data set name
+$^ RFMnn - Record format (F V FB VB U etc)
+$^ LRLnn - Logical Record Length
+$^ BLKnn - Block Size
+$^ FMTmm - Data set organization (PS PO PDSE)
+$^ UNInn - Allocation units (TRK CYL)
+$^ PRInn - Primary allocation amount
+$^ SECnn - Secondary allocation amount
+$^ DIRnn - Number of directory blocks (PO only)
+$^ VLSnn - Name of a Volume list order which sets STGCLS and MGTCLS
+
+

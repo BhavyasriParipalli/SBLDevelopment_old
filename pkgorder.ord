@@ -1,0 +1,109 @@
+$^  Sample multiple function product main package order 12/02/97                
+$^ jake                                                                         
+$^  {METADATA START}                                                            
+$^  PARTNAME=PKGORDER                                                           
+$^  CLASS=ORDER                                                                 
+$^  {METADATA END}                                                              
+$^                                                                              
+$^ @DIAG '*ERROR* No Product Package order (PKGORDER) found'                    
+$^ DATAC EXIT  &#NAME        &< No-op is default                                
+$^                                                                              
+$^  This sample shows how to define packaging data for a product                
+$^  that contains multiple functions. Actual ADSM 3.1.0 data is used.           
+$^  If a release has only one function, then the FUNCTION keyword               
+$^  should be set in the global portion of the BLDORDER and there               
+$^  would be no checks or skips for different functions in this order.          
+$^                                                                              
+$^  For a single function product, build phases execute the Xprocess            
+$^  (XBLDOBJ, XBLDSYM, etc.) and for multiple function products,                
+$^  Mprocess is executed (MBLDOBJ, MBLDSYM, etc.). The Mprocess calls           
+$^  the Xprocess for each defined function.                                     
+$^                                                                              
+$^  BLDOBJ should be the first packaging process executed since it              
+$^  will allocate the DLIBs for the function.                                   
+$^                                                                              
+$^  This section defines the multiple function IDs. They are                    
+$^  set in keywords FID1 to FIDnn. It is only used for multiple                 
+$^  function products.                                                          
+$^                                                                              
+&        SKIP  NOFS,FUNCTION.NE.SET                                             
+$^       SET   U,FID1=HDS331B=G,FID2=JDS3310=G,FID3=JDS3311=G                   
+&  DATAC EXIT  &#NAME                                                           
+&        ENDSK NOFS                                                             
+$^                                                                              
+$^  This section un-defines metadata set for each function so                   
+$^  it won't conflict with subsequent functions. If you have added              
+$^  non-standard keywords to your processes, reset them local here.             
+$^  It is only used for multiple function products.                             
+$^                                                                              
+&        SKIP  NOUS,LOCAL.NE.UNSET                                              
+&  @UNSETFL                                                                     
+&  DATAC EXIT  &#NAME                                                           
+&        ENDSK NOUS                                                             
+$^                                                                              
+&        DATAC CHKR,FUNCTION,PROCESS                                            
+&        SKIP  1,D.ND.                                                          
+&  DATAC EXIT  &#NAME                                                           
+&        SKIP  &PROCESS                                                         
+$^                                                                              
+$^  BLDSYM is only executed for function HLETEST                                
+$^                                                                              
+&        ENDSK XBLDSYM                                                          
+&        SKIP  2,FUNCTION.EQ.HLETEST                                            
+&        SET   U,CONTINUE=NO=G                                                  
+&  DATAC EXIT  &#NAME                                                           
+&        SET   U,PROGNO=5565-A30=G,                                             
+&              FEATURE=5565=G                                                   
+&  DATAC EXIT  &#NAME                                                           
+$^                                                                              
+$^  BLDVPL is only executed for  function HLETEST                               
+$^                                                                              
+&        ENDSK XBLDVPL                                                          
+&        SKIP  2,FUNCTION.EQ.HLETEST                                            
+&        SET   U,CONTINUE=NO=G                                                  
+&  DATAC EXIT  &#NAME                                                           
+&        SET   U,TITLE='THIS IS A TEST'=G,PRODID=HLETEST=G,                     
+&              VPLVER=3=G,VPLREL=1=G,VPLLVL=0=G,                                
+&              AUTHCODE=GREAGOR=G,ACKN=ERROR=G,PRODQUAL=LE=G,                   
+&              DOMAIN=KGNVMC=G,USERID=JAKER=G,CPRODID=5565A30=G                 
+&  DATAC EXIT  &#NAME                                                           
+$^                                                                              
+$^  SUBUILD is executed against all functions.                                  
+$^                                                                              
+&        ENDSK XSUBUILD                                                         
+&        SET U,MODE=NORMAL=G,    &< Common metadata                             
+&              RTGMODE=CONTINUE=G,                                              
+&              RTGOP=DISK=G,                                                    
+&              HLCOMP=5565=G,                                                   
+&              REWORK=1998099=G,                                                
+&              CPYDATE=8099=G                                                   
+&        SKIP  &FUNCTION                                                        
+$^                                                                              
+&        ENDSK HLETEST           &< Server samples                              
+&        SET U,TYPE=PRODUCT=G,FMID=HLETEST=G,FESN=5740001=G,                    
+&              CALLLIBS=YES=G,                                                  
+&              PREVIOUS=MWL=G,                                                  
+&              DELETE='JMWL150,JMWL151,JMWL250,JMWL350,JMWL450'=G,              
+&              SUP='JMWL150,JMWL151,JMWL250,JMWL350,JMWL450'=G                  
+&  DATAC EXIT  &#NAME                                                           
+$^                                                                              
+&        ENDSK JDS3310           &< Server modules                              
+&        SET U,TYPE=FEATURE=G,FMID=HDS331B=G,                                   
+&              REQ='JDS3311,JDS33WS'=G,                                         
+&              CALLLIBS=YES=G,                                                  
+&              SEP1='SEP DLIB=JCLIN'=G,                                         
+&              CTL1='++IF FMID(HDP3330) THEN REQ(UW41943) .'=G,                 
+&              CTL2='++IF FMID(HDZ1100) THEN REQ(UW41099) .'=G,                 
+&              CTL3='++IF FMID(HDZ11B0) THEN REQ(UW41096) .'=G,                 
+&              CTL4='++IF FMID(HDZ11C0) THEN REQ(UW41097) .'=G,                 
+&              CTL5='++IF FMID(HDZ11D0) THEN REQ(UW41098) .'=G,                 
+&              CTL6='++IF FMID(H0I7120) THEN REQ(UQ05644) .'=G                  
+&  DATAC EXIT  &#NAME                                                           
+$^                                                                              
+&        ENDSK JDS3311           &< Server messages & help                      
+&        SET U,TYPE=FEATURE=G,FMID=HDS331B=G,                                   
+&              REQ=JDS3310=G                                                    
+&  DATAC EXIT  &#NAME                                                           
+$^ local changes                                                                
+$^ date        who description of change                                        
+$^ 4/15/98 - JEG, Changed FNCTIONS to FUNCTION                                  

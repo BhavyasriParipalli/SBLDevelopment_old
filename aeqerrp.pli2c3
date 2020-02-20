@@ -1,0 +1,233 @@
+ AEQERRP: PROC(COMM_PTR) OPTIONS(MAIN) REORDER;
+
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  AEQERRP (PL/I 5.1 VERSION - BROTHER OF AEQERR2)       */
+ /*                                                                  */
+ /*  PROGRAM LANGUAGE: PL/I                                          */
+ /*  PROGRAM TYPE:     MAIN PROCEDURE                                */
+ /*                                                                  */
+ /*  FUNCTION:   THE PURPOSE OF THIS MODULE IS TO WRITE DIAGNOSTIC   */
+ /*              MESSAGES TO SYSPRINT.  IN CICS, SYSPRINT IS WRITTEN */
+ /*              TO THE CPLI TRANSIENT DATA QUEUE.  THIS MEANS       */
+ /*              THAT THE DESTINATION OF SYSPRINT OUTPUT IS          */
+ /*              VARIABLE, DEPENDING ON THE CICS DEFINITION OF THE   */
+ /*              CPLI QUEUE.                                         */
+ /*                                                                  */
+ /*              IF REQUESTED, (WTO_FLAG = 'Y'), THIS PROGRAM WILL   */
+ /*              WRITE ANY NON-BLANK MESSAGES (ET_TEXT1 - 5) TO      */
+ /*              THE OPERATOR CONSOLE VIA THE RAMCWTO PROGRAM.       */
+ /*                                                                  */
+ /*              IF REQUESTED, (ET_DUMPCODE = 'Y'), THIS PROGRAM     */
+ /*              WILL ABEND THE CURRENT TASK AND WRITE OUT A DUMP.   */
+ /*                                                                  */
+ /*              IF QSR9002 MESSAGE FOUND, UPDATE MORE INDICATOR     */
+ /*              IN CWA WITH DATE/TIME OF LAST ABEND.                */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                   PGMR:  */
+ /*  -------- -------- ------- ----------------------------- ------  */
+ /*  07/20/88  SR 9891 8NSM  INITIAL VERSION                     SPZ */
+ /*  08/22/88          8NSM  ADDED WRITE TO OPERATOR OPTION      SPZ */
+ /*  05/09/97 S9600755 7NSI  SUPPORT NSS MRO PARALLEL SYSPLEX    LBS */
+ /*                          PHASE I                                 */
+ /*  10/09/97 S97133   7NSP  REMOVE SYSPRINT REFERENCES          LBS */
+ /* 04/15/2002 QSARPROD 2NSG LE 2.10 changes, PLIXOPT            LBS */
+ /* 01/22/2004 QSARPROD 4NSC misc cleanup                        LBS */
+ /*                                                                  */
+ /* 02/08/2012 RCQ1882  2HSC Added CWA_ABEND_DATE,CWA_ABEND_TIME NAK */  
+ /********************************************************************/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 01/31/2012');
+
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+ DCL COMPILE   CHAR(18)  INIT (CMPTIME) STATIC;
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+1/********************************************************************/
+ /*                     BUILTIN DECLARES                             */
+ /********************************************************************/
+ DCL (ADDR,
+      CSTG,
+      INDEX,
+      LENGTH,
+      SUBSTR,
+      VERIFY) BUILTIN;
+
+ /********************************************************************/
+ /* COMMAREA POINTER (PASSED FROM CALLING PGM) AND FORMAT            */
+ /********************************************************************/
+ DCL COMM_PTR           POINTER;
+
+ DCL 1 ERROR_DATA       BASED(COMM_PTR) UNALIGNED,
+    %INCLUDE AEQERRT ; ;
+1
+ DCL CWA_PTR                 POINTER;
+ DCL 1 CWA             UNALIGNED BASED(CWA_PTR),
+    %INCLUDE CWA ;
+
+1/********************************************************************/
+ /* MISCELLANEOUS DECLARES                                           */
+ /********************************************************************/
+ DCL ABSHHMMSS               CHAR( 6)   INIT('000000');
+ DCL ABSHHMMSS_PIC           PIC '(6)9' BASED(ADDR(ABSHHMMSS));
+ DCL ABSTIME           FIXED DEC(15,0)  INIT(0);
+ DCL ABSYYMMDD               CHAR( 6)   INIT('000000');
+ DCL ABSMMDD                 CHAR( 4);
+ DCL ABSMMDD_PIC        PIC '9999'      BASED(ADDR(ABSMMDD));
+ DCL CWA_ABEND_DATE    FIXED BIN(15);/* Date of last abend (MDDD)   */
+ DCL CWA_ABEND_TIME    FIXED BIN(31);/* Time of last abend (HHMMSS) */
+ DCL DIAG_TEXT               CHAR(80)   INIT('');
+ DCL DUMP_STR                CHAR( 4)   INIT('');
+ DCL MSG_PTR                 POINTER;
+ DCL RESPONSE          FIXED BIN(31)    INIT(0);
+ DCL TEST_SW                 BIT(1)     INIT('0'B);
+ DCL WORK_STR                CHAR(85)   INIT('');
+
+                                             /* FOR LOGGING MESSAGES */
+ /*  DCL SYSPRINT    FILE STREAM PRINT  */
+
+1/********************************************************************/
+ /* ERROR PROCESSING                                                 */
+ /* ----------------                                                 */
+ /* IT IS THE PROGRAMMER'S RESPONSIBILITY TO CHECK THE RETURN CODE   */
+ /* FROM EACH COMMAND LEVEL CALL, AS APPROPRIATE.                    */
+ /********************************************************************/
+
+ EXEC CICS
+      IGNORE CONDITION ERROR;
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                    /* PREVENT RECURSION ERROR */
+     EXEC CICS WRITE OPERATOR TEXT
+      ('AEQERRP PROGRAM WAS ABENDED IN ON ERROR');
+
+     EXEC CICS ABEND
+     ABCODE('ERRP')
+     CANCEL;
+   END;
+
+ DCL PLIXOPT      CHAR(250)
+ INIT('STACK(2K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(CEEMSG),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),BELOWHEAP(4K,2K,FREE),
+ TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+1/********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+  EXEC CICS ADDRESS    CWA(CWA_PTR);
+
+  IF CWA_QSAR_TRACE = 'Y' | CWA_QSAR_TRACE = '2'
+    THEN DO;
+      TEST_SW       = '1'B;          /* THESE FLAGS MUST BE SET */
+                                     /* TO '0'B IN PRODUCTION ! */
+      DIAG_TEXT = 'AEQERRP: STARTING THE PROGRAM';
+      /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)  */
+      EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+    END;
+    ELSE TEST_SW    = '0'B;           /* THESE FLAGS MUST BE SET     */
+
+ /* IF WTO_FLAG = 'Y'
+    THEN DO;
+       IF ET_TEXT1 > '' 
+         THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+
+       IF ET_TEXT2 > '' 
+         THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+
+       IF ET_TEXT3 > '' 
+         THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT3);
+
+       IF ET_TEXT4 > '' 
+         THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT4);
+
+       IF ET_TEXT5 > '' 
+         THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT5);
+
+      IF TEST_SW 
+        THEN DO;
+          DIAG_TEXT = 'AEQERRP: ABOUT TO RETURN TO '||ET_PROGRAM_ID;
+            EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT) 
+          EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+         END;
+       EXEC CICS RETURN;
+    END;   */
+
+
+ IF EIBCALEN ^> 0                   /* COMMAREA SENT TO THIS PROGRAM?*/
+   THEN DO;
+      EXEC CICS WRITE OPERATOR TEXT
+     ('PROGRAM AEQERRP INVOKED WITHOUT COMMAREA! - ABENDING WITH ERRP');
+      SIGNAL ERROR;
+   END;
+
+ DIAG_TEXT = 'QSR9000: INVOKING PROGRAM WAS: '
+                       ||ET_PROGRAM_ID||' EIB IMAGE:';
+ EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT);
+
+ EXEC CICS WRITE OPERATOR TEXT(ET_EIB);
+
+ WORK_STR = '|...+....1....+....2....+....3....+....4....+....5....+'
+           ||
+            '....6....+....7....+....8....|';
+
+ EXEC CICS WRITE OPERATOR TEXT(WORK_STR);
+
+ /********************************************************************/
+ /* GET ADDRESSABILITY TO THE CWA FOR USE IN POSTING MORE INDICATORS */
+ /********************************************************************/
+
+ IF INDEX(ET_TEXT1,'QSR9002') > 0
+   THEN DO;
+     EXEC CICS ADDRESS    CWA(CWA_PTR);
+
+     EXEC CICS ASKTIME    ABSTIME(ABSTIME);
+     EXEC CICS FORMATTIME ABSTIME(ABSTIME)
+                          YYMMDD(ABSYYMMDD)
+                          TIME(ABSHHMMSS);
+
+     ABSMMDD = SUBSTR(ABSYYMMDD,3,4);
+     CWA_ABEND_DATE = ABSMMDD_PIC;
+     CWA_ABEND_TIME = ABSHHMMSS_PIC;
+   END;
+
+                                     /* TO '0'B IN PRODUCTION ! */
+ IF WTO_FLAG = 'Y'
+   THEN DO;
+     IF ET_TEXT1 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+
+     IF ET_TEXT2 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+
+     IF ET_TEXT3 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT3);
+
+     IF ET_TEXT4 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT4);
+
+     IF ET_TEXT5 > ''
+       THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT5);
+   END;
+
+ IF ET_DUMPCODE = 'Y'
+   THEN DO;
+     DUMP_STR = SUBSTR(ET_PROGRAM_ID,4,4);
+     EXEC CICS WRITE OPERATOR
+      TEXT('AEQERRP PROGRAM WAS ABENDED ON REQUEST');
+
+     EXEC CICS ABEND
+          ABCODE(DUMP_STR)
+          CANCEL;
+   END;
+
+ EXEC CICS RETURN;      /* RETURN TO CALLER IF NO ABEND REQUESTED */
+
+ END AEQERRP;
+

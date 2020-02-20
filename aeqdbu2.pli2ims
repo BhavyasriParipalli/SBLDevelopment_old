@@ -1,0 +1,630 @@
+ AEQDBU2: PROC(@IO_PCB,@QSAR_PCB,@CNTL_PCB)
+          OPTIONS(MAIN) REORDER;
+ /********************************************************************/
+ /*                                                                  */
+ /*  PROGRAM:  AEQDBU2                                               */
+ /*                                                                  */
+ /*  PROGRAM LANGUAGE: PL/I                                          */
+ /*  PROGRAM TYPE:     MAIN PROCEDURE                                */
+ /*                                                                  */
+ /*  FUNCTION:   THE PURPOSE OF THIS MODULE IS TO                    */
+ /*              1)  SET THE QSARP_S SWITCH TO 'Y' FOR EACH QSGENL   */
+ /*                  SEGMENT FOUND ON THE QSAR DATA BASE THAT MATCHES*/
+ /*                  THE QSAR RECORD IN THE OFFLOAD QSAR FILE FROM   */
+ /*                  AEQDBU4.                                        */
+ /*              1)  SET THE BILL_S SWITCH TO 'Y' FOR EACH QBBILL    */
+ /*                  SEGMENT FOUND ON THE QSAR DATA BASE THAT MATCHES*/
+ /*                  THE QSAR RECORD IN THE OFFLOAD QSAR FILE FROM   */
+ /*                  AEQDBU4.                                        */
+ /*              2)  UPDATE OR REPLACE THE QSARTRLR RECORD IN THE    */
+ /*                  CONTROL DATA BASE WITH THE QSARTRLR RECORD FROM */
+ /*                  THE OFFLOAD QSAR FILE FROM AEQDBU4.             */
+ /*  PROCESSING                                                      */
+ /*                                                                  */
+ /*              FOR THE QSAR DATA BASE:                             */
+ /*              -----------------------                             */
+ /*              READ QSARIN FILE                                    */
+ /*              IF KEY = 'QSGENL  ' THEN                            */
+ /*                IF QSGENL FOUND THEN  REPL QSGENLG                */
+ /*                GHU QSGENL                                        */
+ /*                SET QSARP_S TO 'Y'                                */
+ /*                IF BILL SEG MARK BILL_S = 'Y'                     */
+ /*              READ ANOTHER QSARIN FILE RECORD AND LOOP            */
+ /*              UNTIL FIND A TRAILER RECORD                         */
+ /*              IF KEY = 'QSARTRLR' THEN SAVE TRAILER SEQ. NUMBER   */
+ /*                                                                  */
+ /*              FOR THE CONTROL DATA BASE:                          */
+ /*              --------------------------                          */
+ /*              GHU QSARTRLR RECORD                                 */
+ /*                  IF FOUND REPL                                   */
+ /*                  IF ^FOUND ISRT                                  */
+ /*                                                                  */
+ /*  UPDATE LOG:                                                     */
+ /*  - - - - - -                                                     */
+ /*  8NSM    SR 9891    INITIAL VERSION           10/09/88   HAS     */
+ /*  8NSM    SR 9891    ADD BASIC CHECKPOINT      11/22/88   HAS     */
+ /*  8NSM    I75720     CHANGE OFFSET OF TRLR SEQ. 3/06/89   HAS     */
+ /*                     ASSIGNMENT TO MATCH OUTPUT                   */
+ /*                     OF AEQDBU4.                                  */
+ /*  0NSA    SR 9892    IF HAVE BILLING SEGMENT       9/15/89   LBS  */
+ /*                     MARK BILL_S = 'Y'                            */
+ /*  0NSG  SR0252       INCREASE THE BUFFER LENGTH TO 430 FROM 400   */
+ /*                     FOR THE G DRIVER.                       BLS  */
+ /*  1NSC  SR0535  INCREASE SEGMENT LENGHTS FORM LINE  02/12/91 LBS  */
+ /*                ITEM TAXING                                       */
+ /*                QSGENL FROM 430 TO 445                            */
+ /*                QBBILL FROM 240 TO  55                            */
+ /*                QBPART FROM  40 TO  55                            */
+ /*  2NSA  SR0882  INCREASE SEGMENT LENGTHS            12/17/91 ABM  */
+ /*                QSGENL FROM 445 TO 460                            */
+ /*                QSNARR FROM 115 TO 136                            */
+ /*                                                                  */
+ /*  4NSM S9300229 INCREASE SEGMENT LENGTHS            10/14/94 DLK  */
+ /*                QSGENL FROM 460 TO 480                            */
+ /*  5NSK S9400206 INCREASE SEGMENT LENGTHS            10/17/95 LBS  */
+ /*                QSGENL FROM 480 TO 600                            */
+ /*  7NSI S9600755 SUPPORT YEAR 2000 CHANGES           05/10/97 LBS  */
+ /*                QSGENL FROM 600 TO 630                            */
+ /*                QSINVT FROM 150 TO 230                            */
+ /*  8NSN S97140   BLCKHOLE NO MARK IF SFTPENDED       03/23/99 SFM  */
+ /*  8NSN YEAR2K   CHANGE DATE TO DATETIME             05/28/99 MKP  */
+ /*  1NSP S0132    INCREASE SEGMENT LENGTHS           08/08/01  DLP  */
+ /*                QSGENL FROM 630 TO 655                            */
+ /*  1NSP mnxxxxxx change SAVE_QSGENL_SEG from 65 to 655 11/01/01 LBS*/
+ /*  2NSG PRODSUPT LE 210 CHANGES - PLIXOPT              04/17/02 DLP*/
+ /*                                                                  */
+ /*  3NSI S030023 change SAVE_QSGENL_SEG from 655 to 700 04/10/03 DLP*/
+ /*  7NSM PRODSUPT change to put output to ACARPT and    02/21/07 LBS*/         
+ /*                recompile for enterprise compiler                 */
+ /*  7NSM S060049 change SAVE_QSGENL_SEG from 700 to 725 03/29/07 LBS*/
+ /*                                                                  */
+ /*  2HSC RCQ1882 Recompiled for NSS Sunsetting       02/13/2012 NAK */
+ /********************************************************************/
+ DCL DRIVER            CHAR(4)  STATIC INIT('2HSC');
+ DCL LAST_CHANGE       CHAR(10) STATIC INIT('02/13/2012');
+ DCL MODULE            CHAR(8)  STATIC INIT('AEQDBU2');
+ 
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+1/********************************************************************/
+ /*                         DECLARES                                 */
+ /********************************************************************/
+
+ /********************************************************************/
+ /*    FILE DECLARES                                                 */
+ /********************************************************************/
+ DCL ACARPT   FILE  PRINT;
+ DCL SYSPRINT FILE PRINT;
+ DCL RUNCTL   FILE STREAM INPUT ENV(RECSIZE(80));
+ DCL QSARIN   FILE RECORD SEQL INPUT ENV(VB);
+ 
+ DCL PLITDLI  ENTRY EXTERNAL;         /* DLI CALL INTERFACE */
+ DCL PLIABND  EXT ENTRY OPTIONS(ASM INTER);
+ 
+ /*----------------------------------------------------------------*/  
+ /* Pre LE 210 enviroment plixopt statement                        */  
+ /*----------------------------------------------------------------*/  
+ /* DCL PLIXOPT   CHAR(30) INIT('STAE,ISASIZE(4K),NR') STATIC      */
+ /*                                              VARYING EXTERNAL  */
+ /*----------------------------------------------------------------*/
+
+ /*----------------------------------------------------------------*/
+ /* LE 210 enviroment plixopt statement                            */
+ /*----------------------------------------------------------------*/
+ DCL PLIXOPT      CHAR(250)
+  INIT('STACK(23K,4K,ANY,FREE),HEAP(4K,4K,ANYWHERE,KEEP),
+  MSGFILE(SYSPRINT),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+  ANYHEAP(10K,4K,ANY,FREE),BELOWHEAP(4K,2K,FREE), 
+  TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ /********************************************************************/
+ /*                  PL/I BUILTIN FUNCTIONS                          */
+ /********************************************************************/
+ DCL (ADDR,
+      CSTG,
+      DATAFIELD,
+      DATETIME,
+      LENGTH,
+      LOW,
+      ONLOC,
+      PLIDUMP,
+      HBOUND,
+      ONSOURCE,
+      VERIFY,
+      SUBSTR,
+      PLIRETV,
+      INDEX ) BUILTIN;
+
+ /********************************************************************/
+ /*                  IMS DECLARES                                    */
+ /********************************************************************/
+ DCL 1 IO_PCB      BASED(@IO_PCB),
+       2 LTERM_NAME     CHAR(8),
+       2 DLI_RESERVE    BIT(16),
+       2 STATUS         CHAR(2),
+       2 PREFIX,
+         3 PRE_DATE     FIXED DEC(7,0),
+         3 PRE_TIME     FIXED DEC(7,0),
+         3 PRE_MSGCT    FIXED BIN(31,0),
+       2 FORMAT_3270    CHAR(8),
+       2 USER_ID        CHAR(8);
+
+ DCL 1 QSAR_PCB BASED(@QSAR_PCB),
+       2 Q_DBDNAME       CHAR(8),
+       2 Q_SEG_LEVEL     CHAR(2),
+       2 Q_STAT          CHAR(2),
+       2 Q_PROC_OPT      CHAR(4),
+       2 Q_DLI_RESERVED  FIXED BIN(31),
+       2 Q_SEGNAME       CHAR(8),
+       2 Q_FB_LENGTH     FIXED BIN(31),
+       2 Q_NBR_SENS_SEGS FIXED BIN(31),
+       2 Q_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 CNTL_PCB BASED(@CNTL_PCB),
+       2 C_DBDNAME       CHAR(8),
+       2 C_SEG_LEVEL     CHAR(2),
+       2 C_STAT          CHAR(2),
+       2 C_PROC_OPT      CHAR(4),
+       2 C_DLI_RESERVED  FIXED BIN(31),
+       2 C_SEGNAME       CHAR(8),
+       2 C_FB_LENGTH     FIXED BIN(31),
+       2 C_NBR_SENS_SEGS FIXED BIN(31),
+       2 C_KEY_FEEDBACK  CHAR(50);
+
+ DCL 1 SSA_CAASCRSC_UNQUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(9)  INIT('CAASCRSC ');
+
+ DCL 1 SSA_CAASCRSC_QUAL UNALIGNED,
+       2 CAASCRSC_NAME     CHAR(8)  INIT('CAASCRSC'),
+       2 CAASCRSC_QUAL     CHAR(1)  INIT('('),
+       2 CAASCRSC_KEYNAME  CHAR(8)  INIT('IINTAREA'),
+       2 CAASCRSC_OPR      CHAR(2)  INIT(' ='),
+       2 CAASCRSC_KEYVAL   CHAR(31) INIT(''),
+       2 CAASCRSC_ENDCHAR  CHAR(1)  INIT(')');
+
+ DCL 1 SSA_QSGENL_UNQUAL   UNALIGNED,
+       2 QSGENL_NAME       CHAR(9)  INIT('QSGENL   ');
+
+ DCL 1 SSA_QSGENL_QUAL UNALIGNED,
+       2 QSGENL_NAME       CHAR(8)  INIT('QSGENL  '),
+       2 QSGENL_QUAL       CHAR(1)  INIT('('),
+       2 QSGENL_KEYNAME    CHAR(8)  INIT('IDOCUMNT'),
+       2 QSGENL_OPR        CHAR(2)  INIT(' ='),
+       2 QSGENL_KEYVAL     CHAR(9)  INIT(''),
+       2 QSGENL_ENDCHAR    CHAR(1)  INIT(')');
+
+1
+ /********************************************************************/
+ /* YOU MUST REMEMBER TO CHANGE THE REDEFINED LENGTHS OF THE INCLUDES*/
+ /* IF THEY CHANGE - THIS IS USED FOR WRITING VARIABLE LENGTH RECORDS*/
+ /********************************************************************/
+  DCL 1 QSGENL     UNALIGNED BASED(ADDR(IO_BUFFER)),
+       2 UNSEEN_LENGTH FIXED BIN(15),  /* VARIABLE LENGTH BITS        */
+       2 KEY           CHAR(8),        /* QSGENL  | QSARTRLR | QBBILL */
+       2 GENL          CHAR(725);      /* GENL SEGMENT                */
+
+ %PAGE;
+ DCL   SAVE_QSGENL_SEG CHAR(725)  INIT('');
+ DCL 1 QSGENL_SEG UNALIGNED BASED(ADDR(SAVE_QSGENL_SEG)),
+       %INCLUDE AEQSGENL; ;
+
+ %PAGE;
+  DCL 1 TRAILER_BUF  CHAR(131) INIT('');
+  DCL 1 TRAILER UNALIGNED BASED(ADDR(TRAILER_BUF)),
+        %INCLUDE AEQTRLR; ;
+
+1/********************************************************************/
+ /*    MISCELLANEOUS DECLARES                                        */
+ /********************************************************************/
+ DCL ABEND_CODE    FIXED BIN(31)        INIT(2222);
+ DCL CHKP_COUNT          PIC '999999'   INIT(0);
+ DCL CHKP_FREQ           CHAR(4)        INIT('');
+ DCL CHKP_FREQ_NUM       PIC '9999'     INIT(0);
+ DCL CHKP_ID             CHAR (8)       INIT('');
+ DCL CURRENT_DB          CHAR(4)        INIT('');
+ DCL ERROR_TEXT          CHAR(80)       INIT('');
+ DCL FUNC                CHAR(4)        INIT('');
+ DCL (I, J)        FIXED BIN(31)        INIT(0);
+ DCL IMS_PSB             CHAR(8)        INIT('AEQDBU2 ');
+ DCL IO_BUFFER           CHAR(1500) VAR INIT('');
+ DCL QSAR_CNT      FIXED BIN(31)        INIT(0);
+ DCL BILL_CNT      FIXED BIN(31)        INIT(0);
+ DCL PAGE_CNT            PIC 'ZZ9'      INIT(0);
+ DCL PARM_CT1      FIXED BIN(31)        INIT(1);
+ DCL PARM_CT2      FIXED BIN(31)        INIT(2);
+ DCL PARM_CT3      FIXED BIN(31)        INIT(3);
+ DCL PARM_CT4      FIXED BIN(31)        INIT(4);
+ DCL PARM_CT5      FIXED BIN(31)        INIT(5);
+ DCL PARM_CT6      FIXED BIN(31)        INIT(6);
+ DCL QSAR_QSGENL   FIXED BIN(31)        INIT(0);
+ DCL REC_COUNT     FIXED BIN(31)        INIT(0);
+ DCL RETCODE1            CHAR(8)        INIT('');
+ DCL RETCODE2            CHAR(8)        INIT('');
+ DCL RUNDATE             CHAR(17)       INIT('');
+ DCL ST_DATE_PIC         PIC '9999'     INIT(0);
+ DCL TRAILER_SEQ         PIC '(6)9'     INIT(0);
+ DCL WORK_RUN_DATE       CHAR(10)       INIT('');
+ DCL WORK_RUN_TIME       CHAR(5)        INIT('');
+
+ DCL @IO_PCB             POINTER;
+ DCL @QSAR_PCB           POINTER;       /* FROM IMS */
+ DCL @CNTL_PCB           POINTER;       /* FROM IMS */
+
+ DCL CONTINUE             BIT(1) INIT('1'B);
+ DCL QSGENL_FOUND         BIT(1) INIT('0'B);
+ DCL MORE_QSARIN          BIT(1) INIT('1'B);
+ DCL QUIT                 BIT(1) INIT('0'B);
+ DCL STAT_ZERO            BIT(8) INIT((8)'0'B) STATIC;
+
+1/********************************************************************/
+ /* ON ENDFILE                                                       */
+ /********************************************************************/
+
+   ON ENDFILE(QSARIN)
+     BEGIN;
+       MORE_QSARIN = '0'B;
+       IF QSAR_CNT = 0 
+         THEN DO;
+           ERROR_TEXT = 'AEQDBU2 RECEIVED AN EMPTY QSARIN FILE'||
+                      '<<<<-----------';
+           SIGNAL ERROR;
+         END;
+     END;
+
+1/********************************************************************/
+ /********************************************************************/
+  ON CONVERSION
+    BEGIN;
+      PUT FILE(ACARPT) EDIT (' ONSOURCE ',ONSOURCE,'LOC ',ONLOC)
+                                               (COL(2),A,A,A,A);
+      SIGNAL ERROR;
+    END;
+
+1/********************************************************************/
+ /* ON NAME                                                          */
+ /********************************************************************/
+
+ ON NAME(RUNCTL)
+   BEGIN;
+     PUT FILE(ACARPT) EDIT ('INVALID FIELD IN RUNCTL FILE - ',
+                             DATAFIELD)(COL(2),A,A);
+   END;
+
+1/********************************************************************/
+ /* ON ERROR                                                         */
+ /********************************************************************/
+
+ ON ERROR
+   BEGIN;
+     ON ERROR SYSTEM;                     /* PREVENT RECURSION ERROR */
+     IF CURRENT_DB = 'QSAR'
+       THEN DO;
+         PUT FILE(ACARPT) EDIT(ERROR_TEXT)(COL(2),A);
+         PUT FILE(ACARPT) EDIT('CURRENT DATA BASE: ',CURRENT_DB)
+                                                     (COL(2),A,A);
+         PUT FILE(ACARPT) EDIT('QSAR DB RETURN CODE:    ',Q_STAT)
+                                                     (COL(2),A,A);
+         PUT FILE(ACARPT) EDIT('CURRENT QSAR QUALIFIED SSA: (',
+                           QSGENL_KEYNAME,QSGENL_OPR,
+                           QSGENL_KEYVAL,')')
+                           (COL(2),A,A,A,A,A);
+       END;
+     IF CURRENT_DB = 'CNTL'
+       THEN DO;
+         PUT FILE(ACARPT) EDIT(ERROR_TEXT)          (COL(2),A);
+         PUT FILE(ACARPT) EDIT('CURRENT DATA BASE: ',CURRENT_DB)
+                                                        (COL(2),A,A);
+         PUT FILE(ACARPT) EDIT('CONTROL DB RETURN CODE: ',C_STAT)
+                                                        (COL(2),A,A);
+         PUT FILE(ACARPT) EDIT('CURRENT CNTL QUALIFIED SSA: (',
+                           CAASCRSC_KEYNAME,CAASCRSC_OPR,
+                           CAASCRSC_KEYVAL,')')
+                           (COL(2),A,A,A,A,A);
+       END;
+
+     PUT FILE(ACARPT) EDIT('AEQDBU2 - UNSUCCESSFUL RUN')  (COL(2),A);
+     PUT FILE(ACARPT) EDIT('AEQDBU2 - AT LOCATION ',ONLOC)(COL(2),A,A);
+
+     CALL PRINT_TOTALS();
+
+     CALL PLIDUMP;
+     CLOSE FILE(ACARPT);
+     FUNC = 'ROLL';
+     CALL PLITDLI (PARM_CT1,FUNC);    /* JUMP BACK, JACK */
+     CALL PLIABND(ABEND_CODE);
+   END;
+
+1/********************************************************************/
+ /* PRINT ACA REPORT HEADINGS                                        */
+ /********************************************************************/
+ RUNDATE       = DATETIME;
+ WORK_RUN_DATE = SUBSTR(RUNDATE,5,2) || '/' ||
+                 SUBSTR(RUNDATE,7,2) || '/' ||
+                 SUBSTR(RUNDATE,1,4);
+ WORK_RUN_TIME  =SUBSTR(RUNDATE,9,2) || ':' ||
+                 SUBSTR(RUNDATE,11,2);
+
+ PUT FILE(ACARPT) EDIT('        ')                    (COL(2),A);
+
+ /********************************************************************/
+ /* PRINT ACA REPORT HEADING                                         */
+ /********************************************************************/
+  PUT FILE(ACARPT) EDIT
+   ('****************************************************',
+                             'PAGE:',PAGE_CNT+1) (COL(5),A,COL(60),A,A)
+   ('********            Q S A R                 ********',
+                           'DATE:',WORK_RUN_DATE)(COL(5),A,COL(60),A,A)
+   ('********        ',MODULE, ' ACA REPORT         ********',
+                           'TIME:',WORK_RUN_TIME)
+                                (COL(5),A,A,A,COL(60),A,A)
+   ('********    QSAR DB MARK QSAR EXTRACTED     ********')  (COL(5),A)
+   ('****************************************************')  (COL(5),A)
+   ('COMPILE DATE        - ',COMPILE)                     (COL(5),A,A)
+   ('LAST FIX DRIVER     - ',DRIVER)                      (COL(5),A,A)
+   ('DATE OF LAST CHANGE - ',LAST_CHANGE)                 (COL(5),A,A);
+
+ PUT FILE(ACARPT) EDIT('        ')                        (COL(2),A);
+ PUT FILE(ACARPT) 
+         EDIT('AEQDBU2 QSAR & CONTROL DATA BASE UPDATE STARTED')
+                                                          (COL(2),A);
+
+ GET FILE (RUNCTL) DATA (CHKP_FREQ);
+
+ /* THIS SHOULD BE IN THE RUNCTL FILE AS: CHKP_FREQ = '0025'  */
+
+ IF VERIFY(CHKP_FREQ,'0123456789') ^= 0
+   THEN DO;
+     PUT FILE(ACARPT) EDIT('        ') (COL(2),A);
+     PUT FILE(ACARPT) EDIT('NON-NUMERIC CHKP_FREQ PARM ENTERED:',
+                            CHKP_FREQ) (COL(2),A,A);
+     SIGNAL ERROR;
+   END;
+   ELSE DO;
+     CHKP_FREQ_NUM = CHKP_FREQ;
+     PUT FILE(ACARPT) EDIT('        ') (COL(2),A);
+     PUT FILE(ACARPT) EDIT('AEQDBU2 - CHECKPOINT FREQUENCY - ',
+                           CHKP_FREQ)  (COL(2),A,A);
+   END;
+ PUT FILE(ACARPT) EDIT('        ') (COL(2),A);
+
+1/********************************************************************/
+ /* MAIN PROCESSING                                                  */
+ /********************************************************************/
+
+ CURRENT_DB = 'QSAR';
+ READ FILE(QSARIN) INTO(IO_BUFFER);
+
+ DO WHILE (MORE_QSARIN);
+
+    SELECT(QSGENL.KEY);
+      WHEN('QSGENL  ')
+        DO;
+          IF QSGENL_FOUND
+            THEN CALL REPL_GENL_SEG();
+     /*   IF QSGENL_SEG.FSFTPEND ^= 'Y'                      S97140 */
+     /*     THEN CALL MARK_QSAR_SENT()                              */
+          CALL MARK_QSAR_SENT();
+        END;
+      WHEN('QBBILL  ')
+        DO;
+          BILL_S = 'Y';
+          BILL_CNT = BILL_CNT + 1;
+        END;
+      WHEN('QSARTRLR')
+        DO;
+          IF VERIFY(SUBSTR(IO_BUFFER,42,6),'0123456789') = '0'
+            THEN DO;
+              TRAILER_SEQ = SUBSTR(IO_BUFFER,42,6);      /* I75720 */
+              IF QSGENL_FOUND            /* REPLACE LAST GENL SEG     */
+                THEN CALL REPL_GENL_SEG();
+            END;
+            ELSE DO;
+              PUT FILE(ACARPT)
+                       EDIT('AEQDBU2 ENCOUNTERED AN INVALID TRAILER',
+                            ' SEQUENCE NUMBER IN THE INPUT FILE')
+                                                   (COL(2),A,A);
+              PUT FILE(ACARPT)
+                       EDIT('SEQUENCE NUMBER IN POSITION 42 OF THE',
+                            ' LAST INPUT RECORD IS (',
+                          SUBSTR(IO_BUFFER,42,6),')')(COL(2),A,A,A,A);
+              CURRENT_DB = 'TRLR';
+              SIGNAL ERROR;
+            END;
+        END;
+      OTHERWISE;
+    END;                                     /* SELECT QSGENL.KEY */
+
+    READ FILE(QSARIN) INTO(IO_BUFFER);
+
+ END;                                       /* DO WHILE MORE_QSARIN */
+
+ CURRENT_DB = 'CNTL';
+ CALL WRITE_TRAILER();
+ CALL PRINT_TOTALS();
+
+ %PAGE;
+
+ /********************************************************************/
+ /* MARK THE QSAR AS SENT BY WITH QSARP_S = 'Y'.                     */
+ /********************************************************************/
+ MARK_QSAR_SENT: PROC() REORDER;
+
+    FUNC            = 'GHU ';
+    QSAR_CNT        = QSAR_CNT + 1;
+    SAVE_QSGENL_SEG = QSGENL.GENL;
+
+    QSGENL_KEYVAL = SUBSTR(IO_BUFFER,9,9);
+    ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' QSGENL';
+
+    CALL PLITDLI (PARM_CT4,FUNC,QSAR_PCB,IO_BUFFER,SSA_QSGENL_QUAL);
+    SELECT(Q_STAT);
+      WHEN('  ')
+        DO;
+          IF QSGENL_SEG.FSFTPEND ^= 'Y'                /*    S97140 */
+            THEN DO;
+              QSAR_QSGENL = QSAR_QSGENL + 1;
+              QSARP_S = 'Y';    /* THIS IS THE FIELD WE'RE UPDATING */
+            END;
+           QSGENL_FOUND = '1'B;
+        END;
+      WHEN('GE')
+          PUT FILE(ACARPT) EDIT('QSGENL ROOT NOT FOUND, KEY(',
+                         QSGENL_KEYVAL,')')(COL(2),A,A,A);
+      WHEN('GB')
+          PUT FILE(ACARPT) EDIT('QSGENL ROOT NOT FOUND, KEY(',
+                         QSGENL_KEYVAL,')')(COL(2),A,A,A);
+      OTHERWISE SIGNAL ERROR;
+    END;/* SELECT Q_STAT */
+
+ END MARK_QSAR_SENT;
+
+ %PAGE;
+ /*********************************************************************/
+ /*                                                                   */
+ /*********************************************************************/
+ REPL_GENL_SEG: PROC();
+
+   FUNC = 'REPL';
+   ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' QSGENL';
+
+   CALL PLITDLI (PARM_CT3,FUNC,QSAR_PCB,QSGENL_SEG);
+
+   IF Q_STAT ^= '  '
+     THEN SIGNAL ERROR;
+
+   QSGENL_FOUND = '0'B;
+   REC_COUNT = REC_COUNT + 1;
+   IF REC_COUNT > CHKP_FREQ_NUM
+     THEN CALL CHECKPOINT;
+
+ END REPL_GENL_SEG;
+
+ %PAGE;
+ /*********************************************************************/
+ /* CHECKPOINT PROC                                                   */
+ /*********************************************************************/
+ CHECKPOINT: PROC REORDER;
+
+   FUNC       = 'CHKP';
+   CHKP_COUNT = CHKP_COUNT + 1;
+   CHKP_ID    = 'QS' || CHKP_COUNT;
+   ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' '||CHKP_ID;
+
+   CALL PLITDLI (PARM_CT3,FUNC,IO_PCB,CHKP_ID);
+
+   IF STATUS ^= '  '
+     THEN DO;
+         PUT FILE(ACARPT) EDIT('AEQDBU2 - CHECKPOINT FAILED -')
+                                                     (COL(2),A);
+         PUT FILE(ACARPT) EDIT('CHECKPOINT ID = ',CHKP_ID)(COL(2),A,A);
+         PUT FILE(ACARPT) EDIT('STATUS = ',STATUS)        (COL(2),A,A);
+         SIGNAL ERROR;
+      END;
+    REC_COUNT = 0;
+
+ END CHECKPOINT;
+
+1/*********************************************************************/
+ /* PROC TO WRITE TRAILER RECORD                                      */
+ /*********************************************************************/
+ WRITE_TRAILER: PROC() REORDER;
+
+   FUNC = 'GHU ';                        /* GET HOLD ROOT - CAASCRSC */
+   CAASCRSC_KEYVAL = 'QSARTRLR'||'                       ';
+   ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' CAASCRSC';
+
+   CALL PLITDLI (PARM_CT4,FUNC,CNTL_PCB,TRAILER_BUF,SSA_CAASCRSC_QUAL);
+
+   IF (C_STAT ^= '  ') & (C_STAT ^= 'GE')
+     THEN SIGNAL ERROR;
+
+   TRLRKEY1 = 'QSARTRLR';
+   TRLRPAD1 = '';
+   TRLRCNT  = QSAR_QSGENL;
+   BILLCNT  = BILL_CNT;
+
+   TRAILER.PAD01 = '|';
+   TRAILER.PAD02 = '|';
+   TRLRDATE = SUBSTR(RUNDATE,5,2) || '/' ||
+              SUBSTR(RUNDATE,7,2) || '/' ||
+              SUBSTR(RUNDATE,1,4);
+
+   /*IF SUBSTR(DATE,1,2) > '96'                                       */
+   /*  ELSE TRLRDATE = SUBSTR(RUNDATE,3,2) || '/' ||                  */
+   /*                  SUBSTR(RUNDATE,5,2) || '/' ||                  */
+   /*                  '20'|| SUBSTR(RUNDATE,1,2)                     */
+
+   TRAILER.PAD03 = ' ';
+
+   IF C_STAT = 'GE'             /* WRITE NEW RECORD - FIRST EXECUTION */
+     THEN DO;
+       TRLRSEQ = 1;             /* THE FIRST TRY IS ALWAYS A CHARM    */
+       FUNC = 'ISRT';           /* GET HOLD ROOT - CAASCRSC           */
+       ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' CAASCRSC';
+
+       CALL PLITDLI
+           (PARM_CT4,FUNC,CNTL_PCB,TRAILER_BUF,SSA_CAASCRSC_UNQUAL);
+       IF C_STAT ^= '  '
+         THEN SIGNAL ERROR;
+     END;
+     ELSE DO;                        /* REPL THE RECORD ON FILE       */
+       TRLRSEQ  = TRAILER_SEQ;       /* SAVED FROM INPUT RECORD       */
+       FUNC     = 'REPL';            /* UPDATE DATA BASE              */
+       ERROR_TEXT = 'AEQDBU2 UNABLE TO '||FUNC||' CAASCRSC';
+
+       CALL PLITDLI (PARM_CT3,FUNC,CNTL_PCB,TRAILER_BUF);
+       IF C_STAT ^= '  '
+         THEN SIGNAL ERROR;
+     END;
+
+ END WRITE_TRAILER;
+
+1/********************************************************************/
+ /* CLOSE THE ACARPT WITH APPROPRIATE INFORMATION                    */
+ /********************************************************************/
+ PRINT_TOTALS: PROC() REORDER;
+
+   PUT FILE(ACARPT) EDIT('AEQDBU2 OUTPUT COUNTS') (COL(2),A);
+   PUT FILE(ACARPT) EDIT('---------------------') (COL(2),A);
+   PUT FILE(ACARPT) 
+            EDIT('TOTAL QSGENL SEGMENTS UPDATED:                   ',
+                 QSAR_QSGENL)                  (COL(2),A,P'Z,ZZZ,ZZ9');
+   PUT FILE(ACARPT) 
+            EDIT('QSARTRLR RECORD UPDATED IN CONTROL DATA BASE  ')
+                                                  (COL(2),A);
+   PUT FILE(ACARPT) 
+           EDIT('TRAILER SEQUENCE NUMBER POSTED TO CONTROL DATA BASE ',
+                 TRLRSEQ)                         (COL(2),A,P'999999');
+   PUT FILE(ACARPT) 
+            EDIT('                     ')         (COL(2),A);
+   PUT FILE(ACARPT) EDIT
+   ('**************************************************************')
+                                                  (COL(2),A);
+   PUT FILE(ACARPT) EDIT('AEQDBU2 ENDED SUCCESSFULLY')(COL(20),A);
+   PUT FILE(ACARPT) EDIT
+   ('**************************************************************')
+                                                  (COL(2),A);
+   PUT FILE(ACARPT) EDIT('                     ') (COL(2),A);
+   
+ END PRINT_TOTALS;
+
+ END AEQDBU2;

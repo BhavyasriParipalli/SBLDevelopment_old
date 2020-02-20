@@ -1,0 +1,19 @@
+&        SET   @CNO=0,@DSP=SHR,@CND='&COND,LE'                   
+&        SET   U,@CNO=&@CNO(+1)=G  
+&        SET   U,LEXIN=&FAMHLQ..&REL..&DRIVER..&SLB1
+&        SET   U,LEXOUT=BUILD390.TEMP.LOADLIB                              
+//CPY&@CNO EXEC PGM=IEBCOPY,COND=(&@CND),REGION=&SRGN   
+//SYSPRINT DD  &@DUMMY                                  
+//SYSUT1   DD  DISP=(&@DSP),                             
+// DSN=&LEXIN                                            
+//SYSUT2   DD  DISP=(&@DSP),                              
+// DSN=&LEXOUT                                          
+//SYSUT3   DD  UNIT=&SYSDA,SPACE=(CYL,(3,&P(*1)))                       
+//SYSUT4   DD  UNIT=&SYSDA,SPACE=(CYL,(3,&P(*1)))                       
+//SYSIN    DD  *                                                        
+ COPY INDD=((SYSUT1,R)),OUTDD=SYSUT2                                    
+$^   ****** E P I L O G ********************** E P I L O G ************ 
+$^   *                                                                * 
+$^   * PURPOSE:  THIS ORDER IS RESPONSIBLE FOR GENERATING THE PROPER  * 
+$^   *           JCL REQUIRED TO EXECUTE THE IEBCOPY UTILITY THAT     * 
+$^   *           WILL COPY ALL LOAD MODULES TO AN EXTERNAL PDS.       *

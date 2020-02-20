@@ -1,0 +1,2353 @@
+  AEQMI2R  /*                                    08/21/92-14:09:21 */:
+     PROC OPTIONS(MAIN,REENTRANT) REORDER;     
+ /*********************************************************************/
+ /*                                                                   */
+ /*  PROGRAM:  AEQMI2R     VERSION NR:  01        DATE:  08/21/92     */
+ /*                                               TIME:  14:09:21     */
+ /*                                                                   */
+ /*  TITLE:  CONTINUOUS AREA-TO-HUB QSAR DB MIRRORING - BACK END      */
+ /*          PROCESSOR                                                */
+ /*                                                                   */
+ /*  FUNCTION: RECEIVE DATA FROM FRONT END PROCESSING MODULE          */
+ /*            AEQMIR2 AND PLACE THE DATA IN THE QSAR HUB DATA BASE.  */
+ /*            SEND INFORMATION BACK TO AEQMIR2 INDICATING THE        */
+ /*            STATUS OF THE INSERTS.  IF ANYONE OF THE INSERTS IS    */
+ /*            BAD THE WHOLE QSAR IS CONSIDERED NOT MIRRORED.         */
+ /*                                                                   */
+ /*                                                                   */
+ /*  LANGUAGE:  PLI                                                   */
+ /*                                                                   */
+ /*  MODULE TYPE: CICS    (PLI2CD3)                                   */
+ /*                                                                   */
+ /*  INTERFACES:                                                      */
+ /*                                                                   */
+ /*                                                                   */
+ /*  INPUTS:                                                          */
+ /*     DATA AREA FROM MODULE AEQMIR2                                 */
+ /*                                                                   */
+ /*  OUTPUTS:                                                         */
+ /*     INSERTS TO QSAR HUB DATA BASE                                 */
+ /*                                                                   */
+ /*  REPORTS:                                                         */
+ /*     NONE                                                          */
+ /*                                                                   */
+ /*  CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRIVER: DESCRIPTION:                      PGMR:*/
+ /*  -------- ------- ------- ---------------------------------- ---- */
+ /*  08/21/92 SR0999   2NSH  CHANGE QSAR DB MIRRORING TO          LBS */
+ /*                          DISTRIBUTED PROCESSING (APPC)            */
+ /*                          TO INSTALL QSAR ON NSS TYPE ROLLOUT      */
+ /*  10/06/92 I159788  2NSH  ADD CONDITION WHERE AREA AND HUB     LBS */
+ /*                          ARE NOT CONVERTED                        */
+ /*  10/05/94 S9300229 4NSM  ADD 1 DIGIT TO TRAVEL EXPENSE AND        */
+ /*                          PAD Genl AND PART SEGMENTS.          DLK */
+ /*  01/30/94 S9400170 4NSM  ASSIGN TIME TO LONGER GENL_BUF       LBS */
+ /*  06/20/95 S9400206 5NSE  INCREASE MSER, CSS, EXPENSE, ETC.    DLK */
+ /*  06/13/96 S9657033 6NSG  ADD PRF INCREASE PARTS SEG.          DLP */
+ /*  05/13/97 S9600755 7NSI  UPDATE NSS MRO PARALLEL SYSPLEX      LBS */
+ /*                          CHANGES AND YEAR 2000                    */
+ /*  10/21/97 S970133  7NSP  UPDATE FOR CALL SCREENING & PARTS    MKP */
+ /*                          REENGINEERING                            */
+ /*  02/09/98 S970219  8NSC  REMOVE SPIE FROM PLIXOPT             MKP */
+ /*  03/26/01 S01007   1NSA  change write_to_oper proc to write   LBS */
+ /*                          to CESE queue from write to oper         */
+ /*  08/20/01 s01032   1NSP  change qsgenl from 630 to 655        dlp */
+ /*  10/31/01 QSAR_1NSP_011  remove incorrect check_response call  LBS*/
+ /*  12/07/01 s01052   1NSP  change fisscadv to fisscntr and       LBS*/
+ /*                          comment out call to conversion routine   */
+ /* 03/15/2002 LE210    2NSG change PLIXOPT parameters for le 210  LBS*/
+ /* 04/01/2003 SR020023 3NSI PSD integration, qsgenl and qspart    LBS*/
+ /*                          length change qsgenl from 655 to 700     */
+ /*                          qspart from 130 to 200, old gen buff from*/
+ /*                          630 to 655                               */
+ /* 10/16/2005 SR040017 5NSM added terminate PSB logic at the      LBS*/
+ /*                          of the program                           */
+ /* 03/01/2007 SR060049 7NSM Cost code project                     LBS*/
+ /*                          length change qsgenl from 700 to 725     */
+ /*                          old gen buff from  655 to 700            */
+ /* 11/29/2011 RCQ1882  2HSC Remove Area number,                   NAK*/                               
+ /*                          Update OLD_QSGENL & OLD_QSINVT           */
+ /*********************************************************************/
+ DCL VERSION           CHAR(17) STATIC INIT('2HSC - 12/27/2011');
+ DCL MODULE            CHAR(7)  STATIC INIT('AEQMI2R');
+
+
+ %PAGE;
+ /*------------------------------------------------------------------*/
+ /* THE COMPILE TIMESTAMP IS RETRIEVED USING THE FOLLOWING           */
+ /* PREPROCESSOR STATEMENTS:                                         */
+ /*                                                                  */
+ /*    %DCL CMPTIME CHAR                                             */
+ /*    %DCL COMPILETIME BUILTIN                                      */
+ /*    %CMPTIME = ''''||COMPILETIME||''''                            */
+ /*                                                                  */
+ /* (SHOWN HERE SINCE PREPROCESSOR CODE DOESN'T PRINT WITH DEFAULT   */
+ /*  COMPILE OPTIONS.  NOTE:  STATEMENT SEMICOLONS ARE NOT SHOWN     */
+ /*  TO AVOID A COMPILER WARNING MESSAGE.)                           */
+ /*                                                                  */
+ /*------------------------------------------------------------------*/
+ %DCL CMPTIME CHAR;
+ %DCL COMPILETIME BUILTIN;
+ %CMPTIME = ''''||COMPILETIME||'''';
+
+ DCL COMPILE  CHAR(18) INIT(CMPTIME);
+
+ %DCL LANG CHAR;
+ %LANG = 'PLI';
+
+ DCL SYSPRINT FILE STREAM PRINT;             /* POINTS TO CPLI QUEUE */
+
+ DCL PLITDLI      ENTRY;
+ /* DCL PLIXOPT EXT CHAR(40) VAR INIT('STAE,ISA(10K),HEAP(0),NR')   */
+ DCL PLIXOPT      CHAR(225)
+ INIT('STACK(10K,2K,ANY,FREE),HEAP(2K,2K,ANYWHERE,KEEP),
+ MSGFILE(SYSPRINT),THREADHEAP(2K,2K,ANY,),LIBSTACK(2K,2K,FREE),
+ ANYHEAP(2K,2K,ANY,FREE),TRAP(ON),RPTOPTS(OFF),RPTSTG(OFF)')
+                                   STATIC VARYING EXTERNAL;
+
+ /* ----------------------------------------------------------------- */
+ /*      BUILTIN ROUTINES                                             */
+ /* ----------------------------------------------------------------- */
+ DCL (ADDR,
+      CSTG,
+      LENGTH,
+      LOW,
+      MOD,
+      ONLOC,
+      ONSOURCE,
+      STG,
+      SUBSTR,
+      VERIFY) BUILTIN;
+
+
+ %PAGE;
+  %INCLUDE DLIUIB;
+
+ %PAGE;
+   DCL 1 ERROR_DATA UNALIGNED,
+         %INCLUDE AEQERRT;;
+
+ %PAGE;
+   DCL CWA_PTR POINTER;
+   DCL 1 CWA UNALIGNED BASED(CWA_PTR),
+         %INCLUDE CWA;;
+
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /*   IMS DECLARES                                                  */
+ /* --------------------------------------------------------------- */
+
+  DCL 1 PCBN_PTRS BASED(UIBPCBAL),
+        2 QSAR1_PTR POINTER,        /* MIRROR INDEX FOR AEQMI2R PSB */
+                                    /* DOCUMENT INDEX FOR AEQMI2R   */
+        2 QSAR2_PTR POINTER,        /* DOCUMENT INDEX */
+        2 CNTL_PTR POINTER;
+
+  DCL 1 QSAR1_PCB BASED(QSAR1_PTR),
+        2 Q1_DBDNAME       CHAR(8),
+        2 Q1_SEG_LEV       CHAR(2),
+        2 Q1_STAT          CHAR(2),
+        2 Q1_PROC_OPT      CHAR(4),
+        2 Q1_DLI_RESERVED  FIXED BIN(31),
+        2 Q1_SEGNAME       CHAR(8),
+        2 Q1_FB_LENGTH     FIXED BIN(31),
+        2 Q1_NBR_SENS_SEGS FIXED BIN(31),
+        2 Q1_KEY_FEEDBACK  CHAR(50);
+
+  DCL 1 QSAR2_PCB BASED(QSAR2_PTR),
+        2 Q2_DBDNAME       CHAR(8),
+        2 Q2_SEG_LEV       CHAR(2),
+        2 Q2_STAT          CHAR(2),
+        2 Q2_PROC_OPT      CHAR(4),
+        2 Q2_DLI_RESERVED  FIXED BIN(31),
+        2 Q2_SEGNAME       CHAR(8),
+        2 Q2_FB_LENGTH     FIXED BIN(31),
+        2 Q2_NBR_SENS_SEGS FIXED BIN(31),
+        2 Q2_KEY_FEEDBACK  CHAR(50);
+
+  DCL 1 CNTL_PCB BASED(CNTL_PTR),
+        2 C_DBDNAME       CHAR(8),
+        2 C_SEG_LEV       CHAR(2),
+        2 C_STAT          CHAR(2),
+        2 C_PROC_OPT      CHAR(4),
+        2 C_DLI_RESERVED  FIXED BIN(31),
+        2 C_SEGNAME       CHAR(8),
+        2 C_FB_LENGTH     FIXED BIN(31),
+        2 C_NBR_SENS_SEGS FIXED BIN(31),
+        2 C_KEY_FEEDBACK  CHAR(50);
+
+
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /*   SSA DECLARES                                                  */
+ /* --------------------------------------------------------------- */
+  DCL 1 SSA_QSGENL_UNQUAL,
+        2 GENL_NAME    CHAR(9) INIT('QSGENL   ');
+
+  DCL 1 SSA_QSPART_UNQUAL,
+        2 PART_NAME    CHAR(9) INIT('QSPART   ');
+
+  DCL 1 SSA_QSNARR_UNQUAL,
+        2 NARR_NAME    CHAR(9) INIT('QSNARR   ');
+
+  DCL 1 SSA_QSMISC_UNQUAL,
+        2 MISC_NAME    CHAR(9) INIT('QSMISC   ');
+
+  DCL 1 SSA_QSINVT_UNQUAL,
+        2 INVT_NAME    CHAR(9) INIT('QSINVT   ');
+
+  DCL 1 SSA_QBBILL_UNQUAL,
+        2 QBBILL_NAME  CHAR(9) INIT('QBBILL   ');
+
+  DCL 1 SSA_QBNARR_UNQUAL,
+        2 NARR_NAME    CHAR(9) INIT('QBNARR   ');
+
+  DCL 1 SSA_QBPART_UNQUAL,
+        2 QBPART_NAME  CHAR(9) INIT('QBPART   ');
+
+  DCL 1 OLD_QSGENL    UNALIGNED  BASED(ADDR(OLD_GENL_BUF)),
+ /********************************************************************/
+ /*                                                                  */
+ /*  NAME: AEQSGENL                                DATE:  06/02/88   */
+ /*                                                TIME:  09:05:01   */
+ /*                                                                  */
+ /*  DESC: MAPPING OF QSAR GENERAL SEGMENT                           */
+ /*                                                                  */
+ /*  IMPORTANT NOTE !!!!! - ANY CHANGES IN THIS COPY MEMBER MUST     */
+ /*            BE REFLECTED IN THE COPY MEMBER NSQSGENL WHICH IS     */
+ /*            THE PLS VERSION OF THIS COPY MEMBER.                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:           PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------     ----------- */
+ /*  06/02/88  SR 9891    8NSM    ORIGINAL VERSION             SPZ   */
+ /*  06/28/88  SR 9891    8NSM    CHANGE EMPLOYEE INDEX        SPZ   */
+ /*                               REMOVE PIMS RESEND FLAG            */
+ /*                               ADD HUB/AREA PROCESS INDICATORS    */
+ /*  08/25/88  SR 9891    8NSM    ADD TAC AND ACTION,          SPZ   */
+ /*                               REMOVE ROLM FIELDS                 */
+ /*  08/30/88  SR 9891    8NSM    MOVE NSDC_DEL FROM FLAGS     SPZ   */
+ /*                               TO QSGENL SEGMENT                  */
+ /*  09/13/88  SR 9891    8NSM    ADD NSDC_MULTRESUB FIELD     SPZ   */
+ /*  10/18/88  SR 9891    8NSM    UPDATE COMMENT ON CS1EMPSE   SPZ   */
+ /*  11/16/88  SR 0037    8NSM    ADD VENDOR COORDINATION      SPZ   */
+ /*  12/05/88  SR 0048    8NSM    MAKE S0CEFI MULTI USE FIELD  SPZ   */
+ /*  01/24/89 DCR 30A01   8NSM    DEFINE USAGE OF "ORIGINS_S".       */
+ /*                                 BLANK = REC NOT SENT             */
+ /*                                 '1'   = PENDED BUT WAS SENT.     */
+ /*                                 '2'   = CLEAN QSAR SEND.    JWR  */
+ /*  01/30/89  I74289     8NSM    REINSTATE S0IERSFG FOR USE AS      */
+ /*                               MESSAGE PROCESS CONTROL FLAG  SPZ  */
+ /*  08/07/89  SR0300     9NSI    ADD ROLM REPAIR CD S0CRPAIR    TTT */
+ /*  08/11/89  SR9892     0NSA    ADD DATA FIELDS                LBS */
+ /*                               - S0CZIPCDE                        */
+ /*                               - BILL_S    BILLING SEG SENT?      */
+ /*                               - CTAXCD    MTM TAX CLASS          */
+ /*  11/09/89  I87818     0NSA    CHANGE CTAXCD  FROM CHAR 1     LBS */
+ /*                               TO 2                               */
+ /*  12/21/89  SR0252     0NSG    - ADD OLD HDA SER. NUMBER, NEW     */
+ /*                                 HDA SER. NUMBER, AND DEVICE      */
+ /*                                 ADDRESS.                     BLS */
+ /*  03/09/90  SR0444     0NSG    - ADD UNAVAILABLE TIME         BLS */
+ /*  08/21/90  SR0384     0NSK    - ADD ADP FAILURE/ACTION CODE      */
+ /*                                 AND ADP PRODUCT CODE         DVC */
+ /*  10/09/90  SR0577     0NSL    - ADD NSD HERITAGE FLAG FOR        */
+ /*                                 DIVISION NUMBER REORG        ABM */
+ /*  02/07/91  SR0702     1NSE    - ADD CPROBNUM2 - CAD PROBLEM  LBS */
+ /*                                 NUMBER, S0IMSFPG - AEQMSG1       */
+ /*                                 HAS BEEN ENTERED                 */
+ /*  04/30/91  DCR0777A   1NSG    - ADD CE ENTERED INSTALL DATE  ABM */
+ /*  07/10/91  I110642    1NSK    ADD HOLD FILE FLAG             LBS */
+ /*  10/11/91  SR0776     1NSM    ADD FPRTORD (PART ORDERED)     LBS */
+ /*  12/11/91  SR0882     2NSA    INCREASE LENGTH TO 460 BYTES   ABM */
+ /*  12/19/91             2NSA    ADD TWO PAD BYTES BEFORE THE       */
+ /*                               METER READING FIELD TO ALLOW       */
+ /*                               FOR FUTURE EXPANSION           ABM */
+ /*  12/19/91  TU934C     2NSA    ADD IAIC FIELD (FROM BOREF)    LBS */
+ /*  03/16/92  SR0967     2NSB    ADD CGSA FIELD (FROM MTM)      LBS */
+ /*  04/09/92  SR0590     2NSD    METER READING EXPANDED FROM        */
+ /*                               7 TO 9 (ELIMINATE METERPAD)    ABM */
+ /*  04/09/92  SR0972     2NSD    ADD PRODUCT ID                 ABM */
+ /*  04/09/92  SR1061     2NSD    ADD MDQ SURVEY FIELD               */
+ /*                                     (SERVICE PERFORMANCE)    ABM */
+ /*  08/20/92  H0016664   2NSF    ADD PEND_HDA FLAG              ABM */
+ /*  10/12/92  SR1084     2NSJ    ADD CECUSTY                    LBS */
+ /*  01/12/93  SR1204     3NSD    ADD FSPWN08 FLAG               LBS */
+ /*  04/06/93  SR93110    3NSJ    ADD FPTCORR FLAG               LBS */
+ /*  05/03/93  SR9300154  3NSJ    ADD FOEMTYPE FLAG              LBS */
+ /*  07/15/93  SR9300144  3NSJ    ADD FSRCKDK FLAG (KODAK)       LBS */
+ /*  08/03/93  SR9300162  3NSL    ADD WORK ORDER NUMBER (ADP)    DLK */
+ /*  01/15/94  SR9300220  3NSP    ADD CSAVSRC AND AUDIT TRAIL DB     */
+ /*                               UNAVAILABILITY FLAG            DLK */
+ /*  03/01/94  I225517    4NSA    ADD FAUDBUAN FLAG TO RECORD        */
+ /*                               DB UNAVAILABILITY              DLK */
+ /*  03/02/94  I234980    4NSA    ADD FMPIDBUN FLAG TO TRIGGER       */
+ /*                               MPI RECOVERY                   DLK */
+ /*  09/14/94  S9300229   4NSM    ADD 1 DIGIT TO EXPENSES            */
+ /*                               AND 19 BYTES OF PADDING        DLK */
+ /*  01/20/95  S9400170   4NSM    ADD NSS CONTRACT SEARCH FIELDS     */
+ /*                                                              DLK */
+ /*  03/25/95  S9500015   5NSC    WRITE SC 94 BILL TYPE INTO TAC     */
+ /*                               FIELD (COMMENTS ONLY)          DLK */
+ /*                                                              DLK */
+ /*  05/30/95  S9400206   5NSE    INCREASE MACHINE SERIAL, CONTRACT  */
+ /*                               AND EXPENSE FIELDS.            DLK */
+ /*  09/09/95  S9500175  5NSF    ADD BETHESDA CONTROL FLAGS      LBS */
+ /*  09/30/95  S9500187  5NSM DART/GE NEW FIELDS                 LBS */
+ /*                           FSRCDART, IMFGMOD, CFAILCD             */
+ /*                           FCADMTCH, ICADID, ICUSTPH              */
+ /*  10/03/95  S9500147  5NSM HSI - ADD FEBCONT, FPBID           LBS */
+ /*  11/17/95  I0410524  5NSM ADD FTSSMACH                       LBS */
+ /*  11/17/95  S9500059  5NSM CONVERT BATCH FEED FROM TRAK(TSS)      */
+ /*                           TO QSAR DATA                       DLP */
+ /*  11/28/95  S9500167  5NSM ADD FLAG FOR CMPS EXTRACT          YDS */
+ /*  11/28/95  S9500161  5NSM ADD SERVICE GROUP, SERVICE GROUP CE,   */
+ /*            S9500062       ADD AVAILABILITY CENTER RSO.       LBS */
+ /*            C9518702       ADD FAILURE CODE.                  LBS */
+ /*  03/12/96  S9500060  6NSE ADD IPARTCNT,IPETLVL,FSYSBILL      LBS */
+ /*  05/08/96  S9570033  6NSG ASSET TRACKING / ADD PRF PROMPT        */
+ /*                           TO PT TABLE                            */
+ /*            S9600166       MAKE OTHER BRANCH OFFICE               */
+ /*                           MANDATORY ON SC 47                     */
+ /*            S9600201       PROMPT FOR MFG/MOD WHEN AC = 14        */
+ /*            S9600225       PROMPT FOR QUANTITY WHEN FC IS 06.     */
+ /*            C9622501       CHANGE BIN LOCATION TO BIN/ORDER#      */
+ /*                           AND MAKE IT OPTIONAL                   */
+ /*            S9600235       ADD NEW PLAN/INST/RR/DIS CODE          */
+ /*                           TO SC 20                               */
+ /*            S9600243       REMOVE ROLM PRODUCTS FROM TAC          */
+ /*                           REPORTING. ALSO REMOVE CAUSE REPAIR    */
+ /*                           AND THE SEVERITY PROMPTS.              */
+ /*            S9600256       ADD LEXSERV TO LIST OF CONTRACT THAT   */
+ /*                           PROMPT FOR CUSTOMER REF                */
+ /*  08/16/96  S9600490  6NSJ REMOVE PCBID FEED FROM QSAR        MKP */
+ /*            S9500141       ENHANCE EB CONTRACT LOOKUPS            */
+ /*                           ADD HERITAGE FLAG AND CONTRACT         */
+ /*                           DIAG FLAG. CHANGE CEBCNTR TO           */
+ /*                           CVALLOV.                           DLP */
+ /*  10/14/96  S9600489  6NSP ADD SEVERITY PROMPT TO TRUER       MKP */
+ /*  11/22/96  H0125172  6NSR ADD FPREPEND TO TELL IF THE        DLP */
+ /*                           RECORD HAS BEEN PENDED BEFORE.         */
+ /*  04/01/97  S97049    7NSG ADD COMMENTS FOR CEDB CONTRACT     DLP */
+ /*                           VALIDATION                             */
+ /*  04/11/97  S97056    7NSG ADD FTSSPART, FSRCNSS              LBS */
+ /*  05/11/97  S9600755  7NSI SUPPORT NSS MRO PARALLEL SYSPLEX   LBS */
+ /*                           PHASE I AND YEAR 2000                  */
+ /*  09/30/97  S97133    7NSP ADD FIELDS TO SUPPORT CALL         LBS */
+ /*                           SCREENING/PART REENGINEERING           */
+ /*                           FACTWORK, CACTFAIL, CRTSSTAT,          */
+ /*                           FACTPLAN, FRTSSENT                     */
+ /*  01/13/98  S97219    8NSC ADD FIELDS TO SUPPORT CALL         DLP */
+ /*                           BMS/CLAIM PROCESSING                   */
+ /*                           FCLM_S, CIACTIND, IGROUP               */
+ /*  04/06/98  S9600139  8NSG ADD PRODUCT DIVISION               MKP */
+ /*  05/12/98  S98077    8NSI ADD TSS ALLIANCE CNTR LOCATION     MKP */
+ /*                           VALIDATED                              */
+ /*  07/23/98  S98016    8NSM SOURCE INDICATOR OF STDR TO TELL   DLP */
+ /*                           THE SUPPLIER OF THE RECORD AND         */
+ /*                           FAPI_S TO TELL THAT THE RECORD         */
+ /*                           HAS BEEN OFF LOADED IN THE API         */
+ /*                           ERROR PROCESS                          */
+ /*  01/28/99  S98005    8NSN ADD RESET CINVCNTR INDICATOR       SFM */
+ /*            S97140         FRSTCNTR, ADD SOFT PEND INDICATOR      */
+ /*                           FSFTPEND                               */
+ /*  05/11/99  S99005    8NSO EFFECTIVE STATUS CHANGES FOR       DLP */
+ /*                           SPLIT WARRANTY & SERVICE PAC           */
+ /*  10/05/99  S99093    9NSA CHANGE FSRCKDK TO FOEMCNTR         LBS */
+ /* 01/26/2000 PRD SUPT  0NSB ADD FRECLOCK FLAG                  MKP */
+ /* 06/15/2000 S00062    0NSF ADD FCMRESET FLAG                  LBS */
+ /* 05/15/2001 S01032    1NSP add IWKNUMAC, FWNUCHG fields       LBS */
+ /*                           add comments to CINVCNTR field         */
+ /* 10/15/2001 SR01055   1NSP add FCEDBTS, type serial on CEDB   LBS */
+ /* 11/08/2001 SR01052   2NSA change FISSCADV to FISSCNTR        DLP */
+ /* 01/18/2002 SR02001   2NSD add fields FPARTVAL, FSENDDER      LBS */
+ /*                           FSENDPIM                               */
+ /* 07/15/2002 S020032   2NSK EFFECTIVE STATUS SET BASED ON DSI  DLP */
+ /*                           AND CEDB (RENAME CEBSTAT TO FSTATRST)  */
+ /* 10/08/2002 SR020029  3NSE ADD FIELDS FBILACTH, FBILTRVH      LBS */
+ /*                           FBILPART,FBILDIST,FBILEXP,CCSTACTH     */
+ /*                           CCSTTRVH,CCSTPART,ICOSTSET             */
+ /* 03/14/2003 SR030023  3NSI ADD QJBILMTR, PSD INTEGRATION      LBS */
+ /*                           increase length from 650 to 700        */
+ /* 10/31/2003 SR030019  4NSC UPDATE COMMENTS ON BILLING FLAGS   LBS */
+ /*                           add flags for 24x7 coverage            */
+ /*03/09/2004 HSI4NSC011 4NSC move IENTSRC here from AEQFLAGS    LBS */
+ /*07/14/2004 SR040069   4NSG ADD FOEE INVENTORY OVERRIDE        DLP */
+ /*12/01/2004 SR040017   5NSM add Canada merge data              LBS */
+ /*                           CCOURSE, IREQEMPL, CBRANCH, FOVRTIME   */
+ /*                           CPARTSRC, FSEROVRD                     */
+ /*02/25/2005 SR050023   5NSC add liability indicators           LBS */
+ /*                          CWARLIAB, CWUPLIAB, CMALIAB, FPERCALL   */
+ /*                          CSPECAPR, CFUTRUSE, FLIABRST, ILIABSRC  */
+ /*                          CWARRUP,  IPLATFRM, NWARPHSE, NWUPHSE   */
+ /*05/03/2005 SR040017  5NSM CHANGE FSRCDART TO FOEEUNA          DLP */
+ /*                           RENAME PAD01 TO SPAD08                 */
+ /*09/26/2005 SR040017  5NSM add FACTADMN                        LBS */
+ /*08/30/2006 SR0600xx  6NSN add COWNER, CCOSTCAT                LBS */
+ /*12/12/2006 prodsupt  7NSB add FQLXEMPL                        LBS */
+ /*12/22/2006 prodsupt  7NSB remove IADPWON,CGADPFAC,CGADPPRC    LBS */
+ /*                                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* DATA BASE KEY FIELDS                                             */
+ /*------------------------------------------------------------------*/
+                                /* --------------------------------- */
+ 3 DOCUMENT_KEY,                /* PRIMARY DATA BASE KEY             */
+                                /* --------------------------------- */
+   5 S0IDOCMN         CHAR(9),  /* QSAR DOCUMENT NUMBER      001- 009*/
+                                /* 123456789                         */
+                                /* --        AREA/HUB INDICATOR      */
+                                /*   ------- SEQUENCE DIGITS         */
+                                /* AREA = 01 - 12                    */
+                                /* HUB  = 31 - 42                    */
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 PEND_KEY,                    /* SPARSE PEND INDEX                 */
+                                /* --------------------------------- */
+   5 CGQHIGSE         CHAR(1),  /* HIGHEST SEVERITY          010- 010*/
+                                /* 0 - NO ERRORS                     */
+                                /* 2 - WARNING                       */
+                                /* 3 - PEND (INDEX ENTRY             */
+                                /*           BUILT)                  */
+   5 CMIBOCE          CHAR(3),  /* CE BRANCH                 011- 013*/
+   5 CIICETER         CHAR(3),  /* CE TERRITORY              014- 016*/
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 RETRY_KEY,                   /* SPARSE RETRY INDEX                */
+                                /* --------------------------------- */
+   5 S0CAECMP         CHAR(1),  /* AUDIT EDIT COMPLETE       017- 017*/
+                                /* Y - NO INDEX ENTRY BUILT          */
+                                /* N - AUDIT EDIT INCOMPLETE         */
+                                /*     (INDEX ENTRY BUILT)           */
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 EMPL_KEY,                    /* EMPLOYEE INDEX                    */
+                                /* --------------------------------- */
+   5 S0IEMPSE         CHAR(6),  /* QSAR EMPLOYEE SERIAL      018- 023*/
+   5 EMPL_DATE   FIXED BIN(31), /* ACTIVITY DATE YYYYMMDD    024- 027*/
+                                /* NEGATED TO PUT MOST RECENT        */
+                                /* ACTIVITY FIRST                    */
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 TIMESTAMP_KEY,               /* TIMESTAMP INDEX                   */
+                                /* --------------------------------- */
+   5 AUDIT_DATE       CHAR(8),  /* AUD DT YYYYMMDD           028- 035*/
+   5 AUDIT_TIME       CHAR(6),  /* AUD TIME HHMMSS           036- 041*/
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 MIRROR_KEY,                  /* SPARSE MIRROR INDEX               */
+                                /* --------------------------------- */
+   5 MIRROR_IND       CHAR(1),  /* MIRROR INDICATOR          042- 042*/
+                                /* INDICATES IF ACTIVITY WAS         */
+                                /* SUCCESSFULLY MIRRORED (Y/N)       */
+                                /* Y - MIRROR SUCCESSFUL             */
+                                /* N - MIRROR UNSUCCESSFUL - INDEX   */
+                                /*     ENTRY BUILT                   */
+                                /*                                   */
+ /*----------------------------------------------------------------- */
+ /* DCS HEADER FIELDS - FROM NSS RAMS                                */
+ /*----------------------------------------------------------------- */
+                                /* --------------------------------- */
+ 3 DCS_HEADER,                  /* QSAR SEGMENT STRUCTURE            */
+                                /* --------------------------------- */
+   5 CS1EMPSE         CHAR(6),  /* EMPLOYEE SERIAL FROM PT   043- 048*/
+                                /* IF FROM PT, USERID OF             */
+                                /* ADMIN IF QSARC DELETE             */
+   5 CS1BOEMP         CHAR(3),  /* BRANCH OFFICE             049- 051*/
+   5 CS1ETERR         CHAR(3),  /* TERRITORY                 052- 054*/
+   5 CS1AREA          CHAR(2),  /* AREA                      055- 056*/
+   5 CS1DIVSN         CHAR(1),  /* DIVISION                  057- 057*/
+   5 CS1APPLD         CHAR(2),  /* APPLICATION ID            058- 059*/
+   5 CS1FUNCT         CHAR(1),  /* FUNCTION ID               060- 060*/
+                                /* --------------------------------- */
+   5 CS1BSRTI,                  /* BASE SERVICES REC TIME            */
+                                /* --------------------------------- */
+     7  CS1BSRHH      CHAR(2),  /*      HOURS                061- 062*/
+     7  CS1BSRMM      CHAR(2),  /*      MINUTES              063- 064*/
+     7  CS1BSRSS      CHAR(2),  /*      SECONDS              065- 066*/
+                                /*                                   */
+                                /* --------------------------------- */
+   5 CS1BSRDT,                  /* BASE SERVICES REC DATE            */
+                                /* --------------------------------- */
+     7  CS1BSRYY      CHAR(4),  /*         YEAR              067- 070*/
+     7  CS1BSRMM      CHAR(2),  /*         MONTH             071- 072*/
+     7  CS1BSRDD      CHAR(2),  /*         DAY               073- 074*/
+                                /*                                   */
+   5 CS1MSCTL   FIXED BIN (15), /* APPLICATION VERSION       075- 076*/
+   5 CS1MSLEN   FIXED BIN (15), /* MESSAGE LENGTH            077- 078*/
+   5 CS1DOCMN   FIXED BIN (31), /* DOCUMENT NO FROM PT       079- 082*/
+                                /* --------------------------------- */
+   5 CS1FLAGS,                  /* PT FLAGS                  081- 081*/
+                                /* --------------------------------- */
+     7 CS1PTRAM       BIT (1),  /* PT FLAGS 0=PT   1=RAMS    083- 083*/
+     7 CS1HUB         BIT (1),  /* PT FLAGS 0=AREA 1=HUB     083- 083*/
+     7 CS1IPRPR       BIT (1),  /* PT FLAGS 0=IPAR 1=PSAR    083- 083*/
+     7 CS1NUS01       BIT (5),  /* UNUSED BITS               083- 083*/
+                                /*                                   */
+   5 CS1CFUNC         CHAR(2),  /* FUNCTION USED TO CREATE   084- 085*/
+                                /* THIS QSAR                         */
+   5 CS1COMLT   FIXED BIN (15), /* QSAR COMPL TIME  (HHMM)   086- 087*/
+   5 CS1TABID   FIXED BIN (15), /* PT TABLE ID               088- 089*/
+                                /*                                   */
+                                /* --------------------------------- */
+ 3 CTL_FIELDS,                  /* CONTROL FIELDS                    */
+                                /* --------------------------------- */
+   5 QSARP_S          CHAR(1),  /* QSAR/P SENT?   Y/N        090- 090*/
+   5 BILL_S           CHAR(1),  /* BILLING SEG SEND  Y|N     091- 091*/
+   5 ORIGINS_S        CHAR(1),  /* RECORD SENT TO ORIGINS    092- 092*/
+                                /* BLANK = REC NOT SEND              */
+                                /* '1'   = PENDED BUT SENT           */
+                                /* '2'   = CLEAN QSAR SENT           */
+   5 FCMPS_S          CHAR(1),  /* QSAR SENT EXTRACTED FOR   093- 093*/
+                                /* CMPS   Y|N                        */
+   5 PROC_LOC         CHAR(1),  /* PROCESS LOCATION          094- 094*/
+                                /* INDICATES IF QSAR PROCESSED AT    */
+                                /* AREA OR HUB                       */
+                                /* A - AREA                          */
+                                /* H - NAT'L HUB                     */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* QSAR INPUT DATA FIELDS                                           */
+ /*------------------------------------------------------------------*/
+                                /* --------------------------------- */
+ 3 S0UIPARE,                    /* QSAR RECORD STRUCTURE             */
+                                /* --------------------------------- */
+   5 S0IMACTC         CHAR(4),  /* MACHINE TYPE              095- 098*/
+   5 S0IMACSE         CHAR(22), /* MACHINE SERIAL            099- 120*/
+                                /* --------------------------------- */
+   5 S0ICSTID,                  /* CUSTOMER ID                       */
+                                /* --------------------------------- */
+     7 S0ICSTLC       CHAR(2),  /* LOCATION OR SYSTEM        121- 122*/
+     7 S0ICUST        CHAR(7),  /* CE ENTERED CUSTOMER NUM   123- 129*/
+                                /*                                   */
+   5 S0DCALCM         CHAR(2),  /* CALL COMPLETE MO    MM    130- 131*/
+   5 S0DCALCD         CHAR(2),  /* CALL COMPLETE DAY   DD    132- 133*/
+   5 S0DCALCY         CHAR(4),  /* CALL COMPLETE YEAR YYYY   134- 137*/
+   5 S0CBIOSA         CHAR(1),  /* BILLABLE/SPEC. ACT CODE   138- 138*/
+                                /* '1' - Potentially Billable        */
+                                /*       Service                     */
+                                /* '3' - FSR DETERMINED BILLABLE     */
+                                /* '4' - FSF Determined Not Billable */
+                                /* '7' - Market Value Parts (MVP)    */
+                                /* '9' - IMI-Billed Service          */
+   5 S0QSTOTI         CHAR(3),  /* STOP TIME       (HHT)     139- 141*/
+   5 SPAD01           CHAR(1),  /*                           142- 142*/
+   5 S0QTRAMI         CHAR(3),  /* TRAVEL MILES              143- 145*/
+   5 S0ATRAEX         CHAR(7),  /* TRAVEL EXPENSES($$$$$››)  146- 152*/
+   5 S0QTRAHR         CHAR(3),  /* TRAVEL HOURS    (HHT)     153- 155*/
+   5 SPAD02           CHAR(1),  /*                           156- 156*/
+                                /* --------------------------------- */
+   5 S0UIRDL,                   /* INCIDENT DATA                     */
+                                /* --------------------------------- */
+     7 S0QOVTHR       CHAR(3),  /* OVERTIME HOURS  (HHT)     157- 159*/
+     7 SPAD03         CHAR(1),  /*                           160- 160*/
+     7 S0QSVCHR       CHAR(3),  /* ACTUAL HOURS    (HHT)     161- 163*/
+     7 SPAD04         CHAR(1),  /*                           164- 164*/
+     7 S0CCIA         CHAR(1),  /* COMPLETION CODE           165- 165*/
+                                /*  'C' or '1' - Complete            */
+                                /*  'I' or '2' - Incomplete          */
+                                /*  'D' or '3' - Diagnostic Assistanc*/
+                                /*  'A' or '4' - Other Assistance    */
+                                /*  'S' or '5' - Suspended           */
+                                /*  'P' or '6' - Post Installation   */
+     7 S0CSVC         CHAR(2),  /* SERVICE CODE              166- 167*/
+                                /*  01 Corrective Maintenance        */
+                                /*  08 Preventive Maintenance        */
+                                /*  20 Install, Discontinue or Move  */
+                                /*  33 Change Activity               */
+                                /*  36 Customer Support              */
+                                /*  44 Contract Services             */
+                                /*  47 Marketing Assistance          */
+                                /*  48 Account Management            */
+                                /*  55 Available                     */
+                                /*  65 Unavailable                   */
+                                /*  94 Software Services.            */
+     7 S0CHACT        CHAR(2),  /* ACTIVITY CODE             168- 169*/
+     7 S0CIDM         CHAR(1),  /* INSTALL/DISC/MOVE CODE    170- 170*/
+                                /*   1 = INSTALLATION PLANNING       */
+                                /*   2 = INITIAL INSTALL             */
+                                /*   3 = RELOCATE,REARRANGE OR       */
+                                /*       CUSTOMER SETUP              */
+                                /*   4 = DISASSEMBLE PACK TRANSPORT  */
+                                /*   5 = MARKETING PROMOTION         */
+                                /*       DISASSEMBLE MACHINE FOR     */
+                                /*       RETURN TO IBM.              */
+     7 S0CEFI         CHAR(1),  /* ERROR FREE INSTALL        171- 171*/
+     7 S0CMOD         CHAR(1),  /* MODIFICATIONS CODE        172- 172*/
+                                /* 1 = MES NUMBER                    */
+                                /* 2 = ECA, REA, MICRO NUMBER        */
+     7 S0CMODNA       CHAR(1),  /* MODIFICATIONS NOT         173- 173*/
+                                /* APPLIED CODE                      */
+                                /*  1 = PREVIOUSLY APPLIED/INSTALLED */
+                                /*  2 = MACHINE NOT HERE             */
+                                /*  3 = CANCEL EC                    */
+                                /*  blank                            */
+     7 S0CMSCM        CHAR(8),  /* MES/ECA/REA/MICROFIX #    174- 181*/
+                                /* ECA       LENGTH   3              */
+                                /* MES       LENGTH   6              */
+                                /* MICROCODE LENGTH 1-8              */
+                                /* REA       LENGTH   5              */
+     7 S0IPMFSA       CHAR(2),  /* CHANGE PM FREQUENCY       182- 183*/
+                                /*                                   */
+   5 S0IOTBCW         CHAR(3),  /* OTHER SR B/O WORKED       184- 186*/
+   5 S0CBMATR         CHAR(7),  /* BILL OF MATERIAL          187- 193*/
+   5 S0CSREQ          CHAR(1),  /* SERV REQUEST (SCHEDULED)  194- 194*/
+   5 S0CSTYPE         CHAR(1),  /* SERVICE TYPE (CONCURRENT  195- 195*/
+   5 SPAD05           CHAR(4),  /* PROBLEM NUMBER EXPANSION  196- 199*/
+   5 S0CCSCPC         CHAR(7),  /* PROBLEM NUMBER            200- 206*/
+   5 SPAD06           CHAR(4),  /* PROBLEM NUMBER EXPANSION  207- 210*/
+   5 CPROBNUM2        CHAR(7),  /* CAD PROBLEM NUMBER        211- 217*/
+   5 S0ICSS           CHAR(12), /* CSS CONTRACT              218- 229*/
+   5 S0ICSS2          CHAR(12), /* ORIGINAL CE CONTRACT#     230- 241*/
+   5 S0IASSFT         CHAR(1),  /* ASSIGNED SHIFT            242- 242*/
+                                /*-----------------------------------*/
+                                /* METERED MACHINE DATA              */
+                                /*-----------------------------------*/
+   5 S0QMETRE         CHAR(9),  /* METER READING QTY         243- 251*/
+   5 S0QUSAGE         CHAR(4),  /* USAGE CREDIT              252- 255*/
+                                /* END OF METERED MACHINE DATA       */
+                                /*-----------------------------------*/
+                                /* COMMON PARTS DATA - SEE SEGMENT   */
+                                /* QSPART FOR PART DATA FIELDS       */
+                                /* CORRESPONDING TO EACH PART LINE   */
+                                /*-----------------------------------*/
+   5 S0IPARTR         CHAR(1),  /* PARTS TRAILER INDICATOR   256- 256*/
+   5 S0ISENBO         CHAR(3),  /* SENDING BRANCH OFFICE     257- 259*/
+   5 S0ISENOL         CHAR(3),  /* SENDING OUT LOCATION      260- 262*/
+   5 S0IALTRB         CHAR(3),  /* ALTERNATE SHIP BRANCH     263- 265*/
+   5 S0CDELPT         CHAR(2),  /* DELIVERY POINT CODE       266- 267*/
+                                /* END OF PARTS DATA                 */
+                                /* DATA FIELDS SET BY INPUT SOURCE   */
+                                /*   (PT OR QSAR/C)                  */
+   5 S0CSEQNO         CHAR(3),  /* SEQUENCE NUMBER           268- 270*/
+   5 S0IPECLV         CHAR(3),  /* PT LEVEL                  271- 273*/
+   5 S0IBOEMP         CHAR(3),  /* EMP B/O FROM PT           274- 276*/
+   5 S0IBRGFG         CHAR(1),  /* PT DOWNLEVEL INDICATOR    277- 277*/
+                                /* ' ' - DO NOT PEND RECORD          */
+                                /* 'L' - PEND THIS RECORD            */
+                                /* --------------------------------- */
+   5 S0IFLAGS,                  /* BIT FLAGS                         */
+                                /* --------------------------------- */
+     7 S0IERSFG       BIT (1),  /* PT ERROR/MSG SENT FLAG    278- 278*/
+     7 S0ISRCPT       BIT (1),  /* SOURCED FROM PT           278- 278*/
+     7 S0ISRCNS       BIT (1),  /* SOURCED FROM NSD          278- 278*/
+     7 S0IRESUB       BIT (1),  /* RESUBMIT DOCUMENT         278- 278*/
+                                /*                                   */
+     7 S0IRECYC       BIT (1),  /* RECYCLED DOCUMENT         278- 278*/
+     7 S0IFGLAT       BIT (1),  /* LATE FLAG INDICATOR       278- 278*/
+     7 S0IBLMSG       BIT (1),  /* BILLING MESSAGE SENT FLG  278- 278*/
+     7 S0IMSGPG       BIT (1),  /* AEQMSG1 ENTERED           278- 278*/
+                                /*                                   */
+   5 S0IDCIFL       CHAR(1),    /* DIRECT CUSTOMER INVOICE   279- 279*/
+                                /* FLAG - 'Y', 'N', OR ' '           */
+                                /* SET IN AUDIT/EDIT                 */
+   5 S0IHSDNR       CHAR(9),    /* HOURLY SERVICE DOCUMENT   280- 288*/
+                                /* NUMBER                            */
+   5 S0CTAC         CHAR(3),    /* TAC CODE      (FOR IBM)   289- 291*/
+                                /* BILL TYPE     (FOR SC 94)         */
+   5 S0CTACAT       CHAR(1),    /* ACTION CODE   (FOR IBM )  292- 292*/
+   5 S0QPNDCT   FIXED BIN (15), /* COUNT OF TIMES PENDED     293- 294*/
+   5 CHCDATIT         CHAR(1),  /* TYPE OF DATA ON QSAR      295- 295*/
+                                /*     'I' = INCIDENT                */
+                                /*     'P' = PARTS                   */
+                                /*     'B' = BOTH                    */
+                                /*                                   */
+ 3 CHICEWK      FIXED BIN (15), /* CE WEEK NUMBER            296- 297*/
+ 3 CHDSCAPR           CHAR(8),  /* YYYYMMDD                  298- 305*/
+ 3 CHDORIRR           CHAR(8),  /* YYYYMMDD  ORIGINAL PEND   306- 313*/
+                                /* DATE                              */
+ 3 CHIREPPY           CHAR(6),  /*             YYYYMM        314- 319*/
+ 3 CHIREPPW           CHAR(1),  /* REPORT WEEK FROM CECAL    320- 320*/
+                                /* '1'|'2'|'3'|'4'                   */
+ /*------------------------------------------------------------------*/
+ /* AUDIT EDIT ERROR ARRAY                                           */
+ /*------------------------------------------------------------------*/
+                                /* --------------------------------- */
+ 3 CGUERSEA (5),                /* ERROR ARRAY                       */
+                                /* --------------------------------- */
+   5 CGQERRSE   CHAR(1),        /* SEVERITY OF THIS ERROR    321- 321*/
+   5 CGIERRMS FIXED BIN (15),   /* ERROR MESSAGE NUMBER      322- 323*/
+   5 CGIAURDE FIXED BIN (15),   /* AUDIT RULE WHICH          324- 325*/
+                                /* DETECTED ERROR                    */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* CALCULATED FIELDS                                                */
+ /*------------------------------------------------------------------*/
+ 3 CGIOTHPB    CHAR(3),         /* OTHER B/O-PARENT          346- 348*/
+                                /* (BOREF)                           */
+ 3 CGIASGPB    CHAR(3),         /* SR ASGND B/O-PARENT       349- 351*/
+ 3 CGCCLAFG    CHAR(2),         /* CLASS FROM MPI CODE       352- 353*/
+ 3 CGCCLAPI    CHAR(1),         /* CLASS FOR PIMS I/F        354- 354*/
+ 3 CGCSTAPI    CHAR(1),         /* STATUS FOR PIMS I/F       355- 355*/
+ 3 CGCEFFST    CHAR(1),         /* EFFECTIVE STATUS CODE     356- 356*/
+ 3 CGIEFFIT    CHAR(1),         /* EFFECTIVE INVENT TYPE     357- 357*/
+                                /* --------------------------------- */
+ 3 UMISFLG1,                    /* MISCELLANEOUS FLAGS 1             */
+                                /* --------------------------------- */
+   5 FRTSSENT       BIT (01),   /* PART RECORD WAS SENT RTS  358- 358*/
+   5 FRECLOCK       BIT (01),   /* RECORD LOCKED FLAG        358- 358*/
+   5 FCMRESET       BIT (01),   /* RESET CUST NUM FLAG       358- 358*/
+   5 FPARTVAL       BIT (01),   /* VALIDATE PART?            358- 358*/
+   5 FSENDDER       BIT (01),   /* SEND PART TO RTS/DER?     358- 358*/
+   5 FSENDPIM       BIT (01),   /* SEND PART TO PIMS?        358- 358*/
+   5 FLIABRST       BIT (01),   /* Call liability indicators 358- 358*/
+                                /* reset by QSAR                     */
+   5 FQLXEMPL       BIT (01),   /* QualxServ employee?       358- 358*/
+ 3 UMISFLG2,                    /* MISCELLANEOUS FLAGS 2     359- 359*/
+   5 FPAD02         BIT (08),   /* UNUSED MISC FLAGS         359- 359*/
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* MACHINE TYPE INFORMATION FROM MTM                                */
+ /*------------------------------------------------------------------*/
+                                /* --------------------------------- */
+ 3 CGITYPMD,                    /*                                   */
+                                /* --------------------------------- */
+   5 CGFMETER  CHAR(1),         /* METERED MACHINE           360- 360*/
+   5 CGCBILCL  CHAR(1),         /* BILLING CLASS             361- 361*/
+   5 CGCINVRQ  CHAR(1),         /* INVENTORY MATCH           362- 362*/
+   5 CGCACTCL  CHAR(1),         /* ACCOUNTING CLASS          363- 363*/
+   5 CGCMAHER  CHAR(1),         /* MACHINE HERITAGE          364- 364*/
+   5 CGCPMSCH  CHAR(2),         /* PM SCHEDULE               365- 366*/
+                                /* --------------------------------- */
+   5 CGFMIFLG,                  /* ADDITIONAL TMT FLAGS              */
+                                /* --------------------------------- */
+     7 CGFWDMAT   BIT(1),       /* WITHDRAWN FROM MAINT      367- 367*/
+     7 CGFAUTIN   BIT(1),       /* AUTO CUST INSTALL         367- 367*/
+     7 CGFSRC     BIT(1),       /* SERVICE REPAIR CENTER     367- 367*/
+     7 CGBTHSET   BIT(1),       /* BETHESDA CONTROL SET      367- 367*/
+                                /*                                   */
+     7 CGBTHCTL   BIT(1),       /* BETHESDA CONTROLLED       367- 367*/
+     7 CGPAD03    BIT(3),       /* UNUSED CONTROL FLAGS      367- 367*/
+                                /*                                   */
+   5 CGCMLCSP  CHAR(1),         /* MLC SHIP CONTROL          368- 368*/
+   5 CGCPOCP   CHAR(2),         /* POINT OF CONTROL          369- 370*/
+   5 CGCPMLCC  CHAR(2),         /* PLANT OF MLC CONTROL      371- 372*/
+   5 CGCTCP    CHAR(1),         /* TECHNICAL CAREER          373- 373*/
+                                /*                                   */
+                                /* ADDITIONAL BOREF DATA             */
+ 3 CGIOTHDV  CHAR(02),          /* OTHER OFFICE DIVISION     374- 375*/
+ 3 CGIOTHOP  CHAR(01),          /* OTHER OP AREA             376- 376*/
+ 3 CGIOTHRG  CHAR(02),          /* OTHER AREA                377- 378*/
+ 3 CGIOTHAR  CHAR(01),          /* OTHER REGION              379- 379*/
+                                /* --------------------------------- */
+ 3 CGIOTIND,                    /* MISCELLANEOUS INDICATOR           */
+                                /* --------------------------------- */
+   5 CGIOTFRO  BIT(1),          /* BIT 1 FORCED RECOV OFFCE  380- 380*/
+   5 CGIOTPAD  BIT(7),          /* BIT 2-8 UNUSED PAD AREA   380- 380*/
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* EDF (EMPLOYEE) DATA                                              */
+ /*------------------------------------------------------------------*/
+ 3 CIICEAB   CHAR(3),           /* CE ASSIGNED BRANCH        381- 383*/
+ 3 CICGROUP  CHAR(1),           /* FIELD MANAGER CODE        384- 384*/
+                                /* --------------------------------- */
+ 3 CIURECRE,                    /* OTHER EMPLOYEE DATA               */
+                                /* --------------------------------- */
+   5 CINEMP1I  CHAR(1),         /* EMPLOYEE FIRST INIT       385- 385*/
+   5 CINEMP2I  CHAR(1),         /* EMPLOYEE SECOND INIT      386- 386*/
+   5 CINEMPLA  CHAR(17),        /* EMPLOYEE LAST NAME        387- 403*/
+   5 CIIASSDV  CHAR(2),         /* EMPLOYEE DIVISION         404- 405*/
+   5 CIIOPRAR  CHAR(1),         /* OP AREA                   406- 406*/
+   5 CIIREG    CHAR(2),         /* AREA                      407- 408*/
+   5 CIIRAREA  CHAR(1),         /* REGION                    409- 409*/
+                                /* --------------------------------- */
+   5 CIUHRTG,                   /* CE LOCATION HERITAGE              */
+                                /* --------------------------------- */
+     7 CIFCSH   BIT(1),         /* LOCATION HERITAGE CE      410- 410*/
+     7 CIFFEH   BIT(1),         /* LOCATION HERITAGE FE      410- 410*/
+     7 CIFNUS1  BIT(6),         /* UNUSED BITS               410- 410*/
+                                /*                                   */
+   5 CICPOSTY  CHAR(1),         /* POSITION TYPE CODE        411- 411*/
+                                /* 1=FSC MANAGER                     */
+                                /* 2=SR MANAGER                      */
+                                /* 3=FIELD MANAGER                   */
+                                /* 4=SR                              */
+   5 CIIASSHN  CHAR(3),         /* ASSIGNED HOURS PER        412- 414*/
+                                /* FIVE WORK DAYS -                  */
+                                /* INTERPRET AS TENTHS OF            */
+                                /* HOURS (HH.T)                      */
+   5 CIDEFFST  CHAR(8),         /* EFFECTIVE STATUS DATE     415- 422*/
+                                /* YYYYMMDD                          */
+   5 CIHASSDW  FIXED BIN(15),   /* ASSIGNED DAILY WORK       423- 424*/
+                                /* HOURS EXPRESSED IN                */
+                                /* TENTHS                            */
+   5 CICCEHTG  CHAR(2),         /* EMPL.SRC. CODE            425- 426*/
+                                /*   FIRST BYTE : FORMER DIVISION    */
+                                /*      1 = GSD                      */
+                                /*      2 = OPD                      */
+                                /*      3 = OTHER                    */
+                                /*      4 = FE                       */
+                                /*   SECOND BYTE :                   */
+                                /*      0 = NOT CROSS/TRAINED        */
+                                /*      1 = IS CROSS/TRAINED         */
+   5 CICIRWG   CHAR(1),         /* IR WRITING CODE           427- 427*/
+                                /*     '1' = IR WRITING              */
+                                /*     ' ' = NON IR WRITING          */
+   5 CICCEACP  CHAR(1),         /* CAREER PATH CODE          428- 428*/
+   5 CICPSTN   CHAR(2),         /* EXTENDED POS TYPE         429- 430*/
+                                /*                                   */
+ 3 CGSRCBO     CHAR(1),         /* SRC B/O  Y=YES, N=NO      431- 431*/
+ 3 R_VER       CHAR(4),         /* AUDIT RULE VERSION/LEVEL  432- 435*/
+ 3 NSDC_DEL    CHAR(1),         /* QSAR/C DELETE FLAG        436- 436*/
+ 3 NSDC_MULTRESUB CHAR(1),      /* QSAR/C MULTI RESUBMIT     437- 437*/
+                                /* FLAG                              */
+ 3 S0CVEND     CHAR(1),         /* VENDOR COORDINATION       438- 438*/
+ 3 S0CZIPCDE   CHAR(9),         /* SERVICE ZIP CODE          439- 447*/
+ 3 CTAXCD      CHAR(2),         /* MTM TAX CODE              448- 449*/
+ 3 TMACHDSC    CHAR(15),        /* MTM MACHINE DESCRIPTION   450- 464*/
+ 3 ICNVMSER    CHAR(7),         /* PSD/OEM CONVERTED SERIAL  465- 471*/
+ 3 CBASEWAR    CHAR(4),         /* MTM BASE WARR CODE        472- 475*/
+ 3 CCOURSE     CHAR(5),         /* CANADA COURSE CODE        476- 480*/
+ 3 IREQEMPL    CHAR(6),         /* REQUESTING EMPLOYEE       481- 486*/
+ 3 CBRANCH     CHAR(5),         /* BRANCH USE CODES          487- 491*/
+ 3 CGUNTIME    CHAR(2),         /* UNAVAILABLE TIME          492- 493*/
+ 3 IREQDIV     CHAR(2),         /* REQUESTING EMPLOYEE DIV   494- 495*/
+                                /* FROM CERIS                        */
+ 3 SPAD07      CHAR(3),         /*                           496- 498*/
+ 3 NSD_HRTG    CHAR(1),         /* HERITAGE FLAG             499- 499*/
+                                /* 'S'= SERVICE, 'M'= MARKETING      */
+                                /* --------------------------------- */
+ 3 FSTATUS,                     /* DIAGNOSTIC FLAGS                  */
+                                /* --------------------------------- */
+   5 FHOLDFILE   BIT(1),        /* RECORD WAS IN HOLD FILE   500- 500*/
+   5 FMPIBUSY    BIT(1),        /*                           500- 500*/
+   5 FSAVBUSY    BIT(1),        /*                           500- 500*/
+   5 FSPWN08     BIT(1),        /* WAS SC 08 REC SPAWNED?    500- 500*/
+                                /*                                   */
+   5 FPTCORR     BIT(1),        /* QSAR CORRECTED VIA PT     500- 500*/
+   5 FSYSSPWN    BIT(1),        /* SYSTEM SPAWNED PART TRLR  500- 500*/
+   5 FOEMTYPE    BIT(1),        /* IS MACH TYPE OEM?         500- 500*/
+   5 FOEMCNTR    BIT(1),        /* OEM CONTRACT              500- 500*/
+                                /*                                   */
+   5 FAUDUNAV    BIT(1),        /* AUDIT TRAIL DB UNAVAIL    501- 501*/
+   5 FAUDBUNA    BIT(1),        /* AUDIT TRAIL DB WAS UNAVA  501- 501*/
+   5 FMPIDBUN    BIT(1),        /* MPI DB RECOVERY INDICATO  501- 501*/
+   5 FISSCNTR    BIT(1),        /* CONTRACT FLD HAS ISSC     501- 501*/
+                                /*                                   */
+   5 FIBM        BIT(1),        /* CONTRACT = Innnnnn        501- 501*/
+   5 FONMA       BIT(1),        /* MACHINE ON MA             501- 501*/
+   5 FWARRNTY    BIT(1),        /* MACHINE UNDER WARRANTY    501- 501*/
+   5 FOEEUNA     BIT(1),        /* OEE DATA BASE IS          501- 501*/
+                                /* UNAVAILABLE                       */
+                                /*                                   */
+ 3 FPRTORD     CHAR(1),         /* WAS PART(S) ORDERED Y|N   502- 502*/
+ 3 IAIC        CHAR(2),         /* AIC FROM BOREF            503- 504*/
+ 3 CGSASCH     CHAR(1),         /* GSA SCHED FROM MTM A|C    505- 505*/
+ 3 S0IPRDID    CHAR(4),         /* PRODUCT ID                506- 509*/
+ 3 PEND_HDA    CHAR(1),         /* PEND FOR HDA?      Y|N    510- 510*/
+ 3 CCECUSTY    CHAR(1),         /* CE CUSTOMER TYPE (G|C|''  511- 511*/
+                                /* C = Commercial  G= Government     */
+ 3 CCOTYPE     CHAR(3),         /* CONTRACT TYPE             512- 514*/
+ 3 SPAD08      CHAR(5),         /*                           515- 519*/
+ 3 CSAVSRC     CHAR(1),         /* SAVED SOURCE OF PEND      520- 520*/
+ 3 FSTATRST    CHAR(1),         /* WAS MA STATUS RESET?      521- 521*/
+                                /* 0 = NO  1 = YES                   */
+ 3 CVALLOC     CHAR(1),         /* CONTRACT# SOURCE          522- 522*/
+                                /* THIS IS THE SOURCE OF THE         */
+                                /* CONTRACT NOT WHERE IT WAS         */
+                                /* LAST VALIDATED.                   */
+                                /* 0 = CE                            */
+                                /* 1 = NSS                           */
+                                /* 2 = EB                            */
+                                /* 3 = CTOOL                         */
+                                /* 4 = CHIS/CEDB                     */
+ 3 CEBBILL     CHAR(1),         /* ORIGINAL CE BA CODE       523- 523*/
+                                /* 0 = NO CHANGE                     */
+                                /* 1 = BA 1 WAS BLANKED OUT          */
+                                /* 4 = BA 4 WAS BLANKED OUT          */
+ 3 CNTRDIAG    CHAR(1),         /* CONTRACT TRACE VARIABLE   524- 524*/
+                                /* N = INITIAL VALUE                 */
+                                /* 0 - NO VALID CONTRACT FOUND       */
+                                /* 1 - CE CONTRACT                   */
+                                /* 2 - CUST # FROM CE CONTRACT       */
+                                /* 3 - NSS CONTRACT                  */
+                                /* 4 - CUST # FROM NSS CONTRACT      */
+                                /* 5 - MPI CUST #                    */
+                                /* 6 - TYPE/SERIAL                   */
+ 3 CINVCNTR    CHAR(01),        /* INVALID CONTRACT FLAG     525- 525*/
+                                /* A -  NOT FOUND                    */
+                                /* B -  SC INVALID FOR CONTRACT      */
+                                /* C -  TYPE INVALID FOR CONTRACT    */
+                                /* D -  CONTRACT NOT VALID FOR DATE  */
+                                /* E -  EXPIRED CONTRACT             */
+                                /* F -  TYPE/SERIAL INVALID FOR      */
+                                /*      CONTRACT                     */
+                                /* G -  INVALID ACTIVITY CODE        */
+                                /* H -  WORK NUMBER NOT VALID FOR    */
+                                /*      ACTIVITY ID CLOSE DATE       */
+                                /* J -  WORK NUMBER ACTIVITY ID NOT  */
+                                /*      VALID FOR WORK NUMBER        */
+                                /* K -  ACTIVITY DATE AFTER WORK NUM */
+                                /*      ACTIVITY ID CLOSE DATE       */
+ 3 CSRCHCNT    FIXED BIN(15),   /* COUNTER FOR CONTRACT      526- 527*/
+                                /* SEARCH DB CALLS                   */
+ 3 IAVALCTR    CHAR(03),        /* AVAILABILITY CENTER B/O   528- 530*/
+                                /* FOR CE ASSIGNED BO                */
+ 3 IAVALRSO    CHAR(03),        /* AVAILABILITY CENTER B/O   531- 533*/
+                                /* FOR MACHINE RSO                   */
+ 3 IMFGMOD     CHAR(19),        /* MANUFACTURER/MODEL        534- 552*/
+ 3 CFAILCD     CHAR( 6),        /* DART FAILURE CODE         553- 558*/
+                                /* --------------------------------- */
+ 3 FMISCBIT,                    /* DIAGNOSTIC BITS                   */
+                                /* --------------------------------- */
+   5 FECICALL   BIT(1),         /*                           559- 559*/
+   5 FEBCONT    BIT(1),         /* IS THIS AN EB CONTRACT    559- 559*/
+   5 FRSTCNTR   BIT(1),         /* RESET CINVCNTR INDICATOR  559- 559*/
+   5 FCADMTCH   BIT(1),         /* MATCHED TO CAD RECORD     559- 559*/
+                                /*                                   */
+   5 FSRCNSS    BIT(1),         /* SOURCED NSS SCHEDULER     559- 559*/
+   5 FTSSMACH   BIT(1),         /*                           559- 559*/
+   5 FPETMSG    BIT(1),         /* MSG SENT TO PET/2 TRUER   559- 559*/
+   5 FSYSBILL   BIT(1),         /* SYSTEM BILL?              559- 559*/
+                                /*                                   */
+   5 FMICRO     BIT(1),         /* THIS IS A MICROCODE QSAR  560- 560*/
+   5 FMES       BIT(1),         /* THIS IS A MES QSAR        560- 560*/
+   5 FECA       BIT(1),         /* THIS IS A ECA QSAR        560- 560*/
+   5 FREA       BIT(1),         /* THIS IS A REA QSAR        560- 560*/
+                                /*                                   */
+   5 FCTRBUSY   BIT(1),         /* CONTRACT DATA BASE BUSY   560- 560*/
+   5 FCTRDBUN   BIT(1),         /* CONTRACT DB UNAVAILABLE   560- 560*/
+   5 FSPCCNTR   BIT(1),         /* CONTRACT IS A SPECIAL     560- 560*/
+                                /* TYPE OF CONTRACT SUCH AS          */
+                                /* ADP,  ISSC OR POW                 */
+   5 FPREPEND   BIT(1),         /* WAS THE REC PENDED ONCE   560- 560*/
+                                /* IF SO AN AUDIT REC NEEDS          */
+                                /* TO BE WRITTEN.                    */
+                                /*                                   */
+ 3 ICADID      CHAR(4),         /* HEX VALUE OF CAD PROBLEM  561- 564*/
+                                /* NUMBER (CAD UNIQUENESS #)         */
+ 3 ICUSTPH     CHAR(10),        /* CUSTOMER PHONE            565- 574*/
+ 3 ISRVGCE     CHAR(4),         /* SERVICE GROUP - CE        575- 578*/
+ 3 ISRVGRSO    CHAR(4),         /* SERVICE GROUP - RSO       579- 582*/
+ 3 IPETLVL     FIXED BIN(15),   /* PET/2 LEVEL (>=115)       583- 584*/
+ 3 IPARTCNT    FIXED BIN(15),   /* NUMBER OF PARTS ON QSAR   585- 586*/
+ 3 HOFFSHFT    CHAR(03),        /* OFFSHIFT HOURS            587- 589*/
+ 3 CHERITAG    CHAR(01),        /* RECORD HERITAGE           590- 590*/
+                                /* 0 = IBM                           */
+                                /* 1 = TSS                           */
+ 3 CSEVRITY    CHAR(01),        /* PROBLEM SEVERITY          591- 591*/
+                                /* 0 -  SERVICE, NO IMPACT           */
+                                /* 1 -  MODERATE, SOME DEGRADATION   */
+                                /* 2 -  SERIOUS,  LOSS OF ACCESS     */
+                                /* 3 -  ACUTE, LOSS OF DATA          */
+ 3 FACTPLAN    CHAR(01),        /* WAS THERE AN ACTION PLAN  592- 592*/
+                                /* (Y/N)                             */
+ 3 FACTWORK    CHAR(01),        /* DID ACTION PLAN WORK(Y/N  593- 593*/
+ 3 CACTFAIL    CHAR(01),        /* REASON FOR ACTION PLAN    594- 594*/
+                                /* FAILURE:                          */
+                                /* P - PARTS ACTION PLAN INCORRECT   */
+                                /* N - NON-PARTS ACTION PLAN INCORR  */
+                                /* S - SYMPTOM/MACHINE REPORTED      */
+                                /*     INCORRECT                     */
+                                /* O- OTHER,SEE ACTION PLAN COMMENTS */
+                                /* U- ACTION PLAN NOT PROVIDED       */
+ 3 CRTSSTAT    CHAR(01),        /* RTS RECORD STATUS         595- 595*/
+                                /* C - RECORD IS CLEAN FIRST PASS    */
+                                /* P - RECORD IS PENDED (NONPARTS)   */
+                                /* Q - RECORD IS PENDED, PARTS DATA  */
+                                /* K - RECORD WAS PENDED, NOT CLEAN  */
+                                /* D - RECORD DELETED                */
+ 3 FCLM_S      CHAR(1),         /* QSAR SENT EXTRACTED FOR   596- 596*/
+                                /* BMS    Y|N  (BLANK=N)             */
+ 3 CIACTIND    CHAR(1),         /* LAST DAILY ACTIVITY       597- 597*/
+                                /*  ADD     = 'A'                    */
+                                /*  CHANGE  = 'C'                    */
+                                /*  DELETE  = 'D'                    */
+ 3 IGROUP      CHAR(8),         /* CLAIM IDENTIFIER OF THE   598- 605*/
+                                /* GEOGRAPHY                         */
+ 3 CCNTRSRC    CHAR(1),         /* THE CONTRACT PROCESS THAT 606- 606*/
+                                /* VALIDATED THE CONTRACT            */
+                                /* CEDB                              */
+                                /*   C = CURRENT                     */
+                                /*   F = FURTURE                     */
+                                /*   H = HISTORY                     */
+                                /* CTOOL                             */
+                                /*   0 - NO VALID CONTRACT           */
+                                /*   1 - EB                          */
+                                /*   2 - CTOOL                       */
+                                /*   A - CERIS                       */
+                                /*   B - BMS/CLAIM                   */
+                                /*   T - TSS ALLIANCE                */
+ 3 CPRODDIV    CHAR(02),        /* PRODUCT DIVISION          607- 608*/
+ 3 ISOURCE     CHAR(03),        /* SOURCE INDICATOR OF STD   609- 611*/
+                                /* INPUT RECORD                      */
+ 3 FSTDER_S    CHAR(01),        /* HAS STD ERROR REC BEEN    612- 612*/
+                                /* OFF LOADED ALREADY                */
+ 3 FSFTPEND    CHAR(01),        /* SOFT PEND FOR CUSTOMER#   613- 613*/
+                                /* Y=SOFT PEND ' '=NOT PEND          */
+ 3 IQARMOD     CHAR(03),        /* QAR ENTRY MODULE          614- 616*/
+ 3 IWKNUMAC    CHAR(06),        /* WORK NUMBER ACTIVITY ID   617- 622*/
+                                /* aka billable charge code          */
+ 3 FWNUCHG     CHAR(01),        /* WORK NUMBER ACTIVITY      623- 623*/
+                                /* CHANGED/GENERATED BY SYSTEM  Y|N  */
+ 3 FCEDBTS     CHAR(01),        /* TYPE SERIAL FOUND ON CEDB 624- 624*/
+                                /* --------------------------------- */
+                                /* possible billing flag values:     */
+                                /* N = do not bill                   */
+                                /* I = bill inside hours only        */
+                                /* o = bill outside hours only       */
+                                /* Y = bill inside/outside hours     */
+                                /* --------------------------------- */
+ 3 FBILACTH    CHAR(01),        /* BILL ACTUAL HRS           625- 625*/
+ 3 FBILTRVH    CHAR(01),        /* BILL TRAVEL HRS           626- 626*/
+ 3 FBILPART    CHAR(01),        /* BILL PARTS USED           627- 627*/
+ 3 FBILDIST    CHAR(01),        /* BILL DISTANCE             628- 628*/
+ 3 FBILEXP     CHAR(01),        /* BILL EXPENSES             629- 629*/
+ 3 CCSTACTH    CHAR(01),        /* COST CODE FOR ACTUAL HRS  630- 630*/
+ 3 CCSTTRVH    CHAR(01),        /* COST CODE FOR TRAVEL HRS  631- 631*/
+ 3 CCSTPART    CHAR(01),        /* COST CODE FOR PARTS       632- 632*/
+ 3 ICOSTSET    CHAR(03),        /* HOW COST FLAGS ARE SET    633- 635*/
+ 3 IHRSSRC     CHAR(03),        /* SOURCE OF DAILY HOURS     636- 638*/
+ 3 QJBILMTR    CHAR(09),        /* J-BILLING/COPY COUNT      639- 647*/
+ 3 FOEMMTCH    CHAR(01),        /* PSD converted serial used 648- 648*/
+                                /* --------------------------------- */
+ 3 UFLAGS,                      /*                           649- 649*/
+                                /* --------------------------------- */
+   5 FMPI24X7    BIT(1),        /* MPI 24x7 DAYS A WEEK COVERAGE     */
+   5 FCNT24X7    BIT(1),        /* CONTRACT 24x7 DAYS/WEEK COVERAGE  */
+   5 FWAR24X7    BIT(1),        /* WARRANTY 24x7 DAYS/WEEK COVERAGE  */
+   5 FSOMACH     BIT(1),        /* SPECIAL OFFERING MACHINE (SO)     */
+   5 FOEE        BIT(1),        /* OEE - OEM Entitlement Engine      */
+                                /*   If OEE Entitled = 'Y' Then TRUE */
+                                /*   Else not OEE Entitled           */
+   5 FACTADMN    BIT(1),        /* account administration, machine   */
+                                /* type for Canada SC 48             */
+   5 FSPAD01     BIT(2),        /* FILLER                            */
+                                /*                                   */
+ 3 IENTSRC     CHAR(03),        /* QSAR ENTITLEMENT SOURCE   650- 652*/
+                                /* MPI,DSI,CDB,CR,OEE,MTM,           */
+                                /* POW,BWC,PC                        */
+ 3 FOVRTIME    CHAR(1),         /* Canada overtime indicator 653- 653*/
+                                /* flag Y | N                        */
+ 3 FSEROVRD    CHAR(1),         /* Machine serial            654- 654*/
+                                /* validation overrdide flag         */
+ 3 CWARLIAB    CHAR(1),         /* WHO IS LIABLE FOR BASE    655- 655*/
+                                /* WARRANTY                          */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 CWUPLIAB    CHAR(1),         /* WHO IS LIABLE FOR         656- 656*/
+                                /* WARRANTY UPGRADE                  */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 CMALIAB     CHAR(1),         /* WHO IS RESPONSIBLE FOR    657- 657*/
+                                /* MAINTENANCE AGGREMENT/CONTRACT    */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 FPERCALL    CHAR(1),         /* PER CALL BILLABLE Y/N     658- 658*/
+                                /* 0 = NO | N/A                      */
+                                /* 1 = YES                           */
+ 3 CSPECAPR    CHAR(1),         /* SPECIAL APPROVAL TO       659- 659*/
+                                /* BILL BACK                         */
+                                /* 0 = NO | N/A                      */
+                                /* L = LENOVO                        */
+ 3 CFUTRUSE    CHAR(1),         /*                           660- 660*/
+ 3 ILIABSRC    CHAR(3),         /* source of liability set   661- 663*/
+ 3 CWARRUP     CHAR(4),         /* Warranty upgrade/maint    664- 667*/
+                                /* like base warranty code           */
+ 3 NWARPHSE    CHAR(1),         /* base warranty phase       668- 668*/
+ 3 NWUPHSE     CHAR(1),         /* Warranty upgrade/maint    669- 669*/
+                                /* phase                             */
+ 3 IPLATFRM    CHAR(2),         /* platform identifier from  670- 671*/
+                                /* from MTM (machine type/model)     */
+ 3 IMACOWNR    CHAR(2),         /* machine owner code        672- 673*/
+                                /* CO - Customer Owned               */
+                                /* SI - SO Internal                  */
+                                /* SC - SO Customer Owned            */
+                                /* IN - Internal                     */
+                                /* OL - OP Lease                     */
+                                /* OC - OP Lease SO                  */
+                                /* LE - LENOVO                       */
+                                /* LS - LEASED                       */
+                                /* GA - GARS                         */
+ 3 CCOSTCAT(5) CHAR(2),         /* COST category code        674- 683*/
+                                /* position 1 - LABOR                */
+                                /* position 2 - TRAVEL               */
+                                /* position 3 - PARTS                */
+                                /* position 4 - PARTS DISTRIBUTION   */
+                                /* position 5 - RTS                  */
+                                /* --------------------------------- */
+                                /* values are:                       */
+                                /* WA - Warranty                     */
+                                /* MA - maintenance                  */
+                                /* PC - per call                     */
+                                /* WU - Warranty Upgrade             */
+                                /* WI - Warranty incremental parts   */
+                                /*      cost                         */
+                                /* FW - Flexible Warranty            */
+                                /* TP - ThinkPad Protection          */
+ 3 IMACMFGR    CHAR(2),         /* Manufacturer of the       684- 685*/
+                                /* machine                           */
+                                /* IB = IBM                          */
+                                /* LE = LENOVO                       */
+                                /* OE = OEM                          */
+ /* RCQ1882 : Added CWUMP                                            */
+ 3 CWUMP              CHAR(1),  /* MACHINE STATUS            686- 686*/
+                                /* W = warranty                      */
+                                /* U = warranty upgrade              */
+                                /* M = maintenance                   */
+                                /* P = Per Call                      */
+ 3 CGWSCNTRY   CHAR(3),         /* COUNTRY CODE FROM MTM FOR 687- 689*/
+                                /* GLOBAL WARRANTY SERVICE (GWS)     */
+ /* RCQ1882: Commented FGWS                                          */
+ /*3 FGWS        CHAR(1), */    /* IS THIS MACHINE ELIGIBLE  689- 689*/
+                                /* FOR GWS  Y|N                      */
+ /* RCQ1882 : Added CWARSERV, CBWCPHSE and ICCOSTSQ                  */
+ 3 CWARSERV           CHAR(1),  /* MACHINE AVAILABLE FOR     690- 690*/
+                                /* SPECIAL WARRANTY SERVICE          */
+                                /* F = Flexible Warranty Service     */
+                                /* G = Global Warranty Service       */
+                                /* I = International Warr Service    */
+                                /* N = No warranty service           */
+ 3 CBWCPHSE           CHAR(1),  /* Base Warranty Phase       691- 691*/
+ 3 ICCOSTSQ     FIXED BIN(31),  /* sequence number of the    692- 695*/
+                                /* of the cost code array that       */
+                                /* set the cost codes                */
+ /* RCQ1882: Change SPAD99 from 4 to 23 bytes                        */
+ 3 SPAD99      CHAR(23),         /* UNUSED PADDING           696- 718*/
+ 3 IAPPLID     CHAR(3),         /* CICS SYSTEM OWNING THE    719- 721*/
+                                /* TRANSACTION                       */
+ 3 ITRANSID    CHAR(4);         /* THE LAST CICS TRANSACTION 722- 725*/
+                                /* THAT RPOCESSED THE RECORD         */
+ /*------------------------------------------------------------------*/
+ /*              END OF AEQSGENL SEGMENT LAYOUT                      */
+ /*------------------------------------------------------------------*/
+
+
+  DCL 1 OLD_QSINVT    UNALIGNED  BASED(ADDR(OLD_INVT_BUF)),
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQSINVT    VERSION NR:  01           DATE:  06/02/88    */
+ /*                                               TIME:  09:05:01    */
+ /*                                                                  */
+ /*                                                                  */
+ /*  DESC: MAPPING OF QSAR INVENTORY SEGMENT QSINVT                  */
+ /*                                                                  */
+ /*  IMS SEGMENT NAME: QSINVT                                        */
+ /*                                                                  */
+ /*  PARENT: QSGENL                                                  */
+ /*                                                                  */
+ /*  LANGUAGE: PL/I                                                  */
+ /*                                                                  */
+ /*  CHRONOLOGICAL UPDATE LOG:                                       */
+ /*                                                                  */
+ /*  DATE:     REASON:  DRVR: DESCRIPTION:                      PGMR:*/
+ /*  --------  -------- ----  --------------------------------- ---- */
+ /* 06/02/88   SR 9891  8NSM  ORIGINAL VERSION                   SPZ */
+ /* 03/28/89   TU 0076B 9NSE  UPDATE LAST UPDATE BITS            LBS */
+ /* 03/07/91   TU 0734C 1NSC  UPDATE LAST UPDATE BITS DSI        LBS */
+ /* 10/11/91   SR XXXX  1NSM  ADD MARKETING AREA                 LBS */
+ /* 03/06/92   SR 0967  2NSB  ADD MARKETING DIVISION             LBS */
+ /* 03/17/95   S9500015 5NSC  ADD INVENTORY CHANGED FLAG         LBS */
+ /* 06/10/96   S9600308 6NSG  ADD PEW SDT DATA, RETURN FLAG      LBS */
+ /* 03/10/97   S9600755 7NSI  YEAR 2000 CHANGES                  LBS */
+ /* 01/16/98   S970126  8NSC  SUPPORT MPI CHANGES FOR IR         LBS */
+ /*                           CUSTOMER NUMBER                        */
+ /* 09/17/98   S98143   8NSM  ADD COUNTRY CODE                   LBS */
+ /* 06/22/2000 S00062   0NSF  ADD IORGCUST (SAVE ORIGINAL        LBS */
+ /* 03/19/2003 SR030027 3NSI  ADD ICUSTBIL, ICUSTOWN             LBS */
+ /*                           REMOVE IRCUST                          */
+ /* 03/19/2003 SR030027 3NSI  ADD ICUSTBIL, ICUSTOWN, IRCUST     LBS */
+ /* 03/18/2005 SR050023 5NSC  add CUPSRCE                        LBS */
+ /* 05/10/2006 SR060016 6NSJ  ADD CRESTRCT, FOEMIND, IBPACCT,    LBS */
+ /*                           FRESTIND, IMKTAFFN, NRESABRV           */
+ /* 02/19/2007 SR060049 7NSM  add IENTRBIL, IENTROWN             LBS */
+ /*                           increase length from 230 to 275        */
+ /*                                                                  */
+ /********************************************************************/
+  3 INVENTORY,
+    5 GJIMMOD     CHAR(03),      /* MACHINE MODEL            001- 003*/
+    5 GJDEFFRE    CHAR(08),      /* CHANGE EFFECTIVE DATE    004- 011*/
+                                 /*----------------------------------*/
+                                 /* MACHINE DESCRIPTION              */
+                                 /*----------------------------------*/
+    5 GJXXZTER,                  /* ZONE/TERRITORY DATA              */
+      7 GJFCMFEA   BIT(01),      /* COMM. FEATURE PRESENT    012- 012*/
+      7 GJFDCMFE   BIT(01),      /* COMM. FEATURE DELETED    012- 012*/
+      7 GJFSYST    BIT(01),      /* PART OF A SYSTEM         012- 012*/
+      7 GJXUNF01   BIT(05),      /* UNUSED                   012- 012*/
+    5 GJISYSTY    CHAR(04),      /* SYSTEM TYPE              013- 016*/
+    5 GJISYSNO    CHAR(07),      /* SYSTEM NUMBER            017- 023*/
+    5 ICOUNTRY    CHAR(03),      /* COUNTRY CODE             024- 026*/
+    5 CRESTRCT    CHAR(03),      /* RESTRICTED CUST CODE     027- 029*/
+    5 GJDPMLAS    CHAR(08),      /* LAST PM DATE YYYYMMDD    030- 037*/
+    5 GJIPMSCH   FIXED BIN(15),  /* PM FREQUENCY             038- 039*/
+    5 GJXXINVT,                  /* INVENTORY TYPE                   */
+      7 GJF30PCT   BIT(01),      /* 30% SERVICE              040- 040*/
+      7 GJF40PCT   BIT(01),      /* 40% SERVICE              040- 040*/
+      7 GJFDEMO    BIT(01),      /* DEMONSTRATOR             040- 040*/
+      7 GJFCELOA   BIT(01),      /* SR LOANER                040- 040*/
+      7 GJFMLCAU   BIT(01),      /* MLC AUTOMATIC            040- 040*/
+      7 GJFAUTOR   BIT(01),      /* AUTOMATIC SA             040- 040*/
+      7 GJFDCFTS   BIT(01),      /* DCF TYPE/SERIAL          040- 040*/
+      7 GJFSOLIC   BIT(01),      /* CUSTOMER SOLICATION      040- 040*/
+    5 GJCTYPEQ    CHAR(01),      /* TYPE EQUIPMENT           041- 041*/
+    5 GJDTYPEQ    CHAR(08),      /* TYPE EQUIP EFFECT DTE    042- 049*/
+    5 GJDMFGDT    CHAR(08),      /* DATE OF MANUFACTURE      050- 057*/
+    5 GJDOINST    CHAR(08),      /* ORIGINAL INSTALL DATE    058- 065*/
+    5 GJDRECON    CHAR(08),      /* DATE OF RECON            066- 073*/
+                                 /*----------------------------------*/
+                                 /* MACHINE STATUS                   */
+    5 GJXXSTAT,                  /*----------------------------------*/
+      7 GJDSTEFF  CHAR(08),      /* STATUS EFFECTIVE DATE    074- 081*/
+      7 GJCSTAT   CHAR(02),      /* STATUS CODE              082- 083*/
+      7 GJDCINST  CHAR(08),      /* CURRENT INSTALL DATE     084- 091*/
+      7 GJDWAREX  CHAR(08),      /* WARRANTY EXPIRATION      092- 099*/
+      7 GJDDISC   CHAR(08),      /* DATE DISC FOR CUSTOMER   100- 107*/
+      7 GJCWARCL  CHAR(01),      /* OBSOLETE FIELD/MPI       108- 108*/
+      7 GJCLOCAT  CHAR(01),      /* LOCATION CODE            109- 109*/
+      7 GJCSVCPL  CHAR(02),      /* SERVICE PLAN CODE        110- 111*/
+      7 GJCPROLE  CHAR(01),      /* PROCESS LEVEL CODE       112- 112*/
+                                 /*----------------------------------*/
+                                 /* CUSTOMER DATA                    */
+                                 /*----------------------------------*/
+    5 GJCCUSTP    CHAR(01),      /* TYPE CUSTOMER            113- 113*/
+    5 GJICUST    FIXED BIN(31),  /* CUSTOMER NUMBER          114- 117*/
+                                 /*----------------------------------*/
+                                 /* INTERNALLY MAINTAINED DATA       */
+    5 GJXXINTR,                  /*----------------------------------*/
+      7 GJNUSRC,                 /* SOURCE OF LAST UPDATE            */
+        9 GJFARBI  BIT(01),      /* SOURCED FROM ARBI        118- 118*/
+        9 GJFPAD04 BIT(02),      /* UNUSED                   118- 118*/
+        9 GJFIMI   BIT(01),      /* SOURCED FROM IMI         118- 118*/
+        9 GJFROPS  BIT(01),      /* SOURCED FROM ROPS        118- 118*/
+        9 GJFDSI   BIT(01),      /* SOURCED FROM DSI         118- 118*/
+        9 GJFPMD   BIT(01),      /* SOURCED FROM PM          118- 118*/
+        9 GJFBTH   BIT(01),      /* SOURCED FROM BETHESDA    118- 118*/
+        9 GJFBRV   BIT(01),      /* SOURCED FROM RV          119- 119*/
+        9 GJFBSF   BIT(01),      /* SOURCED FROM SF          119- 119*/
+        9 GJFBSO   BIT(01),      /* SOURCED FROM SO          119- 119*/
+        9 GJFPAD06 BIT(01),      /* UNUSED                   119- 119*/
+        9 GJFRT    BIT(01),      /* UPDATED BY R/T           119- 119*/
+        9 GJFNUS   BIT(03),      /* UNUSED                   119- 119*/
+      7 GJDACTV   CHAR(08),      /* LAST ACTIVITY DATE       120- 127*/
+      7 GJCACTIV  CHAR(01),      /* ACTIVITY CODE            128- 128*/
+      7 GJIMFGPL  CHAR(02),      /* PLANT OF MANUFACTURE     129- 130*/
+                                 /* MISCELLANEOUS DATA STRUCTURE     */
+                                 /*                                  */
+                                 /* MPI EXTENSION AREA               */
+    5 CGTINV2,                   /* -------------------------------- */
+      7 GMICNM    CHAR(15),      /* CUSTOMER NAME            131- 145*/
+      7 GJIOP     CHAR(01),      /* OP                       146- 146*/
+      7 GJIAREA   CHAR(02),      /* AREA                     147- 148*/
+      7 GJIREG    CHAR(01),      /* REGION                   149- 149*/
+      7 GMIRSO    CHAR(03),      /* RSO - FROM RSO           150- 152*/
+      7 CGCPRBRO  CHAR(03),      /* PARENT BRANCH OFFICE     153- 155*/
+                                 /* (BOREF)                          */
+      7 CMIBOMKT  CHAR(03),      /* MARKETING B/O            156- 158*/
+      7 GJITERR   CHAR(03),      /* MACHINE TERRITORY        159- 161*/
+      7 CMIZONE   CHAR(04),      /* ZONE                     162- 165*/
+    5 GCCMREXT,                  /*                                  */
+      7 CGCESTAB  FIXED BIN(31), /* CMR CMIESTAB             166- 169*/
+                                 /*     ESTABLISHMENT                */
+      7 CGCIENNO  FIXED BIN(31), /* CMR CMIENNO              170- 173*/
+                                 /*     ENTERPRISE                   */
+      7 CGCMCNAC  CHAR(03),      /* CMR CMCNAC               174- 176*/
+                                 /*     NAT'L ACCOUNT CODE           */
+      7 CGCTCUS1  CHAR(01),      /* CMR CMCTCUS1             177- 177*/
+                                 /*     TYPE CUSTOMER 1              */
+      7 CGCTAX1   CHAR(03),      /* CMR CMCTAX1              178- 180*/
+                                 /*     TAXING CLASS  1              */
+      7 CGCTCUS2  CHAR(01),      /* CMR CMCTCUS2             181- 181*/
+                                 /*     TYPE CUSTOMER 2              */
+      7 CGCTAX2   CHAR(03),      /* CMR CMCTAX2              182- 184*/
+                                 /*     TAXING CLASS  2              */
+      7 CGCTCUS3  CHAR(01),      /* CMR CMCTCUS3             185- 185*/
+                                 /*     TYPE CUSTOMER 3              */
+      7 CGCTAX3   CHAR(03),      /* CMR CMCTAX3              186- 188*/
+                                 /*     TAXING CLASS  3              */
+      7 CGCCD     FIXED DEC(9),  /* CMR CMCTCD               189- 193*/
+                                 /*     CITY(4)/COUNTY(3)/           */
+                                 /*     STATE(2) TAX CODES           */
+      7 CGFLAGS,                 /*                                  */
+        9 CGFOCL   BIT(01),      /* OUTSIDE CITY LIMITS      194- 194*/
+        9 CGFCOD   BIT(01),      /* COD BIT                  194- 194*/
+        9 CGFIIC   BIT(01),      /* INTERNAL IBM CUSTOMER    194- 194*/
+        9 CGSNUS2  BIT(05),      /* PAD TO FILL BYTE         194- 194*/
+    5 FINVTCHG    CHAR(01),      /* INVENT DATA WAS CHANGED  195- 195*/
+    5 GJCSDT      CHAR(03),      /* PEW SERVICE DELIVERY     196- 198*/
+    5 IORGCUST    FIXED BIN(31), /* ORIGIONAL CUSTOMER       199- 202*/
+    5 ICUSTBIL    FIXED BIN(31), /* MA/BILL TO CUSTOMER #    203- 206*/
+    5 ICUSTOWN    FIXED BIN(31), /* OWNING CUSTOMER NUM      207- 210*/
+    5 IRCUST      CHAR(01),      /*IR CUSTOMER FLAG          211- 211*/
+                                 /*  'Y' - MPI INSTALLED-AT CUST     */
+                                 /*    WAS AN INDUSTRY REMARKETER.   */
+                                 /*    MPI INSTALLED-AT PLACED IN    */
+                                 /*    QSAR ICUSTBIL & MPI BILLING   */
+                                 /*    PLACED IN QSAR GJICUST.       */
+                                 /*  'N' - MPI INSTALLED-AT CUST     */
+                                 /*    WASN'T INDUSTRY REMARKETER.   */
+                                 /*    NO CUSTOMER 'SWITCHING' DONE  */
+    5 CUPSRCE     CHAR(02),      /*UPSTREAM SOURCE           212- 213*/
+                                 /*         FROM DSI:                */
+                                 /*         'L ' - LENOVO            */
+                                 /*         'P ' - PEW               */
+                                 /*         FROM MPI:                */
+                                 /*         'AS' - AAS ORDER         */
+                                 /*         'GE' - GEMS              */
+                                 /*         'LE' - PMINQ LOW-END     */
+                                 /*         'LN' - MPI LOW-END       */
+                                 /*         'PC' - PCWARES           */
+                                 /*         '1W' - INVREC            */
+                                 /*         '2D' - PMINQ HIGH-END    */
+    5 IMKTAFFN    CHAR(07),      /*MARKETING AFFILIATED #    214- 220*/
+    5 FRESTIND    CHAR(01),      /*RESTRICTED INDICATOR  Y|N 221- 221*/
+    5 NRESABRV    CHAR(05),      /*RESTRICTED ABBREV         222- 226*/
+    5 FOEMIND     CHAR(01),      /*OEM INDICATOR         Y|N 227- 227*/
+    5 IBPACCT     CHAR(01),      /*BUSINESS ACCOUNT TYPE     228- 228*/
+                                 /* D,E,P BLANK                      */
+    /* RCQ1882 : Added IENTRBIL, IENTROWN, CISOCTRY and CSNPRFIX     */
+    5 IENTRBIL    FIXED BIN(31), /*BILL TO ENTERPRISE #      229- 232*/
+    5 IENTROWN    FIXED BIN(31), /*OWNING ENTERPRISE #       233- 236*/
+    5 CISOCTRY    CHAR(02),      /*ISO COUNTRY CODE          237- 238*/
+    5 CSNPRFIX    CHAR(02),      /*PLANT OF MANUFACTURER     239- 240*/
+                                 /* aka serial number prefix         */
+    /* RCQ1882: Increased QSINVT_PAD from 2 to 35 bytes              */
+    5 QSINVT_PAD  CHAR(35);      /*PADDING                   241- 275*/
+                                 /*                                  */
+ /*------------------------------------------------------------------*/
+ /*              END OF AEQSINVT SEGMENT LAYOUT                      */
+ /*------------------------------------------------------------------*/
+
+
+
+
+
+                                        /* QSAR DB USING PRIMARY INDX*/
+  DCL 1 SSA_QSGENL_QUAL  UNALIGNED,
+        2 QSGENL_NAME      CHAR(8) INIT('QSGENL  '),
+        2 QSGENL_QUAL      CHAR(1) INIT('('),
+        2 QSGENL_KEYNAME   CHAR(8) INIT('IDOCUMNT'),
+        2 QSGENL_OPR       CHAR(2) INIT(' ='),
+        2 QSGENL_KEYVAL    CHAR(9) INIT(' '),
+        2 QSGENL_ENDCHAR   CHAR(1) INIT(')');
+                                        /* QSAR DB USING SEC INDEX   */
+
+  DCL 1 SSA_QSGENL_QUAL2 UNALIGNED,
+        2 QSGENL2_NAME     CHAR(8) INIT('QSGENL  '),
+        2 QSGENL2_QUAL     CHAR(1) INIT('('),
+        2 QSGENL2_KEYNAME  CHAR(8) INIT('AE5MIRRO'),
+        2 QSGENL2_OPR      CHAR(2) INIT('^='),
+        2 QSGENL2_KEYVAL   CHAR(1) INIT('Y'),
+        2 QSGENL2_ENDCHAR  CHAR(1) INIT(')');
+
+ /* --------------------------------------------------------------- */
+ /* DATA BUFFERS TO STORE SEGMENTS IN FLIGHT.                       */
+ /* IF YOU CHANGE THE FOLLOWING TWO DATA STRUCTURES YOU MUST CHANGE */
+ /* THE MODULE AEQMIR2 COMPANION DATA STRUCTURES !!!!!!!!           */
+ /* --------------------------------------------------------------- */
+ /* RCQ1882 : Changed OLD_GENL_BUF from 700 to 725 and OLD_INVT_BUF */
+ /*           from 230 to 275                                       */
+ DCL OLD_GENL_BUF              CHAR(725) INIT(''); /* old format    */
+ DCL OLD_INVT_BUF              CHAR(275) INIT(''); /* old format    */
+ DCL 1 MIRROR_BUF,
+       3 GENL_BUF              CHAR(725),
+       3 PART_BUF(4)           CHAR(200),
+       3 INVT_BUF              CHAR(275),
+       3 NARR_BUF              CHAR(170),
+       3 MISC_BUF              CHAR(200),
+       3 QBBILL_BUF            CHAR(325),
+       3 QBPART_BUF(QBPART_CT) CHAR(55),
+       3 QBNARR_BUF            CHAR(64);
+
+
+ DCL 1 REPLY_STAT,
+       3 DLI_STAT              CHAR(2)  INIT(''),
+       3 CICS_RESP             CHAR(2)  INIT(''),
+       3 RET_CODE        FIXED BIN (15) INIT(0),
+       3 REPLY_COMMENT         CHAR(40) INIT(''),
+       3 REPLY_PAD             CHAR(10) INIT('');
+
+ %PAGE;
+  DCL 1 GENL     UNALIGNED BASED(ADDR(GENL_BUF)),
+        %INCLUDE AEQSGENL;;
+
+ %PAGE;
+  DCL 1 INVT     UNALIGNED BASED(ADDR(INVT_BUF)),
+        %INCLUDE AEQSINVT;;
+
+ %PAGE;
+  DCL PART_PTR     POINTER;
+  DCL 1 PART     UNALIGNED BASED(PART_PTR),
+        %INCLUDE AEQSPART;;
+
+ %PAGE;
+  DCL 1 NARR     UNALIGNED BASED(ADDR(NARR_BUF)),
+        %INCLUDE AEQSNARR;;
+
+ %PAGE;
+  DCL 1 MISC     UNALIGNED BASED(ADDR(MISC_BUF)),
+        %INCLUDE AEQSMISC;;
+
+ %PAGE;
+ /* --------------------------------------------------------------- */
+ /* MISCELLANEOUS DECLARATIONS                                      */
+ /* --------------------------------------------------------------- */
+
+ DCL CICS_STAT    FIXED BIN(31)    INIT(0);
+ DCL CONVID             CHAR(4)    INIT('');
+ DCL DATE_YY_MM_DD      CHAR(8)    INIT('');
+ DCL DATE_YYMMDD        CHAR(6)    INIT('');
+ DCL DIAG_TEXT          CHAR(80)   INIT('');
+ DCL EIB_STRING         CHAR(85)   BASED(DFHEIPTR);
+ DCL ERR1               CHAR(09)   INIT('QSR9000: ');
+ DCL ERR2               CHAR(09)   INIT('QSR9002: ');
+ DCL FIVE         FIXED BIN(31)    INIT(5);
+ DCL FOUR         FIXED BIN(31)    INIT(4);
+ DCL FUNC               CHAR(4)    INIT('');
+ DCL HH                 PIC '999'  INIT(0);
+ DCL I            FIXED BIN(15)    INIT(0);
+ DCL IO_BUF             CHAR(2500) INIT(''); /* GENERIC IO BUFFER     */
+ DCL K            FIXED BIN(15)    INIT(0);
+ DCL MM                 PIC '99'   INIT(0);
+ DCL ONE          FIXED BIN(31)    INIT(1);
+ DCL QBPART_CT    FIXED BIN(15)    INIT(15);
+ DCL QSGENL_CT    FIXED BIN(15)    INIT(0);    /* # QSGENLS PROCESSED*/
+ DCL PASS_COUNT   FIXED BIN(31)    INIT(10);
+ DCL PIC2               PIC '99'   INIT(0);
+ DCL PIC4               PIC '(4)9' INIT(0);
+ DCL PSBNAME            CHAR(8)    INIT('');
+ DCL RESPONSE     FIXED BIN(31)    INIT(0);
+ DCL RETCODE1           CHAR(8)    INIT('');
+ DCL RETCODE2           CHAR(8)    INIT('');
+ DCL SS                 PIC '99'   INIT(0);
+ DCL THREE        FIXED BIN(31)    INIT(3);
+ DCL TIME_HH_MM_SS      CHAR(8)    INIT('');
+ DCL TIME_HHMM          CHAR(4)    INIT('');
+ DCL UTIME        FIXED DEC(15)    INIT(0);
+
+ DCL DATA_TO_PROCESS    BIT(1)     INIT('1'B); /* ALWAYS TRUE        */
+ DCL INSERT_MISC        BIT(1)     INIT('1'B);
+ DCL MORE_QSGENLS       BIT(1)     INIT('1'B); /* MORE ROOTS SWITCH  */
+ DCL MORE_CHILDREN      BIT(1)     INIT('1'B); /* MORE CHILDREN      */
+ DCL NO                 BIT(1)     INIT('0'B);
+ DCL NULL               BIT(8)     INIT('0'B);
+ DCL OKAY               BIT(1)     INIT('0'B);
+ DCL SYSTEM_LIMITED     BIT(1)     INIT('0'B);
+ DCL TEST_SW            BIT(1)     INIT('0'B);
+ DCL YES                BIT(1)     INIT('1'B);
+
+ %PAGE;
+ /*****************************************************************/
+ /*   ON CONVERSION                                               */
+ /*****************************************************************/
+
+ ON CONVERSION
+   BEGIN;
+     ET_DUMPCODE = 'Y';
+     ET_TEXT1 = ERR1||MODULE||' HAD CONVERSION ERROR '|| GENL.S0IDOCMN;
+     ET_TEXT2 = ERR1||MODULE||' ONSOURCE '||ONSOURCE||'LOC '||ONLOC;
+     RET_CODE = 16;
+     REPLY_COMMENT = ' CONVERSION ERROR ON DOC '|| GENL.S0IDOCMN;
+   END;
+
+ /*****************************************************************/
+ /*   ON ERROR                                                    */
+ /*****************************************************************/
+
+   ON ERROR
+      BEGIN;
+        ON ERROR SYSTEM;
+
+        FUNC = 'TERM';                     /* COMMIT ANY CHANGES */
+        CALL PLITDLI (ONE,FUNC);
+
+        WTO_FLAG = 'Y';
+
+        ET_PROGRAM_ID = 'AEQMI2R';
+        ET_EIB = EIB_STRING;
+
+        EXEC CICS XCTL PROGRAM('AEQERRP')
+             COMMAREA(ERROR_DATA)
+             RESP(RESPONSE);
+
+        IF RESPONSE ^= DFHRESP(NORMAL) THEN
+          NOT_NORMAL: DO;
+              EXEC CICS DUMP DUMPCODE('MI2R') TASK;
+              EXEC CICS RETURN;
+          END NOT_NORMAL;
+      END;
+
+ %PAGE;
+ /*********************************************************************/
+ /* ----------------------------------------------------------------- */
+ /*         START MAIN PROCESSING                                     */
+ /* ----------------------------------------------------------------- */
+ /*********************************************************************/
+
+ EXEC CICS ADDRESS CWA(CWA_PTR) RESP(RESPONSE);
+ CALL CHECK_RESPONSE;
+
+ IF SYSTEM_LIMITED
+   THEN DO;
+     REPLY_COMMENT = ' ADDRESSING CWA FAILURE';
+     CALL SEND_REPLY;
+   END;
+
+ CONVID = EIBTRMID;                      /* GET CONVERSATION ID FROM  */
+                                         /* EIB                       */
+ MIRROR_BUF = '';
+
+ EXEC CICS RECEIVE CONVID (CONVID)
+                   INTO (MIRROR_BUF)
+                   LENGTH(CSTG(MIRROR_BUF))
+                   RESP(RESPONSE);
+
+ /*  CALL CHECK_RESPONSE  do not do this (lbs) memo to myself */
+ IF SYSTEM_LIMITED &
+    RESPONSE ^= DFHRESP(EOC) &           /* END OF CHAIN RESPONSE     */
+    RESPONSE ^= DFHRESP(NORMAL)          /* NORMAL RESPONSE           */
+   THEN DO;
+     REPLY_COMMENT = ' RECEIVE DATA INTO BUFFER PROBLEM';
+     CALL SEND_REPLY;
+   END;
+   
+   I = 01;                               /* RCQ1882,  Area always 01  */
+                                         /* ------------------------- */
+ /* PIC2 = CWAARNUM; RCQ1882 */          /* GET AREA NUMBER           */
+                                         /* ------------------------- */
+ /* RCQ1882 : Area always 01, so remove below if ...else              */
+ /*IF PIC2 > 10
+   THEN I = PIC2 - 10;     i.e. area 11 check flag 1, area 12 check  */
+ /*ELSE I = PIC2;          flag 2, this could happen in test only     */
+
+ /* ----------------------------------------------------------------- */
+ /* CALL THE CORRECT PROCEDURE TO CONVERT OR UN-CONVERT THE QSAR DATA */
+ /* SENT FROM THE AREA.  THIS DEPENDS ON WHAT CICS REGIONS HAVE BEEN  */
+ /* CONVERTED.                                                        */
+ /* ----------------------------------------------------------------- */
+ IF CWA_QSAR_TRACE = 'M' | 
+    CWA_QSAR_TRACE = 'Y'
+   THEN DO;
+     TEST_SW = '1'B;
+     DIAG_TEXT = MODULE||' AREA '   ||I||' '||CWA_AREA_CONV(I)||
+                         ' HUBCNVT '||I||' '||CWA_QHUB_CONV(I);
+     CALL WRITE_TO_OPER;
+   END;
+
+ SELECT ;
+          /* BOTH AT NEW LEVEL DO NOTHING                           */
+   WHEN (CWA_QHUB_CONV(I) = 'Y' & CWA_AREA_CONV(I) = 'Y');
+
+          /* HUB AT OLD LEVEL AREA AT OLD LEVEL NO CONVERSION NEEDED*/
+   WHEN (CWA_QHUB_CONV(I) = 'N' & CWA_AREA_CONV(I) = 'N');
+
+          /* HUB AT OLD LEVEL AREA AT NEW LEVEL UNCONVERT AREA DATA */
+   WHEN (CWA_QHUB_CONV(I) = 'N' & CWA_AREA_CONV(I) = 'Y')
+         DO;
+           IF TEST_SW
+             THEN DO;
+               DIAG_TEXT = MODULE||' HUB NOT CONVERTED YET, DOC '||
+                                SUBSTR(GENL_BUF,1,9);
+               CALL WRITE_TO_OPER;
+             END;
+
+           CALL UNCONVERT_AREA_DATA ;
+         END;
+
+          /* HUB AT NEW LEVEL AREA AT OLD LEVEL CONVERT AREA DATA   */
+   WHEN (CWA_QHUB_CONV(I) = 'Y' & CWA_AREA_CONV(I) = 'N')
+     DO;
+       CALL CONVERT_AREA_DATA;
+     END;
+
+
+   OTHERWISE
+     DO;
+       ET_TEXT1 = ERR2||MODULE||' CONVERT FLAGS NOT SET CORRECTLY HUB ='
+                    ||CWA_QHUB_CONV(I)||
+                   'AREA ='||PIC2||' '||CWA_AREA_CONV(I);
+       EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+       RET_CODE = 12;
+       REPLY_COMMENT = ' CONVERT FLAG PROBLEM HUB ='||CWA_QHUB_CONV(I)||
+                       ' AREA ='||CWA_AREA_CONV(I);
+       CALL SEND_REPLY;
+     END;
+ END;
+
+ CALL INSERT_SEGMENTS;
+
+ CALL SEND_REPLY;
+
+
+ %PAGE;
+ INSERT_SEGMENTS: PROC REORDER;
+ /*********************************************************************/
+ /*  SCHEDULE PSB - AEQMI2R                                           */
+ /*  IF FAIL, RETURN (SYSTEM LIMITED FLAG IS SET)                     */
+ /*    ISRT QSGENL                                                    */
+ /*    IF II RETURN CODE, DELETE THE CURRENT QSGENL SEG AND           */
+ /*      INSERT THE CURRENT QSGENL SEGMENT,                           */
+ /*      KEEP GOING FOR DEPENDENTS                                    */
+ /*    IF PARTS,                                                      */
+ /*      ISRT PARTS SEGMENT                                           */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF INVT,                                                       */
+ /*      ISRT INVT SEGMENT                                            */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF NARR,                                                       */
+ /*      ISRT NARR SEGMENT                                            */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF MISC,                                                       */
+ /*      ISRT MISC SEGMENT                                            */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF QSAR BILLING QBBILL SEGMENT                                 */
+ /*      ISRT BILLING SEGMENT                                         */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF QSAR BILLING PARTS SEGMENT                                  */
+ /*      ISRT QSAR BILLING PARTS                                      */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*    IF QSAR BILLING NARRATIVE                                      */
+ /*      ISRT QSAR BILLING NARRATIVE SEGMENT                          */
+ /*      IF II RETURN CODE, KEEP GOING FOR OTHER DEPENDENTS           */
+ /*                                                                   */
+ /*  TERMINATE AEQMI2R PSB                                            */
+ /*                                                                   */
+ /*********************************************************************/
+   SYSTEM_LIMITED = NO;                  /* ASSUME SYSTEM GOOD HEALTH */
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||' INSIDE INSERT SEGMENTS ';
+       CALL WRITE_TO_OPER;
+     END;
+     
+   CALL TERMINATE_PSB;
+   FUNC    = 'PCB ';                     /* SCHEDULE AEQMI2R PSB      */
+   PSBNAME = 'AEQMI2R ';
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||' ABOUT TO SCHEDULE '||FUNC||' '|| PSBNAME;
+        CALL WRITE_TO_OPER;
+     END;
+
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO SCHEDULE '||PSBNAME;
+
+   CALL PLITDLI (THREE,FUNC,PSBNAME,UIBPTR);
+
+   CALL ANALYZE_LOCAL_UIB;
+   IF SYSTEM_LIMITED
+     THEN DO;
+       RET_CODE = 12;                    /* INDICATE A MIRRORING PROB */
+       REPLY_COMMENT = ' CAN NOT SCHEDULE AEQMI2R AT HUB';
+       CALL SEND_REPLY;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE||' UNABLE TO EXEC CICS ASKTIME';
+
+   EXEC CICS ASKTIME ABSTIME(UTIME) RESP(RESPONSE);
+
+   CALL CHECK_RESPONSE;
+   IF SYSTEM_LIMITED
+     THEN DO;
+       REPLY_COMMENT = ' CICS ASKTIME PROBLEM AT HUB';
+       CALL SEND_REPLY;
+     END;
+
+   ET_TEXT1 = ERR1||MODULE||' UNABLE TO EXEC CICS FORMATTIME';
+   EXEC CICS FORMATTIME ABSTIME(UTIME)
+                        YYMMDD(DATE_YY_MM_DD)
+                        TIME(TIME_HH_MM_SS)
+                        RESP(RESPONSE);
+
+   CALL CHECK_RESPONSE;
+   IF SYSTEM_LIMITED
+     THEN DO;
+       REPLY_COMMENT = ' CICS FORMATTIME PROBLEM AT HUB';
+       CALL SEND_REPLY;
+     END;
+
+   QSGENL_KEYVAL = GENL.S0IDOCMN;
+   ET_TEXT3 = ERR1||MODULE||' DOC NUM '||GENL.S0IDOCMN;
+                                         /* MIRROR TIME               */
+   GENL.CGIERRMS(2) = 997;
+ /*SUBSTR(GENL_BUF,LENGTH(GENL_BUF)-10,10) =           */
+ /*     SUBSTR(DATE_YYMMDD,1,6)||SUBSTR(TIME_HHMM,1,4) */
+
+   FUNC = 'ISRT';
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QSGENL SEGMENTS'||
+                           ' DOC # = ('||GENL.S0IDOCMN||')';
+       CALL WRITE_TO_OPER;
+     END;
+
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO INSERT QSGENL SEGMENT '||
+                                         'AT THE HUB DB 1';
+
+   CALL PLITDLI (FOUR,
+                    FUNC,
+                    QSAR1_PCB,
+                    GENL_BUF,
+                    SSA_QSGENL_UNQUAL);
+
+   CALL ANALYZE_LOCAL_UIB;
+
+   IF ^SYSTEM_LIMITED
+     THEN SELECT (Q1_STAT);
+            WHEN ('  ') ;
+            WHEN ('II')  CALL DELETE_INS_QSGENL;  /* DUPE QSAR ROOT   */
+            OTHERWISE
+              DO;                        /* BAD DLI STATUS CODE       */
+                ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+                DLI_STAT = Q1_STAT;
+                CALL WRITE_ERROR_MESSAGES;
+                REPLY_COMMENT = ' INSERT QSGENL PROBLEM AT HUB';
+                CALL SEND_REPLY;
+             END;
+           END;                          /* END OF SELECT             */
+      ELSE DO;
+        RET_CODE = 12;
+        REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 1';
+        CALL SEND_REPLY;
+      END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT PARTS IF PRESENT                                          */
+ /* ---------------------------------------------------------------- */
+                                        /* INSERT PART 1             */
+   FUNC = 'ISRT';
+   DO I = 1 TO 4;
+     IF ^SYSTEM_LIMITED & PART_BUF(I) ^= ' '
+       THEN DO;
+         PIC2 = I;
+         ET_TEXT1 = ERR2||MODULE||' UNABLE TO INSERT'||
+                           ' QSPART'||PIC2||' SEGMENT AT THE HUB DB';
+         IF TEST_SW
+           THEN DO;
+             DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QSPART '||
+                                 PIC2||' SEGMENTS';
+             CALL WRITE_TO_OPER;
+            END;
+
+         CALL PLITDLI (FIVE,
+                       FUNC,
+                       QSAR1_PCB,
+                       PART_BUF(I),
+                       SSA_QSGENL_QUAL,
+                       SSA_QSPART_UNQUAL);
+
+         CALL ANALYZE_LOCAL_UIB;
+
+         IF ^SYSTEM_LIMITED  &
+             Q1_STAT ^= '  ' &
+             Q1_STAT ^= 'II'
+           THEN DO;                     /* BAD DLI STATUS CODE       */
+             ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+             DLI_STAT = Q1_STAT;
+             CALL WRITE_ERROR_MESSAGES;
+             REPLY_COMMENT = ' INSERT PART PROBLEM AT HUB';
+             CALL SEND_REPLY;
+           END;
+         IF SYSTEM_LIMITED
+           THEN DO;
+             RET_CODE = 12;
+             REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 2';
+             CALL SEND_REPLY;
+           END;
+       END;
+   END;                                 /* END OF DO I = 1 TO 4      */
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT QSINVT IF PRESENT                                         */
+ /* ---------------------------------------------------------------- */
+   IF ^SYSTEM_LIMITED & INVT_BUF ^= ' '
+     THEN DO;
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||
+                          ' QSINVT SEGMENT AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' INVT SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+       CALL PLITDLI (FIVE,
+                     FUNC,
+                     QSAR1_PCB,
+                     INVT_BUF,
+                     SSA_QSGENL_QUAL,
+                     SSA_QSINVT_UNQUAL);
+       CALL ANALYZE_LOCAL_UIB;
+
+       IF ^SYSTEM_LIMITED   &
+           Q1_STAT ^= '  '  &
+           Q1_STAT ^= 'II'
+         THEN DO;                        /* BAD DLI STATUS CODE       */
+           ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+           DLI_STAT = Q1_STAT;
+           CALL WRITE_ERROR_MESSAGES;
+           REPLY_COMMENT = ' INSERT INVENTORY PROBLEM AT HUB';
+           CALL SEND_REPLY;
+         END;
+
+       IF SYSTEM_LIMITED
+         THEN DO;
+           RET_CODE = 12;
+           REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 3';
+           CALL SEND_REPLY;
+         END;
+     END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT QSNARR IF PRESENT                                         */
+ /* ---------------------------------------------------------------- */
+   IF ^SYSTEM_LIMITED & NARR_BUF ^= ' '
+     THEN DO;
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||
+                        'QSNARR SEGMENT AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' NARR SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+       CALL PLITDLI (FIVE,
+                     FUNC,
+                     QSAR1_PCB,
+                     NARR_BUF,
+                     SSA_QSGENL_QUAL,
+                     SSA_QSNARR_UNQUAL);
+       CALL ANALYZE_LOCAL_UIB;
+
+       IF ^SYSTEM_LIMITED &
+           Q1_STAT ^= '  ' &
+           Q1_STAT ^= 'II'
+         THEN DO;                       /* BAD DLI STATUS CODE       */
+           ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+           DLI_STAT = Q1_STAT;
+           CALL WRITE_ERROR_MESSAGES;
+           REPLY_COMMENT = ' INSERT NARRATIVE PROBLEM AT HUB';
+           CALL SEND_REPLY;
+         END;
+
+       IF SYSTEM_LIMITED
+         THEN DO;
+           RET_CODE = 12;
+           REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 4';
+           CALL SEND_REPLY;
+         END;
+     END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT QSMISC IF PRESENT AND INSERT_MISC IS '1'B                 */
+ /* ---------------------------------------------------------------- */
+   IF ^SYSTEM_LIMITED & MISC_BUF ^= ' '
+     THEN DO;
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||
+                        'QSMISC SEGMENT AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' MISC SEGMENT';
+           CALL WRITE_TO_OPER;
+         END;
+
+       CALL PLITDLI (FIVE,
+                     FUNC,
+                     QSAR1_PCB,
+                     MISC_BUF,
+                     SSA_QSGENL_QUAL,
+                     SSA_QSMISC_UNQUAL);
+       CALL ANALYZE_LOCAL_UIB;
+
+       IF ^SYSTEM_LIMITED  &
+           Q1_STAT ^= '  ' &
+           Q1_STAT ^= 'II'
+         THEN DO;                        /* BAD DLI STATUS CODE       */
+           ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+           DLI_STAT = Q1_STAT;
+           CALL WRITE_ERROR_MESSAGES;
+           REPLY_COMMENT = ' INSERT MISC PROBLEM AT HUB';
+           CALL SEND_REPLY;
+         END;
+
+       IF SYSTEM_LIMITED
+         THEN DO;
+           RET_CODE = 12;
+           REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 4';
+           CALL SEND_REPLY;
+         END;
+     END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT QBBILL IF PRESENT                                         */
+ /* ---------------------------------------------------------------- */
+
+   IF ^SYSTEM_LIMITED & QBBILL_BUF ^= ' '
+     THEN DO;
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||
+                          ' QBBILL SEGMENT AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QBBILL SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+       CALL PLITDLI (FIVE,
+                     FUNC,
+                     QSAR1_PCB,
+                     QBBILL_BUF,
+                     SSA_QSGENL_QUAL,
+                     SSA_QBBILL_UNQUAL);
+
+       CALL ANALYZE_LOCAL_UIB;
+
+       IF ^SYSTEM_LIMITED  &
+           Q1_STAT ^= '  ' &
+           Q1_STAT ^= 'II'
+         THEN DO;                        /* BAD DLI STATUS CODE       */
+           ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+           DLI_STAT = Q1_STAT;
+           CALL WRITE_ERROR_MESSAGES;
+           REPLY_COMMENT = ' INSERT BILL PROBLEM AT HUB '||
+                              SUBSTR(QBBILL_BUF,1,7);
+           CALL SEND_REPLY;
+         END;
+
+       IF SYSTEM_LIMITED
+         THEN DO;
+           RET_CODE = 12;
+           REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 5';
+           CALL SEND_REPLY;
+         END;
+
+     END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT HSI BILLING PARTS IF PRESENT                              */
+ /* ---------------------------------------------------------------- */
+
+   DO K = 1 TO QBPART_CT;
+     IF ^SYSTEM_LIMITED & QBPART_BUF(K) ^= '  '
+       THEN DO;
+         ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||
+                        ' QBPART'||K||' SEGMENT'||' AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QBPART SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+         CALL PLITDLI (FIVE,
+                       FUNC,
+                       QSAR1_PCB,
+                       QBPART_BUF(K),
+                       SSA_QSGENL_QUAL,
+                       SSA_QBPART_UNQUAL);
+
+         CALL ANALYZE_LOCAL_UIB;
+
+         IF ^SYSTEM_LIMITED  &
+             Q1_STAT ^= '  ' &
+             Q1_STAT ^= 'II'
+           THEN DO;                      /* BAD DLI STATUS CODE       */
+             ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+             DLI_STAT = Q1_STAT;
+             CALL WRITE_ERROR_MESSAGES;
+             REPLY_COMMENT = ' INSERT BILL PART PROBLEM AT HUB';
+             CALL SEND_REPLY;
+           END;
+
+         IF SYSTEM_LIMITED
+           THEN DO;
+             RET_CODE = 12;
+             REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 6';
+             CALL SEND_REPLY;
+           END;
+       END;
+
+   END;
+
+ /* ---------------------------------------------------------------- */
+ /* INSERT QBNARR IF PRESENT                                         */
+ /* ---------------------------------------------------------------- */
+   IF ^SYSTEM_LIMITED & QBNARR_BUF ^= ''
+     THEN DO;
+       ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||' QBNARR SEGMENT'
+                                     ||' AT THE HUB DB';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QBNARR SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+       CALL PLITDLI (FIVE,
+                     FUNC,
+                     QSAR1_PCB,
+                     QBNARR_BUF,
+                     SSA_QSGENL_QUAL,
+                     SSA_QBNARR_UNQUAL);
+
+       CALL ANALYZE_LOCAL_UIB;
+
+       IF ^SYSTEM_LIMITED &
+            Q1_STAT ^= '  ' &
+              Q1_STAT ^= 'II'
+         THEN DO;                        /* BAD DLI STATUS CODE       */
+           ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+           DLI_STAT = Q1_STAT;
+           CALL WRITE_ERROR_MESSAGES;
+           REPLY_COMMENT = ' INSERT BILL NARRATIVE PROBLEM AT HUB';
+           CALL SEND_REPLY;
+         END;
+
+       IF SYSTEM_LIMITED
+         THEN DO;
+           RET_CODE = 12;
+           REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 7';
+           CALL SEND_REPLY;
+         END;
+     END;
+     
+    CALL TERMINATE_PSB;
+  /* FUNC = 'TERM';                      TERMINATE AEQMI2R PSB     */
+  /* PSBNAME = 'AEQMI2R ';
+
+  /* ET_TEXT1 = ERR2||MODULE||' UNABLE TO TERMINATE '||PSBNAME;
+
+  /* IF TEST_SW
+  /*   THEN DO;
+  /*      DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' '|| PSBNAME;
+  /*      CALL WRITE_TO_OPER;
+  /*   END;
+  /* CALL PLITDLI (THREE,FUNC,PSBNAME,UIBPTR);
+  /* CALL ANALYZE_LOCAL_UIB;
+
+  /* IF SYSTEM_LIMITED
+  /*   THEN DO;
+  /*     ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+  /*     CALL WRITE_ERROR_MESSAGES;
+  /*   END;   */
+
+ END INSERT_SEGMENTS;
+
+
+ /*********************************************************************/
+ /*                                                                   */
+ /*********************************************************************/
+ TERMINATE_PSB: PROC;
+   FUNC    = 'TERM';                     /* TERMINATE AEQMI2R PSB     */
+   PSBNAME = 'AEQMI2R ';
+
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO TERMINATE '||PSBNAME;
+
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' '|| PSBNAME;
+        CALL WRITE_TO_OPER;
+     END;
+   CALL PLITDLI (THREE,FUNC,PSBNAME,UIBPTR);
+   CALL ANALYZE_LOCAL_UIB;
+
+   IF SYSTEM_LIMITED
+     THEN DO;
+       ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+       CALL WRITE_ERROR_MESSAGES;
+     END;
+
+
+ END TERMINATE_PSB;
+
+ %PAGE;
+ DELETE_INS_QSGENL: PROC REORDER;
+ /*********************************************************************/
+ /*  TRIED TO INSERT A DUPLICATE QSAR, DELETE THE QSAR ROOT           */
+ /*  AT THE HUB QSAR DATA BASE AND INSERT THE NEW QSGENL SEGMENT      */
+ /*********************************************************************/
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||' DELETE INSERT PROC ';
+       CALL WRITE_TO_OPER;
+     END;
+
+   FUNC = 'GHU ';
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' GENL SEGMENTS';
+           CALL WRITE_TO_OPER;
+         END;
+
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||' QSGENL SEGMENT '||
+                                     'AT THE HUB QSAR DB ';
+   CALL PLITDLI (FOUR,
+                 FUNC,
+                 QSAR1_PCB,
+                 IO_BUF,
+                 SSA_QSGENL_QUAL);
+
+   ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+   CALL ANALYZE_LOCAL_UIB;
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||' ghu dli stat '|| Q1_STAT;
+       CALL WRITE_TO_OPER;
+       IF SYSTEM_LIMITED
+         THEN DO;
+           DIAG_TEXT = MODULE||' SYSTEM IS LIMITED ';
+           CALL WRITE_TO_OPER;
+         END;
+     END;
+
+   IF SYSTEM_LIMITED
+     THEN DO;
+       RET_CODE = 12;
+       REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 8';
+       CALL SEND_REPLY;
+     END;
+
+   SELECT (Q1_STAT);
+     WHEN ('  ') ;
+     OTHERWISE  DO;
+       ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+       DLI_STAT = Q1_STAT;
+       CALL WRITE_ERROR_MESSAGES;
+       REPLY_COMMENT = ' GHU QSGENL PROBLEM AT HUB';
+       CALL SEND_REPLY;
+     END;
+   END;                                /* END SELECT */
+
+   GENL.QSARP_S = SUBSTR(IO_BUF,90,1);  /* SAVE CURRENT OFFLOAD FLAG */
+
+   FUNC = 'DLET';
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QSGENL SEGMENTS';
+        CALL WRITE_TO_OPER;
+     END;
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO DELETE QSGENL SEGMENT '||
+                                     'AT THE HUB QSAR DB';
+
+   CALL PLITDLI (THREE,
+                 FUNC,
+                 QSAR1_PCB,
+                 IO_BUF);
+
+   ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+   CALL ANALYZE_LOCAL_UIB;
+
+   IF SYSTEM_LIMITED
+     THEN DO;
+       RET_CODE = 12;
+       REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 9';
+       CALL SEND_REPLY;
+     END;
+
+   SELECT(Q1_STAT) ;
+     WHEN ('  ') ;
+     OTHERWISE
+       DO;
+         ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+         DLI_STAT = Q1_STAT;
+         CALL WRITE_ERROR_MESSAGES;
+         REPLY_COMMENT = ' DELETE QSGENL PROBLEM AT HUB';
+         CALL SEND_REPLY;
+       END;
+   END;                                  /* END SELECT                */
+
+   FUNC = 'ISRT';
+   IF TEST_SW
+     THEN DO;
+        DIAG_TEXT = MODULE||' ABOUT TO '||FUNC||' QSGENL SEGMENTS';
+        CALL WRITE_TO_OPER;
+     END;
+
+   ET_TEXT1 = ERR2||MODULE||' UNABLE TO '||FUNC||' QSGENL SEGMENT '||
+                                     'AT THE HUB QSAR DB 2';
+   CALL PLITDLI (FOUR,
+                 FUNC,
+                 QSAR1_PCB,
+                 GENL_BUF,
+                 SSA_QSGENL_UNQUAL);
+
+   ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+   CALL ANALYZE_LOCAL_UIB;
+
+   IF SYSTEM_LIMITED
+     THEN DO;
+       RET_CODE = 12;
+       REPLY_COMMENT = ' IMS/DBC PROBLEM AT HUB 10';
+       CALL SEND_REPLY;
+     END;
+
+   SELECT (Q1_STAT);
+     WHEN ('  ') ;
+     OTHERWISE
+       DO;
+         ET_TEXT2 = ERR2||' DL/I STATUS = ' || Q1_STAT;
+         DLI_STAT = Q1_STAT;
+         CALL WRITE_ERROR_MESSAGES;
+         REPLY_COMMENT = ' INSERT GENL PROB AT HUB AFTER DELETE';
+         CALL SEND_REPLY;
+        END;
+   END;
+
+ END DELETE_INS_QSGENL;
+
+ %PAGE;
+ CHECK_RESPONSE: PROC REORDER;
+ /*********************************************************************/
+ /*  CHECK FOR SUCCESSFUL CICS CALL ....   TAKE APPROPRIATE ACTION    */
+ /*********************************************************************/
+   IF RESPONSE ^= DFHRESP(NORMAL)
+    THEN DO;
+       PIC2 = RESPONSE;
+       ET_TEXT2 = ERR2||MODULE||' BAD RESPONSE CODE = '||PIC2;
+       SYSTEM_LIMITED = YES;
+       CICS_STAT = PIC2;
+       CALL WRITE_ERROR_MESSAGES;
+    END;
+    ELSE DO;
+      CICS_STAT = '';
+      PIC2      = 0;
+    END;
+
+ END CHECK_RESPONSE;
+
+ %PAGE;
+ ANALYZE_LOCAL_UIB: PROC REORDER;
+ /*********************************************************************/
+ /* CHECK FOR VALID RETURN CODE FROM DLI USER INTERFACE BLOCK         */
+ /* BEFORE CHECKING THE PCB STATUS CODE.                              */
+ /*********************************************************************/
+   IF UIBFCTR = NULL
+     THEN OKAY = '1'B;
+     ELSE DO;
+       OKAY = '0'B;
+       RETCODE1 = UIBFCTR;
+       RETCODE2 = UIBDLTR;
+       ET_TEXT2 = ERR2||MODULE||' UIBFCTR='||RETCODE1||
+                  ' UIBDLTR='||RETCODE2||' PSB='||PSBNAME||
+                  ' FUNC='||FUNC;
+       IF TEST_SW
+         THEN DO;
+           DIAG_TEXT = ET_TEXT2;
+           CALL WRITE_TO_OPER;
+         END;
+       SYSTEM_LIMITED = YES;
+       CALL WRITE_ERROR_MESSAGES;
+     END;
+
+ END ANALYZE_LOCAL_UIB;
+
+
+ %PAGE;
+ /*********************************************************************/
+ /*********************************************************************/
+ WRITE_ERROR_MESSAGES: PROC;
+
+   IF ET_TEXT1 > ' '
+     THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT1);
+   IF ET_TEXT2 > ' '
+     THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT2);
+   IF ET_TEXT3 > ' '
+     THEN EXEC CICS WRITE OPERATOR TEXT(ET_TEXT3);
+
+   ET_TEXT1 = '';
+   ET_TEXT2 = '';
+
+ END WRITE_ERROR_MESSAGES;
+
+ %PAGE;
+ /*********************************************************************/
+ /* AREA HAS OLD LEVEL OF CODE AND DATA BASE, THE HUB HAS THE NEW     */
+ /* LEVEL OF CODE AND DATA BASE.                                      */
+ /*                ??? TO ???.                                        */
+ /*********************************************************************/
+ CONVERT_AREA_DATA: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT = MODULE||' CONVERT_AREA_DATA DOC '||
+                               SUBSTR(GENL_BUF,1,9);
+       CALL WRITE_TO_OPER;
+     END;
+
+ END CONVERT_AREA_DATA;
+
+ %PAGE;
+ /********************************************************************/
+ /* UNCONVERT AREA DATA                                              */
+ /* 7NSM QSGENL IS CONVERTING TO 730 BYTES AND QSINVT TO 275         */
+ /* need to convert the NEW 730 back to the OLD 700 QSGENL before    */
+ /* inserting into HUB QSAR DB.                                      */
+ /********************************************************************/
+ UNCONVERT_AREA_DATA: PROC REORDER;
+
+   IF TEST_SW
+     THEN DO;
+       DIAG_TEXT       = MODULE||' UNCONVERT_AREA_DATA DOC '||
+                               SUBSTR(GENL_BUF,1,9);
+       CALL WRITE_TO_OPER;
+     END;
+   OLD_QSGENL = GENL, BY NAME;  /*  MOVE IT TO THE CONVERT BUF */
+
+   GENL_BUF = '';
+
+   GENL_BUF = OLD_GENL_BUF;
+   
+   OLD_QSINVT = INVT, BY NAME;  /*  MOVE IT TO THE CONVERT BUF */
+
+   INVT_BUF = '';
+
+   INVT_BUF = OLD_INVT_BUF;
+
+ END UNCONVERT_AREA_DATA;
+
+ %PAGE;
+ /*********************************************************************/
+ /*********************************************************************/
+ SEND_REPLY: PROC REORDER;
+
+   PIC2 = RESPONSE;
+
+   IF TEST_SW THEN
+     DO;
+        DIAG_TEXT =MODULE||' MIRROR DLI STAT '||DLI_STAT||
+                ' CICS RESP '||CICS_RESP||' RET CODE '||PIC2;
+       CALL WRITE_TO_OPER;
+     END;
+
+   EXEC CICS SEND CONVID(CONVID)
+             FROM (REPLY_STAT)
+             LAST WAIT;
+
+   IF RET_CODE = 16
+     THEN SIGNAL ERROR;
+
+   EXEC CICS RETURN;
+
+ END SEND_REPLY;
+
+ %PAGE;
+ /*********************************************************************/
+ /*                                                                   */
+ /*********************************************************************/
+ WRITE_TO_OPER: PROC;
+
+   /* EXEC CICS WRITE OPERATOR TEXT(DIAG_TEXT)  */
+  EXEC CICS WRITEQ TD QUEUE('CESE') FROM(DIAG_TEXT) LENGTH(80);
+
+ END WRITE_TO_OPER;
+
+
+ /* ----------------------------------------------------------------- */
+                         END AEQMI2R ;
+ /* ----------------------------------------------------------------- */
