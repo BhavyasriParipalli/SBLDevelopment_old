@@ -1,0 +1,67 @@
+*/*                                                                  */
+*/********************************************************************/
+*/*                                                                  */
+*/* MACRO NAME = QARPTSRC                                            */
+*/*                                                                  */
+*/* FUNCTION = MAPPING OF THE QSAR RECORD DATA AS RECEIVED FROM PT   */
+*/*                                                                  */
+*/* INVOCATION = %INCLUDE QSARMAC (QARPTSRC)                         */
+*/*                                                                  */
+*/*  CHANGE HISTORY:                                                 */
+*/*                                                                  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|         |                                         |  FICHE   |  */
+*/*|   DATE  |   DESCRIPTION                           |  FLAG    |  */
+*/*|         |                                         |          |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|10/20/83 | CREATED                                 |  -       |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|05/17/84 | CHANGE REQUEST 129 -- ADD DATE AND TIME | @RQARDC1 |  */
+*/*|         | STAMP TO PT DATA SO THAT IT CAN BE AR-  | @RQARDC1 |  */
+*/*|         | CHIVED IN STERLING FOREST               | @RQARDC1 |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*|7/23/84  | ADD TO APPL MSG HEADER                  | @RQARDC2 |  */
+*/*+---------+-----------------------------------------+----------+  */
+*/*                                                                  */
+*/********************************************************************/
+
+ DCL 1 PTMSGSEG CHAR(277) BASED, /* PT MESSAGE SEGMENT MAP.
+                                    IN THIS STRUCTURE, ALL
+                                    VARIABLES BEGIN WITH 'PT'.       */
+       2 PTDCSHD CHAR(30),       /* DCS HEADER. IN THIS SUB-STRUCTURE,
+                                    ALL VARIABLES BEGIN WITH 'PTD'.  */
+         3 PTDUSER  CHAR(6),     /* USER ID                          */
+         3 PTDBO    CHAR(3),     /* BRANCH OFFICE                    */
+         3 PTDTERR  CHAR(3),     /* TERRITORY                        */
+         3 PTDREG   CHAR(2),     /* REGION                           */
+         3 PTDDIV   CHAR(1),     /* DIVISION (F=FE, C=CSD)           */
+         3 PTDAPLID CHAR(2),     /* APPLICATION ID RECVD FROM PT     */
+         3 PTDFUNID CHAR(1),     /* FUNCTION ID RECVD FROM PT        */
+         3 PTDDTTIM CHAR(12),    /* RAMS BASE SERVICES RECEIVE
+                                    DATE-TIME STAMP.        @RQARDC1 */
+           4 PTDTIME CHAR(6),    /* RECV TIME HHMMSS        @RQARDC1 */
+           4 PTDDATE CHAR(6),    /* RECV DATE YYMMDD        @RQARDC1 */
+      2 PTMSGALL CHAR(247),      /* APPL MSG HDR AND TEXT TOGETHER   */
+       3 PTAPPLMS CHAR(15),      /* APPLICATION MESSAGE HEADER. IN THIS
+                                    SUB-STRUCTURE, ALL VARIABLES BEGIN
+                                    WITH 'PTA'.                      */
+         4 PTAMSCTL CHAR(2),     /* MESSAGE CONTROL INFORMATION      */
+           5 PTANUMBR FIXED(8),  /* POSITION OF THE MSG SEG WITHIN THE
+                                    LOGICAL RECORD                   */
+           5 PTATOTAL FIXED(8),  /* TOTAL NUMBER OF MSG SEGS IN THE
+                                    LOGICAL RECORD                   */
+                                 /* LENGTH OF 'PTMSGTXT'             */
+         4 PTALEN   FIXED(15) BDY(BYTE),
+         4 PTARECNO FIXED(31) BDY(BYTE), /* RECORD NUMBER OF THE
+                                    LOGICAL REC  439721*/
+         4 PTARESRV CHAR(7),     /* REST OF THE APPL MSG HEADER
+                                    (RESERVED).                      */
+           5 PTAFLG BIT(8),      /* FLAGS                            */
+           5 PTAFUNC CHAR(2),             /* QSAR SUBFUNCTION ID     */
+           5 PTACOML FIXED(16) BDY(BYTE), /* RECORD COMPLETION TIME  */
+           5 PTATBLID FIXED(16) BDY(BYTE), /* APPL CTL TABLE ID      */
+       3 PTDOCNUM FIXED(31) BDY(BYTE),
+       3 PTMSGTXT CHAR(228);     /* REST OF THE MESSAGE SEGMENT
+                                    (ALL QSAR SEGMENTS)              */
+
+

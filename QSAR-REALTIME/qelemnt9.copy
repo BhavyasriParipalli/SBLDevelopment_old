@@ -1,0 +1,50 @@
+ /********************************************************************/
+ /* QUEUE ELEMENT TYPE NINE  - UPDATE IDA TRANSACTION              - */
+ /********************************************************************/
+ /*                                                                  */
+ /* (DCS D808) 10/11/83 - CHANGED SEARCH FOR RELATED CALL OR MESSAGE */
+ /*                       AT A REMOTE SYSTEM, TO BE B/O AND UNIQUE-  */
+ /*                       NESS NUMBER, INSTEAD OF B/O, TERRITORY,    */
+ /*                       RECEIVED DATE, RECEIVED TIME, AND HASH.    */
+ /*                                                                  */
+ /* 12/09/83  RDCR21 MACHINE SERIAL CHANGED FROM 5 TO 7 DIGITS     - */
+ /* 03/25/88 DYADICS1 - CHANGE Q9RRN, Q9CCALL TO UNUSED              */
+ /*                     RENAME Q9CUNQ# TO Q9CID                      */
+ /* 08/21/89 SR9951   - DECREASED Q9CMNTS BY 4 CHARS AND ADDED       */
+ /*                     Q9CSCCLS AND Q9CSCAREA FIELDS    - TLC       */
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 QELEMNT9 DEF(QELEXTN),
+     3 *        FIXED(32),         /* UNUSED                  DYAD-1 */
+     3 Q9IDEXT  FIXED(16),         /* IDA EXTENSION RECORD NUMBER    */
+     3 Q9IDENT  FIXED(16),         /* ENTRY NUMBER WITHIN EXTENSION  */
+     3 Q9UCUST#  CHAR(7),          /* USER CUSTOMER NUMBER           */
+     3 Q9DPBO#   CHAR(3),          /* DP BRANCH OFFICE NUMBER        */
+     3 Q9CPUTYP  CHAR(4),          /* CPU TYPE                       */
+     3 Q9CPUSER  CHAR(5),          /* CPU SERIAL                     */
+     3 Q9MES#    CHAR(6),          /* MES NUMBER                     */
+     3 Q9DUEDT   CHAR(6),          /* DUE DATE                       */
+     3 Q9TYPE    CHAR(4),          /* MACHINE TYPE                   */
+     3 Q9SER     CHAR(7),          /* MACHINE SERIAL  RDCR21         */
+     3 Q9IDCODE CHAR(2),           /* IDA ACTIVITY CODE ENTERED      */
+     3 Q9METER  CHAR(6),           /* METER READING                  */
+     3 Q9CMNTS  CHAR(56),          /* IDA  COMMENTS                  */
+     3 Q9CSCCLS CHAR(2),           /* CSC CLASS CODE      SR9951     */
+     3 Q9CSCAREA CHAR(2),          /* CSC ORIGINAL AREA   SR9951     */
+     3 Q9BONUM  CHAR(3),           /* BRANCH OFFICE NUMBER ENTERED   */
+     3 Q9CETER  CHAR(3),           /* CE TERRITORY                   */
+     3 Q9STCODE CHAR(2),           /* ACTIVITY CODE ENTERED          */
+     3 Q9DATE   CHAR(6),           /* DATE ENTERED                   */
+     3 Q9TIME   CHAR(4),           /* TIME ENTERED                   */
+     3 Q9FLAG,                     /* FLAG BYTE                      */
+     5 Q9RCVFLG  BIT(1),           /* RECEIVED BY TRANSMISSION       */
+     5 Q9XMTFLG  BIT(1),           /* TO BE TRANSMITTED              */
+     5 Q9QSGEN   BIT(1),           /* QSAR GENERATED TRANS           */
+     5   *       BIT(5),           /* RESERVED                       */
+     3 Q9CBO    CHAR(3),           /* B/O OF RELATED CALL            */
+     3 Q9CTER   CHAR(3),           /* TA TERR IF TAKEN ELSE(DCS D808)*/
+     3 *        CHAR(1),           /* NOT USED             (DCS D808)*/
+     3 Q9CID    FIXED(32),         /* ASSOCIATED CALL ID      DYAD-1 */
+     3 *        CHAR(8);           /* UNUSED                  DYAD-1 */
+ @SPACE;
+

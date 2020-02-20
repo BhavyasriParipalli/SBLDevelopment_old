@@ -1,0 +1,46 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* MACRO NAME = QARSDPRM                 RAMS SYSTEM                */
+ /*                                                                  */
+ /* DESCRIPTION = MAPPING OF PARAMETERS FOR QARSEND ROUTINE          */
+ /*                                                                  */
+ /* INVOCATION = %INCLUDE QSARMAC(QARSDPRM)                          */
+ /*              THIS PARAMETER LIST IS USED TO TELL QARSEND THE     */
+ /*              MESSAGE TO SEND TO A PT AND WHETHER TO USE PT ID,   */
+ /*              USER SERIAL, OR BRANCH OFFICE AND TERROTORY TO      */
+ /*              SEND THE MESSAGE. IF THE SDPMFUID FLAG IS SET,      */
+ /*              THEN THE MESSAGE WILL BE SENT ACCORDING TO THE      */
+ /*              USER ID FIELD IN ASPMUSID FIELD. IF THE SDPMFPID    */
+ /*              FLAG IS SET, THEN THE MESSAGE WILL BE SENT          */
+ /*              ACCORDING THE THE PT ID FIELD IN ASPMPTID. IF THE   */
+ /*              SDPMFBOT FLAG IS SET, THEN THE MESSAGE WILL BE      */
+ /*              SENT ACCORDING TO THE BRANCH OFFICE AND TERRITORY   */
+ /*              FIELDS IN SDPMBOOF AND SDPMTERR.                    */
+ /*              THE SDPMMLEN MUST BE FILLED WITH THE LENGTH OF      */
+ /*              OF THE MESSAGE IN THE SDPMMESG FIELD.               */
+ /*              THE FUNCTION ID MUST BE PUT INTO THE SDPMFTID       */
+ /*              FIELD.                                              */
+ /*                                                                  */
+ /*              NOTE: THE SDPMUSID FIELD MUST BE FILLED IN          */
+ /*              INDEPENDENT OF WHETHER THE USER ID IS BEING USED TO */
+ /*              SEND THE MESSAGE. (THIS IS NOT THE CASE WITH BO,    */
+ /*              TERRITORY, AND PT ID.)                              */
+ /*                                                                  */
+ /* SR9400052 4NSM 06/09/94 EXPAND PTID FROM 2 TO 4 BYTES  GYULA   4B*/
+ /*                                                                  */
+ /********************************************************************/
+ DCL 1 QARSDPRM BASED,                    /* PARM LIST FOR QARSEND   */
+       2 SDPMMLEN      BIN(8),            /* MESSAGE LENGTH          */
+       2 SDPMFLG       BIT(8),            /* FLAGS                   */
+         3 SDPMFUID    BIT(1),            /* USE THE USER ID         */
+         3 SDPMFPID    BIT(1),            /* USE THE PT ID           */
+         3 SDPMFBOT    BIT(1),            /* USE BRANCH OFFICE AND   */
+                                          /* TERRITORY               */
+         3 *           BIT(5),            /* UNUSED                  */
+       2 SDPMFNID      CHAR(1),           /* FUNCTION ID             */
+       2 SDPMUSID      CHAR(6),           /* USER ID                 */
+       2 SDPMBOOF      CHAR(3),           /* BRANCH OFFICE           */
+       2 SDPMTERR      CHAR(3),           /* TERRITORY               */
+       2 SDPMPTID      CHAR(4),           /* PT ID                 4B*/
+       2 SDPMMESG      CHAR(240);         /* MESSAGE                 */
+
