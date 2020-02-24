@@ -1,0 +1,38 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQSTDHT    VERSION NR:  01           DATE:  11/16/2000  */
+ /*                                               TIME:  09:30:00    */
+ /*                                                                  */
+ /* TITLE:       STD HEADER/TRAILER RECORD                           */
+ /*                                                                  */
+ /* LANGUAGE:    PLI                                                 */
+ /*                                                                  */
+ /* DESCRIPTION: THIS IS THE HEADER/TRAILER FILE LAYOUT FOR STD      */
+ /*              FILE INTERFACES.                                    */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:                    PGMR: */
+ /*  -------- -------- ---- ---------------------------------- ----- */
+ /*  11/16/00 S00089   0NSK QSAR STD HEADER/TRAILER RECORD     PRM   */
+ /*                                                                  */
+ /********************************************************************/
+   3 IRECID    CHAR(7),               /* WILL CONTAIN THE   001- 007 */
+                                      /* VALUE "HEADER " or          */
+                                      /* "TRAILER"                   */
+   3 ISOURCE   CHAR(8),               /* WILL CONTAIN THE   008- 015 */
+                                      /* VALUE "QSAR    "            */
+                                      /* LAST 4 POSITIONS WILL BE    */
+                                      /* INTERFACE IDENTIFIER        */ 
+   3 DCREATE   CHAR(10),              /* THE DATE THE FILE  016- 025 */
+                                      /* WAS CREATED (MM/DD/YYYY)    */
+   3 ISEQNUM   PIC '(6)9',            /* THE SEQUENCE # OF  026- 031 */
+                                      /* FILE BEING CREATED          */
+                                      /* (HEADER ONLY)               */
+   3 IRECCNT   PIC '(6)9',            /* NUMBER OF          032- 037 */
+                                      /* INTERFACE RECORDS           */
+                                      /* (TRAILER ONLY)              */
+   3 SPADDING  CHAR(43)               /*                    038- 080 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  AEQSTDHT                   */
+ /*------------------------------------------------------------------*/

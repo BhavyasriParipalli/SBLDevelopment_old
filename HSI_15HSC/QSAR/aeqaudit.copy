@@ -1,0 +1,428 @@
+ /********************************************************************/
+ /*                                                                  */
+ /*                                                                  */
+ /* NAME: AEQAUDIT      VERSION NR:  01           DATE:  11/16/93    */
+ /*                                               TIME:  09:59:24    */
+ /*                                                                  */
+ /*             ---------     QSAR/C        ---------                */
+ /*             ---------  AUDIT TRAIL      ---------                */
+ /*             ---------      FORMAT       ---------                */
+ /*                                                                  */
+ /* DESC: MAPPING OF QSAR AUDIT TRAIL SEND TO NDRS NSDC_QSAR DB2     */
+ /*       TABLE                                                      */
+ /*                                                                  */
+ /* IMPORTANT NOTE !!!!! - Any changes to the AEQSGENL copy member   */
+ /*           should be reflected here.                              */
+ /*                                                                  */
+ /* PRIMARY KEY: IAUDITKY = AUDIT DATE      (10 BYTES) +(DAUDDATE)   */
+ /*                       = AUDIT TIME      (08 BYTES) +(HAUDTIME)   */
+ /*                       = DOCUMENT NUMBER (09 BYTES) +(IDOCNUM)    */
+ /*                       = SOURCE OF THIS  (01 BYTE ) +(CSOURCE)    */
+ /*                         RECORD                                   */
+ /*                                                                  */
+ /* SECONDARY KEY: CUNLOAD = UNLOAD FROM DB  (01 BYTE )  (CUNLOAD)   */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*                                                                  */
+ /*  DATE:     REASON:  DRVR: DESCRIPTION:                     PGMR: */
+ /*  --------  -------- ----  -------------------------------  ----  */
+ /*  11/16/93  S9300220 3NSP  ORIGINAL VERSION              DLP/DLK  */
+ /*  09/26/94  H0125172 4NSM  ADD CSOURCE 'B' TO            DLP/DLK  */
+ /*                           COMMENTS ONLY                     DLK  */
+ /*  03/21/95 S9500015  5NSC  ADD CE-ENTERED CUSTOMER NUM            */
+ /*                           AND CE-ENTERED BILL TYPE          DLK  */
+ /*  04/18/95 S9400206  5NSE  EXPAND PN TO 20, OEM CHECK        DLK  */
+ /*                           MACH SERIAL TO 22 & CONTRACT           */
+ /*                           TO 12                                  */
+ /*  05/31/95 S9500074  5NSE  ADD SENSITIVE PARTS TIN NBR       LBS  */
+ /*  06/22/95 S9400206  5NSE  EXPAND PN TO 20, OEM CHECK        DLK  */
+ /*                           EXPAND MACHINE SERIAL AND CSS.         */
+ /*                           ADD RECORD HERITAGE.              DLK  */
+ /*                                                                  */
+ /*  05/08/96 S9570033  6NSG  ASSET TRACKING / ADD PRF PROMPT   DLP  */
+ /*                           TO PT TABLE                            */
+ /*  05/08/96 S9600243  6NSG  REMOVE ROLM FROM QSAR PROCESSING   DLP */
+ /*                                                                  */
+ /*  06/28/01 SR01032   1NSP  added IWKNUMAC, ZIPCODE, REDUCE    LBS */
+ /*                           PAD LENGTH                             */
+ /*  05/03/05 QSAR5NSCL018    change definition of IPROBNUM to 7 LBS */
+ /*  05/03/05 SR050023  4NSG  added fields CWARLIAB, CWUPLIAB    LBS */
+ /*                           CMALIAB, FPERCALL, CSPECAPR, CFUTRUSE  */
+ /*                                                                  */
+ /********************************************************************/
+ /*------------------------------------------------------------------*/
+ /* DATA BASE KEY FIELDS                                             */
+ /*------------------------------------------------------------------*/
+                                /*************************************/
+ 3 IAUDITKY,                    /* PRIMARY KEY                       */
+                                /*************************************/
+                                /* TIMESTAMP INDEX                   */
+                                /*************************************/
+    5 DAUDDATE        CHAR(10), /* AUD DT YYYY-MM-DD        001- 010 */
+    5 HAUDTIME        CHAR(08), /* AUD TIME HH:MM:SS        011- 018 */
+                                /*************************************/
+    5 IDOCNUM         CHAR(09), /* QSAR DOCUMENT NUMBER     019- 027 */
+                                /* 123456789                         */
+                                /*   ------- SEQUENCE DIGITS         */
+                                /* --        AREA/HUB INDICATOR      */
+                                /*    AREA = 01 - 12                 */
+                                /*    HUB  = 31 - 42                 */
+                                /*************************************/
+                                /* SOURCE OF THIS QSAR AUDIT RECORD  */
+                                /*************************************/
+     5 CSOURCE        CHAR(01), /* QSAR WAS SOURCED FROM    028- 028 */
+                                /*' '= AUDIT TRAIL IS UNNEEDED - -   */
+                                /*     EITHER ERROR CODES UNCHANGED  */
+                                /*     BY RECYCLE, QSAR/C, PT SUBMIT */
+                                /*     AND PEND COUNT = 0 (ORIGINAL  */
+                                /*     SUBMISSION WAS CLEAN)         */
+                                /* A = PENDED AFTER ORIG QSAR/C ADD  */
+                                /* B = DELETED BY BA 7 ERROR         */
+                                /* C = PENDED AFTER PT CORRECTION    */
+                                /* D = DELETED BY QSAR/C             */
+                                /* F = CLEANED BY RECYCLE AFTER      */
+                                /*     BEING PENDED                  */
+                                /* I = INITIAL LOAD OF THE DATA      */
+                                /* K = KODAK ADDITION                */
+                                /* N = PENDED AFTER QSAR/C CORRECTN  */
+                                /* O = PENDED AFTER ORIG PT SUB      */
+                                /* P = CLEANED BY PT MSG AFTER       */
+                                /*     BEING PENDED                  */
+                                /* Q = CLEANED BY QSAR/C AFTER       */
+                                /*     BEING PENDED                  */
+                                /* R = ERROR CODES CHANGED BY        */
+                                /*     RECYCLE AFTER BEING PENDED    */
+                                /* S = STD INPUT, FILE INPUT         */
+                                /*                                   */
+                                /*************************************/
+                                /* SECONDARY KEY                     */
+                                /*************************************/
+ 3 CUNLOAD            CHAR(01), /* HAS THE QSAR AUDIT REC   029- 029 */
+                                /* BEEN UNLOADED FROM THE DATA       */
+                                /* (Y/N)                             */
+                                /*************************************/
+ 3 CHERITAG           CHAR(01), /* REC HERITAGE, A-Z, 0-9.  030- 030 */
+ 3 CSEVERRH           CHAR(01), /* HIGHEST SEVERITY         031- 031 */
+                                /* 0 - NO ERRORS                     */
+                                /* 2 - WARNING                       */
+                                /* 3 - PEND (INDEX ENTRY             */
+                                /*           BUILT)                  */
+ 3 IEMPTERR           CHAR(03), /* CE TERRITORY             032- 034 */
+ 3 IEMPBO             CHAR(03), /* CE BRANCH                035- 037 */
+                                /*                                   */
+                                /*************************************/
+                                /* EMPLOYEE INDEX                    */
+                                /*************************************/
+ 3 ICESER             CHAR(06), /* QSAR EMPLOYEE SERIAL     038- 043 */
+ 3 DACTDATE           CHAR(10), /* ACTIVITY DATE YYYY-MM-DD 044- 053 */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* DCS HEADER FIELDS - FROM NSS RAMS                                */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* QSAR SEGMENT STRUCTURE            */
+                                /*-----------------------------------*/
+ 3 IEMPSER            CHAR(06), /* EMPLOYEE SERIAL FROM PT  054- 059 */
+                                /* IF FROM PT, USERID OF QSAR ADMIN  */
+                                /* IF QSAR/C DELETE, ADD OR RESUBMIT */
+ 3 CFUNCODE           CHAR(02), /* FUNCTION USED TO CREATE  060- 061 */
+                                /* THIS QSAR                         */
+                                /*   IR = INCIDENT RECORD            */
+                                /*   PO = PART ONLY                  */
+                                /*   PT = PART TRAILER               */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* QSAR INPUT DATA FIELDS                                           */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* QSAR RECORD STRUCTURE             */
+                                /*-----------------------------------*/
+ 3 CMACTYPE           CHAR(04), /* MACHINE TYPE             062- 065 */
+ 3 IMACSER            CHAR(22), /* MACHINE SERIAL           066- 087 */
+ 3 CBILLCO            CHAR(01), /* BILLABLE/SPEC. ACT CODE  088- 088 */
+ 3 HSTOPTI            CHAR(03), /* STOP TIME       (HHT)    089- 091 */
+ 3 QTRAMI             CHAR(03), /* TRAVEL MILES    (NNN)    092- 094 */
+ 3 ATRAEXP            CHAR(07), /* TRAVEL EXPENSE ($$$$$CC) 095- 101 */
+ 3 QTRAHR             CHAR(03), /* TRAVEL HOURS    (HHT)    102- 104 */
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* INCIDENT DATA                     */
+                                /*-----------------------------------*/
+ 3 QOVTHR             CHAR(03), /* OVERTIME HOURS  (HHT)    105- 107 */
+ 3 QSVCHR             CHAR(03), /* ACTUAL HOURS    (HHT)    108- 110 */
+ 3 CCCODE             CHAR(01), /* COMPLETION CODE          111- 111 */
+ 3 CSVCODE            CHAR(02), /* SERVICE CODE             112- 113 */
+ 3 CATCODE            CHAR(02), /* ACTIVITY CODE            114- 115 */
+ 3 CCIDM              CHAR(01), /* INSTALL/DISC/MOVE CODE   116- 116 */
+                                /*   1 = INSTALLATION PLANNING       */
+                                /*   2 = INITIAL INSTALL             */
+                                /*   3 = RELOCATE,REARRANGE OR       */
+                                /*       CUSTOMER SETUP              */
+                                /*   4 = DISASSEMBLE PACK TRANSPORT  */
+                                /*   5 = MARKETING PROMOTION         */
+                                /*       DISASSEMBLE MACHINE FOR     */
+                                /*       RETURN TO IBM.              */
+ 3 CCMOD              CHAR(01), /* MODIFICATIONS CODE       117- 117 */
+                                /*  1 = MES NUMBER                   */
+                                /*  2 = ECA, REA,OR MICROCODE        */
+ 3 CMODNA             CHAR(01), /* MODIFICATIONS NOT        118- 118 */
+                                /* APPLIED CODE                      */
+                                /*   1 = PREVIOUSLY APPLIED          */
+                                /*   2 = MACHINE NOT HERE            */
+                                /*   3 = CANCEL                      */
+ 3 IMESECA            CHAR(08), /* MES/ECA/REA/MFIX NUMBER  119- 126 */
+                                /*   ECA       LENGTH   3            */
+                                /*   MES       LENGTH   6            */
+                                /*   MICROCODE LENGTH 1-8            */
+                                /*   REA       LENGTH   5            */
+ 3 IPMFRE             CHAR(02), /* CHANGE PM FREQUENCY      127- 128 */
+ 3 IOBOWORK           CHAR(03), /* OTHER SR B/O WORKED      129- 131 */
+ 3 IBILLMAT           CHAR(07), /* BILL OF MATERIAL         132- 138 */
+ 3 CSERVREQ           CHAR(01), /* SERV REQUEST (SCHEDULED) 139- 139 */
+ 3 CSERVTYP           CHAR(01), /* SERVICE TYPE (CONCURRENT 140- 140 */
+ 3 IPROBNUM           CHAR(07), /* PROBLEM NUMBER           141- 147 */
+ 3 ICONTNUM           CHAR(12), /* CSS CONTRACT             148- 159 */
+ 3 IASSHIFT           CHAR(01), /* ASSIGNED SHIFT           160- 160 */
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* METERED MACHINE DATA              */
+                                /*-----------------------------------*/
+ 3 QMETER             CHAR(09), /* METER READING QTY        161- 169 */
+ 3 QUSAGE             CHAR(04), /* USAGE CREDIT             170- 173 */
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* COMMON PARTS DATA - SEE SEGMENT   */
+                                /* QSPART FOR PART DATA FIELDS       */
+                                /* CORRESPONDING TO EACH PART LINE   */
+                                /*-----------------------------------*/
+ 3 CPARTRA            CHAR(01), /* PARTS TRAILER INDICATOR  174- 174 */
+ 3 ISENBO             CHAR(03), /* SENDING BRANCH OFFICE    175- 177 */
+ 3 ISENOL             CHAR(03), /* SENDING OUT LOCATION     178- 180 */
+ 3 IALTRB             CHAR(03), /* ALTERNATE SHIP BRANCH    181- 183 */
+ 3 IDEPOINT           CHAR(02), /* DELIVERY POINT CODE      184- 185 */
+                                /*-----------------------------------*/
+                                /* END OF PARTS DATA                 */
+                                /*-----------------------------------*/
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* DATA FIELDS SET BY INPUT SOURCE   */
+                                /*   (PT OR QSAR/C)                  */
+                                /*-----------------------------------*/
+ 3 ISEQNUM            CHAR(03), /* DCS SEQUENCE NUMBER      186- 188 */
+ 3 IPTLEVEL           CHAR(03), /* PT LEVEL                 189- 191 */
+ 3 CDOWNLV            CHAR(01), /* PT DOWNLEVEL INDICATOR   192- 192 */
+                                /* ' ' - DO NOT PEND RECORD          */
+                                /* 'L' - PEND THIS RECORD            */
+ 3 FRESUB             CHAR(01), /* RESUBMIT QSAR DOCUMENT   193- 193 */
+                                /* FLAG - 'Y', 'N'                   */
+ 3 FLATEDOC           CHAR(01), /* LATE FLAG INDICATOR      194- 194 */
+                                /* FLAG - 'Y', 'N'                   */
+ 3 IDIRINV            CHAR(01), /* DIRECT CUSTOMER INVOICE  195- 195 */
+                                /* FLAG - 'Y', 'N', OR ' '           */
+                                /* SET IN AUDIT/EDIT                 */
+ 3 IHSDNR             CHAR(09), /* HOURLY SERVICE DOCUMENT  196- 204 */
+                                /* NUMBER (KODAK ONLY)               */
+ 3 CTACCODE           CHAR(03), /* TAC CODE                 205- 207 */
+ 3 CACTSEV            CHAR(01), /* TAC ACTION CODE ACTION   208- 208 */
+ 3 QNUMPEND           CHAR(03), /* COUNT OF TIMES PENDED    209- 211 */
+ 3 CTYPDATA           CHAR(01), /* TYPE OF DATA ON QSAR     212- 212 */
+                                /*     'I' = INCIDENT                */
+                                /*     'P' = PARTS                   */
+                                /*     'B' = BOTH                    */
+ 3 CCEWEEK            CHAR(04), /* CE WEEK NUMBER   (NNNN)  213- 216 */
+ 3 DCALLCOM           CHAR(10), /* CALL COMPLETE DATE       217- 226 */
+                                /* YYYY-MM-DD                        */
+ 3 DPERIOD            CHAR(04), /* REPORT PERIOD YYMM       227- 230 */
+ 3 CREPWEEK           CHAR(01), /* REPORT WEEK FROM CECAL   231- 231 */
+                                /* '1'|'2'|'3'|'4'                   */
+ 3 DPRODATE           CHAR(10), /* DATE PEND QSAR PROCESSED 232- 241 */
+                                /* YYYY-MM-DD                        */
+ /*------------------------------------------------------------------*/
+ /* AUDIT EDIT ERROR ARRAY                                           */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+                                /*-----------------------------------*/
+ 3 CERRARRY (5),                /* ERROR ARRAY                       */
+                                /*-----------------------------------*/
+   5 CERRORSE         CHAR(03), /* PEND/WARNING ERROR CODE  242- 244 */
+   5 CSEVERR          CHAR(01), /* SEVERITY OF THIS ERROR   245- 245 */
+                                /*  1,2,3                            */
+                                /*-----------------------------------*/
+                                /* ERROR 2  (4 BYTES)       246- 249 */
+                                /*-----------------------------------*/
+                                /* ERROR 3  (4 BYTES)       250- 253 */
+                                /*-----------------------------------*/
+                                /* ERROR 4  (4 BYTES)       254- 257 */
+                                /*-----------------------------------*/
+                                /* ERROR 5  (4 BYTES)       258- 261 */
+                                /*-----------------------------------*/
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /* MACHINE TYPE INFORMATION FROM MTM                                */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+ 3 CMETER             CHAR(01), /* METERED MACHINE          262- 262 */
+ 3 CINVMAT            CHAR(01), /* INVENTORY MATCH          263- 263 */
+ 3 CMLPSHIP           CHAR(01), /* MLC SHIP CONTROL         264- 264 */
+ 3 CTECAREP           CHAR(01), /* TECHNICAL CAREER         265- 265 */
+ /*------------------------------------------------------------------*/
+ /* EDF (EMPLOYEE) DATA                                              */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+ 3 CFMCODE            CHAR(01), /* FIELD MANAGER CODE       266- 266 */
+                                /* OTHER EMPLOYEE DATA               */
+ 3 NEMPFIR            CHAR(01), /* EMPLOYEE FIRST INIT      267- 267 */
+ 3 NEMPMID            CHAR(01), /* EMPLOYEE SECOND INIT     268- 268 */
+ 3 NEMPLAST           CHAR(17), /* EMPLOYEE LAST NAME       269- 285 */
+ 3 ICEDIV             CHAR(02), /* EMPLOYEE DIVISION        286- 287 */
+ 3 ICEOPARE           CHAR(01), /* OP AREA                  288- 288 */
+ 3 ICEAREA            CHAR(02), /* AREA                     289- 290 */
+ 3 ICEREG             CHAR(01), /* REGION                   291- 291 */
+ 3 CCARPATH           CHAR(01), /* CAREER PATH CODE         292- 292 */
+ 3 CAUDRULE           CHAR(04), /* AUDIT RULE VERSION/LEVEL 293- 296 */
+ 3 CNSDCDEL           CHAR(01), /* QSAR/C DELETE FLAG       297- 297 */
+ 3 FNSDCRES           CHAR(01), /* QSAR/C MULTIRESUB FLAG   298- 298 */
+ 3 IHDAOLD            CHAR(12), /* OLD HDA SER NO           299- 310 */
+ 3 IHDANEW            CHAR(12), /* NEW HDA SER NO           311- 322 */
+ 3 IDEVADR            CHAR(03), /* DEVICE ADDRESS           323- 325 */
+ 3 CAVLTIME           CHAR(02), /* UNAVAILABLE TIME         326- 327 */
+ 3 CADPPROD           CHAR(03), /* ADP PRODUCT CODE         328- 330 */
+ 3 DINSTALL           CHAR(10), /* INSTALL DATE YYYY-MM-DD  331- 340 */
+ 3 DWARREX            CHAR(10), /* WARRANTY EXIT YYYY-MM-DD 341- 350 */
+ 3 CPRDID             CHAR(04), /* PRODUCT ID               351- 354 */
+ 3 CSERPERF           CHAR(05), /* MDQ SURVEY (SERVICE PERF 355- 359 */
+ 3 CCUSTYPE           CHAR(01), /* CE CUSTOMER TYPE (G|C|'' 360- 360 */
+ 3 IADPWORK           CHAR(08), /* ADP WORK ORDER NUMBER    361- 368 */
+ /*------------------------------------------------------------------*/
+ /*              END OF QSGENL (ROOT) DATA                           */
+ /*------------------------------------------------------------------*/
+ /*              START OF PART SEGMENT DATA                          */
+ /*------------------------------------------------------------------*/
+                                /*                                   */
+ 3 CPARTARY (4),                /* PART ARRAY                        */
+   5 IPARTNUM         CHAR (08),/* PART NUMBER              369- 376 */
+   5 IPARTFC          CHAR (02),/* FUNCTION CODE            377- 378 */
+                                /* BIN LOCATION                      */
+   5 IRECBO           CHAR (03),/* RECEIVING BRANCH OFFICE  379- 381 */
+   5 IRECOL           CHAR (03),/* RECEIVING OUT LOCATION   382- 384 */
+   5 QUANPART         CHAR (02),/* DISB.-USAGE-UPR SUB QTY  385- 386 */
+   5 QOREPRET         CHAR (02),/* REPLENISH - ORD-RTN QTY  387- 388 */
+   5 HTIMEPAR         CHAR (03),/* PART ACQUISITION TIME    389- 391 */
+                                /*                    (HHT)          */
+   5 CMATYPE2         CHAR (04),/* MACHINE TYPE FOR PARTS   392- 395 */
+                                /* L2,L3,L4                          */
+   5 ACOSTPAR         DEC(11,0),/* PART UNIT PRICE IN CENTS 396- 401 */
+                                /* FROM PART REFERENCE FILE          */
+   5 ISEQPART         CHAR (01),/* PART SEQUENCE NUM IN PAR 402- 402 */
+                                /* ARRAY                             */
+   5 IOEMPART         CHAR (20),/* OEM PART NUMBER          403- 422 */
+   5 FOEMFLAG         CHAR (01),/* OEM FLAG Y = TRANSLATED  423- 423 */
+   5 ITINNBR          CHAR (25),/* SENSITIVE PART TIN       424- 448 */
+   5 CAPC             CHAR (01),/* ASSET PROTECTION CLASS   449- 449 */
+   5 IPRFNUM          CHAR (07),/* PARTS RETURN FORM        450- 456 */
+   5 PARTPAD1         CHAR (12),/* PART PAD AREA            457- 468 */
+                                /*-----------------------------------*/
+                                /* PART  2  (100 BYTES)     469- 568 */
+                                /*-----------------------------------*/
+                                /* PART  3  (100 BYTES)     569- 668 */
+                                /*-----------------------------------*/
+                                /* PART  4  (100 BYTES)     669- 768 */
+                                /*-----------------------------------*/
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /*              END OF PART SEGMENT DATA                            */
+ /*------------------------------------------------------------------*/
+ /*              START OF INVENTORY SEGMENT DATA                     */
+ /*------------------------------------------------------------------*/
+ 3 CMODEL             CHAR (03),/* MACHINE MODEL            769- 771 */
+ 3 CMSTAT             CHAR (02),/* STATUS CODE              772- 773 */
+ 3 CWARSTAT           CHAR (01),/* WARRANTY STATUS          774- 774 */
+ 3 CPROCLEV           CHAR (01),/* PROCESS LEVEL CODE       775- 775 */
+                                /*                                   */
+                                /*-----------------------------------*/
+                                /* CUSTOMER DATA                     */
+                                /*-----------------------------------*/
+ 3 CSERPLAN           CHAR (02),/* SERVICE PLAN CODE        776- 777 */
+ 3 ICUSTNUM           DEC(11,0),/* CUSTOMER NUMBER          778- 783 */
+ 3 ICUSTNAM           CHAR(17), /* CUSTOMER NAME CMR        784- 800 */
+                                /* MPI EXTENSION AREA                */
+                                /* --------------------------------- */
+ 3 IMACAREA           CHAR(02), /* AREA                     801- 802 */
+ 3 IMACREG            CHAR(01), /* REGION                   803- 803 */
+ 3 IRESEROF           CHAR(03), /* RSO - FROM RSO           804- 806 */
+ 3 IMARKBO            CHAR(03), /* MARKETING B/O            807- 809 */
+ 3 IMACTERR           CHAR(03), /* MACHINE TERRITORY        810- 812 */
+                                /*                                   */
+ 3 IESTABNU           DEC(11,0),/* CMR CMIESTAB             813- 818 */
+                                /*     ESTABLISHMENT                 */
+ 3 IENTERPR           DEC(11,0),/* CMR CMIENNO              819- 824 */
+                                /*     ENTERPRISE                    */
+ 3 CNATCODE           CHAR (03),/* CMR CMCNAC               825- 827 */
+                                /*     NAT'L ACCOUNT CODE            */
+                                /*                                   */
+ /*------------------------------------------------------------------*/
+ /*              END OF INVENTORY SEGMENT DATA                       */
+ /*------------------------------------------------------------------*/
+ /*------------------------------------------------------------------*/
+ /*              START OF NARRATIVE SEGMENT DATA                     */
+ /*------------------------------------------------------------------*/
+ 3 IREFAULT           CHAR(12), /* REFERENCE FAULT SYMPTOM  828- 839 */
+ 3 IFEATLOC           CHAR(08), /* FEATURE LOCATION         840- 847 */
+ 3 ICECUSTN           CHAR(17), /* CE ENTERED CUSTOMER NAME 848- 864 */
+ 3 INARRATI           CHAR(70), /* FREE FORM NARRATIVE TEXT 865- 934 */
+ /*------------------------------------------------------------------*/
+ /*              END OF NARRATIVE SEGMENT DATA                       */
+ /*------------------------------------------------------------------*/
+ 3 ICECUSTR           DEC(11,0),/* CE ENTERED CUSTOMER NUM  935- 940 */
+ 3 IBILLTYP           CHAR(03), /* CE ENTERED BILL TYPE     941- 943 */
+ 3 IEFFST             CHAR(01), /* EFFECTIVE STATUS         944- 944 */
+ 3 IEFFIT             CHAR(01), /* STATUS QUALIFIER         945- 945 */
+ 3 CZIPCODE           CHAR(09), /* ZIP CODE                 946- 954 */
+ 3 IWKNUMAC           CHAR(06), /* IDENTIFIER OF THE        955- 960 */
+                                /* Claim ACTIVITY ID                 */
+ 3 CWARLIAB           CHAR(01), /* WHO IS LIABLE FOR BASE   961- 961 */
+                                /* WARRANTY                          */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 CWUPLIAB           CHAR(01), /* WHO IS LIABLE FOR        962- 962 */
+                                /* WARRANTY UPGRADE                  */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 CMALIAB            CHAR(01), /* WHO IS RESPONSIBLE FOR   963- 963 */
+                                /* MAINTENANCE AGGREEMENT/CONTRACT   */
+                                /* WARRANTY                          */
+                                /* 0 = N/A (ZERO)                    */
+                                /* F = F&F, INTERNAL                 */
+                                /* I = IBM GLOBAL FINANCE            */
+                                /* L = LENOVO                        */
+                                /* M = IBM                           */
+                                /* S = STRATEGIC OUTSOURCING         */
+                                /* P = PCD                           */
+                                /*                                   */
+ 3 FPERCALL           CHAR(01), /* PER CALL BILLABLE        964- 964 */
+                                /* 0 = NO | N/A                      */
+                                /* 1 = YES                           */
+ 3 CSPECAPR           CHAR(01), /* SPECIAL APPROVAL TO      965- 965 */
+                                /* BILL BACK                         */
+                                /* 0 = NO | N/A                      */
+                                /* L = LENOVO                        */
+ 3 CFUTRUSE           CHAR(01), /*                          966- 966 */
+ 3 SPADDING           CHAR(34)  /* UNUSED PADDING           967-1000 */
+ /*------------------------------------------------------------------*/
+ /*              END OF AEQAUDIT                                     */
+ /*------------------------------------------------------------------*/
+

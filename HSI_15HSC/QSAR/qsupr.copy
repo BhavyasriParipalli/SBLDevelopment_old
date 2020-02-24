@@ -1,0 +1,43 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   QSUPR       VERSION NR:  01           DATE:  03/21/88    */
+ /*                                               TIME:  10:52:24    */
+ /*                                                                  */
+ /* TITLE: USED PART RETURN                                          */
+ /*                                                                  */
+ /* IMPORTANT NOTE !!!!! - ANY CHANGES TO THIS COPY MEMBER MUST      */
+ /*          BE REFLECTED IN THE COPY MEMBER CPUPR IN THE CONS       */
+ /*          LIBRARY SYSTEM.                                         */
+ /*                                                                  */
+ /* LANGUAGE: PL/S                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: RECORD FORMAT FOR MASTER PARTS FILE/UPR PARTS       */
+ /*              DISPOSITION                                         */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /*  DATE:    REASON:  DRVR:   DESCRIPTION:             PROGRAMMER:  */
+ /*  -------- -------- ---- --------------------------- ------------ */
+ /*  06/03/88 TU9889C  8NSF UPR MESSAGES BACK TO PT     ECC          */
+ /*  05/28/95 S9500073 5NSE ADD APC CODE                LBS          */
+ /*                                                                  */
+ /********************************************************************/
+ %SKIP;
+   DCL
+      1 UPRFILE   CHAR(130) BASED,         /* UPR FILE LAYOUT        */
+        2 PARTNUM     CHAR(8),             /* KEY FIELD - PART NO.   */
+        2 UPRSTAT     CHAR(1),             /* UPR STATUS
+                                            A - UPR, RETURN 5 DAYS
+                                            X - UPR, RETURN 15 DAYS
+                                            R - UPR, RETURN 30 DAYS
+                                            B - BULK UPR
+                                            N - NON-BULK UPR         */
+       2 CAPC         CHAR(1),             /* ASSET PROTECTION CLASS */
+       2 CONDFLAG     CHAR(1),             /* CONDITION FLAG         */
+       2 MACHTYPE(25) CHAR(4),             /* MACHINE TYPES          */
+       2 *            CHAR(19);            /* UNUSED                 */
+ /*------------------------------------------------------------------*/
+ /*                                  END  QSUPR                      */
+ /*------------------------------------------------------------------*/
+ %PAGE;
+

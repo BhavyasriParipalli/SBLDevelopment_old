@@ -1,0 +1,62 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /*             ---------     NSS QSAR      ---------               */
+ /*             ------- NSS ACTIVITY CONTROL --------               */
+ /*             ---------   RECORD FORMAT   ---------               */
+ /*  NAME: AEQNSSC                                                  */
+ /*                                                                 */
+ /*  DESC: MAPPING OF QSAR ACTIVITY CONTROL RECORD FORMAT           */
+ /*                                                                 */
+ /*  THIS INCLUDE DESCRIBES THE STATISTICS RECORD MAINTAINED FROM   */
+ /*  THE NSS REGION.  THE RECORD CONTAINS INFO RELATING TO THE      */
+ /*  QUANTITY OF QSARS AND NUMBER OF ACTUAL HOURS PROCESSED.        */
+ /*                                                                 */
+ /*             A                                                   */
+ /*  P          C                                                   */
+ /*  R          T                                                   */
+ /*  E       A  D                                                   */
+ /*  F       R  A                                                   */
+ /*  I       E  T                                                   */
+ /*  X       A  E                                                   */
+ /*                                                                 */
+ /*  QSARNSSCXXYYYYMMDD               POSITIONS 19 THROUGH 31 ARE   */
+ /*  |...+....1....+....2....+....3|  BLANKS                        */
+ /*                                                                 */
+ /*  THE QSAR CONTROL FILE CONSISTS OF A 31 BYTE KEY AND 100 BYTES  */
+ /*  OF DATA.                                                       */
+ /*                                                                 */
+ /*  USE THE UNALIGNED ATTRIBUTE WHEN INCLUDING THIS COPY MEMBER.   */
+ /*  THIS RECORD IS UPDATED FROM THE NSS CICS REGION.               */
+ /*                                                                 */
+ /*  CHRONOLOGICAL UPDATE LOG:                                      */
+ /*                                                                 */
+ /*  DATE:     REASON:    DRVR:   DESCRIPTION:          PROGRAMMER: */
+ /*  --------  ---------  ----    ------------------    ----------- */
+ /*  08/10/88  SR 9891    8NSM    ORIGINAL VERSION          SPZ     */
+ /*  10/01/97  S960755    7NSI    CHANGE NSSACTD DATE TO            */
+ /*                               YYYYMMDD                          */
+ /*                                                                 */
+ /*******************************************************************/
+    3 NSSCKEY,                    /* 31 BYTE KEY STRUCTURE          */
+       5 NSSCKEY1  CHAR(8),       /* LITERAL 'QSARNSSC'     001- 008*/
+       5 NSSCAREA  CHAR(2),       /* AREA - WHEN AT HUB,    009- 010*/
+                                  /* ADD 30 TO AREA NUMBER          */
+                                  /* 01-12 AREA RECORDS             */
+                                  /* 31-42 HUB RECORDS              */
+       5 NSSCACTD  CHAR(8),       /* QSAR ACTIVITY DATE     011- 018*/
+                                  /* FORMAT YYYYMMDD                */
+       5 NSSCPAD1  CHAR(13),      /* KEY PADDING (BLANKS)   019- 031*/
+                                  /* FORMAT MMDD                    */
+    3  NSSCQSCT    FIXED BIN(31), /* # QSARS PROCESSED FOR  032- 035*/
+                                  /* THIS ACTIVITY DATE             */
+    3  NSSCQSHR    FIXED BIN(31), /* TOTAL ACTUAL HOURS FOR 036- 039*/
+                                  /* THIS ACTIVITY DATE             */
+    3  NSSCDATE    CHAR(6),       /* DATE OF LAST UPDATE    040- 045*/
+                                  /* FORMAT YYMMDD                  */
+    3  NSSCTIME    CHAR(6),       /* TIME OF LAST UPDATE    046- 051*/
+                                  /* FORMAT HHMMSS                  */
+    3  NSSCPAD2    CHAR(80)       /* PADDING                052- 131*/
+ /*******************************************************************/
+ /*                   END OF AEQNSSC INCLUDE                        */
+ /*******************************************************************/
+

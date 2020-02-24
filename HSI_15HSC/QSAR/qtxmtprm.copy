@@ -1,0 +1,7 @@
+ DCL 1 QTXMTPRM CHAR(14) BASED,       /* QARTBXMT PARAMETERS         */
+       2 XMTPTID     CHAR(2),         /* PT ID                       */
+       2 XMTUSRID    CHAR(6),         /* USER ID                     */
+       2 XMTBO       CHAR(3),         /* USER BRANCH OFFICE          */
+       2 XMTTERR     CHAR(3);         /* USER TERRITORY              */
+
+

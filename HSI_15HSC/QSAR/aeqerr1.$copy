@@ -1,0 +1,29 @@
+ /*******************************************************************/
+ /*                                                                 */
+ /* INCLUDE: AEQERR1                                                */
+ /*                                                                 */
+ /* FUNCTION: RECORD LAYOUT FOR ERROR MESSAGE TABLE  -  NEW SERVICE */
+ /*           DIMENSIONS.                                           */
+ /*                                                                 */
+ /* LRECL: 79 BYTES                                                 */
+ /*                                                                 */
+ /* RECORD KEY: ERROR NUMBER.                                       */
+ /*                                                                 */
+ /* CHRONOLOGICAL UPDATE LOG                                        */
+ /*                                                                 */
+ /*  DATE:    REASON:   DRVR:   COMMENTS                        BY  */
+ /*  -------- --------  -----   ------------------------------  --- */
+ /*                                                                 */
+ /*  06/06/88 SR-9891   8CSH    ORIGINAL PROMOTE                JWR */
+ /*******************************************************************/
+                                   /*                               */
+     3 RECLGTH      FIXED BIN(15), /* RECORD LENGTH IS 79.  001- 002*/
+     3 RECID        CHAR(01),      /* RECORD ID, ALWAYS A " 003- 003*/
+     3 AEQERROR     CHAR(3),       /* (KEY) QSAR ERROR NUMB 004- 006*/
+     3 AEQSARP      CHAR(40),      /* QSARP ERROR MESSAGE   007- 046*/
+     3 AEQPTMSG     CHAR(20),      /* PT ERROR MESSAGE      047- 066*/
+     3 AEQNUSED     CHAR(13)       /* UNUSED                067- 079*/
+                                   /*                               */
+ /*******************************************************************/
+ /*    END  OF  COPY  MEMBER  AEQERR1                               */
+ /*******************************************************************/

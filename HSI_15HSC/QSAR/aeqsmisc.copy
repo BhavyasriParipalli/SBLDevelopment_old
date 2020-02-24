@@ -1,0 +1,49 @@
+ /********************************************************************/
+ /*                                                                  */
+ /* NAME:   AEQMISC     VERSION NR:  01           DATE:  09/25/97    */
+ /*                                               TIME:  14:46:08    */
+ /*                                                                  */
+ /* TITLE: QSAR ADDITIONAL DATA                                      */
+ /*                                                                  */
+ /* IMS SEGMENT NAME: AEQMISC                                        */
+ /*                                                                  */
+ /* TYPE: RECORD                                                     */
+ /*                                                                  */
+ /* LANGUAGE: PL/I                                                   */
+ /*                                                                  */
+ /* DESCRIPTION: LAYOUT OF THE DATA CONTAINED IN THE QSAR DATA BASE  */
+ /*              MISCELLANEOUS SEGMENT                               */
+ /*                                                                  */
+ /*                                                                  */
+ /* CHRONOLOGICAL UPDATE LOG:                                        */
+ /* DATE:    REASON:  DRVR:   DESCRIPTION:                      PGMR:*/
+ /* -------- -------- ---- ------------------------------------- --- */
+ /* 09/25/97 S97133   7NSP INITIAL PROMOTE                       LBS */
+ /* 03/19/98 S98016   8NSM ADD STD INPUT UNIQUENESS NUMBER       MKP */
+ /* 03/29/99 S97140   8NSN BLCKHL LOOKUP VALUES FOR PROB DETERM  SFM */
+ /* 09/16/99 S99093   9NSA add waybill and up size to 200        MKP */
+ /* 07/16/04 SR040025 4NSA add IPONUM                            DLP */
+ /* 12/01/04 SR040017 5NSM add customer address (new) (Canada)   LBS */
+ /*                        and NCONTACT from aeqsflag copy           */
+ /* 08/30/06 SR060032 6NSN add CHIS codes                        LBS */
+ /*                                                                  */
+ /********************************************************************/
+  3 UMISCELL,
+    5 TACTCOMT       CHAR(60), /* ACTION PLAN COMMENTS WHY  001- 060 */
+                               /* PLAN FAILED                        */
+    5 IUNIQUE        CHAR(15), /* STD IN UNIQUENESS NUMBER  061- 075 */
+    5 IECCONUM       CHAR( 7), /* ECCO NUMBER               076- 082 */
+    5 NNSSCUST       CHAR(17), /* CAD CUSTOMER NAME         083- 099 */
+    5 ICUSTNUM       CHAR(07), /* CAD CUSTOMER NUMBER       100- 106 */
+    5 IWAYBILL       CHAR(16), /* PART WAYBILL NUMBER       107- 122 */
+    5 IPONUM         CHAR(25), /* PURCHASE ORDER NUMBER     123- 147 */
+    5 TCUSTADR       CHAR(18), /* CUSTOMER ADDRESS          148- 165 */
+    5 NCONTACT       CHAR(22), /* CUST CONTACT NAME (CAD)   166- 187 */
+    5 CCHIS(5)       CHAR(02), /* CHIS contract codes       188- 197 */
+                               /* from CEDB or NSS CAD DB            */
+                               /* Special Entitlement codes          */
+    5 SPAD01         CHAR(03)  /* PADDING                   198- 200 */
+ /*------------------------------------------------------------------*/
+ /*                     END  AEQMISC                                 */
+ /*------------------------------------------------------------------*/
+
